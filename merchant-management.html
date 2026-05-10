@@ -1,0 +1,2164 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>商户管理 - FuturePayCA</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:-apple-system,BlinkMacSystemFont,'PingFang SC',sans-serif; background:#f5f6fa; color:#1a1a2e; font-size:13px; display:flex; height:100vh; overflow:hidden; }
+
+/* Sidebar */
+.sidebar { width:200px; background:#fff; border-right:1px solid #e8eaef; display:flex; flex-direction:column; flex-shrink:0; overflow-y:auto; }
+.sidebar-logo { padding:16px 18px; border-bottom:1px solid #e8eaef; display:flex; align-items:center; gap:8px; }
+.sidebar-logo-mark { width:22px; height:22px; background:#4f8ef7; border-radius:5px; display:flex; align-items:center; justify-content:center; color:#fff; font-size:11px; font-weight:700; }
+.sidebar-logo-text { font-weight:700; font-size:14px; color:#1a1a2e; }
+.sidebar-logo-text b { color:#4f8ef7; }
+.sidebar-section { padding:14px 16px 4px; font-size:11px; color:#b0b4c4; letter-spacing:.5px; font-weight:500; }
+.sidebar-item { padding:7px 16px; cursor:pointer; display:flex; align-items:center; gap:8px; border-radius:6px; margin:1px 8px; font-size:13px; color:#6b7280; }
+.sidebar-item:hover { background:#f5f6fa; color:#1a1a2e; }
+.sidebar-item.active { background:#eff4ff; color:#4f8ef7; font-weight:600; }
+.sidebar-item .icon { width:16px; height:16px; flex-shrink:0; opacity:.7; }
+.sidebar-item.active .icon { opacity:1; }
+
+/* Main */
+.main { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+.topbar { height:52px; background:#fff; border-bottom:1px solid #e8eaef; display:flex; align-items:center; padding:0 24px; flex-shrink:0; }
+.breadcrumb { display:flex; align-items:center; gap:6px; font-size:13px; color:#6b7280; }
+.breadcrumb a { color:#6b7280; text-decoration:none; cursor:pointer; }
+.breadcrumb a:hover { color:#4f8ef7; }
+.breadcrumb .sep { color:#d1d5db; }
+.breadcrumb .current { color:#1a1a2e; }
+.topbar-right { margin-left:auto; display:flex; align-items:center; gap:14px; }
+.topbar-icon { width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer; color:#6b7280; font-size:16px; }
+.topbar-icon:hover { background:#f5f6fa; }
+.avatar { width:32px; height:32px; border-radius:50%; background:#4f8ef7; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:12px; }
+
+/* Content */
+.content { flex:1; overflow-y:auto; padding:24px; display:flex; flex-direction:column; gap:0; }
+
+/* Merchant header */
+.back-link { color:#4f8ef7; font-size:13px; cursor:pointer; text-decoration:none; margin-bottom:14px; display:inline-flex; align-items:center; gap:4px; }
+.merchant-title-row { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:6px; }
+.merchant-title { font-size:20px; font-weight:700; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.crr-tag { padding:3px 10px; border-radius:4px; font-size:12px; font-weight:700; background:#fff3e0; color:#e65100; border:1px solid #ffcc80; }
+.crr-score { font-weight:700; }
+.pending-tag { padding:3px 10px; border-radius:4px; font-size:12px; font-weight:700; background:#fff3e0; color:#e65100; border:1px solid #ffcc80; }
+.merchant-meta { font-size:12px; color:#6b7280; margin-bottom:16px; }
+.header-btns { display:flex; gap:8px; }
+.btn { padding:7px 16px; border-radius:6px; border:none; cursor:pointer; font-size:13px; font-weight:500; }
+.btn-sm { padding:5px 12px; font-size:12px; border-radius:5px; border:none; cursor:pointer; font-weight:500; }
+.btn-primary { background:#4f8ef7; color:#fff; }
+.btn-primary:hover { background:#3a7be0; }
+.btn-danger { background:#e53935; color:#fff; }
+.btn-danger:hover { background:#c62828; }
+.btn-outline { background:#fff; border:1px solid #d1d5db; color:#374151; }
+.btn-outline:hover { background:#f9fafb; }
+.btn-warning { background:#ff9800; color:#fff; }
+.btn-warning:hover { background:#e65100; }
+
+/* KPI cards */
+.kpi-row { display:grid; grid-template-columns:repeat(5,1fr); gap:10px; margin-bottom:20px; }
+.kpi-card { background:#fff; border:1px solid #e8eaef; border-radius:8px; padding:14px 16px; cursor:default; }
+.kpi-label { font-size:11px; color:#9ca3af; margin-bottom:6px; }
+.kpi-value { font-size:20px; font-weight:700; color:#1a1a2e; }
+.kpi-sub { font-size:11px; color:#9ca3af; margin-top:2px; }
+
+/* Tabs */
+.tab-bar { display:flex; border-bottom:2px solid #e8eaef; margin-bottom:0; background:#fff; border-radius:8px 8px 0 0; border:1px solid #e8eaef; border-bottom:none; }
+.tab { padding:11px 18px; cursor:pointer; font-size:13px; color:#6b7280; border-bottom:2px solid transparent; margin-bottom:-1px; white-space:nowrap; }
+.tab:hover { color:#1a1a2e; }
+.tab.active { color:#4f8ef7; border-bottom-color:#4f8ef7; font-weight:600; }
+.tab-body { background:#fff; border:1px solid #e8eaef; border-top:none; border-radius:0 0 8px 8px; padding:24px; min-height:400px; }
+
+/* Common */
+.badge { padding:2px 8px; border-radius:4px; font-size:11px; font-weight:600; }
+.badge-success { background:#ecfdf5; color:#065f46; }
+.badge-warning { background:#fffbeb; color:#92400e; }
+.badge-danger { background:#fef2f2; color:#991b1b; }
+.badge-blue { background:#eff6ff; color:#1d4ed8; }
+.badge-gray { background:#f3f4f6; color:#374151; }
+.badge-purple { background:#f5f3ff; color:#5b21b6; }
+
+.card { background:#fff; border-radius:8px; border:1px solid #e8eaef; padding:18px; }
+.card-title { font-size:13px; font-weight:600; color:#1a1a2e; margin-bottom:14px; }
+.section-title { font-size:13px; font-weight:700; color:#1a1a2e; margin-bottom:12px; padding-bottom:8px; border-bottom:1px solid #f3f4f6; }
+.two-col { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+.three-col { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; }
+.info-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.info-item label { font-size:11px; color:#9ca3af; display:block; margin-bottom:3px; }
+.info-item span { font-size:13px; color:#1a1a2e; font-weight:500; }
+
+/* Account status tab */
+.status-hero { display:flex; align-items:center; justify-content:space-between; padding:20px 24px; background:#f9fafb; border-radius:8px; border:1px solid #e8eaef; margin-bottom:16px; }
+.status-active-text { font-size:24px; font-weight:700; color:#059669; }
+.status-suspended-text { font-size:24px; font-weight:700; color:#dc2626; }
+.status-restricted-text { font-size:24px; font-weight:700; color:#d97706; }
+.status-meta { font-size:12px; color:#6b7280; margin-top:4px; }
+.status-detail-row { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:20px; }
+.status-detail-item label { font-size:11px; color:#9ca3af; display:block; margin-bottom:4px; }
+.status-detail-item span { font-size:13px; font-weight:600; color:#1a1a2e; }
+
+/* Control toggles (READ-ONLY) */
+.controls-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.control-item { display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border:1px solid #e8eaef; border-radius:8px; background:#fafbfc; }
+.control-item.on { background:#eff6ff; border-color:#bfdbfe; }
+.control-label { font-size:13px; font-weight:600; color:#1a1a2e; }
+.control-desc { font-size:11px; color:#9ca3af; margin-top:2px; }
+/* Read-only toggle display */
+.toggle-display { width:40px; height:22px; border-radius:11px; position:relative; flex-shrink:0; }
+.toggle-display.off { background:#d1d5db; }
+.toggle-display.on { background:#4f8ef7; }
+.toggle-display::after { content:''; position:absolute; top:3px; width:16px; height:16px; border-radius:50%; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.2); transition:left .2s; }
+.toggle-display.off::after { left:3px; }
+.toggle-display.on::after { left:21px; }
+
+/* Config tab */
+.config-section { margin-bottom:28px; }
+.config-section:last-child { margin-bottom:0; }
+.config-table { width:100%; border-collapse:collapse; }
+.config-table thead th { font-size:11px; color:#9ca3af; font-weight:500; padding:8px 12px; text-align:left; border-bottom:1px solid #f3f4f6; background:#fafbfc; }
+/* KYW threshold hints */
+.kyw-hint { font-size:11px; margin-top:3px; }
+.kyw-ok   { color:#059669; }
+.kyw-warn { color:#d97706; }
+.config-table tbody td { padding:10px 12px; border-bottom:1px solid #f9fafb; font-size:13px; vertical-align:middle; }
+.config-table tbody tr:last-child td { border-bottom:none; }
+.config-table tbody tr:hover td { background:#fafbfc; }
+.config-input { border:1px solid #e8eaef; border-radius:5px; padding:5px 9px; font-size:13px; font-family:inherit; outline:none; width:100%; }
+.config-input:focus { border-color:#4f8ef7; }
+.config-select { border:1px solid #e8eaef; border-radius:5px; padding:5px 9px; font-size:13px; font-family:inherit; background:#fff; outline:none; cursor:pointer; width:100%; }
+.prefix { display:flex; align-items:center; border:1px solid #e8eaef; border-radius:5px; overflow:hidden; }
+.prefix span { padding:5px 8px; background:#f5f6fa; color:#6b7280; font-size:12px; border-right:1px solid #e8eaef; white-space:nowrap; }
+.prefix input { border:none; padding:5px 8px; font-size:13px; font-family:inherit; outline:none; flex:1; min-width:0; }
+.suffix { display:flex; align-items:center; border:1px solid #e8eaef; border-radius:5px; overflow:hidden; }
+.suffix input { border:none; padding:5px 8px; font-size:13px; font-family:inherit; outline:none; flex:1; min-width:0; }
+.suffix span { padding:5px 8px; background:#f5f6fa; color:#6b7280; font-size:12px; border-left:1px solid #e8eaef; white-space:nowrap; }
+.tier-tag { padding:2px 8px; border-radius:4px; font-size:11px; font-weight:600; }
+.tier-standard { background:#eff6ff; color:#1d4ed8; }
+.tier-custom { background:#fef3c7; color:#92400e; }
+.tier-inherited { background:#f3f4f6; color:#374151; }
+
+/* Modal */
+.modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.4); z-index:100; align-items:center; justify-content:center; }
+.modal-overlay.open { display:flex; }
+.modal { background:#fff; border-radius:12px; width:540px; max-height:90vh; overflow-y:auto; padding:28px; box-shadow:0 8px 40px rgba(0,0,0,.15); }
+.modal-title { font-size:16px; font-weight:700; margin-bottom:4px; }
+.modal-desc { font-size:12px; color:#6b7280; margin-bottom:20px; }
+.modal-footer { display:flex; justify-content:flex-end; gap:8px; margin-top:20px; padding-top:16px; border-top:1px solid #f3f4f6; }
+.form-group { margin-bottom:14px; }
+.form-group label { font-size:12px; font-weight:600; color:#374151; display:block; margin-bottom:5px; }
+.form-group label .req { color:#e53935; }
+.form-select { width:100%; border:1px solid #e8eaef; border-radius:6px; padding:8px 10px; font-size:13px; font-family:inherit; background:#fff; outline:none; cursor:pointer; }
+.form-textarea { width:100%; border:1px solid #e8eaef; border-radius:6px; padding:8px 10px; font-size:13px; font-family:inherit; resize:vertical; min-height:72px; outline:none; }
+.form-textarea:focus, .form-select:focus { border-color:#4f8ef7; }
+
+/* Status hint */
+.status-hint { padding:10px 14px; border-radius:7px; font-size:12px; margin-bottom:14px; border:1px solid; }
+
+/* Toggle switch for modal */
+.tog { position:relative; display:inline-block; width:42px; height:24px; flex-shrink:0; cursor:pointer; }
+.tog input { opacity:0; width:0; height:0; position:absolute; }
+.tog-track { position:absolute; inset:0; border-radius:12px; background:#d1d5db; transition:background .2s; }
+.tog input:checked + .tog-track { background:#4f8ef7; }
+.tog-thumb { position:absolute; top:3px; left:3px; width:18px; height:18px; border-radius:50%; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.2); transition:transform .2s; }
+.tog input:checked + .tog-track .tog-thumb { transform:translateX(18px); }
+.tog input:disabled + .tog-track { opacity:.4; cursor:not-allowed; }
+.modal-control-row { display:flex; align-items:center; justify-content:space-between; padding:10px 14px; border:1px solid #e8eaef; border-radius:7px; margin-bottom:6px; }
+.modal-control-row.on { background:#eff6ff; border-color:#bfdbfe; }
+</style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<div class="sidebar">
+  <div class="sidebar-logo">
+    <div class="sidebar-logo-mark">F</div>
+    <div class="sidebar-logo-text">Future Pay<b>CA</b></div>
+  </div>
+
+  <div class="sidebar-section">权限管理</div>
+  <div class="sidebar-item">
+    <svg class="icon" viewBox="0 0 16 16" fill="currentColor"><rect x="2" y="2" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M5 8h6M5 5h6M5 11h4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+    权限管理
+  </div>
+
+  <div class="sidebar-section">合规</div>
+  <div class="sidebar-item">
+    <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="6" r="3"/><path d="M2 14c0-3.3 2.7-6 6-6s6 2.7 6 6"/></svg>
+    KYC审核
+  </div>
+  <div class="sidebar-item">
+    <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 12V4l6-2 6 2v8l-6 2-6-2z"/></svg>
+    交易监控
+  </div>
+  <div class="sidebar-item">
+    <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 5v3l2 2"/></svg>
+    持续尽调
+  </div>
+
+  <div class="sidebar-section">审批</div>
+  <div class="sidebar-item">
+    <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="2" width="10" height="12" rx="1"/><path d="M5 6h6M5 9h4"/></svg>
+    订单审核
+  </div>
+  <div class="sidebar-item">
+    <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4h12v8a1 1 0 01-1 1H3a1 1 0 01-1-1V4z"/><path d="M2 4l6-2 6 2"/></svg>
+    STR报告
+  </div>
+  <div class="sidebar-item">
+    <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 12V4l2-2h8l2 2v8l-2 2H4l-2-2z"/></svg>
+    LCTR报告
+  </div>
+
+  <div class="sidebar-section">商户</div>
+  <div class="sidebar-item active">
+    <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="7" width="12" height="7" rx="1"/><path d="M5 7V5a3 3 0 016 0v2"/></svg>
+    商户管理
+  </div>
+
+  <div class="sidebar-section">交易</div>
+  <div class="sidebar-item">
+    <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="10" rx="1"/><path d="M2 6h12"/></svg>
+    订单管理
+  </div>
+
+  <div class="sidebar-section">配置</div>
+  <div class="sidebar-item">
+    <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4h12M2 8h8M2 12h5"/></svg>
+    费率配置
+  </div>
+  <div class="sidebar-item">
+    <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="5" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/><rect x="9" y="9" width="5" height="5" rx="1"/></svg>
+    阈值配置
+  </div>
+  <div class="sidebar-item">
+    <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 12L7 4l4 8"/><path d="M13 4v8"/></svg>
+    渠道管理
+  </div>
+
+  <div class="sidebar-section">财务</div>
+  <div class="sidebar-item">
+    <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 3h12v10H2z"/><path d="M5 6h6M5 9h4"/></svg>
+    日记账
+  </div>
+</div>
+
+<!-- Main -->
+<div class="main">
+  <div class="topbar">
+    <div class="breadcrumb">
+      <a onclick="history.back()">商户</a>
+      <span class="sep">›</span>
+      <span class="current">商户管理</span>
+    </div>
+    <div class="topbar-right">
+      <div class="topbar-icon">🔔</div>
+      <div class="topbar-icon">⚙️</div>
+      <div class="avatar">JS</div>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- Back -->
+    <a class="back-link" onclick="history.back()">← 返回商户管理</a>
+
+    <!-- Merchant Title -->
+    <div class="merchant-title-row">
+      <div>
+        <div class="merchant-title">
+          HighRisk Corp Limited
+          <span class="crr-tag">CRR 高风险 <span class="crr-score">78</span></span>
+          <span class="pending-tag">待审核</span>
+        </div>
+        <div class="merchant-meta" style="margin-top:6px;margin-bottom:0;">
+          11790908780098888 &nbsp;·&nbsp; 注册于加拿大大略省 &nbsp;·&nbsp; 入网时间 2023-09-15 &nbsp;·&nbsp; 合规专员 Jessica S.
+        </div>
+      </div>
+      <div class="header-btns">
+        <button class="btn btn-primary" onclick="alert('打开CRR更新流程')">更新CRR</button>
+        <button class="btn btn-danger" onclick="openStatusModal()">冻结商户</button>
+      </div>
+    </div>
+
+    <!-- KPI Row -->
+    <div class="kpi-row" style="margin-top:16px;">
+      <div class="kpi-card">
+        <div class="kpi-label">本月充值总数</div>
+        <div class="kpi-value" style="color:#dc2626;">$312k</div>
+        <div class="kpi-sub">CAD · 月环比 +47%</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">历史 STR 申报</div>
+        <div class="kpi-value" style="color:#dc2626;">2</div>
+        <div class="kpi-sub">首次 2025-09</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">EDD 历史</div>
+        <div class="kpi-value" style="color:#d97706;">1</div>
+        <div class="kpi-sub">进行中</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">升级案件（合规）</div>
+        <div class="kpi-value" style="color:#7c3aed;">3</div>
+        <div class="kpi-sub">1个待处理</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">注册钱包数</div>
+        <div class="kpi-value">6</div>
+        <div class="kpi-sub" style="color:#dc2626;">2个高风险</div>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tab-bar">
+      <div class="tab" onclick="switchTab(this,'tab-basic')">基本信息</div>
+      <div class="tab" onclick="switchTab(this,'tab-txn')">交易记录</div>
+      <div class="tab active" onclick="switchTab(this,'tab-config')">配置</div>
+      <div class="tab" onclick="switchTab(this,'tab-wallet')">提币地址</div>
+      <div class="tab" onclick="switchTab(this,'tab-log')">活动日志</div>
+      <div class="tab" onclick="switchTab(this,'tab-status')">账户状态</div>
+    </div>
+
+    <!-- ===== TAB: 基本信息 ===== -->
+    <div class="tab-body" id="tab-basic" style="display:none;">
+      <div class="two-col">
+        <div>
+          <div class="section-title">企业信息</div>
+          <div class="info-grid">
+            <div class="info-item"><label>法定名称</label><span>HighRisk Corp Limited</span></div>
+            <div class="info-item"><label>经营名称</label><span>HighRisk Corp</span></div>
+            <div class="info-item"><label>注册号</label><span>ON-7721044</span></div>
+            <div class="info-item"><label>FINTRAC注册</label><span>M23481900</span></div>
+            <div class="info-item"><label>注册省份</label><span>安大略省</span></div>
+            <div class="info-item"><label>业务类型</label><span>加密货币经纪</span></div>
+            <div class="info-item"><label>主要联系人</label><span>David Wang</span></div>
+            <div class="info-item"><label>联系邮箱</label><span>ops@highriskcorp.ca</span></div>
+          </div>
+        </div>
+        <div>
+          <div class="section-title">合规信息</div>
+          <div class="info-grid">
+            <div class="info-item"><label>KYC状态</label><span class="badge badge-success">已验证</span></div>
+            <div class="info-item"><label>KYC到期</label><span>2027-01-23</span></div>
+            <div class="info-item"><label>当前CRR</label><span class="badge badge-danger">高风险 · 78</span></div>
+            <div class="info-item"><label>CRR上次复核</label><span style="color:#dc2626;">2025-09-12（已逾期）</span></div>
+            <div class="info-item"><label>账户状态</label><span class="badge badge-success">激活</span></div>
+            <div class="info-item"><label>入网时间</label><span>2023-09-15</span></div>
+            <div class="info-item"><label>合规专员</label><span>Jessica S.</span></div>
+            <div class="info-item"><label>合规主管</label><span>Lisa M.</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== TAB: 交易记录 ===== -->
+    <div class="tab-body" id="tab-txn" style="display:none;">
+      <div style="color:#6b7280;font-size:13px;text-align:center;padding:40px 0;">交易记录列表（此处展示历史订单）</div>
+    </div>
+
+    <!-- ===== TAB: 配置 ===== -->
+    <div class="tab-body" id="tab-config">
+
+      <!-- Section 1: 充值提现手续费 -->
+      <div class="config-section">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <div>
+            <div class="section-title" style="margin-bottom:2px;">充值 / 提现手续费</div>
+            <div style="font-size:11px;color:#9ca3af;">商户级别费率覆盖全局默认费率；留空则继承全局配置</div>
+          </div>
+          <button class="btn-sm btn-primary" onclick="alert('保存手续费配置')">保存费率</button>
+        </div>
+
+        <table class="config-table" style="border:1px solid #e8eaef;border-radius:8px;overflow:hidden;">
+          <thead>
+            <tr>
+              <th>方向</th>
+              <th>链 / 币种</th>
+              <th>费率类型</th>
+              <th>费率</th>
+              <th>最低手续费（CAD）</th>
+              <th>来源</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="badge badge-blue">充值</span></td>
+              <td style="font-weight:600;font-size:12px;">TRON · USDT</td>
+              <td>
+                <select class="config-select" style="width:84px;" onchange="onFeeTypeChange(this)">
+                  <option selected>百分比</option>
+                  <option>固定金额</option>
+                  <option>混合</option>
+                </select>
+              </td>
+              <td>
+                <div class="suffix" style="width:100px;"><input value="0.50" /><span>%</span></div>
+              </td>
+              <td>
+                <div class="prefix" style="width:110px;"><span>$</span><input value="5.00" /></div>
+              </td>
+              <td><span class="tier-tag tier-custom">商户定制</span></td>
+              <td><button class="btn-sm btn-outline" style="color:#dc2626;border-color:#fca5a5;" onclick="this.closest('tr').remove()">删除</button></td>
+            </tr>
+            <tr>
+              <td><span class="badge badge-warning">提现</span></td>
+              <td style="font-weight:600;font-size:12px;">TRON · USDT</td>
+              <td>
+                <select class="config-select" style="width:84px;">
+                  <option selected>百分比</option>
+                  <option>固定金额</option>
+                  <option>混合</option>
+                </select>
+              </td>
+              <td>
+                <div class="suffix" style="width:100px;"><input value="0.80" /><span>%</span></div>
+              </td>
+              <td>
+                <div class="prefix" style="width:110px;"><span>$</span><input value="8.00" /></div>
+              </td>
+              <td><span class="tier-tag tier-custom">商户定制</span></td>
+              <td><button class="btn-sm btn-outline" style="color:#dc2626;border-color:#fca5a5;" onclick="this.closest('tr').remove()">删除</button></td>
+            </tr>
+            <tr>
+              <td><span class="badge badge-blue">充值</span></td>
+              <td style="font-weight:600;font-size:12px;">ETH · USDC</td>
+              <td>
+                <select class="config-select" style="width:84px;">
+                  <option selected>百分比</option>
+                  <option>固定金额</option>
+                </select>
+              </td>
+              <td style="color:#9ca3af;font-size:12px;">—</td>
+              <td style="color:#9ca3af;font-size:12px;">继承全局</td>
+              <td><span class="tier-tag tier-inherited">继承全局</span></td>
+              <td><button class="btn-sm btn-outline" style="color:#dc2626;border-color:#fca5a5;" onclick="this.closest('tr').remove()">删除</button></td>
+            </tr>
+            <tr>
+              <td><span class="badge badge-warning">提现</span></td>
+              <td style="font-weight:600;font-size:12px;">BTC</td>
+              <td>
+                <select class="config-select" style="width:84px;">
+                  <option selected>百分比</option>
+                  <option>固定金额</option>
+                </select>
+              </td>
+              <td style="color:#9ca3af;font-size:12px;">—</td>
+              <td style="color:#9ca3af;font-size:12px;">继承全局</td>
+              <td><span class="tier-tag tier-inherited">继承全局</span></td>
+              <td><button class="btn-sm btn-outline" style="color:#dc2626;border-color:#fca5a5;" onclick="this.closest('tr').remove()">删除</button></td>
+            </tr>
+          </tbody>
+        </table>
+        <div style="margin-top:8px;padding:10px 12px;background:#f9fafb;border-radius:6px;font-size:11px;color:#6b7280;border:1px solid #e8eaef;">
+          💡 <b>最低手续费说明：</b>当按百分比计算的手续费低于最低值时，以最低值收取。主要用于覆盖区块链 Gas 费及合规处理成本。大额商户请直接修改费率，无需依赖最高封顶。
+        </div>
+        <div style="margin-top:8px;text-align:right;">
+          <button class="btn-sm btn-primary" onclick="openFeeModal()">+ 添加手续费配置</button>
+        </div>
+      </div>
+
+      <!-- Section 2: 阈值配置 -->
+      <div class="config-section">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <div>
+            <div class="section-title" style="margin-bottom:2px;">阈值配置</div>
+            <div style="font-size:11px;color:#9ca3af;">超过阈值的交易将自动进入人工审核队列；制裁与大额现金阈值不可低于监管最低要求</div>
+          </div>
+          <button class="btn-sm btn-primary" onclick="alert('保存阈值配置')">保存配置</button>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+
+          <!-- 充值阈值 -->
+          <div style="grid-column:1/-1;border:1px solid #e8eaef;border-radius:8px;overflow:hidden;">
+            <div style="background:#fafbfc;padding:10px 16px;border-bottom:1px solid #e8eaef;display:flex;align-items:center;justify-content:space-between;">
+              <div>
+                <div style="font-size:12px;font-weight:700;">充值阈值</div>
+                <div style="font-size:11px;color:#9ca3af;margin-top:2px;">超过阈值的交易将自动进入人工审核队列；金额单位 CAD</div>
+              </div>
+              <div style="display:flex;gap:8px;">
+                <button class="btn-sm btn-outline" onclick="alert('添加充值币种配置')">+ 添加币种配置</button>
+                <button class="btn-sm btn-primary" onclick="alert('保存充值阈值配置')">保存配置</button>
+              </div>
+            </div>
+            <table class="config-table" style="width:100%;">
+              <thead>
+                <tr>
+                  <th style="width:120px;">资产</th>
+                  <th>单笔最小</th>
+                  <th>自动审批上限</th>
+                  <th>人工审核阈值</th>
+                  <th>日累计上限</th>
+                  <th>月累计上限</th>
+                  <th style="width:48px;">操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><span style="display:inline-flex;align-items:center;gap:6px;"><span style="width:20px;height:20px;border-radius:50%;background:#16a34a;color:#fff;font-size:10px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">T</span><span style="font-weight:600;">USDT</span></span></td>
+                  <td><div class="prefix" style="width:110px;"><span>$</span><input value="100" /></div></td>
+                  <td><div class="prefix" style="width:110px;"><span>$</span><input value="5,000" /></div></td>
+                  <td><div class="prefix" style="width:110px;"><span>$</span><input value="10,000" /></div></td>
+                  <td><div class="prefix" style="width:110px;"><span>$</span><input value="100,000" /></div></td>
+                  <td><div class="prefix" style="width:120px;"><span>$</span><input value="500,000" /></div></td>
+                  <td><a style="color:#dc2626;font-size:12px;cursor:pointer;font-weight:500;" onclick="this.closest('tr').remove()">删除</a></td>
+                </tr>
+                <tr>
+                  <td><span style="display:inline-flex;align-items:center;gap:6px;"><span style="width:20px;height:20px;border-radius:50%;background:#2563eb;color:#fff;font-size:10px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">$</span><span style="font-weight:600;">USDC</span></span></td>
+                  <td><div class="prefix" style="width:110px;"><span>$</span><input value="100" /></div></td>
+                  <td><div class="prefix" style="width:110px;"><span>$</span><input value="5,000" /></div></td>
+                  <td><div class="prefix" style="width:110px;"><span>$</span><input value="10,000" /></div></td>
+                  <td><div class="prefix" style="width:110px;"><span>$</span><input value="100,000" /></div></td>
+                  <td><div class="prefix" style="width:120px;"><span>$</span><input value="500,000" /></div></td>
+                  <td><a style="color:#dc2626;font-size:12px;cursor:pointer;font-weight:500;" onclick="this.closest('tr').remove()">删除</a></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- 提现阈值 -->
+          <div style="grid-column:1/-1;border:1px solid #e8eaef;border-radius:8px;overflow:hidden;">
+            <div style="background:#fafbfc;padding:10px 16px;border-bottom:1px solid #e8eaef;display:flex;align-items:center;justify-content:space-between;">
+              <div>
+                <div style="font-size:12px;font-weight:700;">提现阈值</div>
+                <div style="font-size:11px;color:#9ca3af;margin-top:2px;">超过阈值的交易将自动进入人工审核队列；制裁与大额现金阈值不可低于监管最低要求</div>
+              </div>
+              <div style="display:flex;gap:8px;">
+                <button class="btn-sm btn-outline" onclick="alert('添加提现币种配置')">+ 添加币种配置</button>
+                <button class="btn-sm btn-primary" onclick="alert('保存提现阈值配置')">保存配置</button>
+              </div>
+            </div>
+            <table class="config-table" style="width:100%;">
+              <thead>
+                <tr>
+                  <th style="width:120px;">资产</th>
+                  <th>单笔最小</th>
+                  <th>自动审批上限</th>
+                  <th>人工审核阈值</th>
+                  <th>日累计上限</th>
+                  <th>月累计上限</th>
+                  <th style="width:48px;">操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><span style="display:inline-flex;align-items:center;gap:6px;"><span style="width:20px;height:20px;border-radius:50%;background:#16a34a;color:#fff;font-size:10px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">T</span><span style="font-weight:600;">USDT</span></span></td>
+                  <td><div class="prefix" style="width:110px;"><span>$</span><input value="50" /></div></td>
+                  <td><div class="prefix" style="width:110px;"><span>$</span><input value="3,000" /></div></td>
+                  <td><div class="prefix" style="width:110px;"><span>$</span><input value="10,000" /></div></td>
+                  <td><div class="prefix" style="width:110px;"><span>$</span><input value="80,000" /></div></td>
+                  <td><div class="prefix" style="width:120px;"><span>$</span><input value="400,000" /></div></td>
+                  <td><a style="color:#dc2626;font-size:12px;cursor:pointer;font-weight:500;" onclick="this.closest('tr').remove()">删除</a></td>
+                </tr>
+                <tr>
+                  <td><span style="display:inline-flex;align-items:center;gap:6px;"><span style="width:20px;height:20px;border-radius:50%;background:#2563eb;color:#fff;font-size:10px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">$</span><span style="font-weight:600;">USDC</span></span></td>
+                  <td><div class="prefix" style="width:110px;"><span>$</span><input value="50" /></div></td>
+                  <td><div class="prefix" style="width:110px;"><span>$</span><input value="3,000" /></div></td>
+                  <td><div class="prefix" style="width:110px;"><span>$</span><input value="10,000" /></div></td>
+                  <td><div class="prefix" style="width:110px;"><span>$</span><input value="80,000" /></div></td>
+                  <td><div class="prefix" style="width:120px;"><span>$</span><input value="400,000" /></div></td>
+                  <td><a style="color:#dc2626;font-size:12px;cursor:pointer;font-weight:500;" onclick="this.closest('tr').remove()">删除</a></td>
+                </tr>
+              </tbody>
+            </table>
+
+            <!-- KYW 钱包级提现阈值配置 -->
+            <div style="border-top:2px solid #e0e7ff;background:linear-gradient(180deg,#f5f3ff 0%,#fafbff 100%);">
+              <div style="padding:14px 16px 10px;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
+                <div>
+                  <div style="font-size:12px;font-weight:700;color:#1a1a2e;display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+                    KYW 钱包级提现阈值
+                    <span style="font-size:10px;font-weight:600;padding:2px 7px;border-radius:10px;background:#ede9fe;color:#5b21b6;">就低原则</span>
+                    <span style="font-size:10px;font-weight:600;padding:2px 7px;border-radius:10px;background:#fef3c7;color:#92400e;">仅提现</span>
+                  </div>
+                  <div style="font-size:11px;color:#9ca3af;margin-bottom:5px;">按链 + 地址维度收紧提现阈值，适用于该地址所有交易 · 有效值 = min(钱包级, 商户级) · 未配置地址自动继承商户级</div>
+                  <div style="font-size:11px;color:#6366f1;display:flex;align-items:center;gap:10px;">
+                    <span>商户级提现参考：日累计 <strong>$80,000</strong> · 月累计 <strong>$400,000</strong></span>
+                  </div>
+                </div>
+                <button class="btn-sm btn-outline" onclick="openKywAddModal()" style="flex-shrink:0;margin-top:2px;">+ 添加地址配置</button>
+              </div>
+
+              <div style="padding:0 16px;">
+                <table class="config-table" style="width:100%;">
+                  <thead>
+                    <tr>
+                      <th style="width:80px;">链</th>
+                      <th>地址</th>
+                      <th style="width:168px;">日累计上限</th>
+                      <th style="width:168px;">月累计上限</th>
+                      <th style="width:48px;">操作</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <!-- Row 1: BSC - within merchant limits -->
+                    <tr>
+                      <td><span style="font-size:11px;font-weight:600;padding:2px 6px;background:#f3f4f6;border-radius:4px;color:#374151;">BSC</span></td>
+                      <td><span style="font-family:monospace;font-size:11px;color:#374151;">0xbc45...f1a3</span></td>
+                      <td>
+                        <div class="prefix" style="width:148px;"><span>$</span><input value="50,000" oninput="checkKywLimit(this,80000,'kyw-d1')"/></div>
+                        <div id="kyw-d1" class="kyw-hint kyw-ok">✓ 实际生效 $50,000</div>
+                      </td>
+                      <td>
+                        <div class="prefix" style="width:148px;"><span>$</span><input value="200,000" oninput="checkKywLimit(this,400000,'kyw-m1')"/></div>
+                        <div id="kyw-m1" class="kyw-hint kyw-ok">✓ 实际生效 $200,000</div>
+                      </td>
+                      <td><a style="color:#dc2626;font-size:12px;cursor:pointer;font-weight:500;" onclick="this.closest('tr').remove()">删除</a></td>
+                    </tr>
+                    <!-- Row 2: TRC-20 - exceeds merchant limits (warning) -->
+                    <tr>
+                      <td><span style="font-size:11px;font-weight:600;padding:2px 6px;background:#f3f4f6;border-radius:4px;color:#374151;">TRC-20</span></td>
+                      <td><span style="font-family:monospace;font-size:11px;color:#374151;">tron...8x7k</span></td>
+                      <td>
+                        <div class="prefix" style="width:148px;"><span>$</span><input value="120,000" oninput="checkKywLimit(this,80000,'kyw-d2')"/></div>
+                        <div id="kyw-d2" class="kyw-hint kyw-warn">⚠ 实际生效 $80,000（受商户约束）</div>
+                      </td>
+                      <td>
+                        <div class="prefix" style="width:148px;"><span>$</span><input value="500,000" oninput="checkKywLimit(this,400000,'kyw-m2')"/></div>
+                        <div id="kyw-m2" class="kyw-hint kyw-warn">⚠ 实际生效 $400,000（受商户约束）</div>
+                      </td>
+                      <td><a style="color:#dc2626;font-size:12px;cursor:pointer;font-weight:500;" onclick="this.closest('tr').remove()">删除</a></td>
+                    </tr>
+                    <!-- Row 3: ERC-20 - within merchant limits -->
+                    <tr>
+                      <td><span style="font-size:11px;font-weight:600;padding:2px 6px;background:#f3f4f6;border-radius:4px;color:#374151;">ERC-20</span></td>
+                      <td><span style="font-family:monospace;font-size:11px;color:#374151;">0xa678...0997</span></td>
+                      <td>
+                        <div class="prefix" style="width:148px;"><span>$</span><input value="30,000" oninput="checkKywLimit(this,80000,'kyw-d3')"/></div>
+                        <div id="kyw-d3" class="kyw-hint kyw-ok">✓ 实际生效 $30,000</div>
+                      </td>
+                      <td>
+                        <div class="prefix" style="width:148px;"><span>$</span><input value="150,000" oninput="checkKywLimit(this,400000,'kyw-m3')"/></div>
+                        <div id="kyw-m3" class="kyw-hint kyw-ok">✓ 实际生效 $150,000</div>
+                      </td>
+                      <td><a style="color:#dc2626;font-size:12px;cursor:pointer;font-weight:500;" onclick="this.closest('tr').remove()">删除</a></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- Unconfigured fallback notice -->
+              <div style="margin:10px 16px 4px;padding:9px 12px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;font-size:11px;color:#1e40af;display:flex;align-items:center;gap:8px;">
+                ℹ <span>其余 <strong>2 个</strong>提现地址未单独配置 → 自动继承商户级阈值（日 <strong>$80,000</strong> · 月 <strong>$400,000</strong>）</span>
+              </div>
+              <div style="padding:10px 16px 14px;display:flex;justify-content:flex-end;">
+                <button class="btn-sm btn-primary" onclick="alert('钱包级阈值已保存')">保存钱包阈值</button>
+              </div>
+            </div>
+
+            <!-- 提现地址用量监控 -->
+            <div style="border-top:1px solid #f3f4f6;">
+              <div style="padding:11px 16px;display:flex;align-items:center;gap:6px;cursor:pointer;color:#4f8ef7;font-size:13px;font-weight:500;user-select:none;" onclick="toggleWalletThresh(this)">
+                查看提现地址用量
+                <svg style="width:14px;height:14px;transition:transform .2s;" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6l4 4 4-4"/></svg>
+              </div>
+              <div id="wallet-thresh-list" style="display:none;padding:0 16px 16px;flex-direction:column;gap:8px;">
+
+                <!-- Wallet 1 - ERC-20, expanded -->
+                <div style="border:1px solid #e8eaef;border-radius:8px;overflow:hidden;">
+                  <div style="padding:12px 16px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;background:#fafbfc;" onclick="toggleWalletItem(this)">
+                    <div style="display:flex;align-items:center;gap:10px;">
+                      <span style="width:32px;height:32px;border-radius:50%;background:#7c3aed;color:#fff;font-size:13px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">Ξ</span>
+                      <div>
+                        <div style="font-size:13px;font-weight:600;color:#1a1a2e;">0xa6789....09977</div>
+                        <div style="font-size:11px;color:#9ca3af;">ERC-20 · USDT</div>
+                      </div>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:10px;">
+                      <span style="font-size:11px;color:#059669;font-weight:600;">正常</span>
+                      <svg class="wallet-chevron-icon" style="width:14px;height:14px;color:#9ca3af;transform:rotate(180deg);transition:transform .2s;" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6l4 4 4-4"/></svg>
+                    </div>
+                  </div>
+                  <div class="wallet-item-body" style="padding:16px;border-top:1px solid #f3f4f6;display:flex;flex-direction:column;gap:12px;">
+                    <!-- 生效阈值 -->
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                      <div style="padding:6px 10px;background:#f9fafb;border:1px solid #f3f4f6;border-radius:6px;font-size:12px;">
+                        <span style="color:#9ca3af;">自动审批上限</span>
+                        <span style="font-weight:600;color:#1a1a2e;margin-left:6px;">$3,000</span>
+                      </div>
+                      <div style="padding:6px 10px;background:#f9fafb;border:1px solid #f3f4f6;border-radius:6px;font-size:12px;">
+                        <span style="color:#9ca3af;">人工审核阈值</span>
+                        <span style="font-weight:600;color:#1a1a2e;margin-left:6px;">$8,000</span>
+                      </div>
+                      <div style="padding:6px 10px;background:#f9fafb;border:1px solid #f3f4f6;border-radius:6px;font-size:12px;">
+                        <span style="color:#9ca3af;">日累计上限</span>
+                        <span style="font-weight:600;color:#1a1a2e;margin-left:6px;">$50,000</span>
+                      </div>
+                      <div style="padding:6px 10px;background:#f9fafb;border:1px solid #f3f4f6;border-radius:6px;font-size:12px;">
+                        <span style="color:#9ca3af;">月累计上限</span>
+                        <span style="font-weight:600;color:#1a1a2e;margin-left:6px;">$200,000</span>
+                      </div>
+                    </div>
+                    <!-- 用量 -->
+                    <div style="display:flex;flex-direction:column;gap:10px;">
+                      <div>
+                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;">
+                          <span style="font-size:12px;color:#6b7280;">今日已用 / 日累计上限</span>
+                          <span style="font-size:13px;font-weight:600;color:#4f8ef7;">3,200 / 50,000 USDT (6.4%)</span>
+                        </div>
+                        <div style="background:#e5e7eb;border-radius:4px;height:7px;overflow:hidden;">
+                          <div style="background:#4f8ef7;height:7px;border-radius:4px;width:6.4%;"></div>
+                        </div>
+                      </div>
+                      <div>
+                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;">
+                          <span style="font-size:12px;color:#6b7280;">本月已用 / 月累计上限</span>
+                          <span style="font-size:13px;font-weight:600;color:#6b7280;">86,400 / 200,000 USDT (43.2%)</span>
+                        </div>
+                        <div style="background:#e5e7eb;border-radius:4px;height:7px;overflow:hidden;">
+                          <div style="background:#9ca3af;height:7px;border-radius:4px;width:43.2%;"></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Wallet 2 - TRC-20, 接近日限额 collapsed -->
+                <div style="border:1px solid #e8eaef;border-radius:8px;overflow:hidden;">
+                  <div style="padding:12px 16px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;background:#fafbfc;" onclick="toggleWalletItem(this)">
+                    <div style="display:flex;align-items:center;gap:10px;">
+                      <span style="width:32px;height:32px;border-radius:50%;background:#ef4444;color:#fff;font-size:13px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">T</span>
+                      <div>
+                        <div style="font-size:13px;font-weight:600;color:#1a1a2e;">txa6789....09977</div>
+                        <div style="font-size:11px;color:#9ca3af;">TRC-20 · USDT</div>
+                      </div>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:10px;">
+                      <span style="font-size:11px;color:#d97706;font-weight:600;">接近日限额</span>
+                      <svg class="wallet-chevron-icon" style="width:14px;height:14px;color:#9ca3af;transition:transform .2s;" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6l4 4 4-4"/></svg>
+                    </div>
+                  </div>
+                  <div class="wallet-item-body" style="display:none;padding:16px;border-top:1px solid #f3f4f6;flex-direction:column;gap:12px;">
+                    <!-- 生效阈值 -->
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                      <div style="padding:6px 10px;background:#f9fafb;border:1px solid #f3f4f6;border-radius:6px;font-size:12px;">
+                        <span style="color:#9ca3af;">自动审批上限</span>
+                        <span style="font-weight:600;color:#1a1a2e;margin-left:6px;">$3,000</span>
+                      </div>
+                      <div style="padding:6px 10px;background:#f9fafb;border:1px solid #f3f4f6;border-radius:6px;font-size:12px;">
+                        <span style="color:#9ca3af;">人工审核阈值</span>
+                        <span style="font-weight:600;color:#1a1a2e;margin-left:6px;">$10,000</span>
+                      </div>
+                      <div style="padding:6px 10px;background:#f9fafb;border:1px solid #f3f4f6;border-radius:6px;font-size:12px;">
+                        <span style="color:#9ca3af;">日累计上限</span>
+                        <span style="font-weight:600;color:#1a1a2e;margin-left:6px;">$80,000</span>
+                      </div>
+                      <div style="padding:6px 10px;background:#f9fafb;border:1px solid #f3f4f6;border-radius:6px;font-size:12px;">
+                        <span style="color:#9ca3af;">月累计上限</span>
+                        <span style="font-weight:600;color:#1a1a2e;margin-left:6px;">$400,000</span>
+                      </div>
+                    </div>
+                    <!-- 用量 -->
+                    <div style="display:flex;flex-direction:column;gap:10px;">
+                      <div>
+                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;">
+                          <span style="font-size:12px;color:#6b7280;">今日已用 / 日累计上限</span>
+                          <span style="font-size:13px;font-weight:600;color:#d97706;">71,200 / 80,000 USDT (89%)</span>
+                        </div>
+                        <div style="background:#e5e7eb;border-radius:4px;height:7px;overflow:hidden;">
+                          <div style="background:#f59e0b;height:7px;border-radius:4px;width:89%;"></div>
+                        </div>
+                      </div>
+                      <div>
+                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;">
+                          <span style="font-size:12px;color:#6b7280;">本月已用 / 月累计上限</span>
+                          <span style="font-size:13px;font-weight:600;color:#6b7280;">218,000 / 400,000 USDT (54.5%)</span>
+                        </div>
+                        <div style="background:#e5e7eb;border-radius:4px;height:7px;overflow:hidden;">
+                          <div style="background:#9ca3af;height:7px;border-radius:4px;width:54.5%;"></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Wallet 3 - BTC, collapsed -->
+                <div style="border:1px solid #e8eaef;border-radius:8px;overflow:hidden;">
+                  <div style="padding:12px 16px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;background:#fafbfc;" onclick="toggleWalletItem(this)">
+                    <div style="display:flex;align-items:center;gap:10px;">
+                      <span style="width:32px;height:32px;border-radius:50%;background:#f59e0b;color:#fff;font-size:13px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">₿</span>
+                      <div>
+                        <div style="font-size:13px;font-weight:600;color:#1a1a2e;">bc1q8f3....7k2p</div>
+                        <div style="font-size:11px;color:#9ca3af;">Bitcoin · BTC</div>
+                      </div>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:10px;">
+                      <span style="font-size:11px;color:#059669;font-weight:600;">正常</span>
+                      <svg class="wallet-chevron-icon" style="width:14px;height:14px;color:#9ca3af;transition:transform .2s;" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6l4 4 4-4"/></svg>
+                    </div>
+                  </div>
+                  <div class="wallet-item-body" style="display:none;padding:16px;border-top:1px solid #f3f4f6;flex-direction:column;gap:12px;">
+                    <!-- 生效阈值 -->
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                      <div style="padding:6px 10px;background:#f9fafb;border:1px solid #f3f4f6;border-radius:6px;font-size:12px;">
+                        <span style="color:#9ca3af;">自动审批上限</span>
+                        <span style="font-weight:600;color:#1a1a2e;margin-left:6px;">$3,000</span>
+                      </div>
+                      <div style="padding:6px 10px;background:#f9fafb;border:1px solid #f3f4f6;border-radius:6px;font-size:12px;">
+                        <span style="color:#9ca3af;">人工审核阈值</span>
+                        <span style="font-weight:600;color:#1a1a2e;margin-left:6px;">$10,000</span>
+                      </div>
+                      <div style="padding:6px 10px;background:#f9fafb;border:1px solid #f3f4f6;border-radius:6px;font-size:12px;">
+                        <span style="color:#9ca3af;">日累计上限</span>
+                        <span style="font-weight:600;color:#1a1a2e;margin-left:6px;">$80,000</span>
+                      </div>
+                      <div style="padding:6px 10px;background:#f9fafb;border:1px solid #f3f4f6;border-radius:6px;font-size:12px;">
+                        <span style="color:#9ca3af;">月累计上限</span>
+                        <span style="font-weight:600;color:#1a1a2e;margin-left:6px;">$400,000</span>
+                      </div>
+                    </div>
+                    <!-- 用量 -->
+                    <div style="display:flex;flex-direction:column;gap:10px;">
+                      <div>
+                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;">
+                          <span style="font-size:12px;color:#6b7280;">今日已用 / 日累计上限</span>
+                          <span style="font-size:13px;font-weight:600;color:#4f8ef7;">0 / 80,000 USDT (0%)</span>
+                        </div>
+                        <div style="background:#e5e7eb;border-radius:4px;height:7px;overflow:hidden;">
+                          <div style="background:#4f8ef7;height:7px;border-radius:4px;width:0%;"></div>
+                        </div>
+                      </div>
+                      <div>
+                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;">
+                          <span style="font-size:12px;color:#6b7280;">本月已用 / 月累计上限</span>
+                          <span style="font-size:13px;font-weight:600;color:#6b7280;">12,300 / 400,000 USDT (3%)</span>
+                        </div>
+                        <div style="background:#e5e7eb;border-radius:4px;height:7px;overflow:hidden;">
+                          <div style="background:#9ca3af;height:7px;border-radius:4px;width:3%;"></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+
+          <!-- 兑换阈值配置（Per-Pair / Per-Crypto / 全局默认） -->
+          <div style="grid-column:1/-1;border:1px solid #e8eaef;border-radius:8px;overflow:hidden;">
+            <div style="background:#fafbfc;padding:10px 16px;border-bottom:1px solid #e8eaef;display:flex;align-items:center;justify-content:space-between;">
+              <div>
+                <div style="font-size:12px;font-weight:700;">兑换阈值配置</div>
+                <div style="font-size:11px;color:#9ca3af;margin-top:2px;">匹配优先级：Per-Pair &gt; Per-Crypto &gt; 全局默认；金额单位 CAD</div>
+              </div>
+              <button class="btn-sm btn-primary" onclick="openExchAddModal()">+ 添加配置</button>
+            </div>
+            <div style="overflow-x:auto;">
+            <table class="config-table" style="width:100%;min-width:900px;">
+              <thead>
+                <tr>
+                  <th style="width:88px;">级别</th>
+                  <th>基础货币</th>
+                  <th>计价币种</th>
+                  <th style="width:74px;"><div>单笔最小</div></th>
+                  <th style="width:84px;"><div>自动审批上限</div><div style="font-size:10px;font-weight:400;color:#b0b4c4;">低于此值免审</div></th>
+                  <th style="width:84px;"><div>人工审核阈值</div><div style="font-size:10px;font-weight:400;color:#b0b4c4;">超过需人工确认</div></th>
+                  <th style="width:80px;"><div>拒绝线</div><div style="font-size:10px;font-weight:400;color:#b0b4c4;">超过直接拒绝</div></th>
+                  <th style="width:84px;"><div>日累计上限</div></th>
+                  <th style="width:84px;"><div>月累计上限</div></th>
+                  <th style="width:48px;">状态</th>
+                  <th style="width:40px;">操作</th>
+                </tr>
+              </thead>
+              <tbody id="exch-thresh-tbody">
+                <tr>
+                  <td><span style="padding:3px 8px;border-radius:4px;font-size:11px;font-weight:600;background:#eff6ff;color:#1d4ed8;white-space:nowrap;">Per-Pair</span></td>
+                  <td><span style="display:inline-flex;align-items:center;gap:5px;"><span style="width:18px;height:18px;border-radius:50%;background:#dc2626;color:#fff;font-size:9px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">C</span>CAD</span></td>
+                  <td><span style="display:inline-flex;align-items:center;gap:5px;"><span style="width:18px;height:18px;border-radius:50%;background:#16a34a;color:#fff;font-size:9px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">T</span>USDT</span></td>
+                  <td style="font-weight:600;font-size:12px;">100</td>
+                  <td style="font-weight:600;font-size:12px;">5,000</td>
+                  <td style="font-weight:600;font-size:12px;">20,000</td>
+                  <td style="font-weight:600;font-size:12px;color:#dc2626;">50,000</td>
+                  <td style="font-weight:600;font-size:12px;">200,000</td>
+                  <td style="font-weight:600;font-size:12px;">1,000,000</td>
+                  <td><label class="tog"><input type="checkbox" checked /><span class="tog-track"><span class="tog-thumb"></span></span></label></td>
+                  <td><a style="color:#4f8ef7;font-size:12px;cursor:pointer;font-weight:500;" onclick="openExchEditModal(this)">编辑</a></td>
+                </tr>
+                <tr>
+                  <td><span style="padding:3px 8px;border-radius:4px;font-size:11px;font-weight:600;background:#ecfdf5;color:#065f46;white-space:nowrap;">Per-Crypto</span></td>
+                  <td style="color:#9ca3af;">—</td>
+                  <td><span style="display:inline-flex;align-items:center;gap:5px;"><span style="width:18px;height:18px;border-radius:50%;background:#f59e0b;color:#fff;font-size:9px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">₿</span>BTC</span></td>
+                  <td style="font-weight:600;font-size:12px;">500</td>
+                  <td style="font-weight:600;font-size:12px;">10,000</td>
+                  <td style="font-weight:600;font-size:12px;">50,000</td>
+                  <td style="font-weight:600;font-size:12px;color:#dc2626;">100,000</td>
+                  <td style="font-weight:600;font-size:12px;">300,000</td>
+                  <td style="font-weight:600;font-size:12px;">1,500,000</td>
+                  <td><label class="tog"><input type="checkbox" checked /><span class="tog-track"><span class="tog-thumb"></span></span></label></td>
+                  <td><a style="color:#4f8ef7;font-size:12px;cursor:pointer;font-weight:500;" onclick="openExchEditModal(this)">编辑</a></td>
+                </tr>
+                <tr>
+                  <td><span style="padding:3px 8px;border-radius:4px;font-size:11px;font-weight:600;background:#f3f4f6;color:#374151;white-space:nowrap;">全局默认</span></td>
+                  <td style="color:#9ca3af;">—</td>
+                  <td style="color:#9ca3af;">—</td>
+                  <td style="font-weight:600;font-size:12px;">100</td>
+                  <td style="font-weight:600;font-size:12px;">3,000</td>
+                  <td style="font-weight:600;font-size:12px;">10,000</td>
+                  <td style="font-weight:600;font-size:12px;color:#dc2626;">30,000</td>
+                  <td style="font-weight:600;font-size:12px;">100,000</td>
+                  <td style="font-weight:600;font-size:12px;">500,000</td>
+                  <td><label class="tog"><input type="checkbox" checked /><span class="tog-track"><span class="tog-thumb"></span></span></label></td>
+                  <td><a style="color:#4f8ef7;font-size:12px;cursor:pointer;font-weight:500;" onclick="openExchEditModal(this)">编辑</a></td>
+                </tr>
+              </tbody>
+            </table>
+            </div>
+          </div>
+
+          <!-- LCTR 大额现金申报阈值 -->
+          <div style="border:1px solid #e8eaef;border-radius:8px;overflow:hidden;">
+            <div style="background:#fafbfc;padding:10px 14px;font-size:12px;font-weight:700;border-bottom:1px solid #e8eaef;">
+              LCTR 大额现金申报阈值
+              <span style="margin-left:6px;font-size:10px;color:#9ca3af;font-weight:400;">监管要求：不可低于 $10,000</span>
+            </div>
+            <div style="padding:14px;display:flex;flex-direction:column;gap:10px;">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+                <div>
+                  <div style="font-size:12px;font-weight:600;">单笔申报阈值</div>
+                  <div style="font-size:11px;color:#9ca3af;">超过须向FINTRAC申报</div>
+                </div>
+                <div class="prefix" style="width:130px;"><span>$</span><input value="10,000" style="color:#dc2626;font-weight:600;" /></div>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+                <div>
+                  <div style="font-size:12px;font-weight:600;">24小时累计申报阈值</div>
+                  <div style="font-size:11px;color:#9ca3af;">多笔合计触发申报</div>
+                </div>
+                <div class="prefix" style="width:130px;"><span>$</span><input value="10,000" style="color:#dc2626;font-weight:600;" /></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- STR 预警阈值 -->
+          <div style="border:1px solid #e8eaef;border-radius:8px;overflow:hidden;">
+            <div style="background:#fafbfc;padding:10px 14px;font-size:12px;font-weight:700;border-bottom:1px solid #e8eaef;">STR 预警阈值（触发合规升级）</div>
+            <div style="padding:14px;display:flex;flex-direction:column;gap:10px;">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+                <div>
+                  <div style="font-size:12px;font-weight:600;">混币器暴露上限</div>
+                  <div style="font-size:11px;color:#9ca3af;">超过自动升级至合规</div>
+                </div>
+                <div class="suffix" style="width:110px;"><input value="25" style="color:#dc2626;font-weight:600;" /><span>%</span></div>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+                <div>
+                  <div style="font-size:12px;font-weight:600;">KYW风险评分上限</div>
+                  <div style="font-size:11px;color:#9ca3af;">超过进入人工审核</div>
+                </div>
+                <div class="suffix" style="width:110px;"><input value="60" /><span>分</span></div>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+                <div>
+                  <div style="font-size:12px;font-weight:600;">30天累计触发STR预警</div>
+                  <div style="font-size:11px;color:#9ca3af;">同一商户累计金额</div>
+                </div>
+                <div class="prefix" style="width:130px;"><span>$</span><input value="50,000" /></div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Section 3: 兑换点差 -->
+      <div class="config-section">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <div>
+            <div class="section-title" style="margin-bottom:2px;">兑换点差（Spread）</div>
+            <div style="font-size:11px;color:#9ca3af;">商户实际兑换价格 = 市场中间价 ± 点差；点差收入为平台利润来源</div>
+          </div>
+          <button class="btn-sm btn-primary" onclick="alert('保存点差配置')">保存点差</button>
+        </div>
+
+        <table class="config-table" style="border:1px solid #e8eaef;border-radius:8px;overflow:hidden;">
+          <thead>
+            <tr>
+              <th>交易对</th>
+              <th>全局点差</th>
+              <th>商户调整（bps）</th>
+              <th>实际点差</th>
+              <th>最低点差保护</th>
+              <th>状态</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="font-weight:600;">USDT / CAD</td>
+              <td style="color:#6b7280;">50 bps</td>
+              <td><div class="suffix"><input value="+20" style="width:50px;" oninput="recalcRow(this,50)" /><span>bps</span></div></td>
+              <td style="font-weight:700;color:#059669;" class="actual-cell">70 bps (0.70%)</td>
+              <td><div class="suffix"><input value="30" style="width:50px;" /><span>bps</span></div></td>
+              <td><span class="badge badge-success">启用</span></td>
+              <td><button class="btn-sm btn-outline" style="color:#dc2626;border-color:#fca5a5;" onclick="this.closest('tr').remove()">删除</button></td>
+            </tr>
+            <tr>
+              <td style="font-weight:600;">BTC / CAD</td>
+              <td style="color:#6b7280;">80 bps</td>
+              <td><div class="suffix"><input value="0" style="width:50px;color:#9ca3af;" oninput="recalcRow(this,80)" /><span>bps</span></div></td>
+              <td style="color:#6b7280;" class="actual-cell">80 bps (0.80%)</td>
+              <td><div class="suffix"><input value="50" style="width:50px;" /><span>bps</span></div></td>
+              <td><span class="badge badge-success">启用</span></td>
+              <td><button class="btn-sm btn-outline" style="color:#dc2626;border-color:#fca5a5;" onclick="this.closest('tr').remove()">删除</button></td>
+            </tr>
+            <tr>
+              <td style="font-weight:600;">ETH / CAD</td>
+              <td style="color:#6b7280;">70 bps</td>
+              <td><div class="suffix"><input value="-10" style="width:50px;color:#059669;" oninput="recalcRow(this,70)" /><span>bps</span></div></td>
+              <td style="font-weight:700;color:#d97706;" class="actual-cell">60 bps (0.60%)</td>
+              <td><div class="suffix"><input value="30" style="width:50px;" /><span>bps</span></div></td>
+              <td><span class="badge badge-success">启用</span></td>
+              <td><button class="btn-sm btn-outline" style="color:#dc2626;border-color:#fca5a5;" onclick="this.closest('tr').remove()">删除</button></td>
+            </tr>
+            <tr>
+              <td style="font-weight:600;">USDC / CAD</td>
+              <td style="color:#6b7280;">50 bps</td>
+              <td><div class="suffix"><input value="0" style="width:50px;color:#9ca3af;" oninput="recalcRow(this,50)" /><span>bps</span></div></td>
+              <td style="color:#9ca3af;font-size:12px;" class="actual-cell">继承全局</td>
+              <td style="color:#9ca3af;font-size:12px;">继承全局</td>
+              <td><span class="badge badge-gray">继承全局</span></td>
+              <td><button class="btn-sm btn-outline" style="color:#dc2626;border-color:#fca5a5;" onclick="this.closest('tr').remove()">删除</button></td>
+            </tr>
+          </tbody>
+        </table>
+        <div style="margin-top:8px;display:flex;align-items:center;justify-content:space-between;">
+          <div style="font-size:11px;color:#9ca3af;">1 bps = 0.01%&nbsp;&nbsp;·&nbsp;&nbsp;正数表示在全局点差基础上加价，负数表示让利</div>
+          <button class="btn-sm btn-primary" onclick="openSpreadModal()">+ 添加交易对</button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ===== TAB: 提币地址 ===== -->
+    <div class="tab-body" id="tab-wallet" style="display:none;">
+      <div style="color:#6b7280;font-size:13px;text-align:center;padding:40px 0;">商户注册的提现目标地址列表</div>
+    </div>
+
+    <!-- ===== TAB: 活动日志 ===== -->
+    <div class="tab-body" id="tab-log" style="display:none;">
+      <div style="color:#6b7280;font-size:13px;text-align:center;padding:40px 0;">账户活动及操作变更日志</div>
+    </div>
+
+    <!-- ===== TAB: 账户状态 ===== -->
+    <div class="tab-body" id="tab-status" style="display:none;">
+
+      <!-- Status Hero -->
+      <div class="status-hero">
+        <div>
+          <div class="status-active-text" id="status-label">激活</div>
+          <div class="status-meta" id="status-since">自 2023-09-15 起 · 已持续 497 天</div>
+        </div>
+        <button class="btn btn-warning" onclick="openStatusModal()">更改账户状态</button>
+      </div>
+
+      <!-- Last Change -->
+      <div class="status-detail-row">
+        <div class="status-detail-item">
+          <label>上次变更</label>
+          <span>2024-11-02</span>
+        </div>
+        <div class="status-detail-item">
+          <label>操作人</label>
+          <span>admin@futurepay.com</span>
+        </div>
+        <div class="status-detail-item">
+          <label>原因</label>
+          <span>KYB审核通过，解除临时限制</span>
+        </div>
+      </div>
+
+      <!-- Controls (READ-ONLY) -->
+      <div style="margin-top:4px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <div>
+            <div style="font-size:14px;font-weight:700;">账户管控开关</div>
+            <div style="font-size:11px;color:#9ca3af;margin-top:2px;">开关状态仅供查看，变更请点击「更改账户状态」</div>
+          </div>
+        </div>
+        <div class="controls-grid" id="controls-display">
+          <div class="control-item" id="ctrl-deposit">
+            <div>
+              <div class="control-label">限制充值</div>
+              <div class="control-desc">禁止商户虚拟币充值</div>
+            </div>
+            <div class="toggle-display off" id="td-deposit"></div>
+          </div>
+          <div class="control-item on" id="ctrl-withdraw">
+            <div>
+              <div class="control-label">限制提现</div>
+              <div class="control-desc">禁止商户虚拟币提现</div>
+            </div>
+            <div class="toggle-display on" id="td-withdraw"></div>
+          </div>
+          <div class="control-item" id="ctrl-transfer-in">
+            <div>
+              <div class="control-label">限制资金转入</div>
+              <div class="control-desc">禁止法币从MSO记账转入MSB</div>
+            </div>
+            <div class="toggle-display off" id="td-transfer-in"></div>
+          </div>
+          <div class="control-item on" id="ctrl-transfer-out">
+            <div>
+              <div class="control-label">限制资金转出</div>
+              <div class="control-desc">禁止法币从MSB记账转入MSO</div>
+            </div>
+            <div class="toggle-display on" id="td-transfer-out"></div>
+          </div>
+          <div class="control-item" id="ctrl-partial-freeze">
+            <div>
+              <div class="control-label">部分冻结</div>
+              <div class="control-desc">冻结商户部分资金（指定金额或币种）</div>
+            </div>
+            <div class="toggle-display off" id="td-partial-freeze"></div>
+          </div>
+          <div class="control-item on" id="ctrl-full-freeze">
+            <div>
+              <div class="control-label">资金冻结</div>
+              <div class="control-desc">冻结商户全部资金</div>
+            </div>
+            <div class="toggle-display on" id="td-full-freeze"></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </div><!-- end content -->
+</div><!-- end main -->
+
+<!-- ===== KYW Wallet Threshold Add Modal ===== -->
+<div class="modal-overlay" id="kyw-add-modal">
+  <div class="modal" style="width:500px;">
+    <div class="modal-title">添加钱包级提现阈值</div>
+    <div class="modal-desc">按链 + 地址维度设置提现上限，适用该地址所有交易。就低原则：有效值 = min(钱包级, 商户级)。</div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
+      <div class="form-group" style="margin-bottom:0;">
+        <label>链 <span class="req">*</span></label>
+        <select id="kyw-chain" class="form-input">
+          <option value="">请选择</option>
+          <option value="BSC">BSC (BEP-20)</option>
+          <option value="ERC-20">ERC-20</option>
+          <option value="TRC-20">TRC-20</option>
+          <option value="Bitcoin">Bitcoin</option>
+        </select>
+      </div>
+      <div class="form-group" style="margin-bottom:0;">
+        <label>提现地址 <span class="req">*</span></label>
+        <input id="kyw-addr" class="form-input" placeholder="输入完整链上地址" />
+      </div>
+    </div>
+
+    <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:7px;padding:9px 12px;font-size:11px;color:#1e40af;margin-bottom:14px;">
+      就低原则：钱包级阈值超过商户级时，以商户级为准生效。当前商户提现日上限 <strong>$80,000</strong> · 月上限 <strong>$400,000</strong>。
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
+      <div class="form-group" style="margin-bottom:0;">
+        <label>日累计上限 <span class="req">*</span></label>
+        <div class="prefix"><span>$</span><input id="kyw-daily" placeholder="50,000" oninput="checkKywModalLimit(this,80000,'kyw-modal-hint-d')"/></div>
+        <div id="kyw-modal-hint-d" class="kyw-hint" style="min-height:16px;margin-top:4px;"></div>
+      </div>
+      <div class="form-group" style="margin-bottom:0;">
+        <label>月累计上限 <span class="req">*</span></label>
+        <div class="prefix"><span>$</span><input id="kyw-monthly" placeholder="200,000" oninput="checkKywModalLimit(this,400000,'kyw-modal-hint-m')"/></div>
+        <div id="kyw-modal-hint-m" class="kyw-hint" style="min-height:16px;margin-top:4px;"></div>
+      </div>
+    </div>
+
+    <div class="modal-footer" style="padding:0;border:none;margin-top:4px;">
+      <button class="btn-sm btn-outline" onclick="closeKywAddModal()">取消</button>
+      <button class="btn-sm btn-primary" onclick="saveKywAdd()">确认添加</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Exch Threshold Edit Modal ===== -->
+<div class="modal-overlay" id="exch-edit-modal">
+  <div class="modal" style="width:540px;">
+    <div class="modal-title">编辑兑换阈值</div>
+    <div class="modal-desc">调整限额后即时生效。金额单位 CAD，拒绝线为硬上限，超过直接拒绝交易。</div>
+
+    <div style="display:flex;gap:8px;margin-bottom:18px;">
+      <div style="padding:9px 12px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:7px;flex:1;">
+        <div style="font-size:10px;color:#9ca3af;margin-bottom:2px;">级别</div>
+        <div style="font-size:12px;font-weight:700;" id="exch-edit-level">—</div>
+      </div>
+      <div style="padding:9px 12px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:7px;flex:1;">
+        <div style="font-size:10px;color:#9ca3af;margin-bottom:2px;">基础货币</div>
+        <div style="font-size:12px;font-weight:700;" id="exch-edit-base">—</div>
+      </div>
+      <div style="padding:9px 12px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:7px;flex:1;">
+        <div style="font-size:10px;color:#9ca3af;margin-bottom:2px;">计价币种</div>
+        <div style="font-size:12px;font-weight:700;" id="exch-edit-quote">—</div>
+      </div>
+    </div>
+
+    <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:7px;padding:9px 12px;font-size:11px;color:#92400e;margin-bottom:14px;">
+      ⚙ 生效逻辑：单笔最小 &lt; 自动审批上限 &lt; 人工审核阈值 &lt; 拒绝线，请确保数值递增。
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+      <div class="form-group" style="margin-bottom:0;">
+        <label>单笔最小 <span class="req">*</span></label>
+        <div class="prefix"><span>$</span><input id="exch-edit-min" placeholder="100" /></div>
+        <div style="font-size:11px;color:#9ca3af;margin-top:3px;">低于此值拒绝受理</div>
+      </div>
+      <div class="form-group" style="margin-bottom:0;">
+        <label>自动审批上限 <span class="req">*</span></label>
+        <div class="prefix"><span>$</span><input id="exch-edit-auto" placeholder="5,000" /></div>
+        <div style="font-size:11px;color:#9ca3af;margin-top:3px;">低于此值系统自动成交</div>
+      </div>
+      <div class="form-group" style="margin-bottom:0;">
+        <label>人工审核阈值 <span class="req">*</span></label>
+        <div class="prefix"><span>$</span><input id="exch-edit-manual" placeholder="20,000" /></div>
+        <div style="font-size:11px;color:#9ca3af;margin-top:3px;">超过需人工确认后成交</div>
+      </div>
+      <div class="form-group" style="margin-bottom:0;">
+        <label>拒绝线（硬上限）<span class="req">*</span></label>
+        <div class="prefix"><span style="color:#dc2626;">$</span><input id="exch-edit-reject" placeholder="50,000" style="color:#dc2626;font-weight:600;" /></div>
+        <div style="font-size:11px;color:#dc2626;margin-top:3px;">超过直接拒绝，不可绕过</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div class="form-group" style="margin-bottom:0;">
+        <label>日累计上限 <span class="req">*</span></label>
+        <div class="prefix"><span>$</span><input id="exch-edit-daily" placeholder="200,000" /></div>
+        <div style="font-size:11px;color:#9ca3af;margin-top:3px;">超出后当日兑换暂停</div>
+      </div>
+      <div class="form-group" style="margin-bottom:0;">
+        <label>月累计上限 <span class="req">*</span></label>
+        <div class="prefix"><span>$</span><input id="exch-edit-monthly" placeholder="1,000,000" /></div>
+        <div style="font-size:11px;color:#9ca3af;margin-top:3px;">超出后当月兑换暂停</div>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeExchEditModal()">取消</button>
+      <button class="btn btn-primary" onclick="saveExchEdit()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Exch Threshold Add Modal ===== -->
+<div class="modal-overlay" id="exch-add-modal">
+  <div class="modal" style="width:540px;">
+    <div class="modal-title">添加兑换阈值配置</div>
+    <div class="modal-desc">选择规则级别和适用方向，配置完整的单笔及累计限额。</div>
+
+    <div style="display:flex;gap:8px;margin-bottom:14px;">
+      <label style="flex:1;border:2px solid #3b82f6;border-radius:7px;padding:10px 14px;cursor:pointer;background:#eff6ff;display:flex;align-items:center;gap:8px;" id="exch-lvl-pair-label">
+        <input type="radio" name="exch-lvl" value="pair" checked onchange="onExchLvlChange('pair')" />
+        <div>
+          <div style="font-size:13px;font-weight:600;color:#1d4ed8;">Per-Pair</div>
+          <div style="font-size:11px;color:#6b7280;">指定法币 + 加密货币</div>
+        </div>
+      </label>
+      <label style="flex:1;border:2px solid #e8eaef;border-radius:7px;padding:10px 14px;cursor:pointer;display:flex;align-items:center;gap:8px;" id="exch-lvl-crypto-label">
+        <input type="radio" name="exch-lvl" value="crypto" onchange="onExchLvlChange('crypto')" />
+        <div>
+          <div style="font-size:13px;font-weight:600;">Per-Crypto</div>
+          <div style="font-size:11px;color:#6b7280;">仅指定加密货币，不限法币</div>
+        </div>
+      </label>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
+      <div class="form-group" style="margin-bottom:0;" id="exch-add-base-group">
+        <label>基础货币（法币）<span class="req">*</span></label>
+        <select class="form-select" id="exch-add-base">
+          <option value="CAD">CAD（加拿大元）</option>
+          <option value="USD">USD（美元）</option>
+        </select>
+      </div>
+      <div class="form-group" style="margin-bottom:0;">
+        <label>计价币种（加密）<span class="req">*</span></label>
+        <select class="form-select" id="exch-add-quote">
+          <option value="USDT">USDT</option>
+          <option value="USDC">USDC</option>
+          <option value="BTC">BTC</option>
+          <option value="ETH">ETH</option>
+          <option value="TRX">TRX</option>
+          <option value="SOL">SOL</option>
+        </select>
+      </div>
+    </div>
+
+    <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:7px;padding:9px 12px;font-size:11px;color:#92400e;margin-bottom:14px;">
+      ⚙ 请确保：单笔最小 &lt; 自动审批上限 &lt; 人工审核阈值 &lt; 拒绝线
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+      <div class="form-group" style="margin-bottom:0;">
+        <label>单笔最小 <span class="req">*</span></label>
+        <div class="prefix"><span>$</span><input id="exch-add-min" placeholder="100" /></div>
+      </div>
+      <div class="form-group" style="margin-bottom:0;">
+        <label>自动审批上限 <span class="req">*</span></label>
+        <div class="prefix"><span>$</span><input id="exch-add-auto" placeholder="5,000" /></div>
+      </div>
+      <div class="form-group" style="margin-bottom:0;">
+        <label>人工审核阈值 <span class="req">*</span></label>
+        <div class="prefix"><span>$</span><input id="exch-add-manual" placeholder="20,000" /></div>
+      </div>
+      <div class="form-group" style="margin-bottom:0;">
+        <label>拒绝线（硬上限）<span class="req">*</span></label>
+        <div class="prefix"><span style="color:#dc2626;">$</span><input id="exch-add-reject" placeholder="50,000" style="color:#dc2626;font-weight:600;" /></div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div class="form-group" style="margin-bottom:0;">
+        <label>日累计上限 <span class="req">*</span></label>
+        <div class="prefix"><span>$</span><input id="exch-add-daily" placeholder="200,000" /></div>
+      </div>
+      <div class="form-group" style="margin-bottom:0;">
+        <label>月累计上限 <span class="req">*</span></label>
+        <div class="prefix"><span>$</span><input id="exch-add-monthly" placeholder="1,000,000" /></div>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeExchAddModal()">取消</button>
+      <button class="btn btn-primary" onclick="saveExchAdd()">添加</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Spread Modal ===== -->
+<div class="modal-overlay" id="spread-modal">
+  <div class="modal" style="width:600px;">
+    <div class="modal-title">添加交易对点差配置</div>
+    <div class="modal-desc">为该商户配置特定交易对的点差调整，将在全局点差基础上叠加计算。</div>
+
+    <!-- 交易对选择 -->
+    <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:end;margin-bottom:16px;">
+      <div class="form-group" style="margin-bottom:0;">
+        <label>加密货币 <span class="req">*</span></label>
+        <select class="form-select" id="sp-crypto" onchange="onSpreadChange()">
+          <option value="">请选择</option>
+          <option value="USDT" data-global="50">USDT（Tether）</option>
+          <option value="USDC" data-global="50">USDC（USD Coin）</option>
+          <option value="BTC"  data-global="80">BTC（Bitcoin）</option>
+          <option value="ETH"  data-global="70">ETH（Ethereum）</option>
+          <option value="TRX"  data-global="60">TRX（TRON）</option>
+          <option value="BNB"  data-global="75">BNB（BNB Chain）</option>
+          <option value="SOL"  data-global="90">SOL（Solana）</option>
+          <option value="XRP"  data-global="65">XRP（Ripple）</option>
+        </select>
+      </div>
+      <div style="text-align:center;font-size:18px;color:#9ca3af;padding-bottom:2px;">⇌</div>
+      <div class="form-group" style="margin-bottom:0;">
+        <label>法币 <span class="req">*</span></label>
+        <select class="form-select" id="sp-fiat">
+          <option value="CAD">CAD（加拿大元）</option>
+          <option value="USD">USD（美元）</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- 全局点差参考 -->
+    <div id="sp-global-ref" style="display:none;background:#f9fafb;border:1px solid #e5e7eb;border-radius:7px;padding:10px 14px;margin-bottom:16px;">
+      <div style="font-size:11px;color:#9ca3af;margin-bottom:4px;">全局基准点差（只读，由运营配置）</div>
+      <span style="font-size:20px;font-weight:700;color:#1a1a2e;" id="sp-global-val">—</span>
+      <span style="font-size:12px;color:#6b7280;"> bps</span>
+    </div>
+
+    <!-- 点差配置 -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
+      <div class="form-group" style="margin-bottom:0;">
+        <label>商户调整 <span class="req">*</span>
+          <span style="font-size:10px;color:#9ca3af;font-weight:400;margin-left:4px;">正数加价 / 负数让利</span>
+        </label>
+        <div class="suffix"><input id="sp-adj" value="" placeholder="0" oninput="updateSpreadPreview()" /><span>bps</span></div>
+      </div>
+      <div class="form-group" style="margin-bottom:0;">
+        <label>最低点差保护 <span class="req">*</span>
+          <span style="font-size:10px;color:#9ca3af;font-weight:400;margin-left:4px;">不可低于此值</span>
+        </label>
+        <div class="suffix"><input id="sp-min" value="" placeholder="20" oninput="updateSpreadPreview()" /><span>bps</span></div>
+      </div>
+      <div style="padding-top:18px;">
+        <div style="background:#eff6ff;border-radius:7px;padding:8px 10px;text-align:center;">
+          <div style="font-size:10px;color:#6b7280;margin-bottom:2px;">实际点差</div>
+          <div style="font-size:18px;font-weight:700;color:#1d4ed8;" id="sp-actual">— bps</div>
+          <div style="font-size:10px;color:#6b7280;" id="sp-pct">—</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 说明 -->
+    <div style="margin-top:14px;padding:10px 12px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:7px;font-size:11px;color:#6b7280;line-height:1.7;">
+      <b>计算逻辑：</b>实际点差 = 全局基准点差 + 商户调整，但不低于最低点差保护值。<br/>
+      <b>示例：</b>全局 50 bps + 调整 +20 = 70 bps；若调整 −40 使结果低于保护值 20 bps，则取 20 bps。
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeSpreadModal()">取消</button>
+      <button class="btn btn-primary" onclick="saveSpreadConfig()">添加配置</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Fee Config Modal ===== -->
+<div class="modal-overlay" id="fee-modal">
+  <div class="modal" style="width:580px;">
+    <div class="modal-title">添加手续费配置</div>
+    <div class="modal-desc">为该商户配置特定链/币种的手续费，将覆盖全局默认费率。</div>
+
+    <!-- Direction tabs -->
+    <div style="display:flex;gap:0;margin-bottom:20px;border:1px solid #e8eaef;border-radius:8px;overflow:hidden;">
+      <div id="fee-tab-deposit" onclick="switchFeeTab('deposit')"
+        style="flex:1;text-align:center;padding:10px;cursor:pointer;font-size:13px;font-weight:600;background:#eff6ff;color:#1d4ed8;border-right:1px solid #e8eaef;">
+        充值手续费
+      </div>
+      <div id="fee-tab-withdraw" onclick="switchFeeTab('withdraw')"
+        style="flex:1;text-align:center;padding:10px;cursor:pointer;font-size:13px;font-weight:500;color:#6b7280;">
+        提现手续费
+      </div>
+    </div>
+
+    <!-- 充值 fields -->
+    <div id="fee-body-deposit">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="form-group">
+          <label>区块链网络 <span class="req">*</span></label>
+          <select class="form-select" id="dep-chain" onchange="onDepChainChange(this.value)">
+            <option value="">请选择</option>
+            <option value="tron">TRON</option>
+            <option value="eth">Ethereum</option>
+            <option value="btc">Bitcoin</option>
+            <option value="bnb">BNB Chain</option>
+            <option value="sol">Solana</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>币种 <span class="req">*</span></label>
+          <select class="form-select" id="dep-token">
+            <option value="">请先选择网络</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>费率类型 <span class="req">*</span></label>
+        <div style="display:flex;gap:8px;">
+          <label style="flex:1;border:2px solid #3b82f6;border-radius:7px;padding:10px 12px;cursor:pointer;background:#eff6ff;display:flex;align-items:flex-start;gap:8px;" id="dep-type-pct-label">
+            <input type="radio" name="dep-fee-type" value="pct" checked onchange="onDepFeeTypeChange('pct')" style="margin-top:2px;" />
+            <div>
+              <div style="font-size:13px;font-weight:600;color:#1d4ed8;">百分比</div>
+              <div style="font-size:11px;color:#6b7280;margin-top:2px;">按交易金额的百分比收取</div>
+            </div>
+          </label>
+          <label style="flex:1;border:2px solid #e8eaef;border-radius:7px;padding:10px 12px;cursor:pointer;display:flex;align-items:flex-start;gap:8px;" id="dep-type-fixed-label">
+            <input type="radio" name="dep-fee-type" value="fixed" onchange="onDepFeeTypeChange('fixed')" style="margin-top:2px;" />
+            <div>
+              <div style="font-size:13px;font-weight:600;">固定金额</div>
+              <div style="font-size:11px;color:#6b7280;margin-top:2px;">每笔收取固定手续费</div>
+            </div>
+          </label>
+          <label style="flex:1;border:2px solid #e8eaef;border-radius:7px;padding:10px 12px;cursor:pointer;display:flex;align-items:flex-start;gap:8px;" id="dep-type-mixed-label">
+            <input type="radio" name="dep-fee-type" value="mixed" onchange="onDepFeeTypeChange('mixed')" style="margin-top:2px;" />
+            <div>
+              <div style="font-size:13px;font-weight:600;">混合</div>
+              <div style="font-size:11px;color:#6b7280;margin-top:2px;">百分比 + 固定费叠加</div>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="form-group" id="dep-pct-group">
+          <label>费率 <span class="req">*</span></label>
+          <div class="suffix"><input id="dep-pct-val" value="" placeholder="0.50" /><span>%</span></div>
+          <div style="font-size:11px;color:#9ca3af;margin-top:4px;">例：0.50 = 0.5%</div>
+        </div>
+        <div class="form-group" id="dep-fixed-group" style="display:none;">
+          <label>固定金额 <span class="req">*</span></label>
+          <div class="prefix"><span>$</span><input id="dep-fixed-val" value="" placeholder="5.00" /></div>
+          <div style="font-size:11px;color:#9ca3af;margin-top:4px;">单位：CAD</div>
+        </div>
+        <div class="form-group">
+          <label>最低手续费 <span class="req">*</span></label>
+          <div class="prefix"><span>$</span><input id="dep-min-val" value="" placeholder="5.00" /></div>
+          <div style="font-size:11px;color:#9ca3af;margin-top:4px;">用于覆盖 Gas 及合规成本</div>
+        </div>
+      </div>
+
+      <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:7px;padding:10px 12px;font-size:12px;color:#15803d;" id="dep-preview" style="display:none;">
+        <b>预览：</b><span id="dep-preview-text">请填写费率后查看计算示例</span>
+      </div>
+    </div>
+
+    <!-- 提现 fields -->
+    <div id="fee-body-withdraw" style="display:none;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="form-group">
+          <label>区块链网络 <span class="req">*</span></label>
+          <select class="form-select" id="wdr-chain" onchange="onWdrChainChange(this.value)">
+            <option value="">请选择</option>
+            <option value="tron">TRON</option>
+            <option value="eth">Ethereum</option>
+            <option value="btc">Bitcoin</option>
+            <option value="bnb">BNB Chain</option>
+            <option value="sol">Solana</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>币种 <span class="req">*</span></label>
+          <select class="form-select" id="wdr-token">
+            <option value="">请先选择网络</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:7px;padding:10px 12px;font-size:12px;color:#92400e;margin-bottom:14px;">
+        ⛽ 提现时平台垫付 Gas 费，最低手续费建议高于当前链上 Gas 成本，避免亏损。
+        <span id="wdr-gas-hint" style="font-weight:600;"></span>
+      </div>
+
+      <div class="form-group">
+        <label>费率类型 <span class="req">*</span></label>
+        <div style="display:flex;gap:8px;">
+          <label style="flex:1;border:2px solid #3b82f6;border-radius:7px;padding:10px 12px;cursor:pointer;background:#eff6ff;display:flex;align-items:flex-start;gap:8px;" id="wdr-type-pct-label">
+            <input type="radio" name="wdr-fee-type" value="pct" checked onchange="onWdrFeeTypeChange('pct')" style="margin-top:2px;" />
+            <div>
+              <div style="font-size:13px;font-weight:600;color:#1d4ed8;">百分比</div>
+              <div style="font-size:11px;color:#6b7280;margin-top:2px;">按提现金额的百分比</div>
+            </div>
+          </label>
+          <label style="flex:1;border:2px solid #e8eaef;border-radius:7px;padding:10px 12px;cursor:pointer;display:flex;align-items:flex-start;gap:8px;" id="wdr-type-fixed-label">
+            <input type="radio" name="wdr-fee-type" value="fixed" onchange="onWdrFeeTypeChange('fixed')" style="margin-top:2px;" />
+            <div>
+              <div style="font-size:13px;font-weight:600;">固定金额</div>
+              <div style="font-size:11px;color:#6b7280;margin-top:2px;">每笔固定手续费</div>
+            </div>
+          </label>
+          <label style="flex:1;border:2px solid #e8eaef;border-radius:7px;padding:10px 12px;cursor:pointer;display:flex;align-items:flex-start;gap:8px;" id="wdr-type-mixed-label">
+            <input type="radio" name="wdr-fee-type" value="mixed" onchange="onWdrFeeTypeChange('mixed')" style="margin-top:2px;" />
+            <div>
+              <div style="font-size:13px;font-weight:600;">混合</div>
+              <div style="font-size:11px;color:#6b7280;margin-top:2px;">百分比 + 固定费</div>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="form-group" id="wdr-pct-group">
+          <label>费率 <span class="req">*</span></label>
+          <div class="suffix"><input id="wdr-pct-val" value="" placeholder="0.80" /><span>%</span></div>
+        </div>
+        <div class="form-group" id="wdr-fixed-group" style="display:none;">
+          <label>固定金额 <span class="req">*</span></label>
+          <div class="prefix"><span>$</span><input id="wdr-fixed-val" value="" placeholder="8.00" /></div>
+        </div>
+        <div class="form-group">
+          <label>最低手续费 <span class="req">*</span></label>
+          <div class="prefix"><span>$</span><input id="wdr-min-val" value="" placeholder="8.00" /></div>
+          <div style="font-size:11px;color:#9ca3af;margin-top:4px;">需覆盖链上 Gas 成本</div>
+        </div>
+      </div>
+
+      <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:7px;padding:10px 12px;font-size:12px;color:#15803d;" id="wdr-preview">
+        <b>预览：</b><span id="wdr-preview-text">请填写费率后查看计算示例</span>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeFeeModal()">取消</button>
+      <button class="btn btn-primary" onclick="saveFeeConfig()">添加配置</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Account Status Modal ===== -->
+<div class="modal-overlay" id="status-modal">
+  <div class="modal">
+    <div class="modal-title">更改账户状态</div>
+    <div class="modal-desc">变更将立即生效，并记录在审计日志中。</div>
+
+    <!-- Current status -->
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:#f9fafb;border-radius:8px;border:1px solid #e5e7eb;margin-bottom:16px;">
+      <div style="font-size:12px;color:#6b7280;">当前状态：</div>
+      <span style="font-weight:700;color:#059669;" id="modal-current-status">激活</span>
+      <div style="margin-left:auto;font-size:11px;color:#9ca3af;">上次变更：2024-11-02</div>
+    </div>
+
+    <!-- Status select -->
+    <div class="form-group">
+      <label>账户状态 <span class="req">*</span></label>
+      <select class="form-select" id="new-status-select" onchange="onModalStatusChange(this.value)">
+        <option value="active">激活（Active）— 正常运营</option>
+        <option value="restricted">受限（Restricted）— 部分功能受限</option>
+        <option value="suspended">暂停（Suspended）— 全部交易停止</option>
+        <option value="frozen">冻结（Frozen）— 资产冻结</option>
+        <option value="closed">关闭（Closed）— 永久注销</option>
+      </select>
+    </div>
+
+    <!-- Status hint -->
+    <div class="status-hint" id="modal-status-hint" style="border-color:#d1fae5;background:#ecfdf5;color:#065f46;display:none;margin-bottom:14px;"></div>
+
+    <!-- Reason -->
+    <div class="form-group">
+      <label>变更原因 <span class="req">*</span></label>
+      <select class="form-select" id="modal-reason-select" onchange="onModalReasonChange(this.value)" style="margin-bottom:8px;">
+        <option value="">请选择原因</option>
+        <option value="edd">EDD 调查进行中</option>
+        <option value="str">STR 申报，资产冻结</option>
+        <option value="kyc">KYC 文件过期</option>
+        <option value="fraud">疑似欺诈</option>
+        <option value="sanction">制裁名单命中</option>
+        <option value="merchant">商户主动申请</option>
+        <option value="resume">调查完成，恢复正常</option>
+        <option value="other">其他</option>
+      </select>
+      <textarea class="form-textarea" id="modal-reason-text" placeholder="填写具体说明，将记录在审计日志中..." style="min-height:56px;"></textarea>
+    </div>
+
+    <!-- Control toggles (editable) -->
+    <div style="font-size:12px;font-weight:600;color:#374151;margin-bottom:8px;">账户管控开关</div>
+    <div id="modal-controls">
+      <div class="modal-control-row" id="mcr-deposit">
+        <div><div style="font-size:13px;font-weight:600;">限制充值</div><div style="font-size:11px;color:#9ca3af;">禁止商户虚拟币充值</div></div>
+        <label class="tog"><input type="checkbox" id="mc-deposit" /><span class="tog-track"><span class="tog-thumb"></span></span></label>
+      </div>
+      <div class="modal-control-row on" id="mcr-withdraw">
+        <div><div style="font-size:13px;font-weight:600;">限制提现</div><div style="font-size:11px;color:#9ca3af;">禁止商户虚拟币提现</div></div>
+        <label class="tog"><input type="checkbox" id="mc-withdraw" checked /><span class="tog-track"><span class="tog-thumb"></span></span></label>
+      </div>
+      <div class="modal-control-row" id="mcr-transfer-in">
+        <div><div style="font-size:13px;font-weight:600;">限制资金转入</div><div style="font-size:11px;color:#9ca3af;">禁止法币从MSO记账转入MSB</div></div>
+        <label class="tog"><input type="checkbox" id="mc-transfer-in" /><span class="tog-track"><span class="tog-thumb"></span></span></label>
+      </div>
+      <div class="modal-control-row on" id="mcr-transfer-out">
+        <div><div style="font-size:13px;font-weight:600;">限制资金转出</div><div style="font-size:11px;color:#9ca3af;">禁止法币从MSB记账转入MSO</div></div>
+        <label class="tog"><input type="checkbox" id="mc-transfer-out" checked /><span class="tog-track"><span class="tog-thumb"></span></span></label>
+      </div>
+      <div class="modal-control-row" id="mcr-partial-freeze">
+        <div><div style="font-size:13px;font-weight:600;">部分冻结</div><div style="font-size:11px;color:#9ca3af;">冻结商户部分资金</div></div>
+        <label class="tog"><input type="checkbox" id="mc-partial-freeze" /><span class="tog-track"><span class="tog-thumb"></span></span></label>
+      </div>
+      <div class="modal-control-row on" id="mcr-full-freeze">
+        <div><div style="font-size:13px;font-weight:600;">资金冻结</div><div style="font-size:11px;color:#9ca3af;">冻结商户全部资金</div></div>
+        <label class="tog"><input type="checkbox" id="mc-full-freeze" checked /><span class="tog-track"><span class="tog-thumb"></span></span></label>
+      </div>
+    </div>
+
+    <!-- Close warning -->
+    <div id="modal-close-warn" style="display:none;margin-top:12px;padding:12px 14px;background:#fef2f2;border:1px solid #fecaca;border-radius:7px;font-size:12px;color:#991b1b;">
+      ⚠ <b>关闭为不可逆操作</b>，将永久注销账户并冻结全部资金。需合规主管二次确认后生效。
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeStatusModal()">取消</button>
+      <button class="btn btn-primary" id="modal-confirm-btn" onclick="submitStatusChange()">确认变更</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== KYW Wallet Threshold =====
+function checkKywLimit(input, merchantLimit, hintId) {
+  const val  = Number(input.value.replace(/,/g, ''));
+  const hint = document.getElementById(hintId);
+  if (!hint) return;
+  const fmt  = n => '$' + n.toLocaleString('en-US');
+  if (!val || isNaN(val)) { hint.textContent = ''; return; }
+  if (val > merchantLimit) {
+    hint.textContent = '⚠ 实际生效 ' + fmt(merchantLimit) + '（受商户约束）';
+    hint.className = 'kyw-hint kyw-warn';
+  } else {
+    hint.textContent = '✓ 实际生效 ' + fmt(val);
+    hint.className = 'kyw-hint kyw-ok';
+  }
+}
+function checkKywModalLimit(input, merchantLimit, hintId) {
+  checkKywLimit(input, merchantLimit, hintId);
+}
+function openKywAddModal()  { document.getElementById('kyw-add-modal').classList.add('open'); }
+function closeKywAddModal() { document.getElementById('kyw-add-modal').classList.remove('open'); }
+function saveKywAdd() {
+  const chain = document.getElementById('kyw-chain').value;
+  const addr  = document.getElementById('kyw-addr').value.trim();
+  const daily = document.getElementById('kyw-daily').value;
+  const mon   = document.getElementById('kyw-monthly').value;
+  if (!chain || !addr || !daily || !mon) {
+    alert('请填写所有必填项'); return;
+  }
+  alert(`已添加：${chain} · ${addr.slice(0,8)}...\n日限 $${daily} · 月限 $${mon}`);
+  closeKywAddModal();
+}
+
+function toggleWalletThresh(btn) {
+  const list = document.getElementById('wallet-thresh-list');
+  const chevron = btn.querySelector('svg');
+  const open = list.style.display !== 'none';
+  list.style.display = open ? 'none' : 'flex';
+  chevron.style.transform = open ? '' : 'rotate(180deg)';
+}
+
+function toggleWalletItem(header) {
+  const body = header.nextElementSibling;
+  const chevron = header.querySelector('.wallet-chevron-icon');
+  const open = body.style.display !== 'none';
+  body.style.display = open ? 'none' : 'flex';
+  chevron.style.transform = open ? '' : 'rotate(180deg)';
+}
+
+function switchTab(el, id) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-body').forEach(t => t.style.display = 'none');
+  el.classList.add('active');
+  document.getElementById(id).style.display = 'block';
+}
+
+// Modal
+function openStatusModal() { document.getElementById('status-modal').classList.add('open'); }
+function closeStatusModal() { document.getElementById('status-modal').classList.remove('open'); }
+
+const statusHints = {
+  active:     { style:'border-color:#a7f3d0;background:#ecfdf5;color:#065f46', text:'<b>激活：</b>账户恢复正常运营，所有功能可用。' },
+  restricted: { style:'border-color:#fde68a;background:#fffbeb;color:#92400e', text:'<b>受限：</b>账户可登录，但充值/提现受限，通常在 EDD 调查期间使用。' },
+  suspended:  { style:'border-color:#fca5a5;background:#fef2f2;color:#991b1b', text:'<b>暂停：</b>所有交易立即停止，商户无法进行任何资金操作。' },
+  frozen:     { style:'border-color:#c4b5fd;background:#f5f3ff;color:#5b21b6', text:'<b>冻结：</b>资产被锁定，商户无法转移或使用资金，通常配合 STR 申报。' },
+  closed:     { style:'border-color:#fca5a5;background:#fef2f2;color:#991b1b', text:'<b>关闭：</b>永久注销账户，不可逆。将触发合规主管审批流程。' }
+};
+
+const statusPresets = {
+  active:     { deposit:false, withdraw:false, 'transfer-in':false, 'transfer-out':false, 'partial-freeze':false, 'full-freeze':false },
+  restricted: { deposit:true,  withdraw:false, 'transfer-in':false, 'transfer-out':false, 'partial-freeze':false, 'full-freeze':false },
+  suspended:  { deposit:true,  withdraw:true,  'transfer-in':true,  'transfer-out':true,  'partial-freeze':false, 'full-freeze':false },
+  frozen:     { deposit:true,  withdraw:true,  'transfer-in':true,  'transfer-out':true,  'partial-freeze':false, 'full-freeze':true  },
+  closed:     { deposit:true,  withdraw:true,  'transfer-in':true,  'transfer-out':true,  'partial-freeze':true,  'full-freeze':true  }
+};
+
+const ctrlKeys = ['deposit','withdraw','transfer-in','transfer-out','partial-freeze','full-freeze'];
+
+function onModalStatusChange(val) {
+  const hint = statusHints[val];
+  const hintEl = document.getElementById('modal-status-hint');
+  if (hint) {
+    hintEl.style.cssText = 'padding:10px 14px;border-radius:7px;font-size:12px;margin-bottom:14px;border:1px solid;display:block;' + hint.style;
+    hintEl.innerHTML = hint.text;
+  } else {
+    hintEl.style.display = 'none';
+  }
+
+  const preset = statusPresets[val] || {};
+  const locked = val === 'closed';
+  ctrlKeys.forEach(k => {
+    const cb = document.getElementById('mc-' + k);
+    if (cb) { cb.checked = !!preset[k]; cb.disabled = locked; }
+    const row = document.getElementById('mcr-' + k);
+    if (row) row.classList.toggle('on', !!preset[k]);
+  });
+
+  document.getElementById('modal-close-warn').style.display = val === 'closed' ? 'block' : 'none';
+  const btn = document.getElementById('modal-confirm-btn');
+  btn.textContent = val === 'closed' ? '关闭账户（不可逆）' : '确认变更';
+  btn.className = val === 'closed' ? 'btn btn-danger' : 'btn btn-primary';
+}
+
+const reasonTexts = {
+  edd:      'EDD 调查进行中，依据内部合规政策调整账户功能权限。',
+  str:      'STR 申报处理中，依据《PCMLTFA》要求冻结相关资产。',
+  kyc:      'KYC 文件到期，需商户更新认证材料后恢复正常。',
+  fraud:    '疑似欺诈行为，风控已标记，等待合规审查结论。',
+  sanction: '制裁名单命中，依法立即冻结账户并通知 FINTRAC。',
+  merchant: '商户主动申请，原因待确认。',
+  resume:   '调查已完成，风险排除，账户恢复正常运营。',
+  other:    ''
+};
+
+function onModalReasonChange(val) {
+  if (val && reasonTexts[val] !== undefined) {
+    document.getElementById('modal-reason-text').value = reasonTexts[val];
+  }
+}
+
+function submitStatusChange() {
+  const val = document.getElementById('new-status-select').value;
+  const reason = document.getElementById('modal-reason-text').value.trim();
+  if (!reason) { alert('请填写变更原因'); return; }
+  if (val === 'closed' && !confirm('确认永久关闭账户？此操作不可逆，需合规主管审批。')) return;
+
+  const labels = { active:'激活', restricted:'受限', suspended:'暂停', frozen:'冻结', closed:'已关闭' };
+  const colors = { active:'#059669', restricted:'#d97706', suspended:'#dc2626', frozen:'#7c3aed', closed:'#374151' };
+
+  // Update status tab display
+  const labelEl = document.getElementById('status-label');
+  if (labelEl) { labelEl.textContent = labels[val]; labelEl.style.color = colors[val]; }
+
+  // Sync read-only toggles on status tab
+  const preset = statusPresets[val] || {};
+  ctrlKeys.forEach(k => {
+    const td = document.getElementById('td-' + k);
+    const ctrl = document.getElementById('ctrl-' + k);
+    if (td) { td.className = 'toggle-display ' + (preset[k] ? 'on' : 'off'); }
+    if (ctrl) ctrl.classList.toggle('on', !!preset[k]);
+  });
+
+  alert('账户状态已变更为「' + labels[val] + '」，操作已记录至审计日志。');
+  closeStatusModal();
+}
+
+// ===== Spread Modal =====
+function openSpreadModal() {
+  document.getElementById('spread-modal').classList.add('open');
+  document.getElementById('sp-adj').value = '';
+  document.getElementById('sp-min').value = '';
+  updateSpreadPreview();
+}
+function closeSpreadModal() { document.getElementById('spread-modal').classList.remove('open'); }
+
+function onSpreadChange() {
+  const sel = document.getElementById('sp-crypto');
+  const opt = sel.options[sel.selectedIndex];
+  const global = opt?.dataset?.global || null;
+  const ref = document.getElementById('sp-global-ref');
+  if (global) {
+    ref.style.display = 'block';
+    document.getElementById('sp-global-val').textContent = global;
+  } else {
+    ref.style.display = 'none';
+  }
+  updateSpreadPreview();
+}
+
+function updateSpreadPreview() {
+  const sel    = document.getElementById('sp-crypto');
+  const opt    = sel.options[sel.selectedIndex];
+  const global = parseFloat(opt?.dataset?.global) || 0;
+  const adj    = parseFloat(document.getElementById('sp-adj')?.value) || 0;
+  const min    = parseFloat(document.getElementById('sp-min')?.value) || 0;
+  const actual = Math.max(global + adj, min);
+  const el     = document.getElementById('sp-actual');
+  const pctEl  = document.getElementById('sp-pct');
+  if (el) {
+    el.textContent = global ? actual + ' bps' : '— bps';
+    if (pctEl) pctEl.textContent = global ? '(' + (actual / 100).toFixed(2) + '%)' : '';
+    el.style.color = actual > global ? '#059669' : actual < global ? '#d97706' : '#6b7280';
+  }
+}
+
+function saveSpreadConfig() {
+  const crypto = document.getElementById('sp-crypto').value;
+  const fiat   = document.getElementById('sp-fiat').value;
+  if (!crypto) { alert('请选择加密货币'); return; }
+
+  const sel    = document.getElementById('sp-crypto');
+  const opt    = sel.options[sel.selectedIndex];
+  const global = parseFloat(opt?.dataset?.global) || 0;
+  const adjVal = document.getElementById('sp-adj').value || '0';
+  const minVal = document.getElementById('sp-min').value || '0';
+
+  const adjNum   = parseFloat(adjVal) || 0;
+  const minNum   = parseFloat(minVal) || 0;
+  const actual   = Math.max(global + adjNum, minNum);
+  const pct      = (actual / 100).toFixed(2);
+  const adjDisp  = adjNum >= 0 ? '+' + adjNum : String(adjNum);
+  const adjColor = adjNum > 0 ? '#dc2626' : adjNum < 0 ? '#059669' : '#9ca3af';
+  const actColor = actual > global ? '#059669' : actual < global ? '#d97706' : '#6b7280';
+  const pair     = `${crypto} / ${fiat}`;
+
+  const tbody = document.querySelector('#tab-config .config-table:last-of-type tbody');
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td style="font-weight:600;">${pair}</td>
+    <td style="color:#6b7280;">${global} bps</td>
+    <td><div class="suffix"><input value="${adjDisp}" style="width:50px;color:${adjColor};" oninput="recalcRow(this,${global})" /><span>bps</span></div></td>
+    <td style="font-weight:700;color:${actColor};" class="actual-cell">${actual} bps (${pct}%)</td>
+    <td><div class="suffix"><input value="${minVal}" style="width:50px;" /><span>bps</span></div></td>
+    <td><span class="badge badge-success">启用</span></td>
+    <td><button class="btn-sm btn-outline" style="color:#dc2626;border-color:#fca5a5;" onclick="this.closest('tr').remove()">删除</button></td>
+  `;
+  tbody.appendChild(tr);
+  closeSpreadModal();
+}
+
+function recalcRow(input, globalBps) {
+  const tr     = input.closest('tr');
+  const adjVal = parseFloat(input.value) || 0;
+  const minVal = parseFloat(tr.querySelector('td:nth-child(5) input')?.value) || 0;
+  const actual = Math.max(globalBps + adjVal, minVal);
+  const pct    = (actual / 100).toFixed(2);
+  const cell   = tr.querySelector('.actual-cell');
+  if (cell) {
+    cell.textContent = actual + ' bps (' + pct + '%)';
+    cell.style.color = actual > globalBps ? '#059669' : actual < globalBps ? '#d97706' : '#6b7280';
+  }
+}
+
+// ===== Fee Modal =====
+const chainTokens = {
+  tron: ['USDT','USDC','TRX'],
+  eth:  ['USDT','USDC','ETH','DAI'],
+  btc:  ['BTC'],
+  bnb:  ['USDT','BNB','BUSD'],
+  sol:  ['USDT','SOL']
+};
+const gasHints = {
+  tron:'TRON Gas 约 $1～3 CAD/笔', eth:'ETH Gas 约 $5～30 CAD/笔', btc:'BTC 矿工费约 $3～20 CAD/笔', bnb:'BNB Gas 约 $0.5～2 CAD/笔', sol:'SOL Gas 约 $0.1～0.5 CAD/笔'
+};
+
+function openFeeModal() {
+  document.getElementById('fee-modal').classList.add('open');
+  switchFeeTab('deposit');
+}
+function closeFeeModal() { document.getElementById('fee-modal').classList.remove('open'); }
+
+function switchFeeTab(dir) {
+  const isDeposit = dir === 'deposit';
+  document.getElementById('fee-tab-deposit').style.cssText = isDeposit
+    ? 'flex:1;text-align:center;padding:10px;cursor:pointer;font-size:13px;font-weight:600;background:#eff6ff;color:#1d4ed8;border-right:1px solid #e8eaef;'
+    : 'flex:1;text-align:center;padding:10px;cursor:pointer;font-size:13px;font-weight:500;color:#6b7280;border-right:1px solid #e8eaef;';
+  document.getElementById('fee-tab-withdraw').style.cssText = !isDeposit
+    ? 'flex:1;text-align:center;padding:10px;cursor:pointer;font-size:13px;font-weight:600;background:#fffbeb;color:#92400e;'
+    : 'flex:1;text-align:center;padding:10px;cursor:pointer;font-size:13px;font-weight:500;color:#6b7280;';
+  document.getElementById('fee-body-deposit').style.display = isDeposit ? 'block' : 'none';
+  document.getElementById('fee-body-withdraw').style.display = !isDeposit ? 'block' : 'none';
+}
+
+function populateTokens(chainSel, tokenSel) {
+  const tokens = chainTokens[chainSel.value] || [];
+  tokenSel.innerHTML = tokens.length
+    ? tokens.map(t => `<option value="${t}">${t}</option>`).join('')
+    : '<option value="">请先选择网络</option>';
+}
+function onDepChainChange(v) { populateTokens(document.getElementById('dep-chain'), document.getElementById('dep-token')); updateDepPreview(); }
+function onWdrChainChange(v) {
+  populateTokens(document.getElementById('wdr-chain'), document.getElementById('wdr-token'));
+  document.getElementById('wdr-gas-hint').textContent = gasHints[v] ? '参考：' + gasHints[v] : '';
+  updateWdrPreview();
+}
+
+function setFeeTypeUI(prefix, type) {
+  ['pct','fixed','mixed'].forEach(t => {
+    const lbl = document.getElementById(prefix + '-type-' + t + '-label');
+    if (!lbl) return;
+    lbl.style.borderColor = t === type ? '#3b82f6' : '#e8eaef';
+    lbl.style.background  = t === type ? '#eff6ff' : '';
+    const titleEl = lbl.querySelector('div div:first-child');
+    if (titleEl) titleEl.style.color = t === type ? '#1d4ed8' : '';
+  });
+  document.getElementById(prefix + '-pct-group').style.display   = (type === 'pct'   || type === 'mixed') ? 'block' : 'none';
+  document.getElementById(prefix + '-fixed-group').style.display = (type === 'fixed' || type === 'mixed') ? 'block' : 'none';
+}
+function onDepFeeTypeChange(t) { setFeeTypeUI('dep', t); updateDepPreview(); }
+function onWdrFeeTypeChange(t) { setFeeTypeUI('wdr', t); updateWdrPreview(); }
+
+function calcPreview(pct, fixed, min, amounts) {
+  return amounts.map(a => {
+    let fee = 0;
+    if (pct)   fee += a * pct / 100;
+    if (fixed) fee += fixed;
+    fee = Math.max(fee, min || 0);
+    return `$${a.toLocaleString()} → <b>$${fee.toFixed(2)}</b>`;
+  }).join('　　');
+}
+function updateDepPreview() {
+  const type  = document.querySelector('input[name="dep-fee-type"]:checked')?.value || 'pct';
+  const pct   = parseFloat(document.getElementById('dep-pct-val')?.value) || 0;
+  const fixed = parseFloat(document.getElementById('dep-fixed-val')?.value) || 0;
+  const min   = parseFloat(document.getElementById('dep-min-val')?.value) || 0;
+  if ((type === 'pct' && !pct) || (type === 'fixed' && !fixed)) {
+    document.getElementById('dep-preview-text').textContent = '请填写费率后查看计算示例'; return;
+  }
+  document.getElementById('dep-preview-text').innerHTML = calcPreview(
+    type !== 'fixed' ? pct : 0, type !== 'pct' ? fixed : 0, min, [500, 5000, 50000]
+  );
+}
+function updateWdrPreview() {
+  const type  = document.querySelector('input[name="wdr-fee-type"]:checked')?.value || 'pct';
+  const pct   = parseFloat(document.getElementById('wdr-pct-val')?.value) || 0;
+  const fixed = parseFloat(document.getElementById('wdr-fixed-val')?.value) || 0;
+  const min   = parseFloat(document.getElementById('wdr-min-val')?.value) || 0;
+  if ((type === 'pct' && !pct) || (type === 'fixed' && !fixed)) {
+    document.getElementById('wdr-preview-text').textContent = '请填写费率后查看计算示例'; return;
+  }
+  document.getElementById('wdr-preview-text').innerHTML = calcPreview(
+    type !== 'fixed' ? pct : 0, type !== 'pct' ? fixed : 0, min, [500, 5000, 50000]
+  );
+}
+
+// live preview on input
+['dep-pct-val','dep-fixed-val','dep-min-val'].forEach(id => {
+  const el = document.getElementById(id); if (el) el.addEventListener('input', updateDepPreview);
+});
+['wdr-pct-val','wdr-fixed-val','wdr-min-val'].forEach(id => {
+  const el = document.getElementById(id); if (el) el.addEventListener('input', updateWdrPreview);
+});
+
+function saveFeeConfig() {
+  const isDeposit = document.getElementById('fee-body-deposit').style.display !== 'none';
+  const prefix = isDeposit ? 'dep' : 'wdr';
+  const chain = document.getElementById(prefix + '-chain').value;
+  const token = document.getElementById(prefix + '-token').value;
+  if (!chain || !token) { alert('请选择区块链网络和币种'); return; }
+  const type  = document.querySelector(`input[name="${prefix}-fee-type"]:checked`)?.value || 'pct';
+  const pct   = document.getElementById(prefix + '-pct-val')?.value || '';
+  const fixed = document.getElementById(prefix + '-fixed-val')?.value || '';
+  const min   = document.getElementById(prefix + '-min-val')?.value || '';
+  if (type === 'pct' && !pct)   { alert('请填写费率'); return; }
+  if (type === 'fixed' && !fixed) { alert('请填写固定金额'); return; }
+  if (!min) { alert('请填写最低手续费'); return; }
+
+  const dir     = isDeposit ? 'deposit' : 'withdraw';
+  const dirBadge = isDeposit
+    ? '<span class="badge badge-blue">充值</span>'
+    : '<span class="badge badge-warning">提现</span>';
+  const chainLabel = { tron:'TRON', eth:'Ethereum', btc:'Bitcoin', bnb:'BNB Chain', sol:'Solana' }[chain] || chain;
+  const typeLabel  = { pct:'百分比', fixed:'固定金额', mixed:'混合' }[type];
+  const rateCell = type === 'pct'   ? `<div class="suffix" style="width:100px;"><input value="${pct}" /><span>%</span></div>`
+                 : type === 'fixed' ? `<div class="prefix" style="width:110px;"><span>$</span><input value="${fixed}" /></div>`
+                 : `<div style="font-size:12px;">${pct}% + $${fixed}</div>`;
+  const minCell  = min ? `<div class="prefix" style="width:110px;"><span>$</span><input value="${min}" /></div>` : '—';
+
+  const tbody = document.querySelector('#tab-config .config-table tbody');
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td>${dirBadge}</td>
+    <td style="font-weight:600;font-size:12px;">${chainLabel} · ${token}</td>
+    <td><select class="config-select" style="width:84px;"><option selected>${typeLabel}</option></select></td>
+    <td>${rateCell}</td>
+    <td>${minCell}</td>
+    <td><span class="tier-tag tier-custom">商户定制</span></td>
+    <td><button class="btn-sm btn-outline" style="color:#dc2626;border-color:#fca5a5;" onclick="this.closest('tr').remove()">删除</button></td>
+  `;
+  tbody.appendChild(tr);
+  closeFeeModal();
+}
+
+// ===== Exchange Threshold Modals =====
+const coinIcon = {
+  CAD:  { bg:'#dc2626', letter:'C' },
+  USD:  { bg:'#2563eb', letter:'$' },
+  USDT: { bg:'#16a34a', letter:'T' },
+  USDC: { bg:'#2563eb', letter:'$' },
+  BTC:  { bg:'#f59e0b', letter:'₿' },
+  ETH:  { bg:'#7c3aed', letter:'Ξ' },
+  TRX:  { bg:'#ef4444', letter:'T' },
+  SOL:  { bg:'#9333ea', letter:'S' }
+};
+
+function coinHtml(sym) {
+  if (!sym || sym === '—') return '<span style="color:#9ca3af;">—</span>';
+  const c = coinIcon[sym] || { bg:'#6b7280', letter:sym[0] };
+  return `<span style="display:inline-flex;align-items:center;gap:5px;"><span style="width:18px;height:18px;border-radius:50%;background:${c.bg};color:#fff;font-size:9px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">${c.letter}</span>${sym}</span>`;
+}
+
+let _exchEditRow = null;
+
+function openExchEditModal(link) {
+  const tr = link.closest('tr');
+  _exchEditRow = tr;
+  const cells = tr.querySelectorAll('td');
+  document.getElementById('exch-edit-level').textContent = cells[0].querySelector('span')?.textContent?.trim() || '—';
+  document.getElementById('exch-edit-base').textContent  = cells[1].textContent.trim() || '—';
+  document.getElementById('exch-edit-quote').textContent = cells[2].textContent.trim() || '—';
+  const numVal = (idx) => cells[idx].textContent.trim().replace(/,/g,'');
+  document.getElementById('exch-edit-min').value     = numVal(3);
+  document.getElementById('exch-edit-auto').value    = numVal(4);
+  document.getElementById('exch-edit-manual').value  = numVal(5);
+  document.getElementById('exch-edit-reject').value  = numVal(6);
+  document.getElementById('exch-edit-daily').value   = numVal(7);
+  document.getElementById('exch-edit-monthly').value = numVal(8);
+  document.getElementById('exch-edit-modal').classList.add('open');
+}
+function closeExchEditModal() { document.getElementById('exch-edit-modal').classList.remove('open'); }
+
+function saveExchEdit() {
+  const fields = ['exch-edit-min','exch-edit-auto','exch-edit-manual','exch-edit-reject','exch-edit-daily','exch-edit-monthly'];
+  const vals = fields.map(id => document.getElementById(id).value.trim());
+  if (vals.some(v => !v)) { alert('请填写全部限额'); return; }
+  const nums = vals.map(v => Number(v.replace(/,/g,'')));
+  if (nums[0] >= nums[1] || nums[1] >= nums[2] || nums[2] >= nums[3]) {
+    alert('请确保：单笔最小 < 自动审批上限 < 人工审核阈值 < 拒绝线'); return;
+  }
+  const fmt = n => n.toLocaleString('en-CA');
+  const cells = _exchEditRow.querySelectorAll('td');
+  const targets = [3,4,5,6,7,8];
+  targets.forEach((ci, i) => {
+    cells[ci].textContent = fmt(nums[i]);
+    cells[ci].style.fontWeight = '600';
+    cells[ci].style.fontSize = '12px';
+    cells[ci].style.color = ci === 7 ? '#dc2626' : '';
+  });
+  closeExchEditModal();
+}
+
+function openExchAddModal() {
+  onExchLvlChange('pair');
+  ['exch-add-min','exch-add-auto','exch-add-manual','exch-add-reject','exch-add-daily','exch-add-monthly']
+    .forEach(id => document.getElementById(id).value = '');
+  document.getElementById('exch-add-modal').classList.add('open');
+}
+function closeExchAddModal() { document.getElementById('exch-add-modal').classList.remove('open'); }
+
+function onExchLvlChange(lvl) {
+  ['pair','crypto'].forEach(d => {
+    const lbl = document.getElementById('exch-lvl-' + d + '-label');
+    lbl.style.borderColor = d === lvl ? '#3b82f6' : '#e8eaef';
+    lbl.style.background  = d === lvl ? '#eff6ff' : '';
+    const t = lbl.querySelector('div div:first-child');
+    if (t) t.style.color = d === lvl ? '#1d4ed8' : '';
+  });
+  document.getElementById('exch-add-base-group').style.display = lvl === 'pair' ? '' : 'none';
+}
+
+
+function saveExchAdd() {
+  const lvl    = document.querySelector('input[name="exch-lvl"]:checked')?.value || 'pair';
+  const base   = lvl === 'pair' ? document.getElementById('exch-add-base').value : null;
+  const quote  = document.getElementById('exch-add-quote').value;
+  const fields = ['exch-add-min','exch-add-auto','exch-add-manual','exch-add-reject','exch-add-daily','exch-add-monthly'];
+  const vals   = fields.map(id => document.getElementById(id).value.trim());
+  if (!quote || vals.some(v => !v)) { alert('请填写全部字段'); return; }
+  const nums = vals.map(v => Number(v.replace(/,/g,'')));
+  if (nums[0] >= nums[1] || nums[1] >= nums[2] || nums[2] >= nums[3]) {
+    alert('请确保：单笔最小 < 自动审批上限 < 人工审核阈值 < 拒绝线'); return;
+  }
+  const fmt = n => n.toLocaleString('en-CA');
+
+  const lvlBadge = {
+    pair:   'padding:3px 8px;border-radius:4px;font-size:11px;font-weight:600;background:#eff6ff;color:#1d4ed8;white-space:nowrap;',
+    crypto: 'padding:3px 8px;border-radius:4px;font-size:11px;font-weight:600;background:#ecfdf5;color:#065f46;white-space:nowrap;'
+  }[lvl];
+  const lvlLabel = { pair:'Per-Pair', crypto:'Per-Crypto' }[lvl];
+  const baseCell = base ? coinHtml(base) : '<span style="color:#9ca3af;">—</span>';
+
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td><span style="${lvlBadge}">${lvlLabel}</span></td>
+    <td>${baseCell}</td>
+    <td>${coinHtml(quote)}</td>
+    <td style="font-weight:600;font-size:12px;">${fmt(nums[0])}</td>
+    <td style="font-weight:600;font-size:12px;">${fmt(nums[1])}</td>
+    <td style="font-weight:600;font-size:12px;">${fmt(nums[2])}</td>
+    <td style="font-weight:600;font-size:12px;color:#dc2626;">${fmt(nums[3])}</td>
+    <td style="font-weight:600;font-size:12px;">${fmt(nums[4])}</td>
+    <td style="font-weight:600;font-size:12px;">${fmt(nums[5])}</td>
+    <td><label class="tog"><input type="checkbox" checked /><span class="tog-track"><span class="tog-thumb"></span></span></label></td>
+    <td><a style="color:#4f8ef7;font-size:12px;cursor:pointer;font-weight:500;" onclick="openExchEditModal(this)">编辑</a></td>
+  `;
+  const tbody = document.getElementById('exch-thresh-tbody');
+  tbody.insertBefore(tr, tbody.querySelector('tr:last-child'));
+  closeExchAddModal();
+}
+
+// Init toggle row styling on modal checkbox change
+ctrlKeys.forEach(k => {
+  const cb = document.getElementById('mc-' + k);
+  if (cb) cb.addEventListener('change', () => {
+    const row = document.getElementById('mcr-' + k);
+    if (row) row.classList.toggle('on', cb.checked);
+  });
+});
+</script>
+</body>
+</html>

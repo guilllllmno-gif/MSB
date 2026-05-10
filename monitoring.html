@@ -1,0 +1,1499 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>事中监控 — FuturePayCA MSB</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Helvetica Neue',sans-serif;background:#f1f5f9;color:#1a1a2e;font-size:14px}
+.app{display:flex;height:100vh;overflow:hidden}
+
+/* ── Sidebar ── */
+.sidebar{width:220px;background:#1a1a2e;display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto}
+.sb-logo{padding:20px 18px 16px;border-bottom:1px solid rgba(255,255,255,.08)}
+.sb-logo span{font-size:15px;font-weight:700;color:#fff;display:block}
+.sb-logo small{font-size:10px;color:#94a3b8;letter-spacing:.5px;text-transform:uppercase}
+.sb-nav{flex:1;padding:12px 0}
+.sb-section{font-size:10px;font-weight:700;color:#4b5563;letter-spacing:.8px;text-transform:uppercase;padding:12px 18px 6px}
+.sb-item{display:flex;align-items:center;gap:10px;padding:9px 18px;color:#94a3b8;cursor:pointer;border-left:3px solid transparent;transition:all .15s;font-size:13px}
+.sb-item:hover{background:rgba(255,255,255,.05);color:#fff}
+.sb-item.active{background:rgba(99,102,241,.15);color:#a5b4fc;border-left-color:#6366f1}
+.sb-item .icon{width:18px;text-align:center;font-size:15px;opacity:.8}
+.sb-badge{margin-left:auto;background:#ef4444;color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px}
+.sb-user{padding:14px 18px;border-top:1px solid rgba(255,255,255,.08);display:flex;align-items:center;gap:10px}
+.sb-avatar{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#8b5cf6);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff}
+.sb-user-info span{display:block;font-size:12px;color:#fff}
+.sb-user-info small{font-size:10px;color:#6b7280}
+
+/* ── Main area ── */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.topbar{background:#fff;border-bottom:1px solid #e2e8f0;padding:0 28px;height:56px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.breadcrumb{display:flex;align-items:center;gap:6px;font-size:13px;color:#64748b}
+.breadcrumb .cur{color:#1a1a2e;font-weight:600}
+.breadcrumb span{color:#cbd5e1}
+.topbar-actions{display:flex;align-items:center;gap:12px}
+.content{flex:1;overflow-y:auto;padding:24px 28px}
+
+/* ── Cards & Layout ── */
+.card{background:#fff;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden}
+.card-hd{padding:16px 20px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between}
+.card-hd h3{font-size:14px;font-weight:700;color:#0f172a}
+.card-body{padding:20px}
+
+/* ── Buttons ── */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:none;transition:all .15s;white-space:nowrap}
+.btn-sm{padding:5px 12px;font-size:12px;border-radius:6px}
+.btn-primary{background:#2563eb;color:#fff}
+.btn-primary:hover{background:#1d4ed8}
+.btn-success{background:#059669;color:#fff}
+.btn-success:hover{background:#047857}
+.btn-danger{background:#dc2626;color:#fff}
+.btn-danger:hover{background:#b91c1c}
+.btn-warning{background:#d97706;color:#fff}
+.btn-warning:hover{background:#b45309}
+.btn-purple{background:#7c3aed;color:#fff}
+.btn-purple:hover{background:#6d28d9}
+.btn-gray{background:#f1f5f9;color:#374151;border:1px solid #e2e8f0}
+.btn-gray:hover{background:#e2e8f0}
+.btn-ghost{background:transparent;color:#64748b;border:1px solid #e2e8f0}
+.btn-ghost:hover{background:#f8fafc}
+.btn-block{width:100%;justify-content:center}
+.btn-outline-danger{background:#fff;color:#dc2626;border:1.5px solid #dc2626}
+.btn-outline-danger:hover{background:#fee2e2}
+
+/* ── Badges / Tags ── */
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;white-space:nowrap}
+.badge-low{background:#d1fae5;color:#065f46}
+.badge-mid{background:#fef3c7;color:#92400e}
+.badge-high{background:#fee2e2;color:#b91c1c}
+.badge-critical{background:#7f1d1d;color:#fff}
+.badge-auto{background:#d1fae5;color:#065f46}
+.badge-pending{background:#fef3c7;color:#92400e}
+.badge-review{background:#fef3c7;color:#92400e}
+.badge-l2{background:#ede9fe;color:#5b21b6}
+.badge-rejected{background:#fee2e2;color:#b91c1c}
+.badge-frozen{background:#1e3a8a;color:#fff}
+.badge-blue{background:#dbeafe;color:#1e40af}
+.badge-gray{background:#f1f5f9;color:#475569;border:1px solid #e2e8f0}
+.badge-str{background:#065f46;color:#fff}
+
+/* ── Stats row ── */
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:20px}
+.stat-card{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:18px 20px;display:flex;align-items:center;gap:14px}
+.stat-icon{width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.stat-body span{display:block;font-size:24px;font-weight:800;color:#0f172a;line-height:1.1}
+.stat-body small{font-size:12px;color:#64748b;margin-top:2px;display:block}
+
+/* ── Table ── */
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.5px;padding:10px 14px;background:#f8fafc;border-bottom:1px solid #e2e8f0}
+td{padding:12px 14px;border-bottom:1px solid #f1f5f9;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr.clickable:hover td{background:#f8fafc;cursor:pointer}
+tr.clickable:hover td:first-child{border-radius:6px 0 0 6px}
+
+/* ── Filters / Tabs ── */
+.tabs{display:flex;gap:4px;background:#f1f5f9;border-radius:10px;padding:4px}
+.tab{padding:7px 16px;border-radius:7px;font-size:13px;font-weight:600;color:#64748b;cursor:pointer;transition:all .15s}
+.tab.active{background:#fff;color:#2563eb;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.filter-row{display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+.search-box{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:7px 12px;flex:1;min-width:200px}
+.search-box input{border:none;outline:none;font-size:13px;color:#374151;width:100%;background:transparent}
+.select-filter{border:1px solid #e2e8f0;border-radius:8px;padding:7px 12px;font-size:13px;color:#374151;background:#fff;cursor:pointer;outline:none}
+
+/* ── SLA bar ── */
+.sla-bar{width:120px}
+.sla-track{height:5px;background:#f1f5f9;border-radius:3px;overflow:hidden;margin-bottom:4px}
+.sla-fill{height:100%;border-radius:3px;transition:width .3s}
+.sla-text{font-size:12px;font-weight:700}
+.sla-urgent .sla-fill{background:#ef4444}
+.sla-urgent .sla-text{color:#dc2626}
+.sla-warn .sla-fill{background:#f59e0b}
+.sla-warn .sla-text{color:#d97706}
+.sla-ok .sla-fill{background:#10b981}
+.sla-ok .sla-text{color:#059669}
+
+/* ── Detail layout ── */
+.detail-layout{display:grid;grid-template-columns:1fr 340px;gap:20px;align-items:start}
+.detail-left{display:flex;flex-direction:column;gap:16px}
+.detail-right{position:sticky;top:0}
+
+/* ── Score ring ── */
+.score-ring-wrap{display:flex;flex-direction:column;align-items:center;padding:20px 0 12px}
+.score-ring{position:relative;width:110px;height:110px}
+.score-ring svg{transform:rotate(-90deg)}
+.score-ring .score-num{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.score-ring .score-num span{font-size:30px;font-weight:800;line-height:1}
+.score-ring .score-num small{font-size:11px;color:#94a3b8;margin-top:2px}
+
+/* ── Info grid ── */
+.info-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:0}
+.info-item{padding:12px 16px;border-bottom:1px solid #f1f5f9}
+.info-item:nth-child(odd){border-right:1px solid #f1f5f9}
+.info-item label{display:block;font-size:11px;color:#94a3b8;margin-bottom:4px;font-weight:600;text-transform:uppercase;letter-spacing:.4px}
+.info-item value{display:block;font-size:13px;color:#1a1a2e;font-weight:500}
+.info-item.full{grid-column:1/-1;border-right:none}
+.mono{font-family:'SF Mono',Monaco,Consolas,monospace;font-size:12px}
+
+/* ── Rule trigger list ── */
+.rule-item{display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid #f8fafc}
+.rule-item:last-child{border-bottom:none}
+.rule-icon{width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.rule-score{margin-left:auto;font-size:13px;font-weight:800;color:#dc2626}
+
+/* ── Timeline ── */
+.timeline{padding:4px 0}
+.tl-item{display:flex;gap:14px;padding:10px 0}
+.tl-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:5px;border:2px solid currentColor}
+.tl-line{width:2px;background:#e2e8f0;flex-shrink:0;margin:2px auto;margin-left:3px}
+.tl-item:last-child .tl-line{display:none}
+
+/* ── Fund source bar ── */
+.fund-bar{height:10px;border-radius:5px;overflow:hidden;display:flex;margin:8px 0}
+.fund-seg{height:100%}
+
+/* ── Action panel ── */
+.action-panel{display:flex;flex-direction:column;gap:10px;padding:20px}
+.action-btn-group{display:flex;flex-direction:column;gap:8px}
+
+/* ── Modal ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:100;display:none;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal{background:#fff;border-radius:16px;width:100%;max-width:520px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+.modal-hd{padding:20px 24px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between}
+.modal-hd h3{font-size:16px;font-weight:700;color:#0f172a}
+.modal-close{width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#64748b;font-size:18px;border:none;background:transparent}
+.modal-close:hover{background:#f1f5f9}
+.modal-body{padding:24px}
+.modal-footer{padding:16px 24px;border-top:1px solid #f1f5f9;display:flex;gap:10px;justify-content:flex-end}
+.form-group{margin-bottom:16px}
+.form-label{display:block;font-size:12px;font-weight:700;color:#374151;margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px}
+.form-input{width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:9px 12px;font-size:13px;color:#374151;outline:none;transition:border-color .15s;font-family:inherit}
+.form-input:focus{border-color:#6366f1}
+textarea.form-input{resize:vertical;min-height:90px}
+select.form-input{cursor:pointer}
+.checkbox-group{display:flex;flex-direction:column;gap:8px}
+.checkbox-item{display:flex;align-items:center;gap:10px;cursor:pointer}
+.checkbox-item input{width:16px;height:16px;cursor:pointer;accent-color:#6366f1}
+.checkbox-item span{font-size:13px;color:#374151}
+
+/* ── Done screen ── */
+.done-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;text-align:center;gap:16px}
+.done-icon{width:72px;height:72px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:36px;margin:0 auto}
+.done-icon.success{background:#d1fae5}
+.done-icon.danger{background:#fee2e2}
+.done-icon.info{background:#ede9fe}
+
+/* ── Misc ── */
+.divider{height:1px;background:#f1f5f9;margin:0 -20px}
+.text-xs{font-size:11px}
+.text-sm{font-size:12px}
+.text-muted{color:#94a3b8}
+.text-bold{font-weight:700}
+.flex{display:flex}
+.items-center{align-items:center}
+.gap-2{gap:8px}
+.gap-3{gap:12px}
+.mt-2{margin-top:8px}
+.mt-3{margin-top:12px}
+.w-full{width:100%}
+.alert{border-radius:8px;padding:12px 16px;font-size:13px;display:flex;gap:10px;align-items:flex-start}
+.alert-warn{background:#fffbeb;border:1px solid #fde68a;color:#78350f}
+.alert-danger{background:#fef2f2;border:1px solid #fecaca;color:#7f1d1d}
+.alert-info{background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af}
+.section-label{font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px}
+.risk-bar-wrap{margin:8px 0}
+.risk-bar-row{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.risk-bar-label{font-size:11px;color:#64748b;width:80px;flex-shrink:0}
+.risk-bar-track{flex:1;height:6px;background:#f1f5f9;border-radius:3px;overflow:hidden}
+.risk-bar-fill{height:100%;border-radius:3px}
+.risk-bar-val{font-size:11px;font-weight:700;color:#374151;width:30px;text-align:right}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- ═══ SIDEBAR ═══ -->
+<aside class="sidebar">
+  <div class="sb-logo">
+    <span>FuturePayCA</span>
+    <small>MSB 合规平台</small>
+  </div>
+  <nav class="sb-nav">
+    <div class="sb-section">管理</div>
+    <div class="sb-item" onclick="void(0)">
+      <span class="icon">🏢</span>商户管理
+    </div>
+    <div class="sb-item" onclick="void(0)">
+      <span class="icon">🪪</span>KYC 审核
+      <span class="sb-badge">5</span>
+    </div>
+    <div class="sb-section">合规</div>
+    <div class="sb-item active">
+      <span class="icon">🔍</span>事中监控
+      <span class="sb-badge">12</span>
+    </div>
+    <div class="sb-item" onclick="void(0)">
+      <span class="icon">🚨</span>交易警报
+      <span class="sb-badge" style="background:#f59e0b">3</span>
+    </div>
+    <div class="sb-item" onclick="void(0)">
+      <span class="icon">💳</span>充值审核
+    </div>
+    <div class="sb-section">设置</div>
+    <div class="sb-item" onclick="void(0)">
+      <span class="icon">⚙️</span>系统设置
+    </div>
+    <div class="sb-item" onclick="void(0)">
+      <span class="icon">📊</span>监控配置
+    </div>
+  </nav>
+  <div class="sb-user">
+    <div class="sb-avatar">陈</div>
+    <div class="sb-user-info">
+      <span>陈晓明</span>
+      <small>L1 合规审核员</small>
+    </div>
+  </div>
+</aside>
+
+<!-- ═══ MAIN ═══ -->
+<main class="main">
+
+<!-- ── TOP BAR ── -->
+<div class="topbar" id="topbar">
+  <div class="breadcrumb">
+    <span>事中监控</span>
+    <span>›</span>
+    <span class="cur" id="bc-cur">审核队列</span>
+  </div>
+  <div class="topbar-actions">
+    <button class="btn btn-gray btn-sm">⬇ 导出报告</button>
+    <button class="btn btn-primary btn-sm">🔔 警报配置</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     SCREEN 1: MONITORING QUEUE
+══════════════════════════════════════ -->
+<div id="screen-list" class="content">
+
+  <!-- Stats -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-icon" style="background:#fef3c7">⏳</div>
+      <div class="stat-body">
+        <span>12</span>
+        <small>待审核</small>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon" style="background:#fee2e2">🚨</div>
+      <div class="stat-body">
+        <span style="color:#dc2626">2</span>
+        <small>SLA 紧急（&lt;4h）</small>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon" style="background:#ede9fe">🔼</div>
+      <div class="stat-body">
+        <span style="color:#7c3aed">3</span>
+        <small>L2 复核中</small>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon" style="background:#d1fae5">✅</div>
+      <div class="stat-body">
+        <span style="color:#059669">47</span>
+        <small>今日已完成</small>
+      </div>
+    </div>
+  </div>
+
+  <!-- Table card -->
+  <div class="card">
+    <div class="card-hd">
+      <div class="tabs" id="queue-tabs">
+        <div class="tab active" data-tab="all" onclick="filterTab(this,'all')">全部 <span style="color:#94a3b8;font-weight:400">8</span></div>
+        <div class="tab" data-tab="pending" onclick="filterTab(this,'pending')">待审核 <span style="color:#d97706;font-weight:400">3</span></div>
+        <div class="tab" data-tab="l2" onclick="filterTab(this,'l2')">L2 复核中 <span style="color:#7c3aed;font-weight:400">2</span></div>
+        <div class="tab" data-tab="auto" onclick="filterTab(this,'auto')">自动处理 <span style="color:#94a3b8;font-weight:400">3</span></div>
+      </div>
+      <button class="btn btn-ghost btn-sm">🔄 刷新</button>
+    </div>
+    <div style="padding:16px 20px 0;border-bottom:1px solid #f1f5f9">
+      <div class="filter-row">
+        <div class="search-box">
+          <span style="color:#94a3b8">🔍</span>
+          <input type="text" placeholder="搜索交易ID、商户名称、钱包地址…">
+        </div>
+        <select class="select-filter">
+          <option>全部风险等级</option>
+          <option>低风险 (0–30)</option>
+          <option>中风险 (31–60)</option>
+          <option>高风险 (61–85)</option>
+          <option>严重 (86–100)</option>
+        </select>
+        <select class="select-filter">
+          <option>全部交易类型</option>
+          <option>充值</option>
+          <option>提现</option>
+        </select>
+        <select class="select-filter">
+          <option>今日</option>
+          <option>近7天</option>
+          <option>近30天</option>
+        </select>
+      </div>
+    </div>
+    <div class="tbl-wrap">
+      <table id="queue-table">
+        <thead>
+          <tr>
+            <th>交易 ID</th>
+            <th>商户</th>
+            <th>金额 / 类型</th>
+            <th>风险评分 (CRR)</th>
+            <th>风险等级</th>
+            <th>状态</th>
+            <th>SLA 剩余</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="queue-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     SCREEN 2: TRANSACTION DETAIL (L1 Review)
+══════════════════════════════════════ -->
+<div id="screen-detail" style="display:none" class="content">
+
+  <!-- Header bar -->
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+    <div style="display:flex;align-items:center;gap:12px">
+      <button class="btn btn-ghost btn-sm" onclick="goBack()">← 返回队列</button>
+      <div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="font-size:16px;font-weight:700;color:#0f172a">TXN-20240115-0042</span>
+          <span class="badge badge-high">高风险</span>
+          <span class="badge badge-review">审核中</span>
+        </div>
+        <div style="font-size:12px;color:#64748b;margin-top:3px">环球汇跨境金融服务 Inc. · 2024-01-15 14:32:08 · USDT 充值</div>
+      </div>
+    </div>
+    <!-- SLA countdown in topbar -->
+    <div style="display:flex;align-items:center;gap:16px">
+      <div style="text-align:right">
+        <div style="font-size:11px;color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:.4px">SLA 剩余时间</div>
+        <div id="sla-timer" style="font-size:22px;font-weight:800;color:#dc2626;font-variant-numeric:tabular-nums">03:24:18</div>
+      </div>
+      <div style="width:8px;height:8px;border-radius:50%;background:#dc2626;animation:pulse 1.5s infinite"></div>
+    </div>
+  </div>
+
+  <!-- Alert bar -->
+  <div class="alert alert-warn" style="margin-bottom:16px">
+    <span>⚠️</span>
+    <div>
+      <strong>SLA 紧急提醒：</strong> 本案件为高风险交易（CRR 72），需在 <strong>3小时24分钟</strong> 内完成审核。逾期将自动上报系统警报并通知 L2 主管。
+    </div>
+  </div>
+
+  <div class="detail-layout">
+
+    <!-- ── LEFT PANELS ── -->
+    <div class="detail-left">
+
+      <!-- 基本信息 — Two-party layout -->
+      <div class="card">
+        <div class="card-hd">
+          <h3>📋 交易基本信息</h3>
+          <div style="display:flex;gap:8px;align-items:center">
+            <span class="badge badge-blue">充值入账</span>
+            <span class="badge badge-gray">USDT · BEP-20</span>
+            <span class="badge" style="background:#d1fae5;color:#065f46">✓ 12 块确认</span>
+          </div>
+        </div>
+
+        <!-- Amount hero -->
+        <div style="padding:20px 24px;background:linear-gradient(135deg,#f8fafc 0%,#eff6ff 100%);border-bottom:1px solid #e2e8f0;text-align:center">
+          <div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px">交易金额</div>
+          <div style="font-size:34px;font-weight:800;color:#0f172a;letter-spacing:-1px;line-height:1">$45,000.00</div>
+          <div style="font-size:13px;color:#64748b;margin-top:6px">45,000.00 USDT &nbsp;·&nbsp; Binance Smart Chain (BEP-20)</div>
+        </div>
+
+        <!-- Two-party flow — animation row -->
+        <div style="padding:28px 24px 16px;border-bottom:1px solid #f1f5f9">
+          <div style="display:flex;align-items:center;gap:0">
+
+            <!-- Sender avatar -->
+            <div style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:8px;z-index:2">
+              <div style="position:relative;width:60px;height:60px">
+                <div class="sender-ring r1"></div>
+                <div class="sender-ring r2"></div>
+                <div style="width:60px;height:60px;border-radius:14px;background:linear-gradient(135deg,#fce7f3,#fecdd3);display:flex;align-items:center;justify-content:center;font-size:28px;border:2px solid #fca5a5;position:relative;z-index:2">👤</div>
+              </div>
+              <div style="text-align:center">
+                <div style="font-size:12px;font-weight:700;color:#1a1a2e">外部钱包</div>
+                <div style="font-size:10px;color:#94a3b8;margin-top:1px">未知实体</div>
+              </div>
+              <span class="badge badge-high" style="font-size:9px;padding:2px 8px">⚠ 风险 68</span>
+            </div>
+
+            <!-- Flow track — parabolic arc toss -->
+            <div style="flex:1;position:relative;height:100px;margin:0 6px">
+
+              <!-- Faint ground line -->
+              <div style="position:absolute;top:50%;left:0;right:0;height:1px;
+                   background:linear-gradient(90deg,rgba(252,165,165,.2),rgba(129,140,248,.35),rgba(110,231,183,.2));
+                   transform:translateY(-50%)"></div>
+
+              <!-- Amount pill -->
+              <div style="position:absolute;top:8px;left:0;right:0;display:flex;justify-content:center;z-index:5">
+                <div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:20px;
+                            padding:5px 16px;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.07)">
+                  <span style="font-size:15px;font-weight:800;color:#0f172a;letter-spacing:-.5px">$45,000.00</span>
+                  <span style="font-size:11px;color:#94a3b8;margin-left:5px">USDT</span>
+                </div>
+              </div>
+
+              <!-- 3 staggered arc coins -->
+              <div class="arc-x">       <div class="arc-y"><div class="arc-coin"></div></div></div>
+              <div class="arc-x arc-d1"><div class="arc-y"><div class="arc-coin alt"></div></div></div>
+              <div class="arc-x arc-d2"><div class="arc-y"><div class="arc-coin"></div></div></div>
+
+              <!-- Meta -->
+              <div style="position:absolute;bottom:6px;left:0;right:0;display:flex;justify-content:center">
+                <span style="font-size:10px;color:#94a3b8;white-space:nowrap">充值入账 · BEP-20 · 14:32:08 UTC · 12 块确认</span>
+              </div>
+            </div>
+
+            <!-- Receiver avatar -->
+            <div style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:8px;z-index:2">
+              <div style="position:relative;width:60px;height:60px">
+                <div class="receiver-ring r1"></div>
+                <div class="receiver-ring r2"></div>
+                <div style="width:60px;height:60px;border-radius:14px;background:linear-gradient(135deg,#ede9fe,#ddd6fe);display:flex;align-items:center;justify-content:center;font-size:28px;border:2px solid #c4b5fd;position:relative;z-index:2">🏢</div>
+              </div>
+              <div style="text-align:center">
+                <div style="font-size:12px;font-weight:700;color:#1a1a2e">环球汇跨境</div>
+                <div style="font-size:10px;color:#94a3b8;margin-top:1px">商户托管钱包</div>
+              </div>
+              <span class="badge" style="background:#d1fae5;color:#065f46;font-size:9px;padding:2px 8px">✓ 平台认证</span>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Address detail row (2-col) -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:16px 24px 20px">
+
+          <!-- Sender address -->
+          <div style="background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:10px;padding:12px 14px">
+            <div style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">发款地址</div>
+            <div style="font-family:'SF Mono',Monaco,Consolas,monospace;font-size:11px;color:#374151;word-break:break-all;line-height:1.6">0x3A4f5B8C1D2E9F7A6B4C3D2E1F0A9B8C7D6E5F4</div>
+            <div style="display:flex;align-items:center;gap:6px;margin-top:8px;flex-wrap:wrap">
+              <span class="badge" style="background:#dbeafe;color:#1e40af;font-size:10px;padding:2px 8px">BSC</span>
+              <button onclick="navigator.clipboard&&navigator.clipboard.writeText('0x3A4f5B8C1D2E9F7A6B4C3D2E1F0A9B8C7D6E5F4')" style="margin-left:auto;font-size:11px;color:#6366f1;border:none;background:none;cursor:pointer;font-weight:600;padding:0">复制 ⧉</button>
+            </div>
+            <div style="margin-top:10px;padding-top:10px;border-top:1px solid #f1f5f9;display:flex;flex-direction:column;gap:5px">
+              <div style="display:flex;align-items:center;gap:6px">
+                <span style="width:6px;height:6px;border-radius:50%;background:#f59e0b;flex-shrink:0"></span>
+                <span style="font-size:11px;color:#92400e">混币器间接关联（45 跳）</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:6px">
+                <span style="width:6px;height:6px;border-radius:50%;background:#10b981;flex-shrink:0"></span>
+                <span style="font-size:11px;color:#065f46">OFAC 制裁名单 — 通过</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:6px">
+                <span style="width:6px;height:6px;border-radius:50%;background:#10b981;flex-shrink:0"></span>
+                <span style="font-size:11px;color:#065f46">FINTRAC 警告列表 — 通过</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Receiver address -->
+          <div style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:10px;padding:12px 14px">
+            <div style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">收款地址</div>
+            <div style="font-family:'SF Mono',Monaco,Consolas,monospace;font-size:11px;color:#374151;word-break:break-all;line-height:1.6">0xA1B2C3D4E5F6A7B8C9D0E1F2A3B4C5D6E7F8A9</div>
+            <div style="display:flex;align-items:center;gap:6px;margin-top:8px;flex-wrap:wrap">
+              <span class="badge" style="background:#dbeafe;color:#1e40af;font-size:10px;padding:2px 8px">BSC</span>
+              <span class="badge" style="background:#d1fae5;color:#065f46;font-size:10px;padding:2px 8px">✓ 平台认证</span>
+              <button onclick="navigator.clipboard&&navigator.clipboard.writeText('0xA1B2C3D4E5F6A7B8C9D0E1F2A3B4C5D6E7F8A9')" style="margin-left:auto;font-size:11px;color:#6366f1;border:none;background:none;cursor:pointer;font-weight:600;padding:0">复制 ⧉</button>
+            </div>
+            <div style="margin-top:10px;padding-top:10px;border-top:1px solid #d1fae5;display:flex;flex-direction:column;gap:5px">
+              <div style="display:flex;align-items:center;gap:6px">
+                <span style="width:6px;height:6px;border-radius:50%;background:#10b981;flex-shrink:0"></span>
+                <span style="font-size:11px;color:#065f46">内部托管钱包，已验证</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:6px">
+                <span style="width:6px;height:6px;border-radius:50%;background:#10b981;flex-shrink:0"></span>
+                <span style="font-size:11px;color:#065f46">商户 MCH-2023-0089 旗下地址</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- On-chain meta footer — facts only -->
+        <div style="border-top:1px solid #f1f5f9;padding:12px 24px;background:#f8fafc;display:flex;align-items:center;gap:32px;flex-wrap:wrap">
+          <div>
+            <div style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">Tx Hash</div>
+            <div style="font-family:'SF Mono',Monaco,Consolas,monospace;font-size:11px;color:#2563eb;cursor:pointer;text-decoration:underline" title="0xb4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2">0xb4c5d6e7...f0a1b2 ↗</div>
+          </div>
+          <div style="width:1px;height:28px;background:#e2e8f0"></div>
+          <div>
+            <div style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">链上时间</div>
+            <div style="font-size:12px;color:#374151">2024-01-15 14:32:08 UTC</div>
+          </div>
+          <div style="width:1px;height:28px;background:#e2e8f0"></div>
+          <div>
+            <div style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">区块高度</div>
+            <div style="font-family:'SF Mono',Monaco,Consolas,monospace;font-size:12px;color:#374151">#35,821,094</div>
+          </div>
+          <div style="width:1px;height:28px;background:#e2e8f0"></div>
+          <div>
+            <div style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">Gas 费用</div>
+            <div style="font-size:12px;color:#374151">0.000842 BNB</div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- AML 链上分析 -->
+      <div class="card">
+        <div class="card-hd">
+          <h3>🔗 AML 链上扫描分析</h3>
+          <div style="display:flex;gap:8px;align-items:center">
+            <span style="font-size:11px;color:#94a3b8">by Chainalysis</span>
+            <span class="badge badge-high">风险: 68/100</span>
+          </div>
+        </div>
+        <div class="card-body">
+          <!-- Fund source bar -->
+          <div class="section-label">资金来源分布</div>
+          <div class="fund-bar">
+            <div class="fund-seg" style="width:35%;background:#6366f1" title="交易所"></div>
+            <div class="fund-seg" style="width:25%;background:#f59e0b" title="DeFi协议"></div>
+            <div class="fund-seg" style="width:8%;background:#ef4444" title="疑似混币器"></div>
+            <div class="fund-seg" style="width:32%;background:#e2e8f0" title="未知来源"></div>
+          </div>
+          <div style="display:flex;gap:16px;margin-bottom:16px;flex-wrap:wrap">
+            <div style="display:flex;align-items:center;gap:6px;font-size:12px"><span style="width:10px;height:10px;background:#6366f1;border-radius:2px;display:inline-block"></span> 交易所 35%</div>
+            <div style="display:flex;align-items:center;gap:6px;font-size:12px"><span style="width:10px;height:10px;background:#f59e0b;border-radius:2px;display:inline-block"></span> DeFi 25%</div>
+            <div style="display:flex;align-items:center;gap:6px;font-size:12px"><span style="width:10px;height:10px;background:#ef4444;border-radius:2px;display:inline-block"></span> 混币器关联 8%</div>
+            <div style="display:flex;align-items:center;gap:6px;font-size:12px"><span style="width:10px;height:10px;background:#e2e8f0;border-radius:2px;display:inline-block"></span> 未知 32%</div>
+          </div>
+
+          <!-- Risk dimension bars -->
+          <div class="section-label">多维风险评估</div>
+          <div class="risk-bar-wrap">
+            <div class="risk-bar-row">
+              <span class="risk-bar-label">交易对手风险</span>
+              <div class="risk-bar-track"><div class="risk-bar-fill" style="width:72%;background:#ef4444"></div></div>
+              <span class="risk-bar-val" style="color:#dc2626">72</span>
+            </div>
+            <div class="risk-bar-row">
+              <span class="risk-bar-label">资金来源风险</span>
+              <div class="risk-bar-track"><div class="risk-bar-fill" style="width:68%;background:#f59e0b"></div></div>
+              <span class="risk-bar-val" style="color:#d97706">68</span>
+            </div>
+            <div class="risk-bar-row">
+              <span class="risk-bar-label">行为模式风险</span>
+              <div class="risk-bar-track"><div class="risk-bar-fill" style="width:55%;background:#f59e0b"></div></div>
+              <span class="risk-bar-val" style="color:#d97706">55</span>
+            </div>
+            <div class="risk-bar-row">
+              <span class="risk-bar-label">制裁名单筛查</span>
+              <div class="risk-bar-track"><div class="risk-bar-fill" style="width:4%;background:#10b981"></div></div>
+              <span class="risk-bar-val" style="color:#059669">通过</span>
+            </div>
+          </div>
+
+          <!-- Flags -->
+          <div class="section-label" style="margin-top:12px">⚑ 链上标记实体</div>
+          <div style="background:#fff8f1;border:1px solid #fed7aa;border-radius:8px;padding:12px;margin-bottom:8px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+              <span style="font-size:13px;font-weight:700;color:#9a3412">⚠ 混币器关联路径（中风险）</span>
+              <span class="badge" style="background:#fee2e2;color:#b91c1c">距源头 45 跳</span>
+            </div>
+            <div style="font-size:12px;color:#78350f">资金路径经过已知混币服务 Tornado Cash（现受制裁），但关联距离较远，非直接关联。建议关注后续资金流向。</div>
+          </div>
+          <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px">
+            <div style="font-size:13px;font-weight:700;color:#065f46;margin-bottom:4px">✓ OFAC 制裁名单筛查 — 通过</div>
+            <div style="font-size:12px;color:#047857">发送地址未出现在 OFAC SDN 名单、UN 制裁名单及 FINTRAC 警告列表中。</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 规则引擎触发明细 -->
+      <div class="card">
+        <div class="card-hd">
+          <h3>⚙️ 规则引擎触发明细</h3>
+          <span style="font-size:13px;font-weight:700;color:#dc2626">总 CRR 加分：+72</span>
+        </div>
+        <div style="padding:0 20px">
+          <div class="rule-item">
+            <div class="rule-icon" style="background:#dbeafe">📏</div>
+            <div style="flex:1">
+              <div style="font-size:13px;font-weight:600;color:#1a1a2e">R-001 · 单笔虚拟货币金额 &gt;$10,000</div>
+              <div style="font-size:11px;color:#64748b;margin-top:2px">触发 VCTR 上报要求 · 本笔交易金额 $45,000 超过阈值</div>
+            </div>
+            <span class="rule-score">+15</span>
+          </div>
+          <div class="rule-item">
+            <div class="rule-icon" style="background:#fef3c7">📈</div>
+            <div style="flex:1">
+              <div style="font-size:13px;font-weight:600;color:#1a1a2e">R-008 · 同地址7日累计超限</div>
+              <div style="font-size:11px;color:#64748b;margin-top:2px">该地址近7日累计入账 $83,200（限额 $50,000）· 超出 $33,200</div>
+            </div>
+            <span class="rule-score">+20</span>
+          </div>
+          <div class="rule-item">
+            <div class="rule-icon" style="background:#fee2e2">🔀</div>
+            <div style="flex:1">
+              <div style="font-size:13px;font-weight:600;color:#1a1a2e">R-012 · 链上资金路径含混币器关联</div>
+              <div style="font-size:11px;color:#64748b;margin-top:2px">Chainalysis 识别到与 Tornado Cash 的间接关联（45跳）</div>
+            </div>
+            <span class="rule-score">+25</span>
+          </div>
+          <div class="rule-item">
+            <div class="rule-icon" style="background:#ede9fe">🏷️</div>
+            <div style="flex:1">
+              <div style="font-size:13px;font-weight:600;color:#1a1a2e">R-023 · 高风险行业商户加权</div>
+              <div style="font-size:11px;color:#64748b;margin-top:2px">商户分类：跨境汇款（高风险行业），执行行业加权系数 ×1.15</div>
+            </div>
+            <span class="rule-score">+12</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 同商户近期交易 -->
+      <div class="card">
+        <div class="card-hd">
+          <h3>🕐 同商户近期交易记录</h3>
+          <span class="badge badge-gray">近30天</span>
+        </div>
+        <div class="tbl-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>交易 ID</th>
+                <th>金额 / 类型</th>
+                <th>CRR</th>
+                <th>结果</th>
+                <th>时间</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="mono" style="font-size:12px;color:#2563eb">TXN-20240115-0038</td>
+                <td>$95,000 USDT 充值</td>
+                <td><span style="font-weight:700;color:#7f1d1d">91</span></td>
+                <td><span class="badge badge-rejected">自动拒绝</span></td>
+                <td style="color:#94a3b8;font-size:12px">1天前</td>
+              </tr>
+              <tr>
+                <td class="mono" style="font-size:12px;color:#2563eb">TXN-20240113-0029</td>
+                <td>$3,200 BTC 提现</td>
+                <td><span style="font-weight:700;color:#059669">15</span></td>
+                <td><span class="badge badge-auto">智能入账</span></td>
+                <td style="color:#94a3b8;font-size:12px">3天前</td>
+              </tr>
+              <tr>
+                <td class="mono" style="font-size:12px;color:#2563eb">TXN-20240110-0021</td>
+                <td>$15,000 ETH 充值</td>
+                <td><span style="font-weight:700;color:#d97706">62</span></td>
+                <td><span class="badge badge-auto" style="background:#d1fae5;color:#065f46">L1 审核入账</span></td>
+                <td style="color:#94a3b8;font-size:12px">5天前</td>
+              </tr>
+              <tr>
+                <td class="mono" style="font-size:12px;color:#2563eb">TXN-20240108-0014</td>
+                <td>$28,000 USDT 充值</td>
+                <td><span style="font-weight:700;color:#d97706">71</span></td>
+                <td><span class="badge badge-auto" style="background:#d1fae5;color:#065f46">L1 审核入账</span></td>
+                <td style="color:#94a3b8;font-size:12px">7天前</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div style="padding:12px 20px;background:#fef9e7;border-top:1px solid #fde68a">
+          <span style="font-size:12px;color:#92400e">⚠ 风险提示：该商户近30天累计入账 <strong>$186,200</strong>，月度 AML 监控临界值为 <strong>$200,000</strong>，余额 $13,800。</span>
+        </div>
+      </div>
+
+      <!-- 案件时间轴 -->
+      <div class="card">
+        <div class="card-hd"><h3>📅 案件时间轴</h3></div>
+        <div class="card-body">
+          <div class="timeline">
+            <div class="tl-item">
+              <div>
+                <div class="tl-dot" style="color:#3b82f6;background:#dbeafe;border-color:#3b82f6"></div>
+                <div class="tl-line"></div>
+              </div>
+              <div>
+                <div style="font-size:13px;font-weight:600;color:#1a1a2e">商户提交交易</div>
+                <div style="font-size:11px;color:#64748b;margin-top:2px">14:32:08 · 链上交易已确认，系统接收</div>
+              </div>
+              <div style="margin-left:auto;font-size:11px;color:#94a3b8;white-space:nowrap">14:32:08</div>
+            </div>
+            <div class="tl-item">
+              <div>
+                <div class="tl-dot" style="color:#3b82f6;background:#dbeafe;border-color:#3b82f6"></div>
+                <div class="tl-line"></div>
+              </div>
+              <div>
+                <div style="font-size:13px;font-weight:600;color:#1a1a2e">AML 链上扫描完成</div>
+                <div style="font-size:11px;color:#64748b;margin-top:2px">Chainalysis 返回结果：链上风险 68/100</div>
+              </div>
+              <div style="margin-left:auto;font-size:11px;color:#94a3b8;white-space:nowrap">14:32:24</div>
+            </div>
+            <div class="tl-item">
+              <div>
+                <div class="tl-dot" style="color:#f59e0b;background:#fef3c7;border-color:#f59e0b"></div>
+                <div class="tl-line"></div>
+              </div>
+              <div>
+                <div style="font-size:13px;font-weight:600;color:#1a1a2e">规则引擎评分完成 → 进入 L1 审核队列</div>
+                <div style="font-size:11px;color:#64748b;margin-top:2px">CRR 72（高风险），触发 4 条规则，SLA 4小时</div>
+              </div>
+              <div style="margin-left:auto;font-size:11px;color:#94a3b8;white-space:nowrap">14:32:25</div>
+            </div>
+            <div class="tl-item">
+              <div>
+                <div class="tl-dot" style="color:#d97706;background:#fef3c7;border-color:#d97706"></div>
+              </div>
+              <div>
+                <div style="font-size:13px;font-weight:600;color:#d97706">⏳ 等待 L1 合规审核员处理…</div>
+                <div style="font-size:11px;color:#94a3b8;margin-top:2px">分配给：陈晓明</div>
+              </div>
+              <div style="margin-left:auto;font-size:11px;color:#94a3b8;white-space:nowrap">当前</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /detail-left -->
+
+    <!-- ── RIGHT: ACTION PANEL ── -->
+    <div class="detail-right">
+      <div class="card">
+        <!-- CRR Score -->
+        <div class="score-ring-wrap">
+          <div class="score-ring">
+            <svg width="110" height="110" viewBox="0 0 110 110">
+              <circle cx="55" cy="55" r="46" fill="none" stroke="#f1f5f9" stroke-width="10"/>
+              <circle cx="55" cy="55" r="46" fill="none" stroke="#dc2626" stroke-width="10"
+                stroke-dasharray="289" stroke-dashoffset="80" stroke-linecap="round"/>
+            </svg>
+            <div class="score-num">
+              <span style="color:#dc2626">72</span>
+              <small>/ 100</small>
+            </div>
+          </div>
+          <div style="margin-top:8px;text-align:center">
+            <div style="font-size:13px;font-weight:700;color:#dc2626">高风险</div>
+            <div style="font-size:11px;color:#94a3b8;margin-top:2px">CRR 61–85 · 需 L1 人工审核</div>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <!-- SLA in action panel -->
+        <div style="padding:16px 20px;background:#fff8f8;border-bottom:1px solid #fee2e2">
+          <div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">SLA 剩余时间</div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <div id="sla-timer2" style="font-size:26px;font-weight:800;color:#dc2626;font-variant-numeric:tabular-nums">03:24:18</div>
+            <div style="font-size:11px;color:#dc2626">高风险<br>4h SLA</div>
+          </div>
+          <div style="height:6px;background:#fee2e2;border-radius:3px;margin-top:8px;overflow:hidden">
+            <div id="sla-bar" style="height:100%;width:85%;background:#dc2626;border-radius:3px;transition:width .3s"></div>
+          </div>
+          <div style="font-size:11px;color:#94a3b8;margin-top:4px">逾期自动上报系统警报</div>
+        </div>
+
+        <!-- VCTR notice -->
+        <div style="padding:12px 20px;background:#eff6ff;border-bottom:1px solid #dbeafe">
+          <div style="font-size:12px;color:#1e40af">
+            <strong>📋 VCTR 上报提醒</strong><br>
+            <span style="font-size:11px">本交易金额 $45,000 &gt; $10,000，需在 15 个工作日内向 FINTRAC 提交 VCTR。审核完成后系统自动发起上报。</span>
+          </div>
+        </div>
+
+        <!-- Notes -->
+        <div style="padding:16px 20px;border-bottom:1px solid #f1f5f9">
+          <div class="section-label">审核备注（必填）</div>
+          <textarea id="review-notes" class="form-input" placeholder="请填写审核意见，说明决策依据…" style="min-height:80px"></textarea>
+        </div>
+
+        <!-- Action buttons -->
+        <div class="action-panel">
+          <div class="section-label">L1 审核决策</div>
+          <div class="action-btn-group">
+            <button class="btn btn-success btn-block" onclick="doAction('approve')">
+              ✅ 审核入账
+            </button>
+            <button class="btn btn-ghost btn-block" onclick="openModal('modal-request')" style="border-color:#3b82f6;color:#2563eb">
+              📎 请求补充材料
+            </button>
+            <button class="btn btn-purple btn-block" onclick="openModal('modal-escalate')">
+              🔼 升级 L2 复核
+            </button>
+            <button class="btn btn-outline-danger btn-block" onclick="openModal('modal-reject')">
+              ✗ 拒绝交易
+            </button>
+            <button class="btn btn-block" style="background:#7f1d1d;color:#fff" onclick="openModal('modal-freeze')">
+              🔒 冻结并报告 STR
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /detail-layout -->
+</div>
+
+<!-- ══════════════════════════════════════
+     SCREEN 3: L2 REVIEW
+══════════════════════════════════════ -->
+<div id="screen-l2" style="display:none" class="content">
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
+    <button class="btn btn-ghost btn-sm" onclick="goBack()">← 返回队列</button>
+    <div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-size:16px;font-weight:700;color:#0f172a">TXN-20240115-0042</span>
+        <span class="badge badge-high">高风险</span>
+        <span class="badge badge-l2">L2 复核中</span>
+      </div>
+      <div style="font-size:12px;color:#64748b;margin-top:3px">由 L1 陈晓明 升级 · 环球汇跨境金融服务 Inc. · USDT $45,000</div>
+    </div>
+  </div>
+
+  <div class="detail-layout">
+    <div class="detail-left">
+
+      <!-- L1 Opinion -->
+      <div class="card">
+        <div class="card-hd">
+          <h3>📝 L1 审核意见</h3>
+          <span class="badge badge-l2">已升级至 L2</span>
+        </div>
+        <div class="card-body">
+          <div style="background:#f5f3ff;border:1px solid #ddd6fe;border-radius:8px;padding:14px">
+            <div style="font-size:12px;color:#7c3aed;font-weight:700;margin-bottom:6px">L1 审核员 · 陈晓明 · 2024-01-15 15:18:42</div>
+            <div style="font-size:13px;color:#374151;line-height:1.6">
+              交易金额 $45,000 USDT，链上 AML 扫描显示资金路径含混币器间接关联（45跳），CRR 72。虽然间接关联距离较远，但结合商户近期高频大额交易（30天内 $186,200），以及同地址7日超限，整体风险特征需要高级合规审查。建议 L2 重点评估商户行为模式及资金来源合理性。
+            </div>
+          </div>
+          <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap">
+            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 14px;flex:1;min-width:140px">
+              <div style="font-size:11px;color:#94a3b8;margin-bottom:4px">主要触发规则</div>
+              <div style="font-size:12px;color:#374151">R-008 · R-012 · R-023</div>
+            </div>
+            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 14px;flex:1;min-width:140px">
+              <div style="font-size:11px;color:#94a3b8;margin-bottom:4px">CRR 综合评分</div>
+              <div style="font-size:12px;font-weight:700;color:#dc2626">72 / 100（高风险）</div>
+            </div>
+            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:08px;border-radius:8px;padding:10px 14px;flex:1;min-width:140px">
+              <div style="font-size:11px;color:#94a3b8;margin-bottom:4px">升级时间</div>
+              <div style="font-size:12px;color:#374151">15:18:42（L1已用 46min）</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Key risk summary for L2 -->
+      <div class="card">
+        <div class="card-hd"><h3>⚡ 关键风险摘要（供 L2 参考）</h3></div>
+        <div class="card-body">
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <div class="alert alert-danger">
+              <span>🔴</span>
+              <div><strong>混币器间接关联</strong> — 资金路径经过 Tornado Cash（受制裁）关联节点，距离 45 跳，占资金来源 8%</div>
+            </div>
+            <div class="alert alert-warn">
+              <span>🟡</span>
+              <div><strong>地址累计超限</strong> — 该地址7日累计入账 $83,200，超过系统限额 $50,000（超出 66%）</div>
+            </div>
+            <div class="alert alert-warn">
+              <span>🟡</span>
+              <div><strong>商户月度临界</strong> — 环球汇本月累计 $186,200，距月度 AML 警戒线 $200,000 仅剩 $13,800</div>
+            </div>
+            <div class="alert alert-info">
+              <span>🔵</span>
+              <div><strong>VCTR 触发</strong> — 金额 $45,000 超过 $10,000，需 15 工作日内向 FINTRAC 提交虚拟货币交易报告</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- L2 Action panel -->
+    <div class="detail-right">
+      <div class="card">
+        <div class="score-ring-wrap">
+          <div class="score-ring">
+            <svg width="110" height="110" viewBox="0 0 110 110">
+              <circle cx="55" cy="55" r="46" fill="none" stroke="#f1f5f9" stroke-width="10"/>
+              <circle cx="55" cy="55" r="46" fill="none" stroke="#dc2626" stroke-width="10"
+                stroke-dasharray="289" stroke-dashoffset="80" stroke-linecap="round"/>
+            </svg>
+            <div class="score-num">
+              <span style="color:#dc2626">72</span>
+              <small>/ 100</small>
+            </div>
+          </div>
+          <div style="margin-top:8px;text-align:center">
+            <div style="font-size:13px;font-weight:700;color:#dc2626">高风险</div>
+            <div style="font-size:11px;color:#94a3b8;margin-top:2px">USDT $45,000 · 环球汇</div>
+          </div>
+        </div>
+        <div class="divider"></div>
+        <div style="padding:16px 20px;border-bottom:1px solid #f1f5f9">
+          <div class="section-label">L2 审核备注（必填）</div>
+          <textarea class="form-input" placeholder="请填写 L2 高级审查意见，作为合规档案留存…" style="min-height:100px"></textarea>
+        </div>
+        <div class="action-panel">
+          <div class="section-label">L2 审核决策</div>
+          <div class="action-btn-group">
+            <button class="btn btn-success btn-block" onclick="doAction('l2-approve')">
+              ✅ 批准 — 执行入账
+            </button>
+            <button class="btn btn-outline-danger btn-block" onclick="doAction('l2-reject')">
+              ✗ 拒绝 — 退款处理
+            </button>
+            <button class="btn btn-block" style="background:#065f46;color:#fff" onclick="doAction('l2-str')">
+              📋 STR 申报至 FINTRAC
+            </button>
+          </div>
+          <div style="margin-top:12px;padding:10px;background:#f5f3ff;border-radius:8px;font-size:11px;color:#5b21b6;line-height:1.5">
+            L2 决策将被永久记录至合规档案，并触发相应系统操作及 FINTRAC 上报流程。
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     SCREEN 4: DONE
+══════════════════════════════════════ -->
+<div id="screen-done" style="display:none" class="content">
+  <div class="done-wrap">
+    <div class="done-icon" id="done-icon">✅</div>
+    <h2 style="font-size:22px;font-weight:800;color:#0f172a" id="done-title">审核已完成</h2>
+    <p style="font-size:14px;color:#64748b;max-width:420px;line-height:1.6" id="done-desc">交易 TXN-20240115-0042 审核操作已记录，相关系统流程已触发。</p>
+    <div id="done-extras" style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:20px 24px;width:100%;max-width:440px;display:flex;flex-direction:column;gap:10px"></div>
+    <div style="display:flex;gap:12px;margin-top:8px">
+      <button class="btn btn-primary" onclick="showScreen('screen-list')">← 返回审核队列</button>
+      <button class="btn btn-ghost">查看案件详情</button>
+    </div>
+  </div>
+</div>
+
+</main>
+</div>
+
+<!-- ══════════════════════════════════════
+     MODALS
+══════════════════════════════════════ -->
+
+<!-- Modal: 请求补充材料 -->
+<div id="modal-request" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-hd">
+      <h3>📎 请求商户补充材料</h3>
+      <button class="modal-close" onclick="closeModal('modal-request')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="alert alert-info" style="margin-bottom:16px">
+        <span>ℹ️</span>
+        <span>提交后商户将收到通知，SLA 计时将暂停重置。商户补充完成后案件重新进入审核队列。</span>
+      </div>
+      <div class="form-group">
+        <label class="form-label">需要补充的材料类型</label>
+        <div class="checkbox-group">
+          <label class="checkbox-item"><input type="checkbox" checked><span>资金来源证明（银行流水、合同等）</span></label>
+          <label class="checkbox-item"><input type="checkbox" checked><span>交易目的说明函</span></label>
+          <label class="checkbox-item"><input type="checkbox"><span>身份证明文件（护照/营业执照）</span></label>
+          <label class="checkbox-item"><input type="checkbox"><span>钱包地址所有权证明</span></label>
+          <label class="checkbox-item"><input type="checkbox"><span>贸易合同或发票</span></label>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">补充说明（发送给商户）</label>
+        <textarea class="form-input" placeholder="请描述具体需要商户补充的内容和原因…">您好，您于 2024-01-15 提交的 USDT 充值申请（$45,000）需要提供以下补充材料：资金来源证明及交易目的说明。请在收到通知后 5 个工作日内通过系统上传所需文件。</textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">补充材料截止时间</label>
+        <select class="form-input">
+          <option>3 个工作日</option>
+          <option selected>5 个工作日</option>
+          <option>10 个工作日</option>
+          <option>自定义…</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-request')">取消</button>
+      <button class="btn btn-primary" onclick="confirmAction('request')">确认发送请求</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: 升级 L2 -->
+<div id="modal-escalate" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-hd">
+      <h3>🔼 升级至 L2 复核</h3>
+      <button class="modal-close" onclick="closeModal('modal-escalate')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="alert alert-warn" style="margin-bottom:16px">
+        <span>⚠️</span>
+        <span>升级 L2 后，本案件将转交高级合规审核员处理。请确认升级理由并填写 L1 审核意见。</span>
+      </div>
+      <div class="form-group">
+        <label class="form-label">升级原因（必填）</label>
+        <select class="form-input">
+          <option>请选择主要原因</option>
+          <option selected>链上资金路径异常（混币器/高风险地址关联）</option>
+          <option>交易金额超过 L1 授权审批额度</option>
+          <option>商户累计交易触发月度预警</option>
+          <option>政治敏感人物（PEP）关联</option>
+          <option>制裁名单疑似匹配</option>
+          <option>其他复杂合规情形</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">L1 审核意见（将转交 L2）</label>
+        <textarea class="form-input" style="min-height:110px">交易金额 $45,000 USDT，链上 AML 扫描显示资金路径含混币器间接关联（45跳），CRR 72。结合商户近期高频大额交易（30天内 $186,200），以及同地址7日超限，整体风险特征需要高级合规审查。建议 L2 重点评估商户行为模式及资金来源合理性。</textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">指派给</label>
+        <select class="form-input">
+          <option>自动分配（系统按工作量分配）</option>
+          <option selected>王慧琳 · L2 高级合规主管</option>
+          <option>李建国 · L2 合规专员</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-escalate')">取消</button>
+      <button class="btn btn-purple" onclick="confirmAction('escalate')">确认升级至 L2</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: 拒绝交易 -->
+<div id="modal-reject" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-hd">
+      <h3>✗ 拒绝交易</h3>
+      <button class="modal-close" onclick="closeModal('modal-reject')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="alert alert-danger" style="margin-bottom:16px">
+        <span>⛔</span>
+        <span>拒绝后系统将触发退款流程，并向商户发送拒绝通知。此操作不可撤销。</span>
+      </div>
+      <div class="form-group">
+        <label class="form-label">拒绝原因代码</label>
+        <select class="form-input">
+          <option>请选择主要原因</option>
+          <option selected>AML 合规风险 — 资金来源无法核实</option>
+          <option>超过交易限额且无合理说明</option>
+          <option>商户 KYC 信息不符</option>
+          <option>可疑交易行为模式</option>
+          <option>OFAC/制裁名单匹配</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">给商户的拒绝说明</label>
+        <textarea class="form-input">经合规审查，您本次充值申请因 AML 合规要求未能通过，具体原因：资金来源未能提供充分证明材料。退款将在 3-5 个工作日内处理。如有疑问请联系合规部门。</textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">内部审核备注（不对外显示）</label>
+        <textarea class="form-input" style="min-height:70px" placeholder="填写内部审核决策依据，供合规档案存档…"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-reject')">取消</button>
+      <button class="btn btn-danger" onclick="confirmAction('reject')">确认拒绝交易</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: 冻结并报告 STR -->
+<div id="modal-freeze" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-hd">
+      <h3 style="color:#7f1d1d">🔒 冻结账户并申报 STR</h3>
+      <button class="modal-close" onclick="closeModal('modal-freeze')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="alert alert-danger" style="margin-bottom:16px;border-color:#7f1d1d;background:#fef2f2">
+        <span>🚨</span>
+        <div>
+          <strong>高度敏感操作</strong> — 执行后将：<br>
+          ① 立即冻结商户账户所有出入账 &nbsp;&nbsp;② 向 FINTRAC 提交可疑交易报告（STR）&nbsp;&nbsp;③ 通知合规主管和法律团队
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">STR 可疑活动类型</label>
+        <select class="form-input">
+          <option selected>洗钱疑虑（资金来源不明/混币器关联）</option>
+          <option>欺诈相关交易</option>
+          <option>制裁规避行为</option>
+          <option>恐怖主义融资嫌疑</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">STR 报告描述（提交给 FINTRAC）</label>
+        <textarea class="form-input" style="min-height:120px">本机构发现以下可疑交易活动：商户环球汇跨境金融服务 Inc.（MCH-2023-0089）于 2024-01-15 提交 USDT 充值 $45,000。链上分析显示资金路径经过受制裁混币器 Tornado Cash 关联节点，且该商户近30天累计入账金额异常（$186,200），行为模式存在分层转账迹象。建议 FINTRAC 对该商户及关联地址展开进一步调查。</textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">冻结范围</label>
+        <div class="checkbox-group">
+          <label class="checkbox-item"><input type="checkbox" checked><span>冻结本笔交易</span></label>
+          <label class="checkbox-item"><input type="checkbox" checked><span>冻结商户所有待处理交易</span></label>
+          <label class="checkbox-item"><input type="checkbox"><span>冻结商户账户（需法律部门授权）</span></label>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-freeze')">取消</button>
+      <button class="btn" style="background:#7f1d1d;color:#fff" onclick="confirmAction('freeze')">确认冻结并提交 STR</button>
+    </div>
+  </div>
+</div>
+
+<style>
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+/* ── Parabolic arc: X (linear travel) ── */
+@keyframes arcX{
+  0%  {left:0;             opacity:0}
+  6%  {opacity:1}
+  91% {opacity:1}
+  100%{left:calc(100% - 24px); opacity:0}
+}
+/* ── Parabolic arc: Y (squash & stretch) ── */
+@keyframes arcY{
+  0%  {transform:translateY(0)    scaleX(1.15) scaleY(.75)}
+  10% {transform:translateY(-8px) scaleX(.9)   scaleY(1.1)}
+  50% {transform:translateY(-44px)scaleX(.82)  scaleY(.82)}
+  90% {transform:translateY(-8px) scaleX(.9)   scaleY(1.1)}
+  100%{transform:translateY(0)    scaleX(1.2)  scaleY(.68)}
+}
+.arc-x{position:absolute;top:50%;margin-top:-12px;width:24px;height:24px;
+        animation:arcX 1.9s infinite linear}
+.arc-y{width:100%;height:100%;animation:arcY 1.9s infinite ease-in-out}
+.arc-coin{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;
+          justify-content:center;font-size:11px;font-weight:800;color:#fff;
+          background:#6366f1;
+          box-shadow:0 0 10px rgba(99,102,241,.7),0 0 22px rgba(99,102,241,.25)}
+.arc-coin::after{content:'₮'}
+.arc-coin.alt{background:#818cf8;
+              box-shadow:0 0 10px rgba(129,140,248,.7),0 0 22px rgba(129,140,248,.2)}
+.arc-d1{animation-delay:.63s}
+.arc-d2{animation-delay:1.26s}
+/* ── Sender pulse rings ── */
+@keyframes senderRing{0%{transform:scale(1);opacity:.55}100%{transform:scale(2.4);opacity:0}}
+.sender-ring{position:absolute;inset:0;border-radius:14px;border:2px solid #f43f5e;animation:senderRing 2.5s infinite ease-out;z-index:1}
+.sender-ring.r2{animation-delay:1.25s}
+/* ── Receiver pulse rings (delayed to match particle arrival) ── */
+@keyframes receiverRing{0%,56%{transform:scale(1);opacity:0}60%{opacity:.55}100%{transform:scale(2.4);opacity:0}}
+.receiver-ring{position:absolute;inset:0;border-radius:14px;border:2px solid #10b981;animation:receiverRing 2.5s infinite ease-out;z-index:1}
+.receiver-ring.r2{animation-delay:1.25s}
+</style>
+<script>
+// ══ MOCK DATA ══
+const transactions = [
+  { id:'TXN-20240115-0042', merchant:'环球汇跨境', amount:'$45,000', currency:'USDT', type:'充值', crr:72, risk:'high', status:'pending', slaMs:12258000 },
+  { id:'TXN-20240115-0041', merchant:'亚太数字金融', amount:'$12,800', currency:'BTC', type:'提现', crr:58, risk:'mid', status:'pending', slaMs:65520000 },
+  { id:'TXN-20240115-0039', merchant:'新世界支付', amount:'$8,200', currency:'ETH', type:'充值', crr:34, risk:'mid', status:'pending', slaMs:79500000 },
+  { id:'TXN-20240115-0038', merchant:'环球汇跨境', amount:'$95,000', currency:'USDT', type:'充值', crr:91, risk:'critical', status:'auto-rejected', slaMs:0 },
+  { id:'TXN-20240115-0036', merchant:'华商汇通', amount:'$28,500', currency:'BTC', type:'充值', crr:79, risk:'high', status:'l2', slaMs:0 },
+  { id:'TXN-20240115-0033', merchant:'亚太数字金融', amount:'$18,500', currency:'ETH', type:'提现', crr:68, risk:'high', status:'l2', slaMs:0 },
+  { id:'TXN-20240115-0031', merchant:'新世界支付', amount:'$5,600', currency:'USDT', type:'充值', crr:22, risk:'low', status:'auto-approved', slaMs:0 },
+  { id:'TXN-20240115-0029', merchant:'环球汇跨境', amount:'$3,200', currency:'BTC', type:'提现', crr:15, risk:'low', status:'auto-approved', slaMs:0 },
+];
+
+const riskLabel = { low:'低风险', mid:'中风险', high:'高风险', critical:'严重' };
+const riskBadge = { low:'badge-low', mid:'badge-mid', high:'badge-high', critical:'badge-critical' };
+const statusLabel = { pending:'待审核', l2:'L2复核中', 'auto-rejected':'已自动拒绝', 'auto-approved':'智能入账' };
+const statusBadge = { pending:'badge-pending', l2:'badge-l2', 'auto-rejected':'badge-rejected', 'auto-approved':'badge-auto' };
+
+let currentTab = 'all';
+let slaInterval = null;
+let slaSeconds = 3*3600+24*60+18;
+
+// ══ RENDER TABLE ══
+function renderTable(tab) {
+  const tbody = document.getElementById('queue-tbody');
+  const filtered = transactions.filter(t => {
+    if (tab === 'all') return true;
+    if (tab === 'pending') return t.status === 'pending';
+    if (tab === 'l2') return t.status === 'l2';
+    if (tab === 'auto') return t.status === 'auto-approved' || t.status === 'auto-rejected';
+    return true;
+  });
+  tbody.innerHTML = filtered.map(t => {
+    const isPending = t.status === 'pending';
+    const slaHtml = isPending ? renderSla(t) : '<span style="color:#94a3b8;font-size:12px">—</span>';
+    const crr = t.crr;
+    const crrColor = crr >= 86 ? '#7f1d1d' : crr >= 61 ? '#dc2626' : crr >= 31 ? '#d97706' : '#059669';
+    const btnHtml = isPending
+      ? `<button class="btn btn-warning btn-sm" onclick="goDetail('${t.id}')">审核</button>`
+      : t.status === 'l2'
+      ? `<button class="btn btn-purple btn-sm" onclick="goL2('${t.id}')">L2复核</button>`
+      : `<span class="btn btn-gray btn-sm" style="cursor:default">查看</span>`;
+    return `<tr class="clickable" onclick="event.target.tagName!=='BUTTON'&&(${isPending?`goDetail('${t.id}')`:t.status==='l2'?`goL2('${t.id}')`:''})">
+      <td><span style="font-family:monospace;font-size:12px;color:#2563eb">${t.id}</span></td>
+      <td><span style="font-weight:600">${t.merchant}</span></td>
+      <td>
+        <span style="font-weight:700;font-size:14px">${t.amount}</span>
+        <span style="font-size:11px;color:#94a3b8;margin-left:4px">${t.currency}</span><br>
+        <span class="badge badge-gray" style="margin-top:2px">${t.type}</span>
+      </td>
+      <td>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="position:relative;width:36px;height:36px">
+            <svg width="36" height="36" viewBox="0 0 36 36" style="transform:rotate(-90deg)">
+              <circle cx="18" cy="18" r="14" fill="none" stroke="#f1f5f9" stroke-width="4"/>
+              <circle cx="18" cy="18" r="14" fill="none" stroke="${crrColor}" stroke-width="4"
+                stroke-dasharray="${Math.round(2*Math.PI*14)}" stroke-dashoffset="${Math.round(2*Math.PI*14*(1-crr/100))}" stroke-linecap="round"/>
+            </svg>
+            <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:${crrColor}">${crr}</div>
+          </div>
+          <span style="font-size:12px;color:#64748b">/100</span>
+        </div>
+      </td>
+      <td><span class="badge ${riskBadge[t.risk]}">${riskLabel[t.risk]}</span></td>
+      <td><span class="badge ${statusBadge[t.status]}">${statusLabel[t.status]}</span></td>
+      <td>${slaHtml}</td>
+      <td>${btnHtml}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderSla(t) {
+  if (t.id === 'TXN-20240115-0042') {
+    return `<div class="sla-bar sla-urgent">
+      <div class="sla-track"><div class="sla-fill" style="width:85%"></div></div>
+      <div class="sla-text" id="sla-list-0042">03:24:18</div>
+    </div>`;
+  }
+  if (t.id === 'TXN-20240115-0041') {
+    return `<div class="sla-bar sla-warn">
+      <div class="sla-track"><div class="sla-fill" style="width:57%"></div></div>
+      <div class="sla-text">18:12:04</div>
+    </div>`;
+  }
+  return `<div class="sla-bar sla-ok">
+    <div class="sla-track"><div class="sla-fill" style="width:30%"></div></div>
+    <div class="sla-text">22:05:11</div>
+  </div>`;
+}
+
+// ══ TAB FILTER ══
+function filterTab(el, tab) {
+  document.querySelectorAll('#queue-tabs .tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  currentTab = tab;
+  renderTable(tab);
+}
+
+// ══ NAVIGATION ══
+function showScreen(id) {
+  ['screen-list','screen-detail','screen-l2','screen-done'].forEach(s => {
+    document.getElementById(s).style.display = 'none';
+  });
+  document.getElementById(id).style.display = 'block';
+  stopSla();
+  if (id === 'screen-detail') {
+    document.getElementById('bc-cur').textContent = 'TXN-20240115-0042';
+    startSla();
+  } else if (id === 'screen-l2') {
+    document.getElementById('bc-cur').textContent = 'L2 复核 · TXN-20240115-0042';
+  } else {
+    document.getElementById('bc-cur').textContent = '审核队列';
+  }
+}
+
+function goDetail(id) {
+  showScreen('screen-detail');
+}
+function goL2(id) {
+  showScreen('screen-l2');
+}
+function goBack() {
+  showScreen('screen-list');
+  renderTable(currentTab);
+}
+
+// ══ SLA COUNTDOWN ══
+function startSla() {
+  stopSla();
+  slaInterval = setInterval(() => {
+    if (slaSeconds > 0) slaSeconds--;
+    const h = String(Math.floor(slaSeconds/3600)).padStart(2,'0');
+    const m = String(Math.floor((slaSeconds%3600)/60)).padStart(2,'0');
+    const s = String(slaSeconds%60).padStart(2,'0');
+    const t = `${h}:${m}:${s}`;
+    const el1 = document.getElementById('sla-timer');
+    const el2 = document.getElementById('sla-timer2');
+    if (el1) el1.textContent = t;
+    if (el2) el2.textContent = t;
+    // Update bar
+    const pct = Math.min(100, (slaSeconds / (4*3600)) * 100);
+    const bar = document.getElementById('sla-bar');
+    if (bar) bar.style.width = pct + '%';
+  }, 1000);
+}
+function stopSla() {
+  if (slaInterval) { clearInterval(slaInterval); slaInterval = null; }
+}
+
+// ══ MODALS ══
+function openModal(id) {
+  document.getElementById(id).classList.add('open');
+}
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+// Close on overlay click
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', e => {
+    if (e.target === overlay) overlay.classList.remove('open');
+  });
+});
+
+// ══ ACTIONS ══
+function doAction(action) {
+  const configs = {
+    approve: {
+      icon: '✅', iconClass: 'success',
+      title: '审核入账 — 已完成',
+      desc: '交易 TXN-20240115-0042 已通过 L1 合规审核，系统正在执行入账，商户将收到到账通知。',
+      extras: [
+        { icon:'📋', label:'VCTR 上报', val:'系统已自动发起，将在15工作日内提交至FINTRAC' },
+        { icon:'📧', label:'商户通知', val:'充值成功通知已发送至商户' },
+        { icon:'📁', label:'合规档案', val:'审核记录已存档，案件ID: CASE-20240115-0042' },
+      ]
+    },
+    request: {
+      icon: '📎', iconClass: 'info',
+      title: '已发送材料补充请求',
+      desc: '商户已收到补充材料通知，SLA 计时已重置，案件状态变更为「待补充材料」。',
+      extras: [
+        { icon:'⏱', label:'SLA 重置', val:'案件将在商户提交材料后重新计时' },
+        { icon:'📧', label:'通知已发送', val:'环球汇跨境金融服务 Inc. 已收到请求' },
+        { icon:'📅', label:'补充截止', val:'5个工作日内（2024-01-22）' },
+      ]
+    },
+    escalate: {
+      icon: '🔼', iconClass: 'info',
+      title: '已升级至 L2 复核',
+      desc: '案件已转交 L2 高级合规审核员王慧琳，L1 审核意见已同步。',
+      extras: [
+        { icon:'👤', label:'分配给', val:'王慧琳 · L2 高级合规主管' },
+        { icon:'⏱', label:'案件状态', val:'L2 复核中 · 无固定 SLA' },
+        { icon:'📁', label:'L1 意见', val:'已随案传递至 L2 审核面板' },
+      ]
+    },
+    reject: {
+      icon: '✗', iconClass: 'danger',
+      title: '交易已拒绝',
+      desc: '交易 TXN-20240115-0042 已被拒绝，退款流程已触发，商户已收到拒绝通知。',
+      extras: [
+        { icon:'💰', label:'退款处理', val:'$45,000 USDT 将在 3-5 工作日内退回' },
+        { icon:'📧', label:'商户通知', val:'拒绝原因已随通知一并发送' },
+        { icon:'📁', label:'合规档案', val:'拒绝记录已存档，将影响商户风控评分' },
+      ]
+    },
+    freeze: {
+      icon: '🔒', iconClass: 'danger',
+      title: '账户已冻结 · STR 已提交',
+      desc: '商户账户已立即冻结，STR 报告已提交至 FINTRAC，合规主管和法律团队已收到通知。',
+      extras: [
+        { icon:'🚨', label:'账户状态', val:'环球汇跨境 — 所有交易已冻结' },
+        { icon:'📋', label:'STR 编号', val:'STR-2024-0115-00892 · 已提交 FINTRAC' },
+        { icon:'👥', label:'通知', val:'合规主管王慧琳 · 法律顾问 · FINTRAC 已同步' },
+      ]
+    },
+    'l2-approve': {
+      icon: '✅', iconClass: 'success',
+      title: 'L2 批准 — 执行入账',
+      desc: '案件经 L2 高级合规审核批准，系统正在执行入账操作。',
+      extras: [
+        { icon:'📋', label:'VCTR 上报', val:'已自动发起，15工作日内提交 FINTRAC' },
+        { icon:'📁', label:'合规档案', val:'L1+L2 完整审核记录已存档' },
+      ]
+    },
+    'l2-reject': {
+      icon: '✗', iconClass: 'danger',
+      title: 'L2 拒绝 — 退款处理',
+      desc: '案件经 L2 高级合规审核拒绝，退款流程已触发。',
+      extras: [
+        { icon:'💰', label:'退款', val:'$45,000 USDT 将在 3-5 工作日内退回' },
+        { icon:'📁', label:'档案', val:'L2 拒绝记录已存档，风控评分已更新' },
+      ]
+    },
+    'l2-str': {
+      icon: '📋', iconClass: 'danger',
+      title: 'STR 已正式申报',
+      desc: '案件经 L2 审核决定申报可疑交易报告，已正式提交至 FINTRAC。',
+      extras: [
+        { icon:'📋', label:'STR 编号', val:'STR-2024-0115-00892 · 已提交 FINTRAC' },
+        { icon:'🔒', label:'账户', val:'商户相关交易已临时暂停' },
+        { icon:'👥', label:'通知', val:'合规团队及法律部门已同步' },
+      ]
+    },
+  };
+  const c = configs[action];
+  if (!c) return;
+  // Close any open modals
+  document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('open'));
+  // Set done screen
+  document.getElementById('done-icon').textContent = c.icon;
+  document.getElementById('done-icon').className = `done-icon ${c.iconClass}`;
+  document.getElementById('done-title').textContent = c.title;
+  document.getElementById('done-desc').textContent = c.desc;
+  const extras = document.getElementById('done-extras');
+  extras.innerHTML = c.extras.map(e =>
+    `<div style="display:flex;align-items:center;gap:12px">
+      <span style="font-size:18px">${e.icon}</span>
+      <div>
+        <div style="font-size:11px;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:.4px">${e.label}</div>
+        <div style="font-size:13px;color:#374151;margin-top:2px">${e.val}</div>
+      </div>
+    </div>`
+  ).join('<div style="height:1px;background:#f1f5f9"></div>');
+  showScreen('screen-done');
+}
+
+function confirmAction(action) {
+  closeModal('modal-' + action.replace(/[a-z]+-/,''));
+  if (action === 'request') doAction('request');
+  if (action === 'escalate') {
+    closeModal('modal-escalate');
+    showScreen('screen-l2');
+    document.getElementById('bc-cur').textContent = 'L2 复核 · TXN-20240115-0042';
+  }
+  if (action === 'reject') doAction('reject');
+  if (action === 'freeze') doAction('freeze');
+}
+
+// ══ INIT ══
+renderTable('all');
+</script>
+</body>
+</html>
