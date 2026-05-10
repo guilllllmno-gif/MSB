@@ -1,0 +1,1141 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>充值审核 - FuturePayCA</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', sans-serif; background: #f5f6fa; color: #1a1a2e; font-size: 13px; display: flex; height: 100vh; overflow: hidden; }
+
+  /* Sidebar */
+  .sidebar { width: 200px; background: #1a1d2e; color: #8b90a7; display: flex; flex-direction: column; flex-shrink: 0; overflow-y: auto; }
+  .sidebar-logo { padding: 16px; border-bottom: 1px solid #252840; color: #fff; font-weight: 700; font-size: 15px; flex-shrink: 0; }
+  .sidebar-logo b { color: #4f8ef7; }
+  .sidebar-section { padding: 16px 12px 4px; font-size: 11px; color: #4a4f6a; letter-spacing: .5px; }
+  .sidebar-item { padding: 7px 16px; cursor: pointer; display: flex; align-items: center; gap: 8px; border-radius: 6px; margin: 1px 6px; font-size: 13px; }
+  .sidebar-item:hover { background: #252840; color: #c5c8db; }
+  .sidebar-item.active { background: #2a3050; color: #fff; }
+  .sidebar-sub { padding: 6px 16px 6px 36px; cursor: pointer; font-size: 12px; border-radius: 6px; margin: 1px 6px; }
+  .sidebar-sub:hover { background: #252840; color: #c5c8db; }
+  .sidebar-sub.active { background: #1e3a8a22; color: #4f8ef7; }
+
+  /* Main */
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .topbar { height: 52px; background: #fff; border-bottom: 1px solid #e8eaef; display: flex; align-items: center; padding: 0 24px; flex-shrink: 0; }
+  .breadcrumb { display: flex; align-items: center; gap: 6px; color: #8b90a7; font-size: 13px; }
+  .breadcrumb a { color: #8b90a7; text-decoration: none; }
+  .breadcrumb a:hover { color: #4f8ef7; }
+  .breadcrumb .sep { color: #c5c8db; }
+  .breadcrumb .current { color: #1a1a2e; }
+  .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+  .avatar { width: 32px; height: 32px; border-radius: 50%; background: #4f8ef7; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 13px; }
+
+  /* Page toggle */
+  .page { display: none; flex: 1; overflow-y: auto; padding: 24px; flex-direction: column; gap: 16px; }
+  .page.active { display: flex; }
+
+  /* Common */
+  .badge { padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+  .badge-warning { background: #fff3e0; color: #e65100; }
+  .badge-danger { background: #fce4ec; color: #c62828; }
+  .badge-success { background: #e8f5e9; color: #2e7d32; }
+  .badge-blue { background: #e3f0ff; color: #1565c0; }
+  .badge-gray { background: #f0f0f4; color: #555; }
+  .badge-purple { background: #f3e5f5; color: #6a1b9a; }
+  .btn { padding: 7px 16px; border-radius: 6px; border: none; cursor: pointer; font-size: 13px; font-weight: 500; }
+  .btn-sm { padding: 4px 10px; font-size: 12px; border-radius: 5px; border: none; cursor: pointer; font-weight: 500; }
+  .btn-outline { background: #fff; border: 1px solid #d0d4e0; color: #444; }
+  .btn-outline:hover { background: #f5f6fa; }
+  .btn-primary { background: #4f8ef7; color: #fff; }
+  .btn-primary:hover { background: #3a7be0; }
+  .btn-success { background: #43a047; color: #fff; }
+  .btn-success:hover { background: #388e3c; }
+  .btn-danger { background: #e53935; color: #fff; }
+  .btn-danger:hover { background: #c62828; }
+  .card { background: #fff; border-radius: 10px; border: 1px solid #e8eaef; padding: 20px; }
+  .card-title { font-size: 13px; font-weight: 600; color: #1a1a2e; margin-bottom: 14px; display: flex; align-items: center; gap: 6px; }
+
+  /* Stats */
+  .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .stat-card { background: #fff; border-radius: 10px; border: 1px solid #e8eaef; padding: 16px; }
+  .stat-label { font-size: 11px; color: #8b90a7; margin-bottom: 6px; }
+  .stat-value { font-size: 22px; font-weight: 700; color: #1a1a2e; }
+  .stat-sub { font-size: 11px; color: #8b90a7; margin-top: 2px; }
+  .stat-value.danger { color: #e53935; }
+  .stat-value.warning { color: #ff9800; }
+  .stat-value.success { color: #43a047; }
+
+  /* Filter bar */
+  .filter-bar { background: #fff; border-radius: 10px; border: 1px solid #e8eaef; padding: 14px 20px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .filter-bar input[type=text] { border: 1px solid #e8eaef; border-radius: 6px; padding: 6px 10px; font-size: 13px; color: #1a1a2e; outline: none; width: 220px; }
+  .filter-bar input:focus { border-color: #4f8ef7; }
+  .filter-bar select { border: 1px solid #e8eaef; border-radius: 6px; padding: 6px 10px; font-size: 13px; color: #1a1a2e; background: #fff; outline: none; cursor: pointer; }
+  .filter-bar select:focus { border-color: #4f8ef7; }
+  .filter-bar-right { margin-left: auto; display: flex; gap: 8px; }
+
+  /* Table */
+  .table-wrap { background: #fff; border-radius: 10px; border: 1px solid #e8eaef; overflow: hidden; }
+  .table-header { padding: 14px 20px; border-bottom: 1px solid #f0f0f4; display: flex; align-items: center; justify-content: space-between; }
+  .table-header-title { font-weight: 600; font-size: 13px; }
+  table { width: 100%; border-collapse: collapse; }
+  thead th { font-size: 11px; color: #8b90a7; font-weight: 500; padding: 10px 14px; text-align: left; border-bottom: 1px solid #f0f0f4; background: #fafbfc; white-space: nowrap; }
+  tbody td { padding: 12px 14px; border-bottom: 1px solid #f5f6fa; font-size: 13px; vertical-align: middle; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover td { background: #f8f9fd; }
+  tbody tr.selected td { background: #f0f6ff; }
+  .checkbox { width: 15px; height: 15px; cursor: pointer; }
+  .order-id { color: #4f8ef7; font-weight: 600; cursor: pointer; font-size: 12px; }
+  .order-id:hover { text-decoration: underline; }
+  .amount-cell { font-weight: 700; }
+  .amount-cell.large { color: #e53935; }
+  .trigger-tag { display: inline-block; padding: 2px 7px; border-radius: 12px; font-size: 11px; font-weight: 500; }
+  .sla-cell { font-size: 12px; font-weight: 600; }
+  .sla-cell.urgent { color: #e53935; }
+  .sla-cell.warning { color: #ff9800; }
+  .sla-cell.normal { color: #43a047; }
+  .actions { display: flex; gap: 6px; }
+
+  /* Bulk action bar */
+  .bulk-bar { background: #1565c0; color: #fff; border-radius: 8px; padding: 10px 16px; display: flex; align-items: center; gap: 12px; font-size: 13px; }
+  .bulk-bar-actions { margin-left: auto; display: flex; gap: 8px; }
+
+  /* Pagination */
+  .pagination { display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; border-top: 1px solid #f0f0f4; font-size: 12px; color: #8b90a7; }
+  .page-btns { display: flex; gap: 4px; }
+  .page-btn { padding: 4px 10px; border-radius: 5px; border: 1px solid #e8eaef; background: #fff; cursor: pointer; font-size: 12px; }
+  .page-btn.active { background: #4f8ef7; color: #fff; border-color: #4f8ef7; }
+  .page-btn:hover:not(.active) { background: #f5f6fa; }
+
+  /* Detail page */
+  .detail-header { background: #fff; border-radius: 10px; padding: 20px 24px; border: 1px solid #e8eaef; }
+  .detail-title-row { display: flex; align-items: flex-start; justify-content: space-between; }
+  .detail-title { font-size: 20px; font-weight: 700; }
+  .detail-meta { font-size: 12px; color: #8b90a7; margin-top: 4px; }
+  .detail-tabs { display: flex; border-bottom: 2px solid #e8eaef; margin-top: 16px; }
+  .detail-tab { padding: 8px 16px; cursor: pointer; color: #8b90a7; font-size: 13px; border-bottom: 2px solid transparent; margin-bottom: -2px; }
+  .detail-tab.active { color: #4f8ef7; border-bottom-color: #4f8ef7; font-weight: 600; }
+
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+  .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .info-item label { font-size: 11px; color: #8b90a7; display: block; margin-bottom: 3px; }
+  .info-item span { font-size: 13px; color: #1a1a2e; font-weight: 500; }
+
+  /* Risk indicators */
+  .risk-row { display: flex; flex-direction: column; gap: 8px; }
+  .risk-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; border-radius: 6px; }
+  .risk-item.pass { background: #e8f5e9; }
+  .risk-item.fail { background: #fff5f5; }
+  .risk-item.warn { background: #fff8e1; }
+  .risk-item-label { font-size: 12px; font-weight: 500; }
+  .risk-item-label.pass { color: #2e7d32; }
+  .risk-item-label.fail { color: #c62828; }
+  .risk-item-label.warn { color: #e65100; }
+  .risk-item-value { font-size: 12px; color: #555; }
+
+  /* Document viewer */
+  .doc-list { display: flex; flex-direction: column; gap: 8px; }
+  .doc-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border-radius: 7px; border: 1px solid #e8eaef; background: #fafbfc; }
+  .doc-item-left { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+  .doc-icon { font-size: 20px; }
+  .doc-name { font-weight: 500; }
+  .doc-meta { font-size: 11px; color: #8b90a7; }
+
+  /* Timeline */
+  .timeline { display: flex; flex-direction: column; gap: 0; }
+  .tl-item { display: flex; gap: 12px; }
+  .tl-line-wrap { display: flex; flex-direction: column; align-items: center; width: 28px; flex-shrink: 0; }
+  .tl-dot { width: 10px; height: 10px; border-radius: 50%; background: #4f8ef7; margin-top: 4px; flex-shrink: 0; }
+  .tl-dot.gray { background: #d0d4e0; }
+  .tl-dot.green { background: #43a047; }
+  .tl-dot.red { background: #e53935; }
+  .tl-dot.orange { background: #ff9800; }
+  .tl-connector { flex: 1; width: 2px; background: #e8eaef; margin: 2px 0; min-height: 24px; }
+  .tl-body { padding-bottom: 16px; flex: 1; }
+  .tl-who { font-weight: 600; font-size: 12px; }
+  .tl-what { font-size: 12px; color: #555; margin-top: 2px; }
+  .tl-time { font-size: 11px; color: #aaa; margin-top: 2px; }
+
+  /* Decision panel */
+  .decision-panel { background: #fff; border-radius: 10px; border: 2px solid #4f8ef7; padding: 20px; }
+  .decision-title { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+  .decision-desc { font-size: 12px; color: #8b90a7; margin-bottom: 16px; }
+  .decision-btns { display: flex; gap: 10px; margin-bottom: 14px; }
+  .decision-btn { flex: 1; padding: 12px; border-radius: 8px; border: 2px solid #e8eaef; cursor: pointer; text-align: center; transition: all .15s; }
+  .decision-btn:hover { border-color: #4f8ef7; }
+  .decision-btn.sel-pass { border-color: #43a047; background: #e8f5e9; }
+  .decision-btn.sel-reject { border-color: #e53935; background: #fff5f5; }
+  .decision-btn.sel-info { border-color: #ff9800; background: #fff8e1; }
+  .decision-btn.sel-hold { border-color: #6a1b9a; background: #f3e5f5; }
+
+  /* Decision modal */
+  .decision-modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:200; align-items:center; justify-content:center; }
+  .decision-modal-overlay.open { display:flex; }
+  .decision-modal { background:#fff; border-radius:14px; width:520px; max-height:88vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 24px 64px rgba(0,0,0,.22); }
+  .dm-header { padding:18px 22px 14px; border-bottom:1px solid #e8eaef; display:flex; align-items:center; justify-content:space-between; flex-shrink:0; }
+  .dm-header-title { font-size:16px; font-weight:700; }
+  .dm-close { color:#8b90a7; font-size:22px; cursor:pointer; line-height:1; }
+  .dm-body { overflow-y:auto; flex:1; padding:20px 22px; display:flex; flex-direction:column; gap:18px; }
+  .dm-footer { padding:14px 22px; border-top:1px solid #e8eaef; display:flex; justify-content:flex-end; gap:10px; flex-shrink:0; }
+
+  /* AI block */
+  .ai-block { background:#f8f9fd; border:1px solid #e0e6ff; border-radius:10px; padding:14px 16px; }
+  .ai-block-title { display:flex; align-items:center; gap:8px; font-size:13px; font-weight:700; margin-bottom:6px; }
+  .ai-block-desc { font-size:12px; color:#555; line-height:1.7; margin-bottom:8px; }
+  .ai-recommendation { font-size:13px; font-weight:600; color:#4f8ef7; cursor:pointer; }
+
+  /* L1 section */
+  .l1-section { }
+  .l1-header { display:flex; align-items:center; gap:10px; margin-bottom:12px; }
+  .l1-avatar { width:32px; height:32px; border-radius:50%; background:#4f8ef7; color:#fff; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; flex-shrink:0; }
+  .l1-label { font-size:13px; font-weight:700; }
+  .l1-name { font-size:12px; color:#8b90a7; }
+  .dm-sub-label { font-size:12px; font-weight:600; color:#555; margin-bottom:8px; }
+  .dispose-btns { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:14px; }
+  .dispose-btn { border:1.5px solid #e8eaef; border-radius:8px; padding:11px 8px; cursor:pointer; text-align:center; font-size:13px; font-weight:500; color:#555; display:flex; align-items:center; justify-content:center; gap:6px; transition:all .15s; }
+  .dispose-btn:hover { border-color:#4f8ef7; color:#4f8ef7; }
+  .dispose-btn.active-pass { border-color:#4f8ef7; background:#e3f0ff; color:#1565c0; font-weight:700; }
+  .dispose-btn.active-reject { border-color:#e53935; background:#fff5f5; color:#c62828; font-weight:700; }
+  .dispose-btn.active-hold { border-color:#6a1b9a; background:#f3e5f5; color:#6a1b9a; font-weight:700; }
+  .process-btns { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .process-btn { border:1.5px solid #e8eaef; border-radius:8px; padding:11px; cursor:pointer; text-align:center; font-size:13px; color:#555; display:flex; align-items:center; justify-content:center; gap:6px; }
+  .process-btn:hover { border-color:#4f8ef7; color:#4f8ef7; background:#f5f8ff; }
+
+  /* Impact box */
+  .impact-box { background:#e3f0ff; border:1px solid #bbdefb; border-radius:8px; padding:12px 14px; }
+  .impact-box-title { font-size:12px; font-weight:700; color:#1565c0; margin-bottom:4px; display:flex; align-items:center; gap:6px; }
+  .impact-box-desc { font-size:12px; color:#1565c0; line-height:1.6; }
+  .impact-box.warn { background:#fff8e1; border-color:#ffe082; }
+  .impact-box.warn .impact-box-title, .impact-box.warn .impact-box-desc { color:#e65100; }
+  .impact-box.danger { background:#fff5f5; border-color:#ffcdd2; }
+  .impact-box.danger .impact-box-title, .impact-box.danger .impact-box-desc { color:#c62828; }
+
+  /* Form fields */
+  .dm-select { width:100%; border:1px solid #e8eaef; border-radius:7px; padding:9px 12px; font-size:13px; font-family:inherit; outline:none; background:#fff; cursor:pointer; color:#1a1a2e; }
+  .dm-select:focus { border-color:#4f8ef7; }
+  .dm-textarea { width:100%; border:1px solid #e8eaef; border-radius:7px; padding:10px 12px; font-size:13px; font-family:inherit; resize:vertical; min-height:80px; outline:none; color:#1a1a2e; }
+  .dm-textarea:focus { border-color:#4f8ef7; }
+  .evidence-list { display:flex; flex-direction:column; gap:8px; }
+  .evidence-item { display:flex; align-items:flex-start; gap:10px; padding:10px 12px; border-radius:7px; border:1px solid #e8eaef; background:#fafbfc; cursor:pointer; }
+  .evidence-item.checked { background:#e3f0ff; border-color:#bbdefb; }
+  .evidence-item input { margin-top:1px; flex-shrink:0; accent-color:#4f8ef7; }
+  .evidence-item-text { font-size:12px; color:#555; line-height:1.5; }
+  .evidence-item.checked .evidence-item-text { color:#1565c0; }
+  .decision-btn-icon { font-size: 20px; margin-bottom: 4px; }
+  .decision-btn-label { font-size: 13px; font-weight: 600; }
+  .decision-btn-desc { font-size: 11px; color: #8b90a7; margin-top: 2px; }
+  .reject-reason { margin-bottom: 12px; }
+  .reject-reason label { font-size: 12px; font-weight: 600; color: #555; display: block; margin-bottom: 6px; }
+  .reject-options { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+  .reject-opt { padding: 4px 10px; border-radius: 12px; border: 1px solid #e8eaef; font-size: 12px; cursor: pointer; background: #fff; }
+  .reject-opt:hover { border-color: #e53935; color: #e53935; }
+  .reject-opt.selected { border-color: #e53935; background: #fff5f5; color: #e53935; font-weight: 600; }
+  textarea.note { width: 100%; border: 1px solid #e8eaef; border-radius: 6px; padding: 10px; font-size: 13px; resize: vertical; min-height: 68px; font-family: inherit; outline: none; }
+  textarea.note:focus { border-color: #4f8ef7; }
+  .decision-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; }
+  .decision-footer-note { font-size: 12px; color: #8b90a7; }
+  .decision-footer-btns { display: flex; gap: 8px; }
+
+  .sla-badge { display: flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 6px; background: #fff3e0; color: #e65100; font-size: 12px; font-weight: 600; border: 1px solid #ffcc80; }
+  .page-nav a { color: #4f8ef7; text-decoration: none; font-size: 13px; }
+</style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<div class="sidebar">
+  <div class="sidebar-logo">Future Pay<b>CA</b></div>
+  <div class="sidebar-section">总览</div>
+  <div class="sidebar-item">仪表盘</div>
+  <div class="sidebar-section">合规</div>
+  <div class="sidebar-item">客户尽职调查</div>
+  <div class="sidebar-sub">KYC审核</div>
+  <div class="sidebar-sub">KYW审核</div>
+  <div class="sidebar-section">交易</div>
+  <div class="sidebar-item">交易监控</div>
+  <div class="sidebar-sub">监控规则</div>
+  <div class="sidebar-sub">交易警报</div>
+  <div class="sidebar-section">监控</div>
+  <div class="sidebar-item">持续监控</div>
+  <div class="sidebar-sub">KYW监控</div>
+  <div class="sidebar-section">审核</div>
+  <div class="sidebar-item active">订单管理</div>
+  <div class="sidebar-sub active">充值订单</div>
+  <div class="sidebar-sub">兑换订单</div>
+  <div class="sidebar-sub">提现订单</div>
+  <div class="sidebar-sub">A2A订单</div>
+  <div class="sidebar-section">财务</div>
+  <div class="sidebar-item">财务管理</div>
+  <div class="sidebar-sub">日记账报表</div>
+  <div class="sidebar-sub">结算</div>
+  <div class="sidebar-sub">PSP结算</div>
+  <div class="sidebar-section">报告</div>
+  <div class="sidebar-item">STR报告</div>
+  <div class="sidebar-item">LCTR报告</div>
+</div>
+
+<!-- Main -->
+<div class="main">
+  <div class="topbar">
+    <div class="breadcrumb" id="breadcrumb">
+      <a href="#">审核</a><span class="sep">›</span>
+      <a href="#" onclick="showList()">订单管理</a><span class="sep">›</span>
+      <span class="current">充值订单</span>
+    </div>
+    <div class="topbar-right">
+      <span style="color:#8b90a7;font-size:18px;">🔔</span>
+      <span style="color:#8b90a7;font-size:18px;">⚙️</span>
+      <div class="avatar">JS</div>
+    </div>
+  </div>
+
+  <!-- LIST PAGE -->
+  <div class="page active" id="list-page">
+
+    <!-- Stats -->
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-label">待审核</div>
+        <div class="stat-value danger">18</div>
+        <div class="stat-sub">较昨日 +3</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">今日待审金额</div>
+        <div class="stat-value warning">$284,500</div>
+        <div class="stat-sub">CAD</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">今日已通过</div>
+        <div class="stat-value success">32</div>
+        <div class="stat-sub">通过率 84%</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">SLA超时风险</div>
+        <div class="stat-value danger">3</div>
+        <div class="stat-sub">剩余 &lt; 1小时</div>
+      </div>
+    </div>
+
+    <!-- Filter bar -->
+    <div class="filter-bar">
+      <input type="text" placeholder="搜索订单号 / 商户名称" />
+      <select>
+        <option>全部状态</option>
+        <option>待审核</option>
+        <option>审核中</option>
+        <option>已通过</option>
+        <option>已拒绝</option>
+        <option>待补件</option>
+      </select>
+      <select>
+        <option>全部触发原因</option>
+        <option>大额充值</option>
+        <option>高频充值</option>
+        <option>新商户首次</option>
+        <option>黑名单命中</option>
+        <option>风险国家</option>
+      </select>
+      <select>
+        <option>全部支付方式</option>
+        <option>银行转账</option>
+        <option>信用卡</option>
+        <option>加密货币</option>
+        <option>电子钱包</option>
+      </select>
+      <select>
+        <option>全部风险等级</option>
+        <option>高风险</option>
+        <option>中风险</option>
+        <option>低风险</option>
+      </select>
+      <div class="filter-bar-right">
+        <button class="btn btn-outline">重置</button>
+        <button class="btn btn-primary">搜索</button>
+      </div>
+    </div>
+
+    <!-- Table -->
+    <div class="table-wrap">
+      <div class="table-header">
+        <div class="table-header-title">充值审核列表</div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-outline" style="font-size:12px;">↓ 导出</button>
+        </div>
+      </div>
+
+      <!-- Bulk bar (shown when items selected) -->
+      <div class="bulk-bar" id="bulk-bar" style="display:none;margin:0 16px 12px;">
+        <span>已选 <b id="selected-count">0</b> 条</span>
+        <div class="bulk-bar-actions">
+          <button class="btn-sm btn-outline" style="color:#fff;border-color:#ffffff66;background:transparent;">批量通过</button>
+          <button class="btn-sm btn-outline" style="color:#fff;border-color:#ffffff66;background:transparent;">批量拒绝</button>
+          <button class="btn-sm btn-outline" style="color:#fff;border-color:#ffffff66;background:transparent;">批量分配</button>
+        </div>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th><input type="checkbox" class="checkbox" onchange="toggleAll(this)" /></th>
+            <th>订单号</th>
+            <th>商户名称</th>
+            <th>充值金额</th>
+            <th>支付方式</th>
+            <th>触发原因</th>
+            <th>风险等级</th>
+            <th>提交时间</th>
+            <th>分配给</th>
+            <th>SLA剩余</th>
+            <th>状态</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><input type="checkbox" class="checkbox row-check" onchange="updateBulk()" /></td>
+            <td><span class="order-id" onclick="showDetail('DEP-2026-0821')">DEP-2026-0821</span></td>
+            <td>NovaPay Technologies</td>
+            <td><span class="amount-cell large">$85,000 CAD</span></td>
+            <td>银行转账</td>
+            <td><span class="trigger-tag" style="background:#fce4ec;color:#c62828;">大额充值</span></td>
+            <td><span class="badge badge-danger">高风险</span></td>
+            <td>2026-05-08 09:12</td>
+            <td><span style="color:#8b90a7;">未分配</span></td>
+            <td><span class="sla-cell urgent">0h 48m</span></td>
+            <td><span class="badge badge-warning">待审核</span></td>
+            <td><div class="actions"><button class="btn-sm btn-primary" onclick="showDetail('DEP-2026-0821')">认领</button><button class="btn-sm btn-outline" onclick="showDetail('DEP-2026-0821')">审核</button></div></td>
+          </tr>
+          <tr>
+            <td><input type="checkbox" class="checkbox row-check" onchange="updateBulk()" /></td>
+            <td><span class="order-id" onclick="showDetail('DEP-2026-0820')">DEP-2026-0820</span></td>
+            <td>HighRisk Corp Limited</td>
+            <td><span class="amount-cell large">$42,000 CAD</span></td>
+            <td>加密货币</td>
+            <td><span class="trigger-tag" style="background:#fce4ec;color:#c62828;">风险国家</span></td>
+            <td><span class="badge badge-danger">高风险</span></td>
+            <td>2026-05-08 08:55</td>
+            <td>Sarah Chen</td>
+            <td><span class="sla-cell urgent">1h 10m</span></td>
+            <td><span class="badge badge-blue">审核中</span></td>
+            <td><div class="actions"><button class="btn-sm btn-outline" onclick="showDetail('DEP-2026-0820')">查看</button></div></td>
+          </tr>
+          <tr>
+            <td><input type="checkbox" class="checkbox row-check" onchange="updateBulk()" /></td>
+            <td><span class="order-id" onclick="showDetail('DEP-2026-0819')">DEP-2026-0819</span></td>
+            <td>TechPay Solutions Inc.</td>
+            <td><span class="amount-cell">$28,500 CAD</span></td>
+            <td>银行转账</td>
+            <td><span class="trigger-tag" style="background:#fff3e0;color:#e65100;">高频充值</span></td>
+            <td><span class="badge badge-warning">中风险</span></td>
+            <td>2026-05-08 08:30</td>
+            <td>Lisa Ma</td>
+            <td><span class="sla-cell warning">2h 30m</span></td>
+            <td><span class="badge badge-warning">待补件</span></td>
+            <td><div class="actions"><button class="btn-sm btn-outline" onclick="showDetail('DEP-2026-0819')">查看</button></div></td>
+          </tr>
+          <tr>
+            <td><input type="checkbox" class="checkbox row-check" onchange="updateBulk()" /></td>
+            <td><span class="order-id" onclick="showDetail('DEP-2026-0818')">DEP-2026-0818</span></td>
+            <td>GlobalMoney Ltd.</td>
+            <td><span class="amount-cell">$15,000 CAD</span></td>
+            <td>电子钱包</td>
+            <td><span class="trigger-tag" style="background:#e3f0ff;color:#1565c0;">新商户首次</span></td>
+            <td><span class="badge badge-warning">中风险</span></td>
+            <td>2026-05-08 07:44</td>
+            <td><span style="color:#8b90a7;">未分配</span></td>
+            <td><span class="sla-cell warning">3h 15m</span></td>
+            <td><span class="badge badge-warning">待审核</span></td>
+            <td><div class="actions"><button class="btn-sm btn-primary" onclick="showDetail('DEP-2026-0818')">认领</button><button class="btn-sm btn-outline" onclick="showDetail('DEP-2026-0818')">审核</button></div></td>
+          </tr>
+          <tr>
+            <td><input type="checkbox" class="checkbox row-check" onchange="updateBulk()" /></td>
+            <td><span class="order-id">DEP-2026-0817</span></td>
+            <td>FastCash Services</td>
+            <td><span class="amount-cell">$12,300 CAD</span></td>
+            <td>信用卡</td>
+            <td><span class="trigger-tag" style="background:#fff3e0;color:#e65100;">高频充值</span></td>
+            <td><span class="badge badge-warning">中风险</span></td>
+            <td>2026-05-08 07:20</td>
+            <td>Tom Lee</td>
+            <td><span class="sla-cell normal">5h 40m</span></td>
+            <td><span class="badge badge-blue">审核中</span></td>
+            <td><div class="actions"><button class="btn-sm btn-outline">查看</button></div></td>
+          </tr>
+          <tr>
+            <td><input type="checkbox" class="checkbox row-check" onchange="updateBulk()" /></td>
+            <td><span class="order-id">DEP-2026-0816</span></td>
+            <td>PayLink Corp</td>
+            <td><span class="amount-cell">$10,500 CAD</span></td>
+            <td>银行转账</td>
+            <td><span class="trigger-tag" style="background:#fce4ec;color:#c62828;">黑名单命中</span></td>
+            <td><span class="badge badge-danger">高风险</span></td>
+            <td>2026-05-08 06:58</td>
+            <td>Sarah Chen</td>
+            <td><span class="sla-cell normal">6h 02m</span></td>
+            <td><span class="badge badge-blue">审核中</span></td>
+            <td><div class="actions"><button class="btn-sm btn-outline">查看</button></div></td>
+          </tr>
+          <tr>
+            <td><input type="checkbox" class="checkbox row-check" onchange="updateBulk()" /></td>
+            <td><span class="order-id">DEP-2026-0815</span></td>
+            <td>MintPay Inc.</td>
+            <td><span class="amount-cell">$9,800 CAD</span></td>
+            <td>银行转账</td>
+            <td><span class="trigger-tag" style="background:#e3f0ff;color:#1565c0;">新商户首次</span></td>
+            <td><span class="badge badge-gray">低风险</span></td>
+            <td>2026-05-07 18:30</td>
+            <td>Lisa Ma</td>
+            <td><span class="sla-cell normal">8h 30m</span></td>
+            <td><span class="badge badge-success">已通过</span></td>
+            <td><div class="actions"><button class="btn-sm btn-outline">查看</button></div></td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="pagination">
+        <span>共 18 条，每页显示 10 条</span>
+        <div class="page-btns">
+          <button class="page-btn">‹</button>
+          <button class="page-btn active">1</button>
+          <button class="page-btn">2</button>
+          <button class="page-btn">›</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DETAIL PAGE -->
+  <div class="page" id="detail-page">
+    <div class="detail-header">
+      <div style="margin-bottom:8px;"><a href="#" class="page-nav" onclick="showList()">← 返回充值订单</a></div>
+      <div class="detail-title-row">
+        <div>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span class="detail-title" id="detail-order-id">DEP-2026-0821</span>
+            <span class="badge badge-warning">待审核</span>
+            <span class="badge badge-danger">高风险</span>
+          </div>
+          <div class="detail-meta">提交时间：2026-05-08 09:12 · 支付方式：银行转账 · 分配给：未分配</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div class="sla-badge">⏱ SLA截止 0h 48m</div>
+          <button class="btn btn-outline">下载凭证</button>
+        </div>
+      </div>
+      <div class="detail-tabs">
+        <div class="detail-tab active">订单详情</div>
+        <div class="detail-tab">操作日志</div>
+      </div>
+    </div>
+
+    <!-- Order + Merchant info -->
+    <div class="two-col">
+      <div class="card">
+        <div class="card-title">💰 充值信息</div>
+        <div class="info-grid">
+          <div class="info-item" style="grid-column:1/-1;">
+            <label>充值金额</label>
+            <span style="font-size:22px;font-weight:700;color:#e53935;">$85,000.00 CAD</span>
+          </div>
+          <div class="info-item">
+            <label>支付方式</label>
+            <span>银行转账（Wire Transfer）</span>
+          </div>
+          <div class="info-item">
+            <label>汇款行</label>
+            <span>TD Canada Trust</span>
+          </div>
+          <div class="info-item">
+            <label>汇款账号</label>
+            <span>****4821</span>
+          </div>
+          <div class="info-item">
+            <label>收款账号</label>
+            <span>****0093</span>
+          </div>
+          <div class="info-item">
+            <label>汇款人姓名</label>
+            <span>John Smith</span>
+          </div>
+          <div class="info-item">
+            <label>汇款备注</label>
+            <span>Business Payment Q2</span>
+          </div>
+          <div class="info-item">
+            <label>到账时间</label>
+            <span>2026-05-08 08:47</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">🏢 商户信息</div>
+        <div class="info-grid">
+          <div class="info-item" style="grid-column:1/-1;">
+            <label>商户名称</label>
+            <span style="font-weight:700;font-size:14px;">NovaPay Technologies Ltd.</span>
+            <div style="font-size:11px;color:#8b90a7;margin-top:2px;">MCH-2024-0193</div>
+          </div>
+          <div class="info-item">
+            <label>注册国家</label>
+            <span>🇨🇦 加拿大</span>
+          </div>
+          <div class="info-item">
+            <label>商户风险等级</label>
+            <span class="badge badge-warning">中风险</span>
+          </div>
+          <div class="info-item">
+            <label>本月充值次数</label>
+            <span>8 次</span>
+          </div>
+          <div class="info-item">
+            <label>本月累计充值</label>
+            <span style="color:#e53935;font-weight:700;">$312,000 CAD</span>
+          </div>
+          <div class="info-item">
+            <label>历史通过率</label>
+            <span style="color:#43a047;font-weight:600;">92%</span>
+          </div>
+          <div class="info-item">
+            <label>KYC状态</label>
+            <span class="badge badge-success">已验证</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- State switcher (demo only) -->
+    <div style="background:#1a1d2e;border-radius:8px;padding:10px 16px;display:flex;align-items:center;gap:10px;">
+      <span style="color:#8b90a7;font-size:12px;">演示状态切换：</span>
+      <button class="btn-sm" style="background:#4f8ef7;color:#fff;border:none;" onclick="switchState('first')">首次审核</button>
+      <button class="btn-sm btn-outline" style="color:#fff;border-color:#444;background:transparent;" onclick="switchState('pending')">待补件（等待上传）</button>
+      <button class="btn-sm btn-outline" style="color:#fff;border-color:#444;background:transparent;" onclick="switchState('recheck')">补件完成（重新审核）</button>
+    </div>
+
+    <!-- Risk + Docs -->
+    <div class="two-col">
+      <div class="card">
+        <div class="card-title">⚠️ 风险指标</div>
+        <div class="risk-row">
+          <div class="risk-item fail">
+            <span class="risk-item-label fail">🔴 大额充值</span>
+            <span class="risk-item-value">$85,000 超过阈值 $50,000</span>
+          </div>
+          <div class="risk-item warn">
+            <span class="risk-item-label warn">🟡 本月累计偏高</span>
+            <span class="risk-item-value">$312,000 / 月度限额 $500,000</span>
+          </div>
+          <div class="risk-item warn">
+            <span class="risk-item-label warn">🟡 汇款人与商户名不一致</span>
+            <span class="risk-item-value">John Smith ≠ NovaPay Technologies</span>
+          </div>
+          <div class="risk-item pass">
+            <span class="risk-item-label pass">🟢 制裁名单</span>
+            <span class="risk-item-value">未命中 OFAC / UN / FINTRAC</span>
+          </div>
+          <div class="risk-item pass">
+            <span class="risk-item-label pass">🟢 汇款行</span>
+            <span class="risk-item-value">TD Canada Trust · 已知合规银行</span>
+          </div>
+          <div class="risk-item pass">
+            <span class="risk-item-label pass">🟢 KYC状态</span>
+            <span class="risk-item-value">已完成验证，有效期至 2027-01-23</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 材料区域：根据状态显示不同内容 -->
+
+      <!-- 状态1：首次审核，无材料 -->
+      <div class="card" id="doc-state-first">
+        <div class="card-title">📎 材料</div>
+        <div style="padding:32px 0;text-align:center;color:#aaa;">
+          <div style="font-size:32px;margin-bottom:8px;">📭</div>
+          <div style="font-size:13px;color:#8b90a7;margin-bottom:4px;">暂无材料</div>
+          <div style="font-size:12px;color:#c5c8db;">商户尚未提交任何凭证</div>
+        </div>
+      </div>
+
+      <!-- 状态2：待补件，等待商户上传 -->
+      <div class="card" id="doc-state-pending" style="display:none;">
+        <div class="card-title">📎 补充材料</div>
+        <div style="background:#fffde7;border:1px solid #fff176;border-radius:8px;padding:14px;margin-bottom:12px;">
+          <div style="font-weight:600;font-size:13px;color:#e65100;margin-bottom:4px;">⏳ 等待商户上传材料</div>
+          <div style="font-size:12px;color:#666;">已于 2026-05-08 10:30 通知商户，请求以下材料：</div>
+          <ul style="margin-top:8px;padding-left:16px;font-size:12px;color:#555;line-height:1.8;">
+            <li>银行转账回执（PDF）</li>
+            <li>资金来源证明文件</li>
+            <li>汇款人与商户关系说明</li>
+          </ul>
+        </div>
+        <div style="font-size:12px;color:#8b90a7;text-align:center;">商户上传后此处将自动更新</div>
+      </div>
+
+      <!-- 状态3：补件完成，可审核材料 -->
+      <div class="card" id="doc-state-recheck" style="display:none;">
+        <div class="card-title">📎 补充材料 <span class="badge badge-success" style="margin-left:4px;">已上传 3 份</span></div>
+        <div style="background:#e8f5e9;border:1px solid #c8e6c9;border-radius:6px;padding:10px 12px;margin-bottom:12px;font-size:12px;color:#2e7d32;">
+          ✅ 商户已于 2026-05-08 14:22 上传补充材料，请核实后作出决策。
+        </div>
+        <div class="doc-list">
+          <div class="doc-item">
+            <div class="doc-item-left">
+              <span class="doc-icon">🏦</span>
+              <div>
+                <div class="doc-name">银行转账回执.pdf</div>
+                <div class="doc-meta">上传时间：2026-05-08 14:18 · 1.2MB</div>
+              </div>
+            </div>
+            <button class="btn-sm btn-outline">预览</button>
+          </div>
+          <div class="doc-item">
+            <div class="doc-item-left">
+              <span class="doc-icon">📄</span>
+              <div>
+                <div class="doc-name">资金来源证明.pdf</div>
+                <div class="doc-meta">上传时间：2026-05-08 14:19 · 0.8MB</div>
+              </div>
+            </div>
+            <button class="btn-sm btn-outline">预览</button>
+          </div>
+          <div class="doc-item">
+            <div class="doc-item-left">
+              <span class="doc-icon">📝</span>
+              <div>
+                <div class="doc-name">汇款人关系说明.pdf</div>
+                <div class="doc-meta">上传时间：2026-05-08 14:22 · 0.5MB</div>
+              </div>
+            </div>
+            <button class="btn-sm btn-outline">预览</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Decision panel：根据状态显示不同决策选项 -->
+
+    <!-- 状态1：首次审核 -->
+    <div class="decision-panel" id="decision-state-first">
+      <div class="decision-title">📋 审核决策</div>
+      <div class="decision-desc">请根据订单信息及风险指标作出初步决策。</div>
+      <div class="decision-btns" style="grid-template-columns:1fr 1fr 1fr 1fr;">
+        <div class="decision-btn" onclick="selectDecision(this,'pass')">
+          <div class="decision-btn-icon">✅</div>
+          <div class="decision-btn-label" style="color:#2e7d32;">通过</div>
+          <div class="decision-btn-desc">资金正常入账</div>
+        </div>
+        <div class="decision-btn" onclick="selectDecision(this,'info')">
+          <div class="decision-btn-icon">📩</div>
+          <div class="decision-btn-label" style="color:#e65100;">待补件</div>
+          <div class="decision-btn-desc">请求商户补充材料</div>
+        </div>
+        <div class="decision-btn" onclick="selectDecision(this,'hold')">
+          <div class="decision-btn-icon">⏸</div>
+          <div class="decision-btn-label" style="color:#6a1b9a;">暂缓入账</div>
+          <div class="decision-btn-desc">冻结资金，待进一步调查</div>
+        </div>
+        <div class="decision-btn" onclick="selectDecision(this,'reject')">
+          <div class="decision-btn-icon">❌</div>
+          <div class="decision-btn-label" style="color:#c62828;">拒绝</div>
+          <div class="decision-btn-desc">退回资金，拒绝入账</div>
+        </div>
+      </div>
+
+      <!-- 待补件：选择材料 -->
+      <div id="supplement-form" style="display:none;margin-bottom:14px;">
+        <div style="font-size:12px;font-weight:600;color:#555;margin-bottom:8px;">需要商户提供以下材料 <span style="color:#e53935;">*</span></div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;">
+          <div class="reject-opt" onclick="toggleRejectOpt(this)">资金来源说明</div>
+          <div class="reject-opt" onclick="toggleRejectOpt(this)">钱包归属证明</div>
+          <div class="reject-opt" onclick="toggleRejectOpt(this)">业务背景说明</div>
+          <div class="reject-opt" onclick="toggleRejectOpt(this)">合同或发票</div>
+        </div>
+      </div>
+
+      <!-- 暂缓入账：填写原因和预计解除时间 -->
+      <div id="hold-form" style="display:none;margin-bottom:14px;">
+        <div style="font-size:12px;font-weight:600;color:#555;margin-bottom:8px;">暂缓原因 <span style="color:#e53935;">*</span></div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;">
+          <div class="reject-opt" onclick="toggleRejectOpt(this)">资金来源存疑，待调查</div>
+          <div class="reject-opt" onclick="toggleRejectOpt(this)">涉及可疑交易模式</div>
+          <div class="reject-opt" onclick="toggleRejectOpt(this)">等待监管机构指示</div>
+          <div class="reject-opt" onclick="toggleRejectOpt(this)">需要更高级别审批</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="font-size:12px;font-weight:600;color:#555;">预计解除时间</div>
+          <input type="date" style="border:1px solid #e8eaef;border-radius:6px;padding:5px 10px;font-size:12px;outline:none;font-family:inherit;" />
+          <span style="font-size:12px;color:#8b90a7;">（选填）</span>
+        </div>
+        <div style="margin-top:10px;padding:10px 12px;background:#f3e5f5;border:1px solid #ce93d8;border-radius:7px;font-size:12px;color:#6a1b9a;">
+          ⚠️ 暂缓入账将冻结该笔资金，商户无法使用。解除需再次人工操作。
+        </div>
+      </div>
+
+      <!-- 拒绝：选择原因 -->
+      <div id="reject-reason-first" style="display:none;margin-bottom:14px;">
+        <div style="font-size:12px;font-weight:600;color:#555;margin-bottom:8px;">拒绝原因 <span style="color:#e53935;">*</span></div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;">
+          <div class="reject-opt" onclick="toggleRejectOpt(this)">资金来源不明</div>
+          <div class="reject-opt" onclick="toggleRejectOpt(this)">疑似欺诈</div>
+          <div class="reject-opt" onclick="toggleRejectOpt(this)">制裁名单命中</div>
+          <div class="reject-opt" onclick="toggleRejectOpt(this)">超过风险阈值</div>
+          <div class="reject-opt" onclick="toggleRejectOpt(this)">汇款人不匹配</div>
+        </div>
+      </div>
+
+      <div style="margin-bottom:8px;font-size:12px;color:#555;font-weight:600;">审核备注 <span style="color:#8b90a7;font-weight:400;">（必填）</span></div>
+      <textarea class="note" placeholder="请说明审核依据..."></textarea>
+      <div class="decision-footer">
+        <div class="decision-footer-note">决策提交后将立即通知商户，并记录在操作日志中。</div>
+        <div class="decision-footer-btns">
+          <button class="btn btn-outline">保存草稿</button>
+          <button class="btn btn-primary" onclick="openDecisionModal()">提交决策</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 状态2：等待商户上传，无决策操作 -->
+    <div class="decision-panel" id="decision-state-pending" style="display:none;border-color:#ff9800;">
+      <div class="decision-title">⏳ 等待商户补充材料</div>
+      <div class="decision-desc" style="color:#e65100;">已通知商户于 2026-05-08 10:30，补件截止时间：2026-05-09 10:30</div>
+      <div style="background:#fff8e1;border:1px solid #ffe082;border-radius:8px;padding:14px;font-size:12px;color:#666;">
+        商户上传材料后，系统将自动通知审核员重新审核。<br/>
+        如商户超时未上传，系统将自动关闭此订单。
+      </div>
+    </div>
+
+    <!-- 状态3：补件完成，通过/暂缓/拒绝 -->
+    <div class="decision-panel" id="decision-state-recheck" style="display:none;border-color:#43a047;">
+      <div class="decision-title">📋 重新审核决策</div>
+      <div class="decision-desc">商户已提交补充材料，请核实后作出最终决策。</div>
+      <div class="decision-btns" style="grid-template-columns:1fr 1fr 1fr;">
+        <div class="decision-btn" onclick="selectDecision(this,'pass')">
+          <div class="decision-btn-icon">✅</div>
+          <div class="decision-btn-label" style="color:#2e7d32;">通过</div>
+          <div class="decision-btn-desc">材料核实通过，资金到账</div>
+        </div>
+        <div class="decision-btn" onclick="selectDecision(this,'hold')">
+          <div class="decision-btn-icon">⏸</div>
+          <div class="decision-btn-label" style="color:#6a1b9a;">暂缓入账</div>
+          <div class="decision-btn-desc">材料仍存疑，冻结资金</div>
+        </div>
+        <div class="decision-btn" onclick="selectDecision(this,'reject')">
+          <div class="decision-btn-icon">❌</div>
+          <div class="decision-btn-label" style="color:#c62828;">拒绝</div>
+          <div class="decision-btn-desc">材料不符，退回资金</div>
+        </div>
+      </div>
+
+      <!-- 暂缓入账 -->
+      <div id="hold-form-recheck" style="display:none;margin-bottom:14px;">
+        <div style="font-size:12px;font-weight:600;color:#555;margin-bottom:8px;">暂缓原因 <span style="color:#e53935;">*</span></div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;">
+          <div class="reject-opt" onclick="toggleRejectOpt(this)">材料真实性存疑</div>
+          <div class="reject-opt" onclick="toggleRejectOpt(this)">等待监管机构指示</div>
+          <div class="reject-opt" onclick="toggleRejectOpt(this)">需要更高级别审批</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="font-size:12px;font-weight:600;color:#555;">预计解除时间</div>
+          <input type="date" style="border:1px solid #e8eaef;border-radius:6px;padding:5px 10px;font-size:12px;outline:none;font-family:inherit;" />
+          <span style="font-size:12px;color:#8b90a7;">（选填）</span>
+        </div>
+        <div style="margin-top:10px;padding:10px 12px;background:#f3e5f5;border:1px solid #ce93d8;border-radius:7px;font-size:12px;color:#6a1b9a;">
+          ⚠️ 暂缓入账将冻结该笔资金，商户无法使用。解除需再次人工操作。
+        </div>
+      </div>
+
+      <!-- 拒绝 -->
+      <div id="reject-reason-recheck" style="display:none;margin-bottom:14px;">
+        <div style="font-size:12px;font-weight:600;color:#555;margin-bottom:8px;">拒绝原因 <span style="color:#e53935;">*</span></div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;">
+          <div class="reject-opt" onclick="toggleRejectOpt(this)">材料不真实</div>
+          <div class="reject-opt" onclick="toggleRejectOpt(this)">资金来源不明</div>
+          <div class="reject-opt" onclick="toggleRejectOpt(this)">疑似欺诈</div>
+          <div class="reject-opt" onclick="toggleRejectOpt(this)">汇款人不匹配</div>
+        </div>
+      </div>
+
+      <div style="margin-bottom:8px;font-size:12px;color:#555;font-weight:600;">审核备注 <span style="color:#8b90a7;font-weight:400;">（必填）</span></div>
+      <textarea class="note" placeholder="请说明最终审核结论..."></textarea>
+      <div class="decision-footer">
+        <div class="decision-footer-note">此为最终决策，提交后不可撤回。</div>
+        <div class="decision-footer-btns">
+          <button class="btn btn-outline">保存草稿</button>
+          <button class="btn btn-primary" onclick="openDecisionModal()">提交决策</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Operation log -->
+    <div class="card">
+      <div class="card-title">📝 操作日志</div>
+      <div class="timeline">
+        <div class="tl-item">
+          <div class="tl-line-wrap"><div class="tl-dot orange"></div><div class="tl-connector"></div></div>
+          <div class="tl-body">
+            <div class="tl-who">系统 · 自动触发</div>
+            <div class="tl-what">订单触发审核规则：<b>单笔金额 $85,000 超过阈值 $50,000</b>，进入人工审核队列</div>
+            <div class="tl-time">2026-05-08 09:12:34</div>
+          </div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-line-wrap"><div class="tl-dot"></div><div class="tl-connector"></div></div>
+          <div class="tl-body">
+            <div class="tl-who">系统 · 自动通知</div>
+            <div class="tl-what">已通知风控团队，SLA截止时间：2026-05-08 10:42</div>
+            <div class="tl-time">2026-05-08 09:12:35</div>
+          </div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-line-wrap"><div class="tl-dot gray"></div></div>
+          <div class="tl-body">
+            <div class="tl-who" style="color:#aaa;">等待审核员认领...</div>
+            <div class="tl-time">—</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ===== 审核决定 Modal ===== -->
+<div class="decision-modal-overlay" id="decision-modal-overlay" onclick="closeModalIfBg(event)">
+  <div class="decision-modal">
+
+    <div class="dm-header">
+      <div class="dm-header-title">审核决定</div>
+      <span class="dm-close" onclick="closeDecisionModal()">×</span>
+    </div>
+
+    <div class="dm-body">
+
+      <!-- AI 风险预判 -->
+      <div class="ai-block">
+        <div class="ai-block-title">
+          <span>🤖 AI 风险预判</span>
+          <span class="badge badge-danger">高风险</span>
+        </div>
+        <div class="ai-block-desc">
+          链上溯源 92% 来自 Tornado Cash · 商户陈述与证据矛盾 · 历史 3 次同类订单已申报 STR 1 次
+        </div>
+        <div class="ai-recommendation">建议：从严处置（置信度 87%）</div>
+      </div>
+
+      <!-- L1 审批人操作 -->
+      <div class="l1-section">
+        <div class="l1-header">
+          <div class="l1-avatar">JL</div>
+          <div>
+            <div class="l1-label">L1 审批人操作</div>
+            <div class="l1-name">James Liu</div>
+          </div>
+        </div>
+
+        <!-- 处置决定 -->
+        <div class="dm-sub-label">处置决定</div>
+        <div class="dispose-btns">
+          <div class="dispose-btn active-pass" id="dispose-pass" onclick="selectDispose('pass')">
+            ✅ 建议入账
+          </div>
+          <div class="dispose-btn" id="dispose-reject" onclick="selectDispose('reject')">
+            📤 建议退款
+          </div>
+          <div class="dispose-btn" id="dispose-hold" onclick="selectDispose('hold')">
+            🔒 建议冻结
+          </div>
+        </div>
+
+        <!-- 流程操作 -->
+        <div class="dm-sub-label">流程操作</div>
+        <div class="process-btns">
+          <div class="process-btn">💬 请求信息</div>
+          <div class="process-btn" onclick="escalateL2()">🚩 升级至L2</div>
+        </div>
+      </div>
+
+      <!-- 放行后影响（动态根据处置决定切换） -->
+      <div class="impact-box" id="impact-pass">
+        <div class="impact-box-title">ℹ️ 放行后影响</div>
+        <div class="impact-box-desc">资金将于 L2 复核通过后 1 小时内入账至商户余额。该订单风险评分 78，放行需充分依据。</div>
+      </div>
+      <div class="impact-box warn" id="impact-reject" style="display:none;">
+        <div class="impact-box-title">⚠️ 退款后影响</div>
+        <div class="impact-box-desc">资金将在 1-3 个工作日内原路退回。退款后该订单关闭，商户可重新发起充值。</div>
+      </div>
+      <div class="impact-box danger" id="impact-hold" style="display:none;">
+        <div class="impact-box-title">🔒 冻结后影响</div>
+        <div class="impact-box-desc">资金将立即冻结，商户无法使用。解冻需要 L2 审批，建议同步启动 EDD 调查。</div>
+      </div>
+
+      <!-- 放行原因 -->
+      <div>
+        <div class="dm-sub-label" id="reason-label">放行原因 <span style="color:#e53935;">*</span></div>
+        <select class="dm-select" id="dispose-reason-select">
+          <option value="">请选择</option>
+          <option>补充材料已核实，资金来源合规</option>
+          <option>商户历史记录良好，风险可接受</option>
+          <option>KYC/KYW 审核通过，无制裁命中</option>
+          <option>业务背景说明合理，符合行业惯例</option>
+          <option>其他原因（见判断依据）</option>
+        </select>
+      </div>
+
+      <!-- 判断依据 -->
+      <div>
+        <div class="dm-sub-label">判断依据 <span style="color:#e53935;">*</span></div>
+        <textarea class="dm-textarea" placeholder="陈述放行依据：补充材料如何排除风险 / 与历史订单的对比..."></textarea>
+      </div>
+
+      <!-- 关键证据 -->
+      <div>
+        <div class="dm-sub-label">关键证据（L2复核重点）</div>
+        <div class="evidence-list">
+          <div class="evidence-item checked" onclick="toggleEvidence(this)">
+            <input type="checkbox" checked />
+            <div class="evidence-item-text">商户补充材料 · Coinbase 提现凭证已核实</div>
+          </div>
+          <div class="evidence-item" onclick="toggleEvidence(this)">
+            <input type="checkbox" />
+            <div class="evidence-item-text">历史订单参考 · 类似订单放行率 68%</div>
+          </div>
+          <div class="evidence-item" onclick="toggleEvidence(this)">
+            <input type="checkbox" />
+            <div class="evidence-item-text">链上分析 · Tornado Cash 暴露比例 92%，超内部阈值</div>
+          </div>
+          <div class="evidence-item" onclick="toggleEvidence(this)">
+            <input type="checkbox" />
+            <div class="evidence-item-text">KYC 状态 · 商户认证有效，无制裁名单命中</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="dm-footer">
+      <button class="btn btn-outline" onclick="closeDecisionModal()">取消</button>
+      <button class="btn btn-primary" onclick="confirmDecision()">提交决定</button>
+    </div>
+  </div>
+</div>
+
+<script>
+function showList() {
+  document.getElementById('list-page').classList.add('active');
+  document.getElementById('detail-page').classList.remove('active');
+}
+function showDetail(orderId) {
+  document.getElementById('list-page').classList.remove('active');
+  document.getElementById('detail-page').classList.add('active');
+  if (orderId) document.getElementById('detail-order-id').textContent = orderId;
+  switchState('first');
+}
+function toggleAll(cb) {
+  document.querySelectorAll('.row-check').forEach(c => c.checked = cb.checked);
+  updateBulk();
+}
+function updateBulk() {
+  const checked = document.querySelectorAll('.row-check:checked').length;
+  const bar = document.getElementById('bulk-bar');
+  bar.style.display = checked > 0 ? 'flex' : 'none';
+  document.getElementById('selected-count').textContent = checked;
+}
+
+// State switcher
+function switchState(state) {
+  const states = ['first', 'pending', 'recheck'];
+  states.forEach(s => {
+    const doc = document.getElementById('doc-state-' + s);
+    const dec = document.getElementById('decision-state-' + s);
+    if (doc) doc.style.display = s === state ? 'block' : 'none';
+    if (dec) dec.style.display = s === state ? 'block' : 'none';
+  });
+  // Update badge
+  const badgeMap = { first: ['待审核','badge-warning'], pending: ['待补件','badge-warning'], recheck: ['补件已上传','badge-success'] };
+  const badges = document.querySelectorAll('#detail-page .badge');
+  if (badges[0] && badgeMap[state]) {
+    badges[0].textContent = badgeMap[state][0];
+    badges[0].className = 'badge ' + badgeMap[state][1];
+  }
+}
+
+function selectDecision(el, type) {
+  const panel = el.closest('.decision-panel');
+  panel.querySelectorAll('.decision-btn').forEach(b => b.className = 'decision-btn');
+  const colorMap = { pass: 'sel-pass', info: 'sel-info', hold: 'sel-hold', reject: 'sel-reject' };
+  el.classList.add(colorMap[type] || 'sel-pass');
+
+  // 首次审核面板的子表单
+  const suppForm = document.getElementById('supplement-form');
+  const holdForm = document.getElementById('hold-form');
+  const rejFirst = document.getElementById('reject-reason-first');
+  if (suppForm) suppForm.style.display = type === 'info' ? 'block' : 'none';
+  if (holdForm) holdForm.style.display = type === 'hold' ? 'block' : 'none';
+  if (rejFirst) rejFirst.style.display = type === 'reject' ? 'block' : 'none';
+
+  // 补件完成面板的子表单
+  const holdFormRecheck = document.getElementById('hold-form-recheck');
+  const rejRecheck = document.getElementById('reject-reason-recheck');
+  if (holdFormRecheck) holdFormRecheck.style.display = type === 'hold' ? 'block' : 'none';
+  if (rejRecheck) rejRecheck.style.display = type === 'reject' ? 'block' : 'none';
+}
+function toggleRejectOpt(el) {
+  el.classList.toggle('selected');
+}
+function submitDecision() {
+  openDecisionModal();
+}
+function openDecisionModal() {
+  document.getElementById('decision-modal-overlay').classList.add('open');
+}
+function closeDecisionModal() {
+  document.getElementById('decision-modal-overlay').classList.remove('open');
+}
+function closeModalIfBg(e) {
+  if (e.target === document.getElementById('decision-modal-overlay')) closeDecisionModal();
+}
+function selectDispose(type) {
+  ['pass','reject','hold'].forEach(t => {
+    const el = document.getElementById('dispose-' + t);
+    el.className = 'dispose-btn';
+  });
+  const map = { pass: 'active-pass', reject: 'active-reject', hold: 'active-hold' };
+  document.getElementById('dispose-' + type).classList.add(map[type]);
+
+  // Switch impact box
+  ['pass','reject','hold'].forEach(t => {
+    document.getElementById('impact-' + t).style.display = t === type ? 'block' : 'none';
+  });
+
+  // Update reason label
+  const labels = { pass: '放行原因', reject: '退款原因', hold: '冻结原因' };
+  document.getElementById('reason-label').innerHTML = (labels[type] || '原因') + ' <span style="color:#e53935;">*</span>';
+
+  // Update reason options
+  const select = document.getElementById('dispose-reason-select');
+  const opts = {
+    pass: ['补充材料已核实，资金来源合规','商户历史记录良好，风险可接受','KYC/KYW 审核通过，无制裁命中','业务背景说明合理，符合行业惯例','其他原因（见判断依据）'],
+    reject: ['资金来源无法核实','汇款人身份不匹配','疑似欺诈或洗钱','超出风险承受阈值','其他原因（见判断依据）'],
+    hold: ['资金来源存疑，待进一步调查','涉及可疑交易模式','等待监管机构指示','需更高级别审批','其他原因（见判断依据）']
+  };
+  select.innerHTML = '<option value="">请选择</option>' + (opts[type] || []).map(o => `<option>${o}</option>`).join('');
+}
+function toggleEvidence(el) {
+  el.classList.toggle('checked');
+  el.querySelector('input').checked = el.classList.contains('checked');
+}
+function escalateL2() {
+  alert('已升级至 L2 审批人，James Liu 的操作将作为建议提交。');
+}
+function confirmDecision() {
+  const reason = document.getElementById('dispose-reason-select').value;
+  const basis = document.querySelector('.dm-textarea').value.trim();
+  if (!reason) { alert('请选择原因'); return; }
+  if (!basis) { alert('请填写判断依据'); return; }
+  alert('审核决定已提交！');
+  closeDecisionModal();
+  showList();
+}
+</script>
+</body>
+</html>

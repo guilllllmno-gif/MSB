@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>KYW监控 - FuturePayCA</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', sans-serif; background: #f5f6fa; color: #1a1a2e; font-size: 13px; display: flex; height: 100vh; overflow: hidden; }
+
+  /* Sidebar */
+  .sidebar { width: 200px; background: #1a1d2e; color: #8b90a7; display: flex; flex-direction: column; flex-shrink: 0; }
+  .sidebar-logo { padding: 16px; border-bottom: 1px solid #252840; }
+  .sidebar-logo span { color: #fff; font-weight: 700; font-size: 15px; }
+  .sidebar-logo span b { color: #4f8ef7; }
+  .sidebar-section { padding: 16px 12px 4px; font-size: 11px; color: #4a4f6a; letter-spacing: .5px; }
+  .sidebar-item { padding: 7px 16px; cursor: pointer; display: flex; align-items: center; gap: 8px; border-radius: 6px; margin: 1px 6px; font-size: 13px; }
+  .sidebar-item:hover { background: #252840; color: #c5c8db; }
+  .sidebar-item.active { background: #2a3050; color: #fff; }
+  .sidebar-sub { padding: 6px 16px 6px 36px; cursor: pointer; font-size: 12px; border-radius: 6px; margin: 1px 6px; }
+  .sidebar-sub:hover { background: #252840; color: #c5c8db; }
+  .sidebar-sub.active { background: #1e3a8a22; color: #4f8ef7; }
+
+  /* Main */
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .topbar { height: 52px; background: #fff; border-bottom: 1px solid #e8eaef; display: flex; align-items: center; padding: 0 24px; gap: 8px; flex-shrink: 0; }
+  .breadcrumb { display: flex; align-items: center; gap: 6px; color: #8b90a7; font-size: 13px; }
+  .breadcrumb a { color: #8b90a7; text-decoration: none; }
+  .breadcrumb a:hover { color: #4f8ef7; }
+  .breadcrumb .sep { color: #c5c8db; }
+  .breadcrumb .current { color: #1a1a2e; }
+  .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+  .avatar { width: 32px; height: 32px; border-radius: 50%; background: #4f8ef7; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 13px; }
+
+  /* Content */
+  .content { flex: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 16px; }
+
+  /* Page header */
+  .page-header { background: #fff; border-radius: 10px; padding: 20px 24px; border: 1px solid #e8eaef; }
+  .page-header-top { display: flex; align-items: flex-start; justify-content: space-between; }
+  .case-title { display: flex; align-items: center; gap: 10px; }
+  .case-id { font-size: 20px; font-weight: 700; color: #1a1a2e; }
+  .badge { padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+  .badge-warning { background: #fff3e0; color: #e65100; }
+  .badge-danger { background: #fce4ec; color: #c62828; }
+  .badge-success { background: #e8f5e9; color: #2e7d32; }
+  .badge-blue { background: #e3f0ff; color: #1565c0; }
+  .badge-gray { background: #f0f0f4; color: #555; }
+  .case-meta { color: #8b90a7; font-size: 12px; margin-top: 4px; }
+  .header-actions { display: flex; align-items: center; gap: 10px; }
+  .sla-badge { display: flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 6px; background: #fff3e0; color: #e65100; font-size: 12px; font-weight: 600; border: 1px solid #ffcc80; }
+  .btn { padding: 7px 16px; border-radius: 6px; border: none; cursor: pointer; font-size: 13px; font-weight: 500; }
+  .btn-outline { background: #fff; border: 1px solid #d0d4e0; color: #444; }
+  .btn-outline:hover { background: #f5f6fa; }
+  .btn-primary { background: #4f8ef7; color: #fff; }
+  .btn-primary:hover { background: #3a7be0; }
+  .btn-danger { background: #e53935; color: #fff; }
+  .btn-success { background: #43a047; color: #fff; }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 0; border-bottom: 2px solid #e8eaef; margin-top: 16px; }
+  .tab { padding: 8px 16px; cursor: pointer; color: #8b90a7; font-size: 13px; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: color .15s; }
+  .tab:hover { color: #4f8ef7; }
+  .tab.active { color: #4f8ef7; border-bottom-color: #4f8ef7; font-weight: 600; }
+  .tab-panel { display: flex; flex-direction: column; gap: 16px; }
+
+  /* Alert banner */
+  .alert-banner { border-radius: 8px; padding: 12px 16px; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+  .alert-banner.danger { background: #fff5f5; border: 1px solid #ffcdd2; }
+  .alert-banner.warning { background: #fffde7; border: 1px solid #fff176; }
+  .alert-banner.info { background: #e3f0ff; border: 1px solid #bbdefb; }
+  .alert-icon { font-size: 16px; margin-top: 1px; }
+  .alert-body { flex: 1; }
+  .alert-title { font-weight: 600; font-size: 13px; margin-bottom: 2px; }
+  .alert-desc { font-size: 12px; color: #666; }
+
+  /* Cards row */
+  .cards-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .card { background: #fff; border-radius: 10px; border: 1px solid #e8eaef; padding: 20px; }
+  .card-title { font-size: 13px; font-weight: 600; color: #1a1a2e; margin-bottom: 14px; display: flex; align-items: center; gap: 6px; }
+  .card-title .icon { color: #4f8ef7; }
+
+  /* Risk score */
+  .risk-section { background: #fff; border-radius: 10px; border: 1px solid #e8eaef; padding: 20px; }
+  .risk-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .risk-score-wrap { display: flex; align-items: center; gap: 20px; }
+  .score-circle { width: 72px; height: 72px; border-radius: 50%; border: 5px solid #e53935; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .score-num { font-size: 22px; font-weight: 700; color: #e53935; line-height: 1; }
+  .score-label { font-size: 10px; color: #e53935; }
+  .score-history { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+  .score-arrow { color: #e53935; font-weight: 700; font-size: 16px; }
+  .score-prev { color: #8b90a7; }
+  .score-curr { color: #e53935; font-weight: 700; }
+  .risk-bar-wrap { margin-top: 12px; }
+  .risk-bar { height: 8px; border-radius: 4px; background: linear-gradient(to right, #43a047 28%, #8b90a7 28% 48%, #4f8ef7 48% 68%, #e53935 68% 83%, #ff9800 83% 93%, #66bb6a 93%); margin-bottom: 8px; }
+  .risk-labels { display: flex; gap: 12px; flex-wrap: wrap; }
+  .risk-label-item { display: flex; align-items: center; gap: 4px; font-size: 11px; color: #555; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .risk-alerts { display: flex; gap: 10px; margin-top: 12px; }
+  .risk-alert-item { flex: 1; padding: 10px 12px; border-radius: 7px; font-size: 12px; }
+  .risk-alert-item.red { background: #fff5f5; border: 1px solid #ffcdd2; color: #c62828; }
+  .risk-alert-item.green { background: #e8f5e9; border: 1px solid #c8e6c9; color: #2e7d32; }
+
+  /* Info grid */
+  .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .info-item label { font-size: 11px; color: #8b90a7; display: block; margin-bottom: 2px; }
+  .info-item span { font-size: 13px; color: #1a1a2e; font-weight: 500; }
+  .info-item span.mono { font-family: monospace; font-size: 11px; word-break: break-all; }
+  .chain-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 6px; border-radius: 4px; background: #f0f4ff; color: #1565c0; font-size: 11px; font-weight: 600; }
+
+  /* Decision panel */
+  .decision-panel { background: #fff; border-radius: 10px; border: 2px solid #4f8ef7; padding: 20px; }
+  .decision-panel-title { font-size: 14px; font-weight: 700; color: #1a1a2e; margin-bottom: 4px; }
+  .decision-panel-desc { font-size: 12px; color: #8b90a7; margin-bottom: 16px; }
+  .decision-options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+  .decision-option { border: 2px solid #e8eaef; border-radius: 8px; padding: 12px; cursor: pointer; transition: all .15s; }
+  .decision-option:hover { border-color: #4f8ef7; background: #f5f8ff; }
+  .decision-option.selected { border-color: #4f8ef7; background: #e3f0ff; }
+  .decision-option.selected-green { border-color: #43a047; background: #e8f5e9; }
+  .decision-option.selected-red { border-color: #e53935; background: #fff5f5; }
+  .decision-option.selected-orange { border-color: #ff9800; background: #fff8e1; }
+  .decision-opt-title { font-weight: 600; font-size: 13px; margin-bottom: 3px; }
+  .decision-opt-desc { font-size: 11px; color: #8b90a7; }
+  .decision-opt-icon { font-size: 18px; margin-bottom: 6px; }
+  .decision-note { width: 100%; border: 1px solid #e8eaef; border-radius: 6px; padding: 10px; font-size: 13px; resize: vertical; min-height: 72px; font-family: inherit; color: #1a1a2e; outline: none; }
+  .decision-note:focus { border-color: #4f8ef7; }
+  .decision-actions { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; }
+  .decision-actions-right { display: flex; gap: 8px; }
+
+  /* Audit trail */
+  .audit-trail { background: #fff; border-radius: 10px; border: 1px solid #e8eaef; padding: 20px; }
+  .audit-item { display: flex; gap: 12px; padding: 10px 0; border-bottom: 1px solid #f0f0f4; }
+  .audit-item:last-child { border-bottom: none; }
+  .audit-avatar { width: 28px; height: 28px; border-radius: 50%; background: #e3f0ff; color: #4f8ef7; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; }
+  .audit-body { flex: 1; }
+  .audit-who { font-weight: 600; font-size: 12px; color: #1a1a2e; }
+  .audit-what { font-size: 12px; color: #555; margin-top: 1px; }
+  .audit-time { font-size: 11px; color: #aaa; margin-top: 2px; }
+  .audit-tag { display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 11px; font-weight: 600; margin-left: 4px; }
+
+  /* Wallet association */
+  .assoc-table { width: 100%; border-collapse: collapse; }
+  .assoc-table th { font-size: 11px; color: #8b90a7; font-weight: 500; padding: 6px 8px; text-align: left; border-bottom: 1px solid #e8eaef; }
+  .assoc-table td { padding: 8px; font-size: 12px; border-bottom: 1px solid #f5f6fa; }
+  .assoc-table tr:hover td { background: #f8f9fd; }
+
+  /* Scan history */
+  .scan-list { display: flex; flex-direction: column; gap: 6px; }
+  .scan-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; border-radius: 6px; background: #f8f9fd; cursor: pointer; }
+  .scan-item:hover { background: #eef2fb; }
+  .scan-item.active { background: #e3f0ff; border: 1px solid #bbdefb; }
+  .scan-item-left { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #555; }
+  .scan-score { font-weight: 700; padding: 2px 6px; border-radius: 4px; font-size: 11px; }
+  .scan-score.high { background: #fce4ec; color: #c62828; }
+  .scan-score.mid { background: #fff3e0; color: #e65100; }
+  .scan-score.low { background: #e8f5e9; color: #2e7d32; }
+
+  /* Stats row */
+  .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .stat-card { background: #fff; border-radius: 10px; border: 1px solid #e8eaef; padding: 16px; }
+  .stat-label { font-size: 11px; color: #8b90a7; margin-bottom: 6px; }
+  .stat-value { font-size: 22px; font-weight: 700; color: #1a1a2e; }
+  .stat-sub { font-size: 11px; color: #8b90a7; margin-top: 2px; }
+  .stat-value.danger { color: #e53935; }
+  .stat-value.warning { color: #ff9800; }
+  .stat-value.success { color: #43a047; }
+
+  /* Page nav */
+  .page-nav { display: flex; gap: 8px; align-items: center; margin-bottom: 4px; font-size: 13px; color: #8b90a7; }
+  .page-nav a { color: #4f8ef7; text-decoration: none; font-size: 13px; }
+
+  .section-divider { height: 1px; background: #e8eaef; margin: 4px 0; }
+
+  .tag-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+  .tag { padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 500; }
+  .tag-red { background: #fce4ec; color: #c62828; }
+  .tag-orange { background: #fff3e0; color: #e65100; }
+  .tag-blue { background: #e3f0ff; color: #1565c0; }
+  .tag-gray { background: #f0f0f4; color: #555; }
+
+  select, input { font-family: inherit; font-size: 13px; }
+</style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<div class="sidebar">
+  <div class="sidebar-logo">Future Pay<b>CA</b></div>
+  <div class="sidebar-section">合规</div>
+  <div class="sidebar-item">客户尽职调查</div>
+  <div class="sidebar-sub">KYC审核</div>
+  <div class="sidebar-sub">KYW审核</div>
+  <div class="sidebar-section">监控</div>
+  <div class="sidebar-item active">持续监控</div>
+  <div class="sidebar-sub active">KYW监控</div>
+  <div class="sidebar-section">交易</div>
+  <div class="sidebar-item">交易监控</div>
+  <div class="sidebar-sub">监控规则</div>
+  <div class="sidebar-sub">交易警报</div>
+  <div class="sidebar-section">审核</div>
+  <div class="sidebar-item">订单管理</div>
+  <div class="sidebar-section">报告</div>
+  <div class="sidebar-item">STR报告</div>
+  <div class="sidebar-item">LCTR报告</div>
+  <div class="sidebar-section">财务</div>
+  <div class="sidebar-item">财务管理</div>
+  <div class="sidebar-sub">日记账报表</div>
+  <div class="sidebar-sub">结算</div>
+  <div class="sidebar-sub">PSP结算</div>
+</div>
+
+<!-- Main -->
+<div class="main">
+  <div class="topbar">
+    <div class="breadcrumb">
+      <a href="#">监控</a><span class="sep">›</span>
+      <a href="#">持续监控</a><span class="sep">›</span>
+      <a href="#">KYW监控</a><span class="sep">›</span>
+      <span class="current">KYW-2026-4071</span>
+    </div>
+    <div class="topbar-right">
+      <span style="color:#8b90a7;font-size:18px;">🔔</span>
+      <span style="color:#8b90a7;font-size:18px;">⚙️</span>
+      <div class="avatar">JS</div>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- Page Header -->
+    <div class="page-header">
+      <div class="page-nav">
+        <a href="#">← 返回KYW监控</a>
+      </div>
+      <div class="page-header-top">
+        <div>
+          <div class="case-title">
+            <span class="case-id">KYW-2026-4071</span>
+            <span class="badge badge-warning">待审核</span>
+            <span class="badge badge-danger">高风险</span>
+          </div>
+          <div class="case-meta">分配给 Sarah Chen（L2分析师）· 触发原因：风险评分变化 45 → 72 · 触发时间：2026-04-08 17:36</div>
+        </div>
+        <div class="header-actions">
+          <div class="sla-badge">⏱ SLA截止时间 4h 32m</div>
+          <button class="btn btn-outline">请求扫描</button>
+          <button class="btn btn-outline">下载报告</button>
+        </div>
+      </div>
+      <div class="tabs">
+        <div class="tab active" onclick="switchKywTab('base',this)">基本信息</div>
+        <div class="tab" onclick="switchKywTab('threshold',this)">阈值配置</div>
+        <div class="tab" onclick="switchKywTab('review',this)">定期复查</div>
+        <div class="tab" onclick="switchKywTab('log',this)">活动日志</div>
+      </div>
+    </div>
+
+    <!-- ═══ TAB: 基本信息 ═══ -->
+    <div id="panel-base" class="tab-panel">
+
+    <!-- Alert Banner -->
+    <div class="alert-banner danger">
+      <span class="alert-icon">⚠️</span>
+      <div class="alert-body">
+        <div class="alert-title">持续监控复审已触发</div>
+        <div class="alert-desc">风险评分变化：45 → 72 · 之前状态：已批准 · 原因：检测到新的高风险混币器暴露</div>
+      </div>
+      <span class="badge badge-warning">等待决定</span>
+    </div>
+
+    <!-- Stats Row -->
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-label">当前风险评分</div>
+        <div class="stat-value danger">78</div>
+        <div class="stat-sub">上次：45 · 上涨 +33</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">混币器暴露</div>
+        <div class="stat-value warning">28%</div>
+        <div class="stat-sub">近30天 3次交互</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">制裁名单匹配</div>
+        <div class="stat-value success">0</div>
+        <div class="stat-sub">OFAC · UN · EU · FINTRAC</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">关联商户钱包</div>
+        <div class="stat-value">4</div>
+        <div class="stat-sub">同商户名下</div>
+      </div>
+    </div>
+
+    <!-- Risk + Scan History -->
+    <div class="risk-section">
+      <div class="risk-header">
+        <div class="card-title"><span class="icon">🔍</span> 供应商筛查结果</div>
+        <div style="font-size:12px;color:#8b90a7;">最近扫描：2026-04-08 17:36:01 &nbsp;<a href="#" style="color:#4f8ef7;text-decoration:none;">↓ 下载报告</a></div>
+      </div>
+      <div class="risk-score-wrap">
+        <div class="score-circle">
+          <span class="score-num">78</span>
+          <span class="score-label">/100</span>
+        </div>
+        <div>
+          <div style="font-weight:700;color:#e53935;font-size:14px;margin-bottom:6px;">高风险</div>
+          <div class="score-history">
+            <span class="score-prev">历史：45</span>
+            <span class="score-arrow">→</span>
+            <span class="score-curr">72 → 78</span>
+            <span style="color:#e53935;font-size:11px;">持续上升</span>
+          </div>
+          <div class="tag-row" style="margin-top:8px;">
+            <span class="tag tag-red">混币器关联</span>
+            <span class="tag tag-orange">高风险交易所</span>
+            <span class="tag tag-blue">TRON链</span>
+          </div>
+        </div>
+      </div>
+      <div class="risk-bar-wrap">
+        <div class="risk-bar"></div>
+        <div class="risk-labels">
+          <div class="risk-label-item"><span class="dot" style="background:#43a047"></span>合规来源 28%</div>
+          <div class="risk-label-item"><span class="dot" style="background:#8b90a7"></span>未知 20%</div>
+          <div class="risk-label-item"><span class="dot" style="background:#4f8ef7"></span>低风险交易所 20%</div>
+          <div class="risk-label-item"><span class="dot" style="background:#e53935"></span>赌博平台 15%</div>
+          <div class="risk-label-item"><span class="dot" style="background:#ff9800"></span>高风险交易所 10%</div>
+          <div class="risk-label-item"><span class="dot" style="background:#66bb6a"></span>合规来源 7%</div>
+        </div>
+      </div>
+      <div class="risk-alerts">
+        <div class="risk-alert-item red">⚠️ <b>混币器关联</b> · 发送地址近30天内与混币器交互3次（共 $42,000）</div>
+        <div class="risk-alert-item green">✅ <b>未检测到直接制裁匹配</b> · OFAC · UN · EU · FINTRAC</div>
+      </div>
+    </div>
+
+    <!-- Wallet + Merchant + Scan History -->
+    <div class="cards-row">
+      <div class="card">
+        <div class="card-title"><span class="icon">👛</span> 钱包地址信息</div>
+        <div class="info-grid">
+          <div class="info-item" style="grid-column:1/-1;">
+            <label>钱包地址</label>
+            <span class="mono">TJFoZ6gMVbPbFhvfJsGd3PUAA2xnbFhAGz</span>
+          </div>
+          <div class="info-item">
+            <label>链</label>
+            <span class="chain-badge">🔴 TRON</span>
+          </div>
+          <div class="info-item">
+            <label>币种</label>
+            <span class="chain-badge">🟢 USDT (TRC-20)</span>
+          </div>
+          <div class="info-item">
+            <label>标签</label>
+            <span>热钱包 - 运营</span>
+          </div>
+          <div class="info-item">
+            <label>提交日期</label>
+            <span>2026-03-01 17:30:21</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title"><span class="icon">🏢</span> 商户信息</div>
+        <div class="info-grid">
+          <div class="info-item" style="grid-column:1/-1;">
+            <label>商户名称</label>
+            <span style="font-weight:700;">NovaPay Technologies Ltd.</span>
+            <div style="font-size:11px;color:#8b90a7;">MCH-2024-0193</div>
+          </div>
+          <div class="info-item">
+            <label>注册日期</label>
+            <span>2025-12-11</span>
+          </div>
+          <div class="info-item">
+            <label>国家</label>
+            <span>🇨🇦 加拿大</span>
+          </div>
+          <div class="info-item" style="grid-column:1/-1;">
+            <label>商户风险评级</label>
+            <span class="badge badge-warning" style="font-size:12px;">中风险</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Scan History -->
+    <div class="card">
+      <div class="card-title"><span class="icon">📅</span> 扫描历史记录</div>
+      <div class="scan-list">
+        <div class="scan-item active">
+          <div class="scan-item-left">
+            <span>🕐 2026-04-08 17:36:01</span>
+            <span class="scan-score high">78</span>
+            <span style="color:#c62828;">混币器暴露新增 · 触发复审</span>
+          </div>
+          <span class="badge badge-danger">当前</span>
+        </div>
+        <div class="scan-item">
+          <div class="scan-item-left">
+            <span>🕐 2026-03-08 09:12:44</span>
+            <span class="scan-score mid">72</span>
+            <span style="color:#666;">高风险交易所交互增加</span>
+          </div>
+          <span class="badge badge-gray">已关闭</span>
+        </div>
+        <div class="scan-item">
+          <div class="scan-item-left">
+            <span>🕐 2026-02-08 14:56:01</span>
+            <span class="scan-score mid">45</span>
+            <span style="color:#666;">常规月度扫描</span>
+          </div>
+          <span class="badge badge-success">通过</span>
+        </div>
+        <div class="scan-item">
+          <div class="scan-item-left">
+            <span>🕐 2026-01-08 10:20:00</span>
+            <span class="scan-score low">31</span>
+            <span style="color:#666;">常规月度扫描</span>
+          </div>
+          <span class="badge badge-success">通过</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Merchant Wallet Summary (compact hint, not full table) -->
+    <div class="card" style="border-left: 3px solid #4f8ef7;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+        <div class="card-title" style="margin-bottom:0;">🏢 NovaPay Technologies Ltd. &nbsp;<span style="font-size:11px;color:#8b90a7;font-weight:400;">MCH-2024-0193</span></div>
+        <a href="#" style="font-size:12px;color:#4f8ef7;text-decoration:none;">查看全部钱包 →</a>
+      </div>
+      <div style="font-size:12px;color:#555;margin-bottom:10px;">该商户名下共 <b>4</b> 个钱包地址，当前仅审核本钱包。其他钱包状态供参考：</div>
+      <div style="display:flex;gap:10px;">
+        <div style="flex:1;padding:10px 12px;border-radius:7px;background:#fff5f5;border:1px solid #ffcdd2;text-align:center;">
+          <div style="font-size:20px;font-weight:700;color:#c62828;">1</div>
+          <div style="font-size:11px;color:#c62828;margin-top:2px;">高风险</div>
+          <div style="font-size:10px;color:#aaa;margin-top:2px;">本钱包</div>
+        </div>
+        <div style="flex:1;padding:10px 12px;border-radius:7px;background:#fff8e1;border:1px solid #ffe082;text-align:center;">
+          <div style="font-size:20px;font-weight:700;color:#e65100;">1</div>
+          <div style="font-size:11px;color:#e65100;margin-top:2px;">中风险</div>
+          <div style="font-size:10px;color:#aaa;margin-top:2px;">ERC-20 · 61分</div>
+        </div>
+        <div style="flex:1;padding:10px 12px;border-radius:7px;background:#e8f5e9;border:1px solid #c8e6c9;text-align:center;">
+          <div style="font-size:20px;font-weight:700;color:#2e7d32;">2</div>
+          <div style="font-size:11px;color:#2e7d32;margin-top:2px;">低风险</div>
+          <div style="font-size:10px;color:#aaa;margin-top:2px;">ERC-20 · BTC</div>
+        </div>
+        <div style="flex:1;padding:10px 12px;border-radius:7px;background:#f0f0f4;border:1px solid #e0e0e0;text-align:center;">
+          <div style="font-size:20px;font-weight:700;color:#555;">0</div>
+          <div style="font-size:11px;color:#555;margin-top:2px;">待扫描</div>
+          <div style="font-size:10px;color:#aaa;margin-top:2px;">—</div>
+        </div>
+      </div>
+      <div style="margin-top:10px;padding:8px 10px;background:#f8f9fd;border-radius:6px;font-size:12px;color:#666;">
+        💡 本次决策仅针对当前钱包（TJFoZ6gM...hAGz）。如需对商户整体处置，请前往商户详情页。
+      </div>
+    </div>
+
+    <!-- *** DECISION PANEL (missing in current design) *** -->
+    <div class="decision-panel">
+      <div class="decision-panel-title">📋 审核决策</div>
+      <div class="decision-panel-desc">请根据筛查结果选择处置方式，决策将记录在活动日志中并通知相关团队。</div>
+
+      <div class="decision-options">
+        <div class="decision-option" onclick="selectDecision(this,'green','通过 - 风险可接受')">
+          <div class="decision-opt-icon">✅</div>
+          <div class="decision-opt-title" style="color:#2e7d32;">通过</div>
+          <div class="decision-opt-desc">风险在可接受范围内，继续监控</div>
+        </div>
+        <div class="decision-option" onclick="selectDecision(this,'orange','降级处理 - 加强监控')">
+          <div class="decision-opt-icon">⬇️</div>
+          <div class="decision-opt-title" style="color:#e65100;">降级处理</div>
+          <div class="decision-opt-desc">要求商户补充材料，加强监控频率</div>
+        </div>
+        <div class="decision-option" onclick="selectDecision(this,'red','上报SAR - 可疑交易报告')">
+          <div class="decision-opt-icon">🚨</div>
+          <div class="decision-opt-title" style="color:#c62828;">上报 SAR</div>
+          <div class="decision-opt-desc">提交可疑交易报告至监管机构</div>
+        </div>
+        <div class="decision-option" onclick="selectDecision(this,'red','冻结账户 - 立即暂停')">
+          <div class="decision-opt-icon">🔒</div>
+          <div class="decision-opt-title" style="color:#c62828;">冻结账户</div>
+          <div class="decision-opt-desc">立即暂停商户交易，等待进一步调查</div>
+        </div>
+      </div>
+
+      <div style="margin-bottom:8px;font-size:12px;color:#555;font-weight:600;">审核备注 <span style="color:#8b90a7;font-weight:400;">（必填）</span></div>
+      <textarea class="decision-note" placeholder="请说明决策依据，例如：混币器暴露比例已超过内部阈值（25%），且近30天有3次直接交互记录，建议上报SAR并启动EDD程序..."></textarea>
+
+      <div class="decision-actions">
+        <div style="font-size:12px;color:#8b90a7;">选择决策后将自动通知：商户团队 · 合规负责人</div>
+        <div class="decision-actions-right">
+          <button class="btn btn-outline">保存草稿</button>
+          <button class="btn btn-primary" onclick="submitDecision()">提交决策</button>
+        </div>
+      </div>
+    </div>
+
+    </div><!-- end panel-base -->
+
+    <!-- ═══ TAB: 阈值配置 ═══ -->
+    <div id="panel-threshold" class="tab-panel" style="display:none;">
+      <div class="card">
+        <div style="margin-bottom:14px;">
+          <div style="font-size:15px;font-weight:700;color:#1a1a2e;margin-bottom:4px;">配置限额</div>
+          <div style="font-size:12px;color:#8b90a7;">币种由钱包绑定时确定，不可修改 · 就低原则：有效值 = min(钱包级, 商户级) · 仅适用提现方向</div>
+        </div>
+
+        <!-- Merchant reference banner -->
+        <div style="padding:10px 14px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;font-size:12px;color:#1e40af;margin-bottom:16px;display:flex;align-items:center;gap:8px;">
+          ℹ <span>商户级提现参考上限（就低原则基准）：单日 <strong>$80,000</strong> · 本月 <strong>$400,000</strong></span>
+        </div>
+
+        <!-- Threshold table -->
+        <table style="width:100%;border-collapse:collapse;">
+          <thead>
+            <tr>
+              <th style="font-size:11px;color:#8b90a7;font-weight:500;padding:8px 10px;text-align:left;border-bottom:1px solid #e8eaef;background:#fafbfc;width:120px;">资产</th>
+              <th style="font-size:11px;color:#8b90a7;font-weight:500;padding:8px 10px;text-align:left;border-bottom:1px solid #e8eaef;background:#fafbfc;">单日累计上限</th>
+              <th style="font-size:11px;color:#8b90a7;font-weight:500;padding:8px 10px;text-align:left;border-bottom:1px solid #e8eaef;background:#fafbfc;">本月累计上限</th>
+              <th style="font-size:11px;color:#8b90a7;font-weight:500;padding:8px 10px;text-align:left;border-bottom:1px solid #e8eaef;background:#fafbfc;width:56px;">操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- USDT — configured, within merchant limits -->
+            <tr>
+              <td style="padding:14px 10px;border-bottom:1px solid #f5f6fa;">
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <span style="width:28px;height:28px;border-radius:50%;background:#16a34a;color:#fff;font-size:12px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">T</span>
+                  <div>
+                    <div style="font-weight:600;font-size:13px;">USDT</div>
+                    <div style="font-size:11px;color:#8b90a7;">Tether</div>
+                  </div>
+                </div>
+              </td>
+              <td style="padding:14px 10px;border-bottom:1px solid #f5f6fa;">
+                <div style="display:flex;align-items:center;gap:4px;border:1px solid #e8eaef;border-radius:7px;padding:6px 10px;width:150px;background:#fff;">
+                  <span style="color:#8b90a7;font-size:12px;">$</span>
+                  <input id="usdt-daily" value="50,000" oninput="kywHint(this,80000,'hint-usdt-d')"
+                    style="border:none;outline:none;font-size:13px;font-weight:600;color:#1a1a2e;width:100%;background:transparent;"/>
+                </div>
+                <div id="hint-usdt-d" style="font-size:11px;color:#2e7d32;margin-top:4px;padding-left:2px;">✓ 实际生效 $50,000</div>
+              </td>
+              <td style="padding:14px 10px;border-bottom:1px solid #f5f6fa;">
+                <div style="display:flex;align-items:center;gap:4px;border:1px solid #e8eaef;border-radius:7px;padding:6px 10px;width:150px;background:#fff;">
+                  <span style="color:#8b90a7;font-size:12px;">$</span>
+                  <input id="usdt-monthly" value="200,000" oninput="kywHint(this,400000,'hint-usdt-m')"
+                    style="border:none;outline:none;font-size:13px;font-weight:600;color:#1a1a2e;width:100%;background:transparent;"/>
+                </div>
+                <div id="hint-usdt-m" style="font-size:11px;color:#2e7d32;margin-top:4px;padding-left:2px;">✓ 实际生效 $200,000</div>
+              </td>
+              <td style="padding:14px 10px;border-bottom:1px solid #f5f6fa;">
+                <a style="color:#e53935;font-size:12px;font-weight:500;cursor:pointer;" onclick="this.closest('tr').remove()">删除</a>
+              </td>
+            </tr>
+
+          </tbody>
+        </table>
+
+        <!-- Save row -->
+        <div style="margin-top:16px;display:flex;align-items:center;justify-content:space-between;padding-top:14px;border-top:1px solid #f0f0f4;">
+          <div style="font-size:11px;color:#8b90a7;">修改将记录至活动日志，并通知商户合规团队</div>
+          <button class="btn btn-primary" style="font-size:13px;padding:7px 18px;" onclick="saveKywThreshold()">保存限额配置</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ TAB: 定期复查 ═══ -->
+    <div id="panel-review" class="tab-panel" style="display:none;">
+      <div class="card">
+        <div style="font-size:15px;font-weight:700;color:#1a1a2e;margin-bottom:16px;">定期复查计划</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:20px;">
+          <div style="padding:14px;background:#f8f9fd;border-radius:8px;border:1px solid #e8eaef;">
+            <div style="font-size:11px;color:#8b90a7;margin-bottom:4px;">复查频率</div>
+            <div style="font-size:16px;font-weight:700;color:#1a1a2e;">每月</div>
+            <div style="font-size:11px;color:#8b90a7;margin-top:2px;">高风险地址强制月度复查</div>
+          </div>
+          <div style="padding:14px;background:#f8f9fd;border-radius:8px;border:1px solid #e8eaef;">
+            <div style="font-size:11px;color:#8b90a7;margin-bottom:4px;">上次复查</div>
+            <div style="font-size:16px;font-weight:700;color:#1a1a2e;">2026-03-08</div>
+            <div style="font-size:11px;color:#2e7d32;margin-top:2px;">通过 · Lisa Ma</div>
+          </div>
+          <div style="padding:14px;background:#fff3e0;border-radius:8px;border:1px solid #ffe0b2;">
+            <div style="font-size:11px;color:#e65100;margin-bottom:4px;">下次复查截止</div>
+            <div style="font-size:16px;font-weight:700;color:#e65100;">2026-05-08</div>
+            <div style="font-size:11px;color:#e65100;margin-top:2px;">距今 2 天 · 即将到期</div>
+          </div>
+        </div>
+        <div style="font-size:13px;font-weight:600;color:#1a1a2e;margin-bottom:10px;">复查历史</div>
+        <div style="display:flex;flex-direction:column;gap:0;">
+          <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #f5f6fa;">
+            <span style="font-size:11px;color:#8b90a7;width:130px;flex-shrink:0;">2026-03-08 10:15</span>
+            <span class="badge badge-success">通过</span>
+            <span style="font-size:12px;color:#555;flex:1;">风险可控，正常交易模式 · Lisa Ma</span>
+            <span style="font-size:11px;color:#8b90a7;">评分 45</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #f5f6fa;">
+            <span style="font-size:11px;color:#8b90a7;width:130px;flex-shrink:0;">2026-02-08 09:12</span>
+            <span class="badge badge-success">通过</span>
+            <span style="font-size:12px;color:#555;flex:1;">月度定期扫描无异常 · 系统自动</span>
+            <span style="font-size:11px;color:#8b90a7;">评分 45</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;padding:10px 0;">
+            <span style="font-size:11px;color:#8b90a7;width:130px;flex-shrink:0;">2026-01-08 10:20</span>
+            <span class="badge badge-success">通过</span>
+            <span style="font-size:12px;color:#555;flex:1;">初始审核通过 · James Liu</span>
+            <span style="font-size:11px;color:#8b90a7;">评分 31</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ TAB: 活动日志 ═══ -->
+    <div id="panel-log" class="tab-panel" style="display:none;">
+    <!-- Audit Trail -->
+      <div class="card-title" style="margin-bottom:12px;"><span class="icon">📝</span> 决策记录 / 活动日志</div>
+
+      <div class="audit-item">
+        <div class="audit-avatar">SC</div>
+        <div class="audit-body">
+          <div class="audit-who">Sarah Chen <span style="color:#8b90a7;font-weight:400;">· L2分析师</span></div>
+          <div class="audit-what">认领案件，开始审核 <span class="audit-tag badge-blue badge">分配</span></div>
+          <div class="audit-time">2026-04-08 17:40:22</div>
+        </div>
+      </div>
+
+      <div class="audit-item">
+        <div class="audit-avatar" style="background:#fff3e0;color:#e65100;">SY</div>
+        <div class="audit-body">
+          <div class="audit-who">系统 <span style="color:#8b90a7;font-weight:400;">· 自动触发</span></div>
+          <div class="audit-what">风险评分从 <b>45</b> 升至 <b>72</b>，触发持续监控复审 <span class="audit-tag badge-danger badge">自动触发</span></div>
+          <div class="audit-time">2026-04-08 17:36:01</div>
+        </div>
+      </div>
+
+      <div class="audit-item">
+        <div class="audit-avatar" style="background:#e8f5e9;color:#2e7d32;">LM</div>
+        <div class="audit-body">
+          <div class="audit-who">Lisa Ma <span style="color:#8b90a7;font-weight:400;">· L1分析师</span></div>
+          <div class="audit-what">上次审核决策：<b>通过</b> · 备注：风险可控，正常交易模式 <span class="audit-tag badge-success badge">通过</span></div>
+          <div class="audit-time">2026-03-08 10:15:44</div>
+        </div>
+      </div>
+
+      <div class="audit-item">
+        <div class="audit-avatar" style="background:#fff3e0;color:#e65100;">SY</div>
+        <div class="audit-body">
+          <div class="audit-who">系统 <span style="color:#8b90a7;font-weight:400;">· 定期扫描</span></div>
+          <div class="audit-what">月度定期扫描完成，评分 45，无异常</div>
+          <div class="audit-time">2026-03-08 09:12:44</div>
+        </div>
+      </div>
+    </div>
+    </div><!-- end panel-log -->
+
+  </div>
+</div>
+
+<script>
+// ── Tab switching ──
+function switchKywTab(id, el) {
+  ['base','threshold','review','log'].forEach(t => {
+    const p = document.getElementById('panel-'+t);
+    if (p) p.style.display = t === id ? 'flex' : 'none';
+  });
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+}
+
+// ── Threshold hints (就低原则) ──
+function kywHint(input, merchantLimit, hintId) {
+  const val  = Number(input.value.replace(/,/g,''));
+  const hint = document.getElementById(hintId);
+  if (!hint || !val || isNaN(val)) return;
+  const fmt = n => '$' + n.toLocaleString('en-US');
+  if (val > merchantLimit) {
+    hint.textContent = '⚠ 实际生效 ' + fmt(merchantLimit) + '（受商户约束）';
+    hint.style.color = '#e65100';
+  } else {
+    hint.textContent = '✓ 实际生效 ' + fmt(val);
+    hint.style.color = '#2e7d32';
+  }
+}
+
+function saveKywThreshold() {
+  alert('限额配置已保存，变更已记录至活动日志');
+}
+
+function selectDecision(el, color, label) {
+  document.querySelectorAll('.decision-option').forEach(o => {
+    o.className = 'decision-option';
+  });
+  el.className = 'decision-option selected-' + color;
+  el.querySelector('.decision-opt-title').style.fontWeight = '700';
+}
+
+function submitDecision() {
+  const note = document.querySelector('.decision-note').value.trim();
+  const selected = document.querySelector('.decision-option.selected-green, .decision-option.selected-red, .decision-option.selected-orange');
+  if (!selected) { alert('请先选择处置方式'); return; }
+  if (!note) { alert('请填写审核备注'); return; }
+  alert('决策已提交，正在通知相关团队...');
+}
+</script>
+</body>
+</html>

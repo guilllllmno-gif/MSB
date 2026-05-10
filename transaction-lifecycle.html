@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>交易案件全生命周期流程图 — FuturePayCA</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#f1f5f9; font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Helvetica Neue',sans-serif; }
+  .page { padding:28px 32px; }
+  .hd { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:18px; }
+  .hd-left h1 { font-size:20px; font-weight:700; color:#0f172a; }
+  .hd-left p  { font-size:13px; color:#64748b; margin-top:3px; }
+  .badge { display:inline-block; font-size:11px; font-weight:600; padding:3px 9px; border-radius:20px; margin-left:8px; vertical-align:middle; }
+  .badge-blue { background:#dbeafe; color:#1e40af; }
+  .badge-gray { background:#f1f5f9; color:#334155; border:1px solid #e2e8f0; }
+  .legend { display:flex; background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:12px 20px; margin-bottom:20px; flex-wrap:wrap; align-items:center; gap:6px 20px; }
+  .leg-grp { display:flex; align-items:center; gap:6px; font-size:12px; color:#374151; }
+  .leg-sep { width:1px; height:22px; background:#e2e8f0; margin:0 8px; }
+  .leg-swatch { width:14px; height:14px; border-radius:4px; flex-shrink:0; }
+  .leg-diamond { width:12px; height:12px; transform:rotate(45deg); border-radius:2px; flex-shrink:0; margin:0 3px; }
+  .meta-row { display:flex; gap:14px; margin-bottom:20px; flex-wrap:wrap; }
+  .meta-card { background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:14px 18px; flex:1; min-width:200px; }
+  .meta-card h3 { font-size:11px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:.5px; margin-bottom:10px; }
+  .meta-card table { width:100%; border-collapse:collapse; font-size:12px; }
+  .meta-card td { padding:4px 8px; color:#374151; }
+  .meta-card td:first-child { color:#64748b; white-space:nowrap; font-weight:600; }
+  .meta-card tr:not(:last-child) td { border-bottom:1px solid #f1f5f9; }
+  .diagram-box { background:#fff; border:1px solid #e2e8f0; border-radius:12px; overflow-x:auto; }
+  .states-row { margin-top:20px; background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:18px 24px; }
+  .states-row h2 { font-size:13px; font-weight:700; color:#0f172a; margin-bottom:12px; }
+  .states-wrap { display:flex; gap:8px; flex-wrap:wrap; }
+  .state-pill { padding:6px 14px; border-radius:20px; font-size:12px; font-weight:600; border:1px solid; }
+  svg text { font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Helvetica Neue',sans-serif; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="hd">
+    <div class="hd-left">
+      <h1>交易案件全生命周期流程图
+        <span class="badge badge-blue">事中监控</span>
+        <span class="badge badge-gray">Design Spec v1.0</span>
+      </h1>
+      <p>FuturePayCA MSB合规管理系统 · 从商户发起到 FINTRAC 归档的完整合规审查链路</p>
+    </div>
+  </div>
+
+  <div class="legend">
+    <span style="font-size:12px;font-weight:700;color:#374151;margin-right:4px">参与方</span>
+    <div class="leg-grp"><div class="leg-swatch" style="background:#fce7f3;border:1.5px solid #f43f5e"></div>商户/客户</div>
+    <div class="leg-grp"><div class="leg-swatch" style="background:#dbeafe;border:1.5px solid #3b82f6"></div>系统自动</div>
+    <div class="leg-grp"><div class="leg-swatch" style="background:#fef3c7;border:1.5px solid #f59e0b"></div>L1 合规审核员</div>
+    <div class="leg-grp"><div class="leg-swatch" style="background:#ede9fe;border:1.5px solid #8b5cf6"></div>L2 合规/高级</div>
+    <div class="leg-grp"><div class="leg-swatch" style="background:#d1fae5;border:1.5px solid #10b981"></div>FINTRAC 监管</div>
+    <div class="leg-sep"></div>
+    <span style="font-size:12px;font-weight:700;color:#374151;margin-right:4px">节点</span>
+    <div class="leg-grp"><div class="leg-diamond" style="background:#bfdbfe;border:1.5px solid #2563eb"></div>决策节点</div>
+    <div class="leg-grp"><div class="leg-swatch" style="background:#d1fae5;border:1.5px solid #10b981"></div>成功结果</div>
+    <div class="leg-grp"><div class="leg-swatch" style="background:#fee2e2;border:1.5px solid #ef4444"></div>拒绝/拦截</div>
+    <div class="leg-sep"></div>
+    <span style="font-size:12px;font-weight:700;color:#374151;margin-right:4px">线型</span>
+    <div class="leg-grp">
+      <svg width="32" height="12"><line x1="0" y1="6" x2="24" y2="6" stroke="#475569" stroke-width="1.8"/><polygon points="22,3 30,6 22,9" fill="#475569"/></svg>
+      主流程
+    </div>
+    <div class="leg-grp">
+      <svg width="32" height="12"><line x1="0" y1="6" x2="24" y2="6" stroke="#94a3b8" stroke-width="1.4" stroke-dasharray="4,3"/><polygon points="22,3 30,6 22,9" fill="#94a3b8"/></svg>
+      条件/可选/归档
+    </div>
+  </div>
+
+  <div class="meta-row">
+    <div class="meta-card">
+      <h3>CRR 风险分级 &amp; 分流</h3>
+      <table>
+        <tr><td>0–30</td><td style="color:#065f46;font-weight:600">低风险 → 智能自动入账</td></tr>
+        <tr><td>31–60</td><td style="color:#92400e;font-weight:600">中风险 → L1 人工 (SLA 24h)</td></tr>
+        <tr><td>61–85</td><td style="color:#b45309;font-weight:600">高风险 → L1+L2 (SLA 12h)</td></tr>
+        <tr><td>86–100</td><td style="color:#b91c1c;font-weight:600">严重 → 系统自动拒绝</td></tr>
+      </table>
+    </div>
+    <div class="meta-card">
+      <h3>L1 审核 — 5 种决策</h3>
+      <table>
+        <tr><td>审核入账</td><td style="color:#065f46">批准，执行入账</td></tr>
+        <tr><td>拒绝</td><td style="color:#b91c1c">拒绝，退款/锁定</td></tr>
+        <tr><td>请求信息</td><td style="color:#1e40af">补充材料，SLA 重置</td></tr>
+        <tr><td>升级 L2</td><td style="color:#5b21b6">转 L2 高级复核</td></tr>
+        <tr><td>冻结并报告</td><td style="color:#065f46">冻结账户 + STR 申报</td></tr>
+      </table>
+    </div>
+    <div class="meta-card">
+      <h3>L2 复核 — 3 种决策</h3>
+      <table>
+        <tr><td>批准</td><td style="color:#065f46">执行入账，通知商户</td></tr>
+        <tr><td>拒绝</td><td style="color:#b91c1c">退款，风控标记</td></tr>
+        <tr><td>STR 申报</td><td style="color:#065f46">可疑交易报告 FINTRAC</td></tr>
+      </table>
+    </div>
+    <div class="meta-card">
+      <h3>FINTRAC 自动上报</h3>
+      <table>
+        <tr><td>LCTR</td><td>现金交易 &gt;$10,000</td></tr>
+        <tr><td>VCTR</td><td>虚拟货币 &gt;$10,000</td></tr>
+        <tr><td>STR</td><td>L1/L2 可疑标记</td></tr>
+        <tr><td>时限</td><td>15 个工作日内</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- ═══ MAIN DIAGRAM ═══ -->
+  <div class="diagram-box">
+<svg xmlns="http://www.w3.org/2000/svg" width="3150" height="1005" viewBox="0 0 3150 1005">
+<defs>
+  <marker id="a0" markerWidth="9" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,9 3.5,0 7" fill="#475569"/></marker>
+  <marker id="ab" markerWidth="9" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,9 3.5,0 7" fill="#2563eb"/></marker>
+  <marker id="ag" markerWidth="9" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,9 3.5,0 7" fill="#059669"/></marker>
+  <marker id="ar" markerWidth="9" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,9 3.5,0 7" fill="#dc2626"/></marker>
+  <marker id="aa" markerWidth="9" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,9 3.5,0 7" fill="#d97706"/></marker>
+  <marker id="ap" markerWidth="9" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,9 3.5,0 7" fill="#7c3aed"/></marker>
+  <marker id="as" markerWidth="9" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,9 3.5,0 7" fill="#94a3b8"/></marker>
+  <marker id="at" markerWidth="9" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,9 3.5,0 7" fill="#0d9488"/></marker>
+  <marker id="ak" markerWidth="9" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,9 3.5,0 7" fill="#e11d48"/></marker>
+</defs>
+
+<!-- ═══ SWIMLANE BACKGROUNDS ═══ -->
+<!-- Phase header -->
+<rect x="0" y="0" width="3150" height="58" fill="#f8fafc"/>
+<line x1="0" y1="58" x2="3150" y2="58" stroke="#e2e8f0" stroke-width="1"/>
+<!-- 商户 lane y=58–238 -->
+<rect x="162" y="58" width="2970" height="180" fill="#fff5f7"/>
+<!-- 系统 lane y=238–462 -->
+<rect x="162" y="238" width="2970" height="224" fill="#eff6ff"/>
+<!-- L1 lane y=462–662 -->
+<rect x="162" y="462" width="2970" height="200" fill="#fffbeb"/>
+<!-- L2 lane y=662–862 -->
+<rect x="162" y="662" width="2970" height="200" fill="#f5f3ff"/>
+<!-- FINTRAC lane y=862–1005 -->
+<rect x="162" y="862" width="2970" height="143" fill="#f0fdf4"/>
+
+<!-- Lane dividers -->
+<line x1="162" y1="238"  x2="3132" y2="238"  stroke="#e2e8f0" stroke-width="1"/>
+<line x1="162" y1="462"  x2="3132" y2="462"  stroke="#e2e8f0" stroke-width="1"/>
+<line x1="162" y1="662"  x2="3132" y2="662"  stroke="#e2e8f0" stroke-width="1"/>
+<line x1="162" y1="862"  x2="3132" y2="862"  stroke="#e2e8f0" stroke-width="1"/>
+<line x1="162" y1="1005" x2="3132" y2="1005" stroke="#e2e8f0" stroke-width="1"/>
+<line x1="162" y1="58"   x2="162"  y2="1005" stroke="#e2e8f0" stroke-width="1"/>
+<line x1="3132" y1="58"  x2="3132" y2="1005" stroke="#e2e8f0" stroke-width="1"/>
+
+<!-- ═══ LANE LABEL COLUMN ═══ -->
+<rect x="0" y="0" width="162" height="1005" fill="#f8fafc"/>
+<line x1="162" y1="0" x2="162" y2="1005" stroke="#e2e8f0" stroke-width="1"/>
+<!-- color bars -->
+<rect x="0" y="58"  width="7" height="180" fill="#f43f5e"/>
+<rect x="0" y="238" width="7" height="224" fill="#3b82f6"/>
+<rect x="0" y="462" width="7" height="200" fill="#f59e0b"/>
+<rect x="0" y="662" width="7" height="200" fill="#8b5cf6"/>
+<rect x="0" y="862" width="7" height="143" fill="#10b981"/>
+<!-- label texts -->
+<text transform="translate(84,238) rotate(-90)" text-anchor="middle" font-size="13" font-weight="700" fill="#9d174d" letter-spacing="0.4">商户 / 客户</text>
+<text transform="translate(84,462) rotate(-90)" text-anchor="middle" font-size="13" font-weight="700" fill="#1d4ed8" letter-spacing="0.4">系统自动</text>
+<text transform="translate(84,662) rotate(-90)" text-anchor="middle" font-size="13" font-weight="700" fill="#92400e" letter-spacing="0.4">L1 合规审核员</text>
+<text transform="translate(84,862) rotate(-90)" text-anchor="middle" font-size="13" font-weight="700" fill="#5b21b6" letter-spacing="0.4">L2 合规 / 高级</text>
+<text transform="translate(84,1005) rotate(-90)" text-anchor="middle" font-size="13" font-weight="700" fill="#065f46" letter-spacing="0.4">FINTRAC</text>
+
+<!-- ═══ PHASE HEADERS ═══ -->
+<!-- Phase 1: 162–900 -->
+<line x1="900"  y1="0" x2="900"  y2="58" stroke="#cbd5e1" stroke-width="1" stroke-dasharray="4,3"/>
+<text x="531" y="22" text-anchor="middle" font-size="11" font-weight="700" fill="#374151">① 交易发起 &amp; 风险扫描</text>
+<text x="531" y="40" text-anchor="middle" font-size="10" fill="#94a3b8">商户提交 · AML扫描 · 规则引擎</text>
+<!-- Phase 2: 900–1560 -->
+<line x1="1560" y1="0" x2="1560" y2="58" stroke="#cbd5e1" stroke-width="1" stroke-dasharray="4,3"/>
+<text x="1230" y="22" text-anchor="middle" font-size="11" font-weight="700" fill="#374151">② 自动风险分流</text>
+<text x="1230" y="40" text-anchor="middle" font-size="10" fill="#94a3b8">CRR 评级 · 智能入账 / 转人工 / 拦截</text>
+<!-- Phase 3: 1560–2310 -->
+<line x1="2310" y1="0" x2="2310" y2="58" stroke="#cbd5e1" stroke-width="1" stroke-dasharray="4,3"/>
+<text x="1935" y="22" text-anchor="middle" font-size="11" font-weight="700" fill="#374151">③ L1 人工合规审核</text>
+<text x="1935" y="40" text-anchor="middle" font-size="10" fill="#94a3b8">人工复核 · 5种决策路径</text>
+<!-- Phase 4: 2310–2860 -->
+<line x1="2860" y1="0" x2="2860" y2="58" stroke="#cbd5e1" stroke-width="1" stroke-dasharray="4,3"/>
+<text x="2585" y="22" text-anchor="middle" font-size="11" font-weight="700" fill="#374151">④ L2 升级复核</text>
+<text x="2585" y="40" text-anchor="middle" font-size="10" fill="#94a3b8">高级复核 · 3种决策</text>
+<!-- Phase 5: 2860–3132 -->
+<text x="2996" y="22" text-anchor="middle" font-size="11" font-weight="700" fill="#374151">⑤ 归档</text>
+
+<!-- Phase column dividers (subtle dashed) -->
+<line x1="900"  y1="58" x2="900"  y2="1005" stroke="#eef0f3" stroke-width="1" stroke-dasharray="3,6"/>
+<line x1="1560" y1="58" x2="1560" y2="1005" stroke="#eef0f3" stroke-width="1" stroke-dasharray="3,6"/>
+<line x1="2310" y1="58" x2="2310" y2="1005" stroke="#eef0f3" stroke-width="1" stroke-dasharray="3,6"/>
+<line x1="2860" y1="58" x2="2860" y2="1005" stroke="#eef0f3" stroke-width="1" stroke-dasharray="3,6"/>
+
+<!-- ═══════════════════════════
+     NODES
+═══════════════════════════ -->
+
+<!-- N01: 商户发起  pill cx=310 cy=148 -->
+<rect x="220" y="122" width="180" height="52" rx="26" fill="#fce7f3" stroke="#f43f5e" stroke-width="1.8"/>
+<text x="310" y="143" text-anchor="middle" font-size="12" font-weight="700" fill="#9d174d">商户发起交易</text>
+<text x="310" y="161" text-anchor="middle" font-size="10" fill="#be185d">充值 / 提现申请</text>
+
+<!-- N02: 系统接收  cx=520 cy=350 -->
+<rect x="436" y="324" width="168" height="52" rx="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5"/>
+<text x="520" y="345" text-anchor="middle" font-size="12" font-weight="600" fill="#1e40af">系统接收</text>
+<text x="520" y="363" text-anchor="middle" font-size="10" fill="#3b82f6">参数校验 · 记录日志</text>
+
+<!-- N03: AML链上扫描  cx=740 cy=350 -->
+<rect x="652" y="324" width="176" height="52" rx="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5"/>
+<text x="740" y="345" text-anchor="middle" font-size="12" font-weight="600" fill="#1e40af">AML 链上扫描</text>
+<text x="740" y="363" text-anchor="middle" font-size="10" fill="#3b82f6">Chainalysis · BitGo KYW</text>
+
+<!-- N04: 规则引擎评分  cx=962 cy=350 -->
+<rect x="874" y="324" width="176" height="52" rx="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5"/>
+<text x="962" y="345" text-anchor="middle" font-size="12" font-weight="600" fill="#1e40af">规则引擎评分</text>
+<text x="962" y="363" text-anchor="middle" font-size="10" fill="#3b82f6">CRR 0–100 综合评估</text>
+
+<!-- N05: 风险评级 Diamond  cx=1178 cy=350  hw=82 hh=48 -->
+<polygon points="1178,302 1264,350 1178,398 1092,350" fill="#bfdbfe" stroke="#1d4ed8" stroke-width="1.8"/>
+<text x="1178" y="344" text-anchor="middle" font-size="13" font-weight="700" fill="#1e3a8a">风险</text>
+<text x="1178" y="361" text-anchor="middle" font-size="13" font-weight="700" fill="#1e3a8a">评级</text>
+
+<!-- Diamond exit labels -->
+<text x="1178" y="290" text-anchor="middle" font-size="10" font-weight="600" fill="#059669">低风险  CRR 0–30</text>
+<text x="1278" y="345" text-anchor="start" font-size="10" font-weight="600" fill="#d97706">中/高风险  31–85</text>
+<text x="1178" y="415" text-anchor="middle" font-size="10" font-weight="600" fill="#dc2626">严重  CRR 86–100</text>
+
+<!-- N06a: 智能自动入账  cx=1440 cy=260  (upper 系统 lane) -->
+<rect x="1354" y="234" width="172" height="52" rx="6" fill="#d1fae5" stroke="#059669" stroke-width="1.8"/>
+<text x="1440" y="255" text-anchor="middle" font-size="12" font-weight="700" fill="#065f46">智能自动入账</text>
+<text x="1440" y="273" text-anchor="middle" font-size="10" fill="#059669">系统批准 · 即时到账</text>
+<!-- status badge -->
+<rect x="1354" y="220" width="96" height="16" rx="8" fill="#059669"/>
+<text x="1402" y="232" text-anchor="middle" font-size="9" font-weight="600" fill="white">状态: 智能入账</text>
+
+<!-- N06b: SLA计时/审核队列  cx=1440 cy=362 -->
+<rect x="1354" y="336" width="172" height="52" rx="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5"/>
+<text x="1440" y="357" text-anchor="middle" font-size="12" font-weight="600" fill="#1e40af">SLA 计时启动</text>
+<text x="1440" y="375" text-anchor="middle" font-size="10" fill="#3b82f6">进入人工审核队列</text>
+
+<!-- N06c: 自动拒绝  cx=1440 cy=446  (lower 系统) -->
+<rect x="1354" y="420" width="172" height="52" rx="6" fill="#fee2e2" stroke="#ef4444" stroke-width="1.8"/>
+<text x="1440" y="441" text-anchor="middle" font-size="12" font-weight="700" fill="#b91c1c">系统自动拒绝</text>
+<text x="1440" y="459" text-anchor="middle" font-size="10" fill="#ef4444">交易终止 · 退款通知</text>
+<!-- status badge -->
+<rect x="1354" y="406" width="80" height="16" rx="8" fill="#ef4444"/>
+<text x="1394" y="418" text-anchor="middle" font-size="9" font-weight="600" fill="white">状态: 已拒绝</text>
+
+<!-- N07: L1合规人工审核  cx=1660 cy=558 -->
+<rect x="1566" y="532" width="188" height="52" rx="6" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.5"/>
+<text x="1660" y="553" text-anchor="middle" font-size="12" font-weight="600" fill="#78350f">L1 合规人工审核</text>
+<text x="1660" y="571" text-anchor="middle" font-size="10" fill="#92400e">SLA: 高 4h · 中 12h · 低 24h</text>
+<!-- status badge -->
+<rect x="1566" y="518" width="80" height="16" rx="8" fill="#f59e0b"/>
+<text x="1606" y="530" text-anchor="middle" font-size="9" font-weight="600" fill="white">状态: 审核中</text>
+<!-- SLA pills -->
+<rect x="1568" y="591" width="36" height="18" rx="4" fill="#fef08a" stroke="#fbbf24" stroke-width="1"/>
+<text x="1586" y="604" text-anchor="middle" font-size="9" font-weight="700" fill="#78350f">4h</text>
+<rect x="1610" y="591" width="36" height="18" rx="4" fill="#fed7aa" stroke="#fb923c" stroke-width="1"/>
+<text x="1628" y="604" text-anchor="middle" font-size="9" font-weight="700" fill="#7c2d12">12h</text>
+<rect x="1652" y="591" width="36" height="18" rx="4" fill="#fecaca" stroke="#f87171" stroke-width="1"/>
+<text x="1670" y="604" text-anchor="middle" font-size="9" font-weight="700" fill="#7f1d1d">24h</text>
+
+<!-- N08: L1决策 Diamond  cx=1910 cy=558  hw=84 hh=49 -->
+<polygon points="1910,509 1998,558 1910,607 1822,558" fill="#fde68a" stroke="#d97706" stroke-width="1.8"/>
+<text x="1910" y="552" text-anchor="middle" font-size="13" font-weight="700" fill="#78350f">L1</text>
+<text x="1910" y="569" text-anchor="middle" font-size="13" font-weight="700" fill="#78350f">决策</text>
+
+<!-- L1 Decision outcome nodes -->
+
+<!-- N09a: 商户补充材料  cx=2140 cy=148  请求信息 -->
+<rect x="2048" y="122" width="184" height="52" rx="6" fill="#fce7f3" stroke="#f43f5e" stroke-width="1.5"/>
+<text x="2140" y="143" text-anchor="middle" font-size="12" font-weight="600" fill="#9d174d">商户补充材料</text>
+<text x="2140" y="161" text-anchor="middle" font-size="10" fill="#be185d">SLA 重置 · 待补充状态</text>
+<rect x="2048" y="108" width="100" height="16" rx="8" fill="#f43f5e"/>
+<text x="2098" y="120" text-anchor="middle" font-size="9" font-weight="600" fill="white">状态: 待补充材料</text>
+
+<!-- N09b: 执行入账(L1)  cx=2140 cy=340  审核入账 -->
+<rect x="2048" y="314" width="184" height="52" rx="6" fill="#d1fae5" stroke="#059669" stroke-width="1.8"/>
+<text x="2140" y="335" text-anchor="middle" font-size="12" font-weight="700" fill="#065f46">执行入账</text>
+<text x="2140" y="353" text-anchor="middle" font-size="10" fill="#059669">L1 审核通过 · 资金到账</text>
+<rect x="2048" y="300" width="100" height="16" rx="8" fill="#059669"/>
+<text x="2098" y="312" text-anchor="middle" font-size="9" font-weight="600" fill="white">状态: 审核入账</text>
+
+<!-- N09c: 拒绝处理  cx=2140 cy=628 -->
+<rect x="2048" y="602" width="184" height="52" rx="6" fill="#fee2e2" stroke="#ef4444" stroke-width="1.8"/>
+<text x="2140" y="623" text-anchor="middle" font-size="12" font-weight="700" fill="#b91c1c">拒绝交易</text>
+<text x="2140" y="641" text-anchor="middle" font-size="10" fill="#ef4444">退款 / 风控标记</text>
+<rect x="2048" y="588" width="80" height="16" rx="8" fill="#ef4444"/>
+<text x="2088" y="600" text-anchor="middle" font-size="9" font-weight="600" fill="white">状态: 已拒绝</text>
+
+<!-- N09e: 冻结+STR  cx=1910 cy=933  冻结并报告 -->
+<rect x="1818" y="907" width="184" height="52" rx="6" fill="#d1fae5" stroke="#059669" stroke-width="1.8"/>
+<text x="1910" y="928" text-anchor="middle" font-size="12" font-weight="700" fill="#065f46">冻结账户 + STR</text>
+<text x="1910" y="946" text-anchor="middle" font-size="10" fill="#059669">即时冻结 · STR 直报 FINTRAC</text>
+<rect x="1818" y="893" width="108" height="16" rx="8" fill="#059669"/>
+<text x="1872" y="905" text-anchor="middle" font-size="9" font-weight="600" fill="white">状态: 已拦截/冻结</text>
+
+<!-- N10: L2人工复核  cx=2420 cy=750 -->
+<rect x="2322" y="724" width="196" height="52" rx="6" fill="#ede9fe" stroke="#8b5cf6" stroke-width="1.5"/>
+<text x="2420" y="745" text-anchor="middle" font-size="12" font-weight="600" fill="#5b21b6">L2 合规人工复核</text>
+<text x="2420" y="763" text-anchor="middle" font-size="10" fill="#7c3aed">高级审核 · 无固定 SLA</text>
+<rect x="2322" y="710" width="100" height="16" rx="8" fill="#8b5cf6"/>
+<text x="2372" y="722" text-anchor="middle" font-size="9" font-weight="600" fill="white">状态: L2复核中</text>
+
+<!-- N11: L2决策 Diamond  cx=2660 cy=750  hw=82 hh=48 -->
+<polygon points="2660,702 2746,750 2660,798 2574,750" fill="#ddd6fe" stroke="#7c3aed" stroke-width="1.8"/>
+<text x="2660" y="744" text-anchor="middle" font-size="13" font-weight="700" fill="#5b21b6">L2</text>
+<text x="2660" y="761" text-anchor="middle" font-size="13" font-weight="700" fill="#5b21b6">决策</text>
+
+<!-- N12a: L2批准执行  cx=2920 cy=622 -->
+<rect x="2828" y="596" width="172" height="52" rx="6" fill="#d1fae5" stroke="#059669" stroke-width="1.8"/>
+<text x="2914" y="617" text-anchor="middle" font-size="12" font-weight="700" fill="#065f46">批准执行入账</text>
+<text x="2914" y="635" text-anchor="middle" font-size="10" fill="#059669">L2 批准 · 资金到账</text>
+<rect x="2828" y="582" width="100" height="16" rx="8" fill="#059669"/>
+<text x="2878" y="594" text-anchor="middle" font-size="9" font-weight="600" fill="white">状态: 审核入账</text>
+
+<!-- N12b: L2拒绝  cx=2920 cy=750 -->
+<rect x="2828" y="724" width="172" height="52" rx="6" fill="#fee2e2" stroke="#ef4444" stroke-width="1.8"/>
+<text x="2914" y="745" text-anchor="middle" font-size="12" font-weight="700" fill="#b91c1c">拒绝退款</text>
+<text x="2914" y="763" text-anchor="middle" font-size="10" fill="#ef4444">L2 拒绝 · 退款处理</text>
+<rect x="2828" y="710" width="80" height="16" rx="8" fill="#ef4444"/>
+<text x="2868" y="722" text-anchor="middle" font-size="9" font-weight="600" fill="white">状态: 已拒绝</text>
+
+<!-- N12c: STR正式申报  cx=2660 cy=940 -->
+<rect x="2568" y="914" width="184" height="52" rx="6" fill="#d1fae5" stroke="#059669" stroke-width="1.8"/>
+<text x="2660" y="935" text-anchor="middle" font-size="12" font-weight="700" fill="#065f46">STR 正式申报</text>
+<text x="2660" y="953" text-anchor="middle" font-size="10" fill="#059669">提交 FINTRAC · 等待回执</text>
+<rect x="2568" y="900" width="104" height="16" rx="8" fill="#059669"/>
+<text x="2620" y="912" text-anchor="middle" font-size="9" font-weight="600" fill="white">状态: 已申报STR</text>
+
+<!-- VCTR/LCTR auto-report  cx=1660 cy=940 -->
+<rect x="1568" y="912" width="180" height="50" rx="6" fill="#d1fae5" stroke="#059669" stroke-width="1.5" stroke-dasharray="5,3"/>
+<text x="1658" y="933" text-anchor="middle" font-size="11" font-weight="700" fill="#065f46">VCTR / LCTR 上报</text>
+<text x="1658" y="949" text-anchor="middle" font-size="10" fill="#059669">自动提交 FINTRAC</text>
+<rect x="1568" y="898" width="108" height="16" rx="8" fill="#059669"/>
+<text x="1622" y="910" text-anchor="middle" font-size="9" font-weight="600" fill="white">状态: 已提交VCTR</text>
+
+<!-- N14: 交易归档  pill cx=3060 cy=558 -->
+<rect x="2972" y="532" width="146" height="52" rx="26" fill="#f1f5f9" stroke="#64748b" stroke-width="1.8"/>
+<text x="3045" y="553" text-anchor="middle" font-size="13" font-weight="700" fill="#334155">交易</text>
+<text x="3045" y="571" text-anchor="middle" font-size="13" font-weight="700" fill="#334155">归档</text>
+
+<!-- ═══════════════════════════
+     ARROWS — MAIN FLOW
+═══════════════════════════ -->
+
+<!-- N01 → N02: 商户 → 系统 (cross-lane, down then right) -->
+<path d="M 400,148 H 490 V 324" stroke="#475569" stroke-width="1.8" fill="none" marker-end="url(#a0)"/>
+
+<!-- N02 → N03 -->
+<path d="M 604,350 H 652" stroke="#2563eb" stroke-width="1.8" fill="none" marker-end="url(#ab)"/>
+
+<!-- N03 → N04 -->
+<path d="M 828,350 H 874" stroke="#2563eb" stroke-width="1.8" fill="none" marker-end="url(#ab)"/>
+
+<!-- N04 → N05 left point -->
+<path d="M 1050,350 H 1092" stroke="#2563eb" stroke-width="1.8" fill="none" marker-end="url(#ab)"/>
+
+<!-- N05 TOP → N06a (low risk) -->
+<path d="M 1178,302 V 260 H 1354" stroke="#059669" stroke-width="1.8" fill="none" marker-end="url(#ag)"/>
+
+<!-- N05 RIGHT → N06b (medium/high) -->
+<path d="M 1264,350 H 1354" stroke="#2563eb" stroke-width="1.8" fill="none" marker-end="url(#ab)"/>
+
+<!-- N05 BOTTOM → N06c (critical) -->
+<path d="M 1178,398 V 446 H 1354" stroke="#dc2626" stroke-width="1.8" fill="none" marker-end="url(#ar)"/>
+
+<!-- N06b → N07: SLA → L1 review (cross L1 lane) -->
+<path d="M 1526,362 H 1548 V 532 H 1566" stroke="#d97706" stroke-width="1.8" fill="none" marker-end="url(#aa)"/>
+
+<!-- N07 → N08: L1 review → L1 decision -->
+<path d="M 1754,558 H 1822" stroke="#d97706" stroke-width="1.8" fill="none" marker-end="url(#aa)"/>
+
+<!-- ═══════════════════════════
+     ARROWS — L1 DECISION BRANCHES (5 paths)
+═══════════════════════════ -->
+
+<!-- Branch 1: 请求信息 → N09a (N08 top → up → 商户 lane) -->
+<path d="M 1910,509 V 200 H 2140 V 174" stroke="#e11d48" stroke-width="1.5" fill="none" marker-end="url(#ak)"/>
+<!-- label -->
+<rect x="1922" y="390" width="60" height="30" rx="4" fill="#fce7f3" stroke="#f43f5e" stroke-width="1"/>
+<text x="1952" y="403" text-anchor="middle" font-size="10" font-weight="600" fill="#9d174d">请求</text>
+<text x="1952" y="416" text-anchor="middle" font-size="10" font-weight="600" fill="#9d174d">信息</text>
+
+<!-- Branch 2: 审核入账 → N09b (N08 upper-right area → 系统 lane) -->
+<path d="M 1998,543 H 2026 V 314 H 2048" stroke="#059669" stroke-width="1.8" fill="none" marker-end="url(#ag)"/>
+<!-- label -->
+<rect x="2010" y="416" width="58" height="30" rx="4" fill="#d1fae5" stroke="#059669" stroke-width="1"/>
+<text x="2039" y="429" text-anchor="middle" font-size="10" font-weight="600" fill="#065f46">审核</text>
+<text x="2039" y="442" text-anchor="middle" font-size="10" font-weight="600" fill="#065f46">入账</text>
+
+<!-- Branch 3: 拒绝 → N09c (N08 lower-right → L1 lower) -->
+<path d="M 1998,573 H 2026 V 602 H 2048" stroke="#dc2626" stroke-width="1.5" fill="none" marker-end="url(#ar)"/>
+<!-- label -->
+<rect x="2010" y="573" width="46" height="20" rx="4" fill="#fee2e2" stroke="#ef4444" stroke-width="1"/>
+<text x="2033" y="587" text-anchor="middle" font-size="10" font-weight="600" fill="#b91c1c">拒绝</text>
+
+<!-- Branch 4: 升级L2 → N10 (N08 right → L2 lane) -->
+<path d="M 1998,558 H 2100 V 750 H 2322" stroke="#7c3aed" stroke-width="1.8" fill="none" marker-end="url(#ap)"/>
+<!-- label -->
+<rect x="2110" y="638" width="60" height="20" rx="4" fill="#ede9fe" stroke="#8b5cf6" stroke-width="1"/>
+<text x="2140" y="652" text-anchor="middle" font-size="10" font-weight="600" fill="#5b21b6">升级 L2</text>
+
+<!-- Branch 5: 冻结并报告 → N09e (N08 bottom → FINTRAC lane) -->
+<path d="M 1910,607 V 907" stroke="#059669" stroke-width="1.5" fill="none" marker-end="url(#ag)"/>
+<!-- label -->
+<rect x="1922" y="700" width="58" height="30" rx="4" fill="#d1fae5" stroke="#059669" stroke-width="1"/>
+<text x="1951" y="713" text-anchor="middle" font-size="10" font-weight="600" fill="#065f46">冻结</text>
+<text x="1951" y="726" text-anchor="middle" font-size="10" font-weight="600" fill="#065f46">并报告</text>
+
+<!-- ═══════════════════════════
+     ARROWS — L2 DECISION BRANCHES
+═══════════════════════════ -->
+
+<!-- N10 → N11 -->
+<path d="M 2518,750 H 2574" stroke="#7c3aed" stroke-width="1.8" fill="none" marker-end="url(#ap)"/>
+
+<!-- L2 Branch 1: 批准 → N12a (N11 top → 系统 lane) -->
+<path d="M 2660,702 V 622 H 2828" stroke="#059669" stroke-width="1.8" fill="none" marker-end="url(#ag)"/>
+<rect x="2672" y="650" width="46" height="20" rx="4" fill="#d1fae5" stroke="#059669" stroke-width="1"/>
+<text x="2695" y="664" text-anchor="middle" font-size="10" font-weight="600" fill="#065f46">批准</text>
+
+<!-- L2 Branch 2: 拒绝 → N12b (N11 right → same lane) -->
+<path d="M 2746,750 H 2828" stroke="#dc2626" stroke-width="1.5" fill="none" marker-end="url(#ar)"/>
+<rect x="2758" y="736" width="46" height="20" rx="4" fill="#fee2e2" stroke="#ef4444" stroke-width="1"/>
+<text x="2781" y="750" text-anchor="middle" font-size="10" font-weight="600" fill="#b91c1c">拒绝</text>
+
+<!-- L2 Branch 3: STR申报 → N12c (N11 bottom → FINTRAC) -->
+<path d="M 2660,798 V 914" stroke="#059669" stroke-width="1.5" fill="none" marker-end="url(#ag)"/>
+<rect x="2672" y="840" width="58" height="20" rx="4" fill="#d1fae5" stroke="#059669" stroke-width="1"/>
+<text x="2701" y="854" text-anchor="middle" font-size="10" font-weight="600" fill="#065f46">STR申报</text>
+
+<!-- ═══════════════════════════
+     VCTR/LCTR TRIGGERS (dashed)
+═══════════════════════════ -->
+<!-- From 智能入账 → VCTR  -->
+<path d="M 1440,286 V 860 H 1658 V 912" stroke="#0d9488" stroke-width="1.3" fill="none" stroke-dasharray="5,4" marker-end="url(#at)"/>
+<text x="1460" y="880" font-size="9" fill="#0d9488" font-weight="600">&gt;$10k VCC</text>
+
+<!-- From 执行入账(L1) → VCTR  -->
+<path d="M 2140,366 V 440 H 1748 V 860 H 1748 V 912" stroke="#0d9488" stroke-width="1.3" fill="none" stroke-dasharray="5,4" marker-end="url(#at)"/>
+
+<!-- From N12a (L2批准) → VCTR -->
+<path d="M 2914,648 V 880 H 1748 V 912" stroke="#0d9488" stroke-width="1.2" fill="none" stroke-dasharray="5,4" marker-end="url(#at)"/>
+
+<!-- ═══════════════════════════
+     ARCHIVE ARROWS (all terminal → N14)
+═══════════════════════════ -->
+
+<!-- From 智能入账 N06a → archive (along top of 系统 lane) -->
+<path d="M 1526,260 H 3045 V 532" stroke="#94a3b8" stroke-width="1.2" fill="none" stroke-dasharray="5,3" marker-end="url(#as)"/>
+
+<!-- From 自动拒绝 N06c → archive (via lower 系统 lane) -->
+<path d="M 1526,446 H 1550 V 484 H 3045 V 532" stroke="#94a3b8" stroke-width="1.2" fill="none" stroke-dasharray="5,3" marker-end="url(#as)"/>
+
+<!-- From 执行入账 N09b → archive -->
+<path d="M 2232,340 H 3045 V 532" stroke="#94a3b8" stroke-width="1.2" fill="none" stroke-dasharray="5,3" marker-end="url(#as)"/>
+
+<!-- From 拒绝处理 N09c → archive (up then right) -->
+<path d="M 2232,628 H 2280 V 502 H 3045 V 532" stroke="#94a3b8" stroke-width="1.2" fill="none" stroke-dasharray="5,3" marker-end="url(#as)"/>
+
+<!-- From 冻结+STR N09e → archive -->
+<path d="M 2002,933 H 3045 V 584" stroke="#94a3b8" stroke-width="1.2" fill="none" stroke-dasharray="5,3" marker-end="url(#as)"/>
+
+<!-- From L2批准 N12a → archive -->
+<path d="M 3000,622 H 3045 V 584" stroke="#94a3b8" stroke-width="1.2" fill="none" stroke-dasharray="5,3" marker-end="url(#as)"/>
+
+<!-- From L2拒绝 N12b → archive -->
+<path d="M 3000,750 H 3060 V 584" stroke="#94a3b8" stroke-width="1.2" fill="none" stroke-dasharray="5,3" marker-end="url(#as)"/>
+
+<!-- From STR申报 N12c → archive -->
+<path d="M 2752,940 H 3078 V 584" stroke="#94a3b8" stroke-width="1.2" fill="none" stroke-dasharray="5,3" marker-end="url(#as)"/>
+
+<!-- From VCTR/LCTR → archive -->
+<path d="M 1748,962 H 3045 V 584" stroke="#94a3b8" stroke-width="1.2" fill="none" stroke-dasharray="5,3" marker-end="url(#as)"/>
+
+<!-- ═══════════════════════════
+     LOOP-BACK: 商户补充材料 → L1审核
+═══════════════════════════ -->
+<path d="M 2140,174 H 2280 V 78 H 1660 V 532" stroke="#e11d48" stroke-width="1.5" fill="none" stroke-dasharray="6,3" marker-end="url(#ak)"/>
+<!-- label on loop arrow -->
+<rect x="1830" y="66" width="184" height="20" rx="4" fill="#fce7f3" stroke="#f43f5e" stroke-width="1"/>
+<text x="1922" y="80" text-anchor="middle" font-size="10" font-weight="600" fill="#9d174d">补充完成 → 返回 L1 重新审核</text>
+
+<!-- ═══════════════════════════
+     MISCELLANEOUS LABELS
+═══════════════════════════ -->
+<!-- "归档" label on all dashed arrows convergence -->
+<text x="2800" y="498" text-anchor="middle" font-size="10" fill="#94a3b8" font-style="italic">所有结案路径均归档</text>
+
+</svg>
+  </div>
+
+  <!-- State machine pills -->
+  <div class="states-row">
+    <h2>交易状态机 — 完整状态枚举</h2>
+    <div class="states-wrap">
+      <div class="state-pill" style="background:#f1f5f9;border-color:#cbd5e1;color:#334155">处理中</div>
+      <div class="state-pill" style="background:#fef3c7;border-color:#fbbf24;color:#78350f">审核中</div>
+      <div class="state-pill" style="background:#fce7f3;border-color:#f43f5e;color:#9d174d">待补充材料</div>
+      <div class="state-pill" style="background:#ede9fe;border-color:#8b5cf6;color:#5b21b6">L2 复核中</div>
+      <div class="state-pill" style="background:#d1fae5;border-color:#34d399;color:#065f46">智能入账 ✓</div>
+      <div class="state-pill" style="background:#d1fae5;border-color:#34d399;color:#065f46">审核入账 ✓</div>
+      <div class="state-pill" style="background:#fee2e2;border-color:#fca5a5;color:#b91c1c">已拒绝 ✗</div>
+      <div class="state-pill" style="background:#fee2e2;border-color:#fca5a5;color:#b91c1c">已拦截/冻结 ✗</div>
+      <div class="state-pill" style="background:#d1fae5;border-color:#34d399;color:#065f46">已申报 STR</div>
+      <div class="state-pill" style="background:#d1fae5;border-color:#34d399;color:#065f46">已提交 VCTR/LCTR</div>
+      <div class="state-pill" style="background:#f1f5f9;border-color:#94a3b8;color:#334155">已归档 ◼</div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

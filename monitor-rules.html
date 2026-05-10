@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>监控规则 - FuturePayCA</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', sans-serif; background: #f5f6fa; color: #1a1a2e; font-size: 13px; display: flex; height: 100vh; overflow: hidden; }
+
+  /* Sidebar */
+  .sidebar { width: 200px; background: #1a1d2e; color: #8b90a7; display: flex; flex-direction: column; flex-shrink: 0; overflow-y: auto; }
+  .sidebar-logo { padding: 16px; border-bottom: 1px solid #252840; color: #fff; font-weight: 700; font-size: 15px; }
+  .sidebar-logo b { color: #4f8ef7; }
+  .sidebar-section { padding: 16px 12px 4px; font-size: 11px; color: #4a4f6a; letter-spacing: .5px; }
+  .sidebar-item { padding: 7px 16px; cursor: pointer; display: flex; align-items: center; gap: 8px; border-radius: 6px; margin: 1px 6px; font-size: 13px; }
+  .sidebar-item:hover { background: #252840; color: #c5c8db; }
+  .sidebar-item.active { background: #2a3050; color: #fff; }
+  .sidebar-sub { padding: 6px 16px 6px 36px; cursor: pointer; font-size: 12px; border-radius: 6px; margin: 1px 6px; }
+  .sidebar-sub:hover { background: #252840; color: #c5c8db; }
+  .sidebar-sub.active { background: #1e3a8a22; color: #4f8ef7; }
+
+  /* Main */
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .topbar { height: 52px; background: #fff; border-bottom: 1px solid #e8eaef; display: flex; align-items: center; padding: 0 24px; flex-shrink: 0; }
+  .breadcrumb { display: flex; align-items: center; gap: 6px; color: #8b90a7; font-size: 13px; }
+  .breadcrumb a { color: #8b90a7; text-decoration: none; }
+  .breadcrumb a:hover { color: #4f8ef7; }
+  .breadcrumb .sep { color: #c5c8db; }
+  .breadcrumb .current { color: #1a1a2e; }
+  .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+  .avatar { width: 32px; height: 32px; border-radius: 50%; background: #4f8ef7; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 13px; }
+
+  /* Pages */
+  .page { display: none; flex: 1; overflow-y: auto; padding: 24px; flex-direction: column; gap: 16px; }
+  .page.active { display: flex; }
+
+  /* Common */
+  .badge { padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+  .badge-warning { background: #fff3e0; color: #e65100; }
+  .badge-danger { background: #fce4ec; color: #c62828; }
+  .badge-success { background: #e8f5e9; color: #2e7d32; }
+  .badge-blue { background: #e3f0ff; color: #1565c0; }
+  .badge-gray { background: #f0f0f4; color: #555; }
+  .badge-purple { background: #f3e5f5; color: #6a1b9a; }
+  .badge-teal { background: #e0f2f1; color: #00695c; }
+  .btn { padding: 7px 16px; border-radius: 6px; border: none; cursor: pointer; font-size: 13px; font-weight: 500; }
+  .btn-sm { padding: 4px 10px; font-size: 12px; border-radius: 5px; border: none; cursor: pointer; font-weight: 500; }
+  .btn-outline { background: #fff; border: 1px solid #d0d4e0; color: #444; }
+  .btn-outline:hover { background: #f5f6fa; }
+  .btn-primary { background: #4f8ef7; color: #fff; }
+  .btn-primary:hover { background: #3a7be0; }
+  .btn-danger { background: #e53935; color: #fff; }
+  .card { background: #fff; border-radius: 10px; border: 1px solid #e8eaef; padding: 20px; }
+  .card-title { font-size: 13px; font-weight: 600; color: #1a1a2e; margin-bottom: 14px; display: flex; align-items: center; gap: 6px; }
+
+  /* Stats */
+  .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .stat-card { background: #fff; border-radius: 10px; border: 1px solid #e8eaef; padding: 16px; }
+  .stat-label { font-size: 11px; color: #8b90a7; margin-bottom: 6px; }
+  .stat-value { font-size: 22px; font-weight: 700; color: #1a1a2e; }
+  .stat-sub { font-size: 11px; color: #8b90a7; margin-top: 2px; }
+
+  /* Filter */
+  .filter-bar { background: #fff; border-radius: 10px; border: 1px solid #e8eaef; padding: 14px 20px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .filter-bar input { border: 1px solid #e8eaef; border-radius: 6px; padding: 6px 10px; font-size: 13px; outline: none; width: 200px; }
+  .filter-bar input:focus { border-color: #4f8ef7; }
+  .filter-bar select { border: 1px solid #e8eaef; border-radius: 6px; padding: 6px 10px; font-size: 13px; background: #fff; outline: none; cursor: pointer; }
+  .filter-bar-right { margin-left: auto; display: flex; gap: 8px; }
+
+  /* Rule type tabs */
+  .type-tabs { display: flex; gap: 8px; }
+  .type-tab { padding: 6px 14px; border-radius: 20px; border: 1px solid #e8eaef; background: #fff; font-size: 12px; cursor: pointer; font-weight: 500; color: #555; display: flex; align-items: center; gap: 6px; }
+  .type-tab:hover { border-color: #4f8ef7; color: #4f8ef7; }
+  .type-tab.active { background: #4f8ef7; color: #fff; border-color: #4f8ef7; }
+  .type-tab .count { background: rgba(255,255,255,0.3); padding: 0 5px; border-radius: 8px; font-size: 11px; }
+  .type-tab:not(.active) .count { background: #f0f0f4; color: #555; }
+
+  /* Table */
+  .table-wrap { background: #fff; border-radius: 10px; border: 1px solid #e8eaef; overflow: hidden; }
+  .table-header { padding: 14px 20px; border-bottom: 1px solid #f0f0f4; display: flex; align-items: center; justify-content: space-between; }
+  table { width: 100%; border-collapse: collapse; }
+  thead th { font-size: 11px; color: #8b90a7; font-weight: 500; padding: 10px 16px; text-align: left; border-bottom: 1px solid #f0f0f4; background: #fafbfc; white-space: nowrap; }
+  tbody td { padding: 14px 16px; border-bottom: 1px solid #f5f6fa; font-size: 13px; vertical-align: middle; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover td { background: #f8f9fd; }
+  .rule-name { font-weight: 600; color: #1a1a2e; cursor: pointer; }
+  .rule-name:hover { color: #4f8ef7; }
+  .rule-desc { font-size: 12px; color: #8b90a7; margin-top: 2px; }
+  .actions { display: flex; gap: 6px; }
+
+  /* Toggle switch */
+  .toggle { position: relative; width: 36px; height: 20px; cursor: pointer; }
+  .toggle input { opacity: 0; width: 0; height: 0; }
+  .toggle-slider { position: absolute; inset: 0; background: #d0d4e0; border-radius: 20px; transition: .2s; }
+  .toggle-slider:before { content: ''; position: absolute; width: 14px; height: 14px; left: 3px; top: 3px; background: #fff; border-radius: 50%; transition: .2s; }
+  input:checked + .toggle-slider { background: #4f8ef7; }
+  input:checked + .toggle-slider:before { transform: translateX(16px); }
+
+  /* Priority badge */
+  .priority { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; }
+  .priority.high { color: #c62828; }
+  .priority.mid { color: #e65100; }
+  .priority.low { color: #43a047; }
+
+  /* ===== CREATE/EDIT PAGE ===== */
+  .form-wrap { display: grid; grid-template-columns: 1fr 360px; gap: 16px; align-items: start; }
+  .form-section { background: #fff; border-radius: 10px; border: 1px solid #e8eaef; padding: 24px; margin-bottom: 16px; }
+  .form-section-title { font-size: 14px; font-weight: 700; color: #1a1a2e; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid #f0f0f4; display: flex; align-items: center; gap: 8px; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+  .form-row.single { grid-template-columns: 1fr; }
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
+  .form-group label { font-size: 12px; font-weight: 600; color: #555; }
+  .form-group label .required { color: #e53935; margin-left: 2px; }
+  .form-group label .tip { font-size: 11px; color: #8b90a7; font-weight: 400; margin-left: 4px; }
+  .form-input { border: 1px solid #e8eaef; border-radius: 6px; padding: 8px 10px; font-size: 13px; font-family: inherit; outline: none; color: #1a1a2e; }
+  .form-input:focus { border-color: #4f8ef7; }
+  .form-select { border: 1px solid #e8eaef; border-radius: 6px; padding: 8px 10px; font-size: 13px; background: #fff; font-family: inherit; outline: none; cursor: pointer; color: #1a1a2e; }
+  .form-select:focus { border-color: #4f8ef7; }
+
+  /* Rule type selector */
+  .type-selector { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .type-option { border: 2px solid #e8eaef; border-radius: 8px; padding: 12px; cursor: pointer; transition: all .15s; }
+  .type-option:hover { border-color: #4f8ef7; background: #f5f8ff; }
+  .type-option.selected { border-color: #4f8ef7; background: #e3f0ff; }
+  .type-option-icon { font-size: 18px; margin-bottom: 4px; }
+  .type-option-label { font-size: 13px; font-weight: 600; color: #1a1a2e; }
+  .type-option-desc { font-size: 11px; color: #8b90a7; margin-top: 2px; }
+  .type-option.selected .type-option-label { color: #1565c0; }
+
+  /* Condition builder */
+  .condition-list { display: flex; flex-direction: column; gap: 8px; }
+  .condition-item { display: flex; align-items: center; gap: 8px; background: #f8f9fd; border-radius: 8px; padding: 10px 12px; border: 1px solid #e8eaef; }
+  .condition-item select { border: 1px solid #e8eaef; border-radius: 5px; padding: 5px 8px; font-size: 12px; background: #fff; outline: none; }
+  .condition-item input { border: 1px solid #e8eaef; border-radius: 5px; padding: 5px 8px; font-size: 12px; width: 100px; outline: none; font-family: inherit; }
+  .condition-item input:focus, .condition-item select:focus { border-color: #4f8ef7; }
+  .condition-join { font-size: 11px; font-weight: 700; color: #4f8ef7; padding: 2px 8px; background: #e3f0ff; border-radius: 4px; }
+  .del-btn { margin-left: auto; color: #c5c8db; cursor: pointer; font-size: 16px; line-height: 1; flex-shrink: 0; }
+  .del-btn:hover { color: #e53935; }
+  .add-condition { display: flex; align-items: center; gap: 6px; color: #4f8ef7; font-size: 12px; cursor: pointer; padding: 6px 0; width: fit-content; }
+  .add-condition:hover { text-decoration: underline; }
+
+  /* Action selector */
+  .action-options { display: flex; flex-direction: column; gap: 8px; }
+  .action-option { display: flex; align-items: flex-start; gap: 10px; padding: 12px; border: 2px solid #e8eaef; border-radius: 8px; cursor: pointer; }
+  .action-option:hover { border-color: #4f8ef7; }
+  .action-option.selected { border-color: #4f8ef7; background: #f5f8ff; }
+  .action-radio { width: 16px; height: 16px; border-radius: 50%; border: 2px solid #d0d4e0; margin-top: 1px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+  .action-option.selected .action-radio { border-color: #4f8ef7; background: #4f8ef7; }
+  .action-option.selected .action-radio::after { content: ''; width: 6px; height: 6px; border-radius: 50%; background: #fff; }
+  .action-label { font-size: 13px; font-weight: 600; }
+  .action-desc { font-size: 11px; color: #8b90a7; margin-top: 2px; }
+
+  /* Preview panel */
+  .preview-panel { background: #fff; border-radius: 10px; border: 1px solid #e8eaef; padding: 20px; position: sticky; top: 0; }
+  .preview-title { font-size: 13px; font-weight: 600; margin-bottom: 14px; }
+  .preview-item { display: flex; flex-direction: column; gap: 2px; margin-bottom: 12px; }
+  .preview-label { font-size: 11px; color: #8b90a7; }
+  .preview-value { font-size: 13px; color: #1a1a2e; font-weight: 500; }
+  .preview-divider { height: 1px; background: #f0f0f4; margin: 12px 0; }
+  .preview-flow { display: flex; flex-direction: column; gap: 4px; }
+  .flow-step { display: flex; align-items: center; gap: 8px; font-size: 12px; padding: 6px 10px; border-radius: 6px; background: #f8f9fd; }
+  .flow-arrow { color: #8b90a7; font-size: 10px; margin-left: 10px; }
+
+  /* Form footer */
+  .form-footer { background: #fff; border-top: 1px solid #e8eaef; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+
+  /* Pagination */
+  .pagination { display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; border-top: 1px solid #f0f0f4; font-size: 12px; color: #8b90a7; }
+  .page-btns { display: flex; gap: 4px; }
+  .page-btn { padding: 4px 10px; border-radius: 5px; border: 1px solid #e8eaef; background: #fff; cursor: pointer; font-size: 12px; }
+  .page-btn.active { background: #4f8ef7; color: #fff; border-color: #4f8ef7; }
+
+  .page-nav a { color: #4f8ef7; text-decoration: none; font-size: 13px; }
+
+  /* Modal styles */
+  .modal-tab { padding: 8px 16px; cursor: pointer; color: #8b90a7; font-size: 13px; border-bottom: 2px solid transparent; margin-bottom: -2px; }
+  .modal-tab.active { color: #4f8ef7; border-bottom-color: #4f8ef7; font-weight: 600; }
+  .modal-section { padding: 16px 0; border-bottom: 1px solid #f0f0f4; }
+  .modal-section-title { font-size: 13px; font-weight: 700; color: #1a1a2e; margin-bottom: 12px; }
+  .monitor-type { border: 2px solid #e8eaef; border-radius: 8px; padding: 10px 12px; cursor: pointer; text-align: center; }
+  .monitor-type:hover { border-color: #4f8ef7; }
+  .monitor-type.selected { border-color: #4f8ef7; background: #e3f0ff; }
+  .cond-join-badge { font-size: 11px; font-weight: 700; color: #4f8ef7; padding: 2px 8px; background: #e3f0ff; border-radius: 4px; }
+  .cond-row { display: flex; align-items: center; gap: 6px; background: #f8f9fd; border-radius: 7px; padding: 8px 10px; border: 1px solid #e8eaef; }
+  .cond-sel { border: 1px solid #e8eaef; border-radius: 5px; padding: 4px 6px; font-size: 12px; background: #fff; outline: none; cursor: pointer; }
+  .cond-input { border: 1px solid #e8eaef; border-radius: 5px; padding: 4px 8px; font-size: 12px; width: 100px; outline: none; font-family: inherit; flex: 1; }
+  .cond-input:focus, .cond-sel:focus { border-color: #4f8ef7; }
+  .action-check { border: 1px solid #e8eaef; border-radius: 8px; padding: 10px 12px; cursor: pointer; transition: all .15s; }
+  .action-check:hover { border-color: #4f8ef7; background: #f5f8ff; }
+  .action-check.selected { border-color: #4f8ef7; background: #e3f0ff; }
+</style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<div class="sidebar">
+  <div class="sidebar-logo">Future Pay<b>CA</b></div>
+  <div class="sidebar-section">总览</div>
+  <div class="sidebar-item">仪表盘</div>
+  <div class="sidebar-section">合规</div>
+  <div class="sidebar-item">客户尽职调查</div>
+  <div class="sidebar-sub">KYC审核</div>
+  <div class="sidebar-sub">KYW审核</div>
+  <div class="sidebar-section">交易</div>
+  <div class="sidebar-item active">交易监控</div>
+  <div class="sidebar-sub active">监控规则</div>
+  <div class="sidebar-sub">交易警报</div>
+  <div class="sidebar-sub">事中监控</div>
+  <div class="sidebar-section">监控</div>
+  <div class="sidebar-item">持续监控</div>
+  <div class="sidebar-sub">KYW监控</div>
+  <div class="sidebar-section">审核</div>
+  <div class="sidebar-item">订单管理</div>
+  <div class="sidebar-sub">充值订单</div>
+  <div class="sidebar-sub">兑换订单</div>
+  <div class="sidebar-sub">提现订单</div>
+  <div class="sidebar-sub">A2A订单</div>
+  <div class="sidebar-section">财务</div>
+  <div class="sidebar-item">财务管理</div>
+  <div class="sidebar-section">报告</div>
+  <div class="sidebar-item">STR报告</div>
+</div>
+
+<!-- Main -->
+<div class="main">
+  <div class="topbar">
+    <div class="breadcrumb" id="breadcrumb">
+      <a href="#">交易</a><span class="sep">›</span>
+      <a href="#" onclick="showList()">交易监控</a><span class="sep">›</span>
+      <span class="current" id="bc-current">监控规则</span>
+    </div>
+    <div class="topbar-right">
+      <span style="color:#8b90a7;font-size:18px;">🔔</span>
+      <span style="color:#8b90a7;font-size:18px;">⚙️</span>
+      <div class="avatar">JS</div>
+    </div>
+  </div>
+
+  <!-- LIST PAGE -->
+  <div class="page active" id="list-page">
+
+    <!-- Stats -->
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-label">规则总数</div>
+        <div class="stat-value">24</div>
+        <div class="stat-sub">已启用 18 · 已停用 6</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">今日触发次数</div>
+        <div class="stat-value" style="color:#4f8ef7;">142</div>
+        <div class="stat-sub">较昨日 +12%</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">触发最多规则</div>
+        <div class="stat-value" style="font-size:14px;margin-top:4px;">大额充值审核</div>
+        <div class="stat-sub">今日触发 38 次</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">误报率</div>
+        <div class="stat-value" style="color:#43a047;">4.2%</div>
+        <div class="stat-sub">近7天平均</div>
+      </div>
+    </div>
+
+    <!-- Type tabs + filter -->
+    <div class="filter-bar" style="flex-direction:column;align-items:flex-start;gap:12px;">
+      <div class="type-tabs">
+        <div class="type-tab active" onclick="filterType(this)">全部 <span class="count">24</span></div>
+        <div class="type-tab" onclick="filterType(this)">充值审核 <span class="count">7</span></div>
+        <div class="type-tab" onclick="filterType(this)">提现审核 <span class="count">5</span></div>
+        <div class="type-tab" onclick="filterType(this)">兑换审核 <span class="count">4</span></div>
+        <div class="type-tab" onclick="filterType(this)">交易警报 <span class="count">8</span></div>
+      </div>
+      <div style="display:flex;gap:10px;width:100%;align-items:center;">
+        <input type="text" placeholder="搜索规则名称" />
+        <select>
+          <option>全部状态</option>
+          <option>已启用</option>
+          <option>已停用</option>
+        </select>
+        <select>
+          <option>全部优先级</option>
+          <option>高</option>
+          <option>中</option>
+          <option>低</option>
+        </select>
+        <div class="filter-bar-right">
+          <button class="btn btn-primary" onclick="showCreate()">＋ 新建规则</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Table -->
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>规则名称</th>
+            <th>规则类型</th>
+            <th>触发条件</th>
+            <th>触发后流向</th>
+            <th>优先级</th>
+            <th>今日触发</th>
+            <th>误报率</th>
+            <th>最后修改</th>
+            <th>启用</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              <div class="rule-name" onclick="showEdit('大额充值审核')">大额充值审核</div>
+              <div class="rule-desc">单笔充值超过阈值自动触发人工审核</div>
+            </td>
+            <td><span class="badge badge-blue">充值审核</span></td>
+            <td style="font-size:12px;color:#555;">金额 > $10,000 CAD</td>
+            <td style="font-size:12px;">→ <span style="color:#4f8ef7;">充值审核队列</span></td>
+            <td><span class="priority high">● 高</span></td>
+            <td style="font-weight:600;">38</td>
+            <td style="color:#43a047;">3.1%</td>
+            <td style="color:#8b90a7;font-size:12px;">2026-05-01</td>
+            <td><label class="toggle"><input type="checkbox" checked /><span class="toggle-slider"></span></label></td>
+            <td><div class="actions"><button class="btn-sm btn-outline" onclick="showEdit('大额充值审核')">编辑</button><button class="btn-sm btn-outline" style="color:#e53935;">停用</button></div></td>
+          </tr>
+          <tr>
+            <td>
+              <div class="rule-name" onclick="showEdit()">新商户首次充值</div>
+              <div class="rule-desc">商户注册后首笔充值必须人工审核</div>
+            </td>
+            <td><span class="badge badge-blue">充值审核</span></td>
+            <td style="font-size:12px;color:#555;">首次充值 = true</td>
+            <td style="font-size:12px;">→ <span style="color:#4f8ef7;">充值审核队列</span></td>
+            <td><span class="priority high">● 高</span></td>
+            <td style="font-weight:600;">12</td>
+            <td style="color:#43a047;">1.8%</td>
+            <td style="color:#8b90a7;font-size:12px;">2026-04-20</td>
+            <td><label class="toggle"><input type="checkbox" checked /><span class="toggle-slider"></span></label></td>
+            <td><div class="actions"><button class="btn-sm btn-outline" onclick="showEdit()">编辑</button><button class="btn-sm btn-outline" style="color:#e53935;">停用</button></div></td>
+          </tr>
+          <tr>
+            <td>
+              <div class="rule-name">高风险地址充值</div>
+              <div class="rule-desc">来自KYW高风险钱包地址的充值</div>
+            </td>
+            <td><span class="badge badge-blue">充值审核</span></td>
+            <td style="font-size:12px;color:#555;">KYW评分 > 70</td>
+            <td style="font-size:12px;">→ <span style="color:#4f8ef7;">充值审核队列</span></td>
+            <td><span class="priority high">● 高</span></td>
+            <td style="font-weight:600;">9</td>
+            <td style="color:#e65100;">6.7%</td>
+            <td style="color:#8b90a7;font-size:12px;">2026-04-15</td>
+            <td><label class="toggle"><input type="checkbox" checked /><span class="toggle-slider"></span></label></td>
+            <td><div class="actions"><button class="btn-sm btn-outline">编辑</button><button class="btn-sm btn-outline" style="color:#e53935;">停用</button></div></td>
+          </tr>
+          <tr>
+            <td>
+              <div class="rule-name">大额提现审核</div>
+              <div class="rule-desc">单笔提现超过阈值触发人工审核</div>
+            </td>
+            <td><span class="badge badge-purple">提现审核</span></td>
+            <td style="font-size:12px;color:#555;">金额 > $20,000 CAD</td>
+            <td style="font-size:12px;">→ <span style="color:#6a1b9a;">提现审核队列</span></td>
+            <td><span class="priority high">● 高</span></td>
+            <td style="font-weight:600;">21</td>
+            <td style="color:#43a047;">2.4%</td>
+            <td style="color:#8b90a7;font-size:12px;">2026-05-02</td>
+            <td><label class="toggle"><input type="checkbox" checked /><span class="toggle-slider"></span></label></td>
+            <td><div class="actions"><button class="btn-sm btn-outline">编辑</button><button class="btn-sm btn-outline" style="color:#e53935;">停用</button></div></td>
+          </tr>
+          <tr>
+            <td>
+              <div class="rule-name">可疑拆分交易</div>
+              <div class="rule-desc">24小时内多笔相似金额交易</div>
+            </td>
+            <td><span class="badge badge-danger">交易警报</span></td>
+            <td style="font-size:12px;color:#555;">24h内同类交易 ≥ 3笔 且金额相差 &lt; 10%</td>
+            <td style="font-size:12px;">→ <span style="color:#c62828;">交易警报队列</span></td>
+            <td><span class="priority high">● 高</span></td>
+            <td style="font-weight:600;">5</td>
+            <td style="color:#e65100;">8.2%</td>
+            <td style="color:#8b90a7;font-size:12px;">2026-04-28</td>
+            <td><label class="toggle"><input type="checkbox" checked /><span class="toggle-slider"></span></label></td>
+            <td><div class="actions"><button class="btn-sm btn-outline">编辑</button><button class="btn-sm btn-outline" style="color:#e53935;">停用</button></div></td>
+          </tr>
+          <tr>
+            <td>
+              <div class="rule-name">资金快进快出</div>
+              <div class="rule-desc">充值后48小时内提现比例过高</div>
+            </td>
+            <td><span class="badge badge-danger">交易警报</span></td>
+            <td style="font-size:12px;color:#555;">48h内提现/充值比 > 90%</td>
+            <td style="font-size:12px;">→ <span style="color:#c62828;">交易警报队列</span></td>
+            <td><span class="priority mid">● 中</span></td>
+            <td style="font-weight:600;">7</td>
+            <td style="color:#e65100;">11.3%</td>
+            <td style="color:#8b90a7;font-size:12px;">2026-04-10</td>
+            <td><label class="toggle"><input type="checkbox" checked /><span class="toggle-slider"></span></label></td>
+            <td><div class="actions"><button class="btn-sm btn-outline">编辑</button><button class="btn-sm btn-outline" style="color:#e53935;">停用</button></div></td>
+          </tr>
+          <tr>
+            <td>
+              <div class="rule-name">月度累计充值限额</div>
+              <div class="rule-desc">商户单月累计充值超过限额</div>
+            </td>
+            <td><span class="badge badge-blue">充值审核</span></td>
+            <td style="font-size:12px;color:#555;">月累计充值 > $500,000 CAD</td>
+            <td style="font-size:12px;">→ <span style="color:#4f8ef7;">充值审核队列</span></td>
+            <td><span class="priority mid">● 中</span></td>
+            <td style="font-weight:600;">2</td>
+            <td style="color:#43a047;">0%</td>
+            <td style="color:#8b90a7;font-size:12px;">2026-03-15</td>
+            <td><label class="toggle"><input type="checkbox" /><span class="toggle-slider"></span></label></td>
+            <td><div class="actions"><button class="btn-sm btn-outline">编辑</button><button class="btn-sm btn-outline" style="color:#43a047;">启用</button></div></td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="pagination">
+        <span>共 24 条规则</span>
+        <div class="page-btns">
+          <button class="page-btn">‹</button>
+          <button class="page-btn active">1</button>
+          <button class="page-btn">2</button>
+          <button class="page-btn">3</button>
+          <button class="page-btn">›</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CREATE / EDIT PAGE -->
+  <div class="page" id="create-page" style="padding:0;background:#00000033;position:fixed;inset:0;z-index:100;display:none;align-items:center;justify-content:center;overflow:auto;">
+  <!-- Modal box -->
+  <div style="background:#fff;border-radius:12px;width:560px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.25);">
+
+    <!-- Modal header -->
+    <div style="padding:18px 24px 0;flex-shrink:0;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+        <div style="font-size:16px;font-weight:700;" id="form-title">新增规则</div>
+        <span style="cursor:pointer;color:#8b90a7;font-size:20px;line-height:1;" onclick="showList()">×</span>
+      </div>
+      <!-- Tabs -->
+      <div style="display:flex;border-bottom:2px solid #e8eaef;">
+        <div class="modal-tab active" onclick="switchTab(this)">常规规则</div>
+        <div class="modal-tab" onclick="switchTab(this)">关联规则 <span style="font-size:11px;color:#8b90a7;">（多条规则）</span></div>
+      </div>
+    </div>
+
+    <!-- Scrollable body -->
+    <div style="overflow-y:auto;flex:1;padding:0 24px 16px;">
+
+      <!-- 规则元数据 -->
+      <div class="modal-section">
+        <div class="modal-section-title">规则元数据</div>
+        <div style="background:#e3f0ff;border-radius:6px;padding:8px 12px;font-size:12px;color:#1565c0;margin-bottom:14px;">
+          选择规则后，AI会自动关联：大于 $40,000 的 + 数据数量、地区、全量 + 监管机构
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+          <div class="form-group">
+            <label>监控名称</label>
+            <input class="form-input" placeholder="请输入监控名称" id="rule-name-input" oninput="updatePreview()" />
+          </div>
+          <div class="form-group">
+            <label>规则 <span class="required">*</span></label>
+            <select class="form-select">
+              <option>可疑交易(STR)</option>
+              <option>充值审核</option>
+              <option>提现审核</option>
+              <option>兑换审核</option>
+              <option>交易警报</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>监管标签 <span class="required">*</span></label>
+            <select class="form-select">
+              <option>武装冲突</option>
+              <option>制裁规避</option>
+              <option>洗钱</option>
+              <option>恐怖主义融资</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>监管机构</label>
+            <div style="display:flex;gap:12px;align-items:center;padding-top:4px;">
+              <label style="display:flex;align-items:center;gap:4px;font-weight:400;font-size:13px;"><input type="checkbox" checked /> OFAC</label>
+              <label style="display:flex;align-items:center;gap:4px;font-weight:400;font-size:13px;"><input type="checkbox" /> FATF</label>
+              <label style="display:flex;align-items:center;gap:4px;font-weight:400;font-size:13px;"><input type="checkbox" /> ULEI</label>
+            </div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>识别描述</label>
+          <textarea class="form-input" style="resize:vertical;min-height:60px;font-family:inherit;" placeholder="此处描述该规则的识别行为及目的，辅助审核员理解..."></textarea>
+        </div>
+      </div>
+
+      <!-- 规则操作 -->
+      <div class="modal-section">
+        <div class="modal-section-title">规则操作
+          <span style="font-size:11px;color:#8b90a7;font-weight:400;margin-left:6px;">此处定义了当触发规则后系统采取的措施，最后运行至下方"触发后"环节</span>
+        </div>
+        <!-- Score slider -->
+        <div style="margin-bottom:12px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+            <label style="font-size:12px;font-weight:600;color:#555;">在评分</label>
+            <span style="font-size:12px;color:#4f8ef7;font-weight:600;">触发阈值</span>
+          </div>
+          <div style="position:relative;padding:0 4px;">
+            <input type="range" min="0" max="100" value="60" style="width:100%;accent-color:#4f8ef7;" />
+            <div style="display:flex;justify-content:space-between;font-size:10px;color:#aaa;margin-top:2px;">
+              <span>最低</span>
+              <span>25</span>
+              <span>50</span>
+              <span>75</span>
+              <span>最高</span>
+            </div>
+          </div>
+        </div>
+        <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:#555;cursor:pointer;">
+          <input type="checkbox" />
+          使用此规则在发生期间，即做以下签名
+        </label>
+      </div>
+
+      <!-- 规则触发 -->
+      <div class="modal-section">
+        <div class="modal-section-title">规则触发</div>
+
+        <!-- 监控类型 -->
+        <div style="margin-bottom:14px;">
+          <div style="font-size:12px;font-weight:600;color:#555;margin-bottom:8px;">监控类型</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
+            <div class="monitor-type selected" onclick="selectMonitorType(this)">
+              <div style="font-weight:600;font-size:13px;color:#1565c0;">最新</div>
+              <div style="font-size:11px;color:#8b90a7;margin-top:2px;">全新有效行</div>
+            </div>
+            <div class="monitor-type" onclick="selectMonitorType(this)">
+              <div style="font-weight:600;font-size:13px;">事中</div>
+              <div style="font-size:11px;color:#8b90a7;margin-top:2px;">无需示例</div>
+            </div>
+            <div class="monitor-type" onclick="selectMonitorType(this)">
+              <div style="font-weight:600;font-size:13px;">既往</div>
+              <div style="font-size:11px;color:#8b90a7;margin-top:2px;">无需示例</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 触发条件 -->
+        <div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+            <div style="font-size:12px;font-weight:600;color:#555;">触发条件</div>
+            <span style="font-size:11px;color:#8b90a7;">以下至少满足 1 条</span>
+          </div>
+          <div id="condition-list">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+              <span class="cond-join-badge">AND</span>
+            </div>
+            <div class="cond-row">
+              <select class="cond-sel"><option>金额(类型)</option><option>交易金额</option><option>累计金额(24h)</option><option>累计金额(月)</option><option>交易笔数</option><option>KYW评分</option></select>
+              <select class="cond-sel"><option>小大于</option><option>大于</option><option>小于</option><option>等于</option></select>
+              <span style="font-size:12px;color:#8b90a7;">$</span>
+              <input class="cond-input" value="120,900.00" />
+              <select class="cond-sel" style="width:60px;"><option>CAD</option><option>USD</option><option>USDT</option></select>
+              <span class="del-btn" onclick="delCondRow(this)">×</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;margin:6px 0;">
+              <span class="cond-join-badge">AND</span>
+            </div>
+            <div class="cond-row">
+              <select class="cond-sel"><option>金额(类型)</option><option>交易金额</option><option>累计金额(24h)</option><option>KYW评分</option></select>
+              <select class="cond-sel"><option>小大于</option><option>大于</option><option>小于</option><option>等于</option></select>
+              <span style="font-size:12px;color:#8b90a7;">$</span>
+              <input class="cond-input" value="100,900.00" />
+              <select class="cond-sel" style="width:60px;"><option>CAD</option><option>USD</option><option>USDT</option></select>
+              <span class="del-btn" onclick="delCondRow(this)">×</span>
+            </div>
+          </div>
+          <div style="display:flex;gap:16px;margin-top:10px;">
+            <span style="color:#4f8ef7;font-size:12px;cursor:pointer;" onclick="addCondRow()">＋ 添加规则</span>
+            <span style="color:#4f8ef7;font-size:12px;cursor:pointer;">＋ 添加条件组</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 触发动作 -->
+      <div class="modal-section">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+          <div class="modal-section-title" style="margin-bottom:0;">触发动作</div>
+          <span style="background:#4f8ef7;color:#fff;font-size:10px;font-weight:700;padding:2px 6px;border-radius:3px;">NEW</span>
+          <span style="font-size:11px;color:#8b90a7;">针对行为触发触发动作列</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <div class="action-check selected" onclick="toggleAction(this)">
+            <div style="display:flex;align-items:flex-start;gap:8px;">
+              <input type="checkbox" checked style="margin-top:2px;" />
+              <div>
+                <div style="font-size:12px;font-weight:600;">告警贸易融资提醒</div>
+                <div style="font-size:11px;color:#8b90a7;margin-top:2px;">向风控团队发送实时警报</div>
+              </div>
+            </div>
+          </div>
+          <div class="action-check" onclick="toggleAction(this)">
+            <div style="display:flex;align-items:flex-start;gap:8px;">
+              <input type="checkbox" style="margin-top:2px;" />
+              <div>
+                <div style="font-size:12px;font-weight:600;">立送 FINTRAC 告警报告</div>
+                <div style="font-size:11px;color:#8b90a7;margin-top:2px;">自动提交监管报告</div>
+              </div>
+            </div>
+          </div>
+          <div class="action-check" onclick="toggleAction(this)">
+            <div style="display:flex;align-items:flex-start;gap:8px;">
+              <input type="checkbox" style="margin-top:2px;" />
+              <div>
+                <div style="font-size:12px;font-weight:600;">白名文件</div>
+                <div style="font-size:11px;color:#8b90a7;margin-top:2px;">加入白名单，跳过后续审核</div>
+              </div>
+            </div>
+          </div>
+          <div class="action-check" onclick="toggleAction(this)">
+            <div style="display:flex;align-items:flex-start;gap:8px;">
+              <input type="checkbox" style="margin-top:2px;" />
+              <div>
+                <div style="font-size:12px;font-weight:600;">上题高清合合合专号</div>
+                <div style="font-size:11px;color:#8b90a7;margin-top:2px;">升级至合规专员处理</div>
+              </div>
+            </div>
+          </div>
+          <div class="action-check" onclick="toggleAction(this)">
+            <div style="display:flex;align-items:flex-start;gap:8px;">
+              <input type="checkbox" style="margin-top:2px;" />
+              <div>
+                <div style="font-size:12px;font-weight:600;">标记潜在跨境跨国</div>
+                <div style="font-size:11px;color:#8b90a7;margin-top:2px;">标记为跨境交易风险</div>
+              </div>
+            </div>
+          </div>
+          <div class="action-check" onclick="toggleAction(this)">
+            <div style="display:flex;align-items:flex-start;gap:8px;">
+              <input type="checkbox" style="margin-top:2px;" />
+              <div>
+                <div style="font-size:12px;font-weight:600;">双送电子邮件告警</div>
+                <div style="font-size:11px;color:#8b90a7;margin-top:2px;">同时发送邮件通知</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 适用范围 -->
+      <div class="modal-section" style="border-bottom:none;">
+        <div class="modal-section-title">适用范围</div>
+        <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:12px;">
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="checkbox" checked /> 全部用户</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="checkbox" /> 钱包用户</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="checkbox" /> 低风险及其他</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="checkbox" /> 新用户（90天内）</label>
+        </div>
+        <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:#555;cursor:pointer;">
+          <input type="checkbox" />
+          运行 30 天后测测
+        </label>
+      </div>
+    </div>
+
+    <!-- Modal footer -->
+    <div style="padding:14px 24px;border-top:1px solid #e8eaef;display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-shrink:0;">
+      <button class="btn btn-outline" onclick="showList()">取消</button>
+      <button class="btn btn-primary" onclick="saveRule()">新增规则</button>
+    </div>
+  </div>
+  </div>
+</div>
+
+<script>
+function showList() {
+  document.getElementById('list-page').classList.add('active');
+  document.getElementById('create-page').style.display = 'none';
+  document.getElementById('bc-current').textContent = '监控规则';
+}
+function showCreate() {
+  document.getElementById('list-page').classList.remove('active');
+  document.getElementById('create-page').style.display = 'flex';
+  document.getElementById('form-title').textContent = '新增规则';
+  document.getElementById('bc-current').textContent = '新增规则';
+}
+function showEdit(name) {
+  document.getElementById('list-page').classList.remove('active');
+  document.getElementById('create-page').style.display = 'flex';
+  document.getElementById('form-title').textContent = '编辑规则';
+  document.getElementById('bc-current').textContent = '编辑规则';
+  if (name) document.getElementById('rule-name-input').value = name;
+}
+function filterType(el) {
+  document.querySelectorAll('.type-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+}
+function switchTab(el) {
+  document.querySelectorAll('.modal-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+}
+function selectMonitorType(el) {
+  document.querySelectorAll('.monitor-type').forEach(t => t.classList.remove('selected'));
+  el.classList.add('selected');
+}
+function toggleAction(el) {
+  el.classList.toggle('selected');
+  el.querySelector('input[type=checkbox]').checked = el.classList.contains('selected');
+}
+function addCondRow() {
+  const list = document.getElementById('condition-list');
+  const andDiv = document.createElement('div');
+  andDiv.style.cssText = 'display:flex;align-items:center;gap:6px;margin:6px 0;';
+  andDiv.innerHTML = '<span class="cond-join-badge">AND</span>';
+  list.appendChild(andDiv);
+  const row = document.createElement('div');
+  row.className = 'cond-row';
+  row.innerHTML = `
+    <select class="cond-sel"><option>金额(类型)</option><option>交易金额</option><option>累计金额(24h)</option><option>KYW评分</option></select>
+    <select class="cond-sel"><option>小大于</option><option>大于</option><option>小于</option><option>等于</option></select>
+    <span style="font-size:12px;color:#8b90a7;">$</span>
+    <input class="cond-input" placeholder="0.00" />
+    <select class="cond-sel" style="width:60px;"><option>CAD</option><option>USD</option><option>USDT</option></select>
+    <span class="del-btn" onclick="delCondRow(this)">×</span>`;
+  list.appendChild(row);
+}
+function delCondRow(btn) {
+  const row = btn.closest('.cond-row');
+  const prev = row.previousElementSibling;
+  if (prev && prev.querySelector('.cond-join-badge')) prev.remove();
+  row.remove();
+}
+function updatePreview() {}
+function saveRule() {
+  alert('规则已新增并启用！');
+  showList();
+}
+</script>
+</body>
+</html>
