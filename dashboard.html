@@ -201,6 +201,7 @@ body { display:flex; height:100vh; overflow:hidden; }
   <button class="role-btn active" onclick="switchRole('l1')">L1 分析师</button>
   <button class="role-btn" onclick="switchRole('l2')">L2 审核员</button>
   <button class="role-btn" onclick="switchRole('manager')">合规管理员</button>
+  <button class="role-btn" onclick="switchRole('agent')">客户代理</button>
 </div>
 
 <div class="app" style="display:flex;height:calc(100vh - 36px);overflow:hidden;">
@@ -830,15 +831,241 @@ body { display:flex; height:100vh; overflow:hidden; }
       </div>
     </div>
 
+    <!-- ══════════════════════════════════════
+         AGENT (客户代理) DASHBOARD
+    ══════════════════════════════════════ -->
+    <div id="panel-agent" class="role-panel">
+
+      <div class="greeting">
+        <h2>早上好，Alex 👋</h2>
+        <p>今日 2026-05-12 · 你有 <strong style="color:#d97706">4 个商户</strong> 审核进度需要跟进</p>
+      </div>
+
+      <!-- KPIs -->
+      <div class="kpi-row kpi-row-4">
+        <div class="kpi-card blue">
+          <div class="kpi-icon">🏢</div>
+          <div class="kpi-label">我的商户</div>
+          <div class="kpi-value">23</div>
+          <div class="kpi-sub"><span class="up">▲ 2</span> 本月新增</div>
+        </div>
+        <div class="kpi-card orange">
+          <div class="kpi-icon">⏳</div>
+          <div class="kpi-label">待完成KYC</div>
+          <div class="kpi-value">4</div>
+          <div class="kpi-sub"><span class="warn">需催促补材料</span></div>
+        </div>
+        <div class="kpi-card green">
+          <div class="kpi-icon">✅</div>
+          <div class="kpi-label">本月成功开户</div>
+          <div class="kpi-value">6</div>
+          <div class="kpi-sub"><span class="up">↑ 2</span> 较上月</div>
+        </div>
+        <div class="kpi-card teal">
+          <div class="kpi-icon">💰</div>
+          <div class="kpi-label">本月交易总额</div>
+          <div class="kpi-value">$2.4M</div>
+          <div class="kpi-sub"><span class="up">↑ 18%</span> 较上月</div>
+        </div>
+      </div>
+
+      <div class="two-col-6040">
+
+        <!-- My merchant pipeline -->
+        <div class="widget">
+          <div class="widget-hd">
+            <h3>我的商户 KYC 进度</h3>
+            <a>查看全部 →</a>
+          </div>
+          <table class="ctbl">
+            <thead>
+              <tr>
+                <th>商户</th>
+                <th>注册地</th>
+                <th>CRR</th>
+                <th>KYC状态</th>
+                <th>缺少材料</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>
+                  <div style="font-weight:600;color:#0f172a">HighRisk Corp Ltd.</div>
+                  <div style="font-size:11px;color:#8b90a7">MSO-44521</div>
+                </td>
+                <td>Cayman Islands</td>
+                <td><span class="badge badge-high">高 90</span></td>
+                <td><span class="badge badge-warning">待补材料</span></td>
+                <td style="font-size:11px;color:#dc2626">公司章程 · UBO声明</td>
+                <td><button class="btn btn-sm btn-brand">催促</button></td>
+              </tr>
+              <tr>
+                <td>
+                  <div style="font-weight:600;color:#0f172a">NovaPay Tech Ltd.</div>
+                  <div style="font-size:11px;color:#8b90a7">MSO-44521-001</div>
+                </td>
+                <td>Canada</td>
+                <td><span class="badge badge-mid">中 55</span></td>
+                <td><span class="badge badge-review">审核中</span></td>
+                <td style="font-size:11px;color:#8b90a7">—</td>
+                <td><button class="btn btn-sm btn-ghost">查看</button></td>
+              </tr>
+              <tr>
+                <td>
+                  <div style="font-weight:600;color:#0f172a">GreenPay Solutions</div>
+                  <div style="font-size:11px;color:#8b90a7">MSO-39021</div>
+                </td>
+                <td>Canada</td>
+                <td><span class="badge badge-low">低 28</span></td>
+                <td><span class="badge badge-success">已通过</span></td>
+                <td style="font-size:11px;color:#8b90a7">—</td>
+                <td><button class="btn btn-sm btn-ghost">查看</button></td>
+              </tr>
+              <tr>
+                <td>
+                  <div style="font-weight:600;color:#0f172a">CryptoFlow Ltd.</div>
+                  <div style="font-size:11px;color:#8b90a7">MSO-33102</div>
+                </td>
+                <td>Hong Kong</td>
+                <td><span class="badge badge-high">高 78</span></td>
+                <td><span class="badge badge-warning">待补材料</span></td>
+                <td style="font-size:11px;color:#dc2626">源资金证明</td>
+                <td><button class="btn btn-sm btn-brand">催促</button></td>
+              </tr>
+              <tr>
+                <td>
+                  <div style="font-weight:600;color:#0f172a">TrustChain Inc.</div>
+                  <div style="font-size:11px;color:#8b90a7">MSO-28834</div>
+                </td>
+                <td>Canada</td>
+                <td><span class="badge badge-low">低 32</span></td>
+                <td><span class="badge badge-success">已通过</span></td>
+                <td style="font-size:11px;color:#8b90a7">—</td>
+                <td><button class="btn btn-sm btn-ghost">查看</button></td>
+              </tr>
+              <tr>
+                <td>
+                  <div style="font-weight:600;color:#0f172a">OTC Exchange Inc.</div>
+                  <div style="font-size:11px;color:#8b90a7">MSO-29887</div>
+                </td>
+                <td>Hong Kong</td>
+                <td><span class="badge badge-mid">中 62</span></td>
+                <td><span class="badge badge-l2" style="background:#fef3c7;color:#92400e">待提交</span></td>
+                <td style="font-size:11px;color:#dc2626">银行流水 · 营业执照</td>
+                <td><button class="btn btn-sm btn-brand">催促</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Right column -->
+        <div style="display:flex;flex-direction:column;gap:16px;">
+
+          <!-- KYC funnel -->
+          <div class="widget">
+            <div class="widget-hd"><h3>我的商户状态分布</h3></div>
+            <div class="widget-body">
+              <div class="donut-wrap">
+                <div class="donut" style="background:conic-gradient(#059669 0% 39%,#2563eb 39% 61%,#f59e0b 61% 78%,#dc2626 78% 87%,#e2e8f0 87% 100%)">
+                  <div class="donut-center">23<small>商户</small></div>
+                </div>
+                <div class="donut-legend">
+                  <div class="legend-row"><div class="legend-dot" style="background:#059669"></div>已通过<div class="legend-val">9</div></div>
+                  <div class="legend-row"><div class="legend-dot" style="background:#2563eb"></div>审核中<div class="legend-val">5</div></div>
+                  <div class="legend-row"><div class="legend-dot" style="background:#f59e0b"></div>待补材料<div class="legend-val">4</div></div>
+                  <div class="legend-row"><div class="legend-dot" style="background:#dc2626"></div>已拒绝<div class="legend-val">2</div></div>
+                  <div class="legend-row"><div class="legend-dot" style="background:#e2e8f0"></div>待提交<div class="legend-val">3</div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Merchant transaction volume -->
+          <div class="widget">
+            <div class="widget-hd"><h3>活跃商户交易量 Top 5</h3></div>
+            <div class="widget-body">
+              <div class="bar-chart">
+                <div class="bar-row">
+                  <div class="bar-label">NovaPay Tech</div>
+                  <div class="bar-track"><div class="bar-fill" style="width:88%;background:#2563eb"></div></div>
+                  <div class="bar-count" style="font-size:10px;width:52px">$890K</div>
+                </div>
+                <div class="bar-row">
+                  <div class="bar-label">GreenPay</div>
+                  <div class="bar-track"><div class="bar-fill" style="width:65%;background:#059669"></div></div>
+                  <div class="bar-count" style="font-size:10px;width:52px">$650K</div>
+                </div>
+                <div class="bar-row">
+                  <div class="bar-label">TrustChain</div>
+                  <div class="bar-track"><div class="bar-fill" style="width:42%;background:#4f8ef7"></div></div>
+                  <div class="bar-count" style="font-size:10px;width:52px">$420K</div>
+                </div>
+                <div class="bar-row">
+                  <div class="bar-label">OTC Exchange</div>
+                  <div class="bar-track"><div class="bar-fill" style="width:30%;background:#7c3aed"></div></div>
+                  <div class="bar-count" style="font-size:10px;width:52px">$310K</div>
+                </div>
+                <div class="bar-row">
+                  <div class="bar-label">CryptoFlow</div>
+                  <div class="bar-track"><div class="bar-fill" style="width:18%;background:#d97706"></div></div>
+                  <div class="bar-count" style="font-size:10px;width:52px">$180K</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Alerts affecting my merchants -->
+          <div class="widget">
+            <div class="widget-hd"><h3>我的商户近期异常</h3><a>查看全部 →</a></div>
+            <div class="widget-body" style="padding:8px 16px;">
+              <div class="aq-row">
+                <div class="aq-icon" style="background:#fee2e2">🚨</div>
+                <div class="aq-body">
+                  <div class="aq-title">账户已暂时冻结</div>
+                  <div class="aq-meta">CryptoFlow · 制裁名单命中，待L2审批</div>
+                </div>
+                <div class="aq-right">
+                  <span class="badge badge-high" style="font-size:10px">高优先</span>
+                </div>
+              </div>
+              <div class="aq-row">
+                <div class="aq-icon" style="background:#fef3c7">⚠️</div>
+                <div class="aq-body">
+                  <div class="aq-title">大额交易警报触发</div>
+                  <div class="aq-meta">NovaPay · CAD $42,000 单笔提现</div>
+                </div>
+                <div class="aq-right">
+                  <span class="badge badge-warning" style="font-size:10px">处理中</span>
+                </div>
+              </div>
+              <div class="aq-row">
+                <div class="aq-icon" style="background:#ede9fe">📋</div>
+                <div class="aq-body">
+                  <div class="aq-title">KYC 材料即将过期</div>
+                  <div class="aq-meta">TrustChain · 护照将于 30 天后到期</div>
+                </div>
+                <div class="aq-right">
+                  <span class="badge badge-gray" style="font-size:10px">提醒</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
   </div><!-- end content -->
 </div><!-- end main -->
 </div><!-- end app -->
 
 <script>
 const roles = {
-  l1:      { name:'Sarah Chen', label:'L1 分析师', av:'SC' },
-  l2:      { name:'James Liu',  label:'L2 审核员',  av:'JL' },
-  manager: { name:'Compliance Manager', label:'合规管理员', av:'CM' }
+  l1:      { name:'Sarah Chen',  label:'L1 分析师',  av:'SC' },
+  l2:      { name:'James Liu',   label:'L2 审核员',  av:'JL' },
+  manager: { name:'Admin',       label:'合规管理员', av:'CM' },
+  agent:   { name:'Alex Nguyen', label:'客户代理',   av:'AN' }
 };
 
 function switchRole(role) {
