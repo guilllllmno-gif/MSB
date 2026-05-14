@@ -1,0 +1,1630 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1440">
+<title>状态流转机制 v2 · MSB 合规系统(法规校准版)</title>
+<style>
+  :root {
+    --bg-page: #F5F4F0;
+    --bg-card: #FFFFFF;
+    --bg-subtle: #FAF9F5;
+    --bg-hover: #F0EEE8;
+    --bg-dim: #EDEBE4;
+    --text-primary: #1A1A19;
+    --text-secondary: #5F5E5A;
+    --text-tertiary: #8B8A85;
+    --text-quaternary: #B4B2A9;
+    --border-light: rgba(0, 0, 0, 0.06);
+    --border-medium: rgba(0, 0, 0, 0.12);
+    --border-strong: rgba(0, 0, 0, 0.22);
+    --brand: #185FA5;
+    --brand-hover: #0C447C;
+    --brand-bg: #E6F1FB;
+    --brand-border: #B5D4F4;
+    --success: #0F6E56;
+    --success-bg: #E1F5EE;
+    --success-border: #9FE1CB;
+    --warning: #854F0B;
+    --warning-strong: #633806;
+    --warning-bg: #FAEEDA;
+    --warning-border: #FAC775;
+    --danger: #A32D2D;
+    --danger-strong: #791F1F;
+    --danger-bg: #FCEBEB;
+    --danger-border: #F09595;
+    --pending: #3C3489;
+    --pending-bg: #EEEDFE;
+    --pending-border: #CECBF6;
+    --risk: #B85C00;
+    --risk-bg: #FFEDD5;
+    --comp: #185FA5;
+    --neutral: #5F5E5A;
+    --neutral-bg: #EDEBE4;
+    /* Legal vs SLA distinction */
+    --legal: #185FA5;
+    --legal-bg: #E6F1FB;
+    --legal-border: #B5D4F4;
+    --internal: #5F5E5A;
+    --internal-bg: #EDEBE4;
+    --internal-border: rgba(0, 0, 0, 0.12);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro SC", "PingFang SC", "Helvetica Neue", "Microsoft YaHei", sans-serif;
+    background: var(--bg-page);
+    color: var(--text-primary);
+    font-size: 14px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+  .mono { font-family: "SF Mono", Menlo, Consolas, monospace; }
+
+  .doc-layout {
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    min-height: 100vh;
+  }
+  .toc {
+    background: #1A1A19;
+    color: #C8C6BC;
+    padding: 24px 0;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    border-right: 1px solid #000;
+  }
+  .toc .doc-title {
+    padding: 0 22px 18px;
+    border-bottom: 1px solid #2C2C2A;
+    margin-bottom: 14px;
+  }
+  .toc .doc-title h1 {
+    color: #fff; font-size: 14px; font-weight: 500;
+    margin-bottom: 4px;
+  }
+  .toc .doc-title .meta {
+    font-size: 11px; color: #8B8A85;
+    font-family: "SF Mono", Menlo, monospace;
+  }
+  .toc .doc-title .v {
+    display: inline-block; margin-top: 4px;
+    font-size: 10px; padding: 1px 7px;
+    background: #185FA5; color: #fff;
+    border-radius: 3px; letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .toc .toc-group {
+    padding: 6px 0;
+  }
+  .toc .group-label {
+    font-size: 10px; color: #6E6D67;
+    text-transform: uppercase; letter-spacing: 0.06em;
+    padding: 6px 22px 6px;
+  }
+  .toc-item {
+    padding: 7px 22px;
+    font-size: 12.5px; color: #C8C6BC;
+    cursor: pointer;
+    border-left: 2px solid transparent;
+    transition: all 0.12s;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .toc-item:hover { color: #fff; background: #2C2C2A; }
+  .toc-item.active {
+    color: #fff;
+    background: #2C2C2A;
+    border-left-color: var(--brand);
+    font-weight: 500;
+  }
+  .toc-item .num {
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 10.5px;
+    color: #6E6D67;
+    width: 24px;
+  }
+  .toc-item.active .num { color: #B5D4F4; }
+
+  .doc-main {
+    padding: 32px 48px 80px;
+    max-width: 1100px;
+  }
+
+  .doc-header {
+    padding-bottom: 24px;
+    margin-bottom: 32px;
+    border-bottom: 1px solid var(--border-light);
+  }
+  .doc-header h1 {
+    font-size: 28px; font-weight: 500;
+    letter-spacing: -0.02em;
+    margin-bottom: 6px;
+  }
+  .doc-header .subtitle {
+    font-size: 14px; color: var(--text-secondary);
+  }
+  .doc-header .meta-row {
+    display: flex; gap: 18px;
+    margin-top: 14px;
+    font-size: 12px;
+    color: var(--text-tertiary);
+    flex-wrap: wrap;
+  }
+  .doc-header .meta-row span strong {
+    color: var(--text-secondary); font-weight: 500;
+    margin-right: 4px;
+  }
+  .doc-header .v-badge {
+    display: inline-block;
+    font-size: 10px; padding: 1px 7px;
+    background: var(--brand); color: #fff;
+    border-radius: 3px; letter-spacing: 0.04em;
+    margin-left: 8px; vertical-align: 3px;
+  }
+
+  /* Two-color distinction system */
+  .legal-mandate {
+    background: var(--legal-bg);
+    border: 0.5px solid var(--legal-border);
+    border-left: 3px solid var(--legal);
+    border-radius: 6px;
+    padding: 14px 18px;
+    margin-bottom: 16px;
+  }
+  .legal-mandate .head {
+    font-size: 11px; font-weight: 600;
+    color: var(--legal);
+    text-transform: uppercase; letter-spacing: 0.06em;
+    margin-bottom: 6px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .legal-mandate .head svg {
+    width: 13px; height: 13px;
+  }
+  .legal-mandate .body {
+    font-size: 13px; color: var(--text-primary); line-height: 1.6;
+  }
+  .legal-mandate .body strong { font-weight: 600; }
+  .legal-mandate .source {
+    margin-top: 8px;
+    font-size: 11px; color: var(--text-secondary);
+    font-family: "SF Mono", Menlo, monospace;
+  }
+  .legal-mandate .source a {
+    color: var(--brand); text-decoration: none;
+  }
+  .legal-mandate .source a:hover { text-decoration: underline; }
+
+  .internal-sla {
+    background: var(--internal-bg);
+    border: 0.5px solid var(--internal-border);
+    border-left: 3px solid var(--internal);
+    border-radius: 6px;
+    padding: 14px 18px;
+    margin-bottom: 16px;
+  }
+  .internal-sla .head {
+    font-size: 11px; font-weight: 600;
+    color: var(--internal);
+    text-transform: uppercase; letter-spacing: 0.06em;
+    margin-bottom: 6px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .internal-sla .head svg {
+    width: 13px; height: 13px;
+  }
+  .internal-sla .body {
+    font-size: 13px; color: var(--text-primary); line-height: 1.6;
+  }
+  .internal-sla .body strong { font-weight: 600; }
+
+  /* Inline tags for inline use within tables */
+  .tag-legal {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 10.5px; padding: 1px 7px;
+    background: var(--legal-bg);
+    color: var(--legal);
+    border: 0.5px solid var(--legal-border);
+    border-radius: 3px;
+    font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.04em;
+    white-space: nowrap;
+  }
+  .tag-internal {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 10.5px; padding: 1px 7px;
+    background: var(--internal-bg);
+    color: var(--internal);
+    border: 0.5px solid var(--internal-border);
+    border-radius: 3px;
+    font-weight: 500;
+    text-transform: uppercase; letter-spacing: 0.04em;
+    white-space: nowrap;
+  }
+
+  /* Section */
+  section.entity {
+    margin-bottom: 56px;
+  }
+  section.entity h2 {
+    font-size: 22px; font-weight: 500;
+    letter-spacing: -0.01em;
+    margin-bottom: 6px;
+  }
+  section.entity h2 .num {
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 14px;
+    background: var(--bg-card);
+    border: 0.5px solid var(--border-medium);
+    padding: 2px 9px;
+    border-radius: 4px;
+    color: var(--text-secondary);
+    font-weight: 500;
+    margin-right: 12px;
+    vertical-align: 4px;
+  }
+  section.entity .entity-desc {
+    color: var(--text-secondary);
+    font-size: 13.5px;
+    margin-bottom: 24px;
+    max-width: 780px;
+  }
+
+  .entity-meta {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .meta-tile {
+    background: var(--bg-card);
+    border: 0.5px solid var(--border-light);
+    border-radius: 8px;
+    padding: 12px 14px;
+  }
+  .meta-tile.legal {
+    background: var(--legal-bg);
+    border-color: var(--legal-border);
+  }
+  .meta-tile .l {
+    font-size: 10.5px; color: var(--text-tertiary);
+    text-transform: uppercase; letter-spacing: 0.04em;
+    margin-bottom: 4px; font-weight: 500;
+    display: flex; align-items: center; gap: 4px;
+  }
+  .meta-tile.legal .l { color: var(--legal); }
+  .meta-tile .v {
+    font-size: 13px; color: var(--text-primary);
+    font-weight: 500;
+  }
+  .meta-tile .v.mono {
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 12.5px;
+  }
+
+  /* State diagram */
+  .state-diagram {
+    background: var(--bg-card);
+    border: 0.5px solid var(--border-light);
+    border-radius: 12px;
+    padding: 28px 24px;
+    margin-bottom: 24px;
+    overflow-x: auto;
+  }
+  .state-diagram h3 {
+    font-size: 12px; font-weight: 500;
+    color: var(--text-secondary);
+    text-transform: uppercase; letter-spacing: 0.06em;
+    margin-bottom: 18px;
+  }
+  .state-diagram svg {
+    width: 100%; height: auto;
+    min-width: 720px;
+    display: block;
+  }
+
+  /* Transitions table */
+  .transitions-card {
+    background: var(--bg-card);
+    border: 0.5px solid var(--border-light);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 24px;
+  }
+  .transitions-card .head {
+    padding: 14px 22px;
+    background: var(--bg-subtle);
+    border-bottom: 1px solid var(--border-light);
+  }
+  .transitions-card .head h3 {
+    font-size: 13px; font-weight: 500;
+  }
+  .transitions-card .head p {
+    font-size: 12px; color: var(--text-secondary);
+    margin-top: 2px;
+  }
+
+  .trans-table {
+    width: 100%; border-collapse: collapse;
+    font-size: 13px;
+  }
+  .trans-table thead th {
+    text-align: left;
+    padding: 10px 16px;
+    font-size: 11px; font-weight: 500;
+    color: var(--text-secondary);
+    background: var(--bg-subtle);
+    border-bottom: 1px solid var(--border-light);
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+  }
+  .trans-table tbody tr {
+    border-bottom: 0.5px solid var(--border-light);
+  }
+  .trans-table tbody tr:last-child { border-bottom: none; }
+  .trans-table tbody tr:hover { background: var(--bg-subtle); }
+  .trans-table td {
+    padding: 12px 16px;
+    vertical-align: top;
+  }
+
+  /* State pill */
+  .state-pill {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 11.5px; padding: 3px 9px;
+    border-radius: 10px; font-weight: 500;
+    border: 0.5px solid;
+    white-space: nowrap;
+  }
+  .state-pill .dot {
+    width: 5px; height: 5px; border-radius: 50%;
+  }
+  .state-pill.draft { background: var(--bg-subtle); color: var(--text-secondary); border-color: var(--border-medium); }
+  .state-pill.draft .dot { background: var(--text-secondary); }
+  .state-pill.review { background: var(--warning-bg); color: var(--warning-strong); border-color: var(--warning-border); }
+  .state-pill.review .dot { background: var(--warning); }
+  .state-pill.pass { background: var(--success-bg); color: var(--success); border-color: var(--success-border); }
+  .state-pill.pass .dot { background: var(--success); }
+  .state-pill.reject { background: var(--danger-bg); color: var(--danger-strong); border-color: var(--danger-border); }
+  .state-pill.reject .dot { background: var(--danger); }
+  .state-pill.brand { background: var(--brand-bg); color: var(--brand-hover); border-color: var(--brand-border); }
+  .state-pill.brand .dot { background: var(--brand); }
+  .state-pill.purple { background: var(--pending-bg); color: var(--pending); border-color: var(--pending-border); }
+  .state-pill.purple .dot { background: var(--pending); }
+  .state-pill.muted { background: var(--neutral-bg); color: var(--neutral); border-color: var(--border-medium); }
+  .state-pill.muted .dot { background: var(--neutral); }
+  .state-pill.terminal { border-style: dashed; }
+
+  .trigger-tag {
+    font-size: 10.5px; padding: 1px 6px;
+    border-radius: 3px; font-weight: 500;
+    text-transform: uppercase; letter-spacing: 0.04em;
+    margin-right: 5px;
+  }
+  .trigger-tag.system { background: var(--bg-dim); color: var(--text-secondary); }
+  .trigger-tag.user { background: var(--brand-bg); color: var(--brand); }
+  .trigger-tag.timer { background: var(--warning-bg); color: var(--warning-strong); }
+  .trigger-tag.external { background: var(--danger-bg); color: var(--danger-strong); }
+
+  .role-tag {
+    font-size: 10.5px; padding: 1px 6px;
+    border-radius: 3px; font-weight: 500;
+    background: var(--neutral-bg); color: var(--neutral);
+    margin-right: 4px;
+  }
+  .role-tag.l1 { background: #F5F5F4; color: #5F5E5A; }
+  .role-tag.l2 { background: var(--brand-bg); color: var(--brand); }
+  .role-tag.l3 { background: var(--pending-bg); color: var(--pending); }
+  .role-tag.system { background: var(--bg-dim); color: var(--text-secondary); }
+
+  .arrow-cell {
+    text-align: center;
+    color: var(--text-tertiary);
+    font-family: "SF Mono", Menlo, monospace;
+  }
+
+  /* Changelog */
+  .changelog {
+    background: var(--bg-card);
+    border: 0.5px solid var(--border-light);
+    border-radius: 12px;
+    padding: 22px 26px;
+    margin-bottom: 32px;
+  }
+  .changelog h3 {
+    font-size: 14px; font-weight: 500;
+    margin-bottom: 12px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .changelog h3 .v-tag {
+    font-size: 10px; padding: 1px 7px;
+    background: var(--brand); color: #fff;
+    border-radius: 3px; letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .changelog ul {
+    list-style: none; padding: 0;
+  }
+  .changelog li {
+    padding: 8px 0;
+    border-bottom: 0.5px dashed var(--border-light);
+    display: flex; gap: 12px;
+    font-size: 13px;
+  }
+  .changelog li:last-child { border-bottom: none; }
+  .changelog li .marker {
+    flex-shrink: 0;
+    font-size: 10px; padding: 2px 8px;
+    border-radius: 3px;
+    font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.04em;
+    align-self: flex-start;
+    margin-top: 2px;
+  }
+  .changelog li .marker.fix { background: var(--danger-bg); color: var(--danger-strong); }
+  .changelog li .marker.add { background: var(--success-bg); color: var(--success); }
+  .changelog li .marker.improve { background: var(--brand-bg); color: var(--brand); }
+  .changelog li .body {
+    flex: 1; line-height: 1.6;
+  }
+  .changelog li .body strong { font-weight: 600; }
+  .changelog li .body code {
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 11.5px;
+    background: var(--bg-subtle);
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+
+  /* Cross-entity matrix */
+  .matrix-card {
+    background: var(--bg-card);
+    border: 0.5px solid var(--border-light);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 32px;
+  }
+  .matrix-card .head {
+    padding: 16px 22px;
+    background: var(--bg-subtle);
+    border-bottom: 1px solid var(--border-light);
+  }
+  .matrix-card .head h3 {
+    font-size: 14px; font-weight: 500;
+  }
+
+  .anno-text { font-size: 11.5px; }
+  .arrow-label {
+    font-size: 10.5px;
+    fill: var(--text-secondary);
+  }
+
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border-medium); border-radius: 4px; }
+
+  @media print {
+    .toc { display: none; }
+    .doc-layout { grid-template-columns: 1fr; }
+    section.entity { page-break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+
+<div class="doc-layout">
+  <aside class="toc">
+    <div class="doc-title">
+      <h1>状态流转机制</h1>
+      <div class="meta">MSB v3.2 · 2026-05</div>
+      <div class="v">v2 · 法规校准</div>
+    </div>
+    <div class="toc-group">
+      <div class="group-label">总览</div>
+      <div class="toc-item active" onclick="goSection('changelog')"><span class="num">v2</span>v1→v2 修订摘要</div>
+      <div class="toc-item" onclick="goSection('overview')"><span class="num">00</span>系统总览</div>
+      <div class="toc-item" onclick="goSection('legend')"><span class="num">L</span>法规 vs 内部 SLA</div>
+    </div>
+    <div class="toc-group">
+      <div class="group-label">事中(实时)</div>
+      <div class="toc-item" onclick="goSection('e1')"><span class="num">01</span>告警 Alert</div>
+      <div class="toc-item" onclick="goSection('e2')"><span class="num">02</span>订单(双轨)</div>
+    </div>
+    <div class="toc-group">
+      <div class="group-label">事后(审计)</div>
+      <div class="toc-item" onclick="goSection('e3')"><span class="num">03</span>事后审计</div>
+      <div class="toc-item" onclick="goSection('e4')"><span class="num">04</span>STR 申报</div>
+      <div class="toc-item" onclick="goSection('e5')"><span class="num">05</span>LCTR / EFTR / LVCTR</div>
+    </div>
+    <div class="toc-group">
+      <div class="group-label">主体</div>
+      <div class="toc-item" onclick="goSection('e6')"><span class="num">06</span>商户档案</div>
+      <div class="toc-item" onclick="goSection('e7')"><span class="num">07</span>调查案件</div>
+    </div>
+    <div class="toc-group">
+      <div class="group-label">附录</div>
+      <div class="toc-item" onclick="goSection('matrix')"><span class="num">A</span>跨实体联动矩阵</div>
+      <div class="toc-item" onclick="goSection('refs')"><span class="num">B</span>法规出处</div>
+    </div>
+  </aside>
+
+  <main class="doc-main">
+    <div class="doc-header">
+      <h1>状态流转机制 <span class="v-badge">v2 · 法规校准</span></h1>
+      <div class="subtitle">MSB 合规系统所有核心实体的状态机定义、流转规则、时效约束 · 法定红线与内部 SLA 明确区分</div>
+      <div class="meta-row">
+        <span><strong>版本:</strong>v2(基于 v1 重大修订)</span>
+        <span><strong>覆盖实体:</strong>7 个</span>
+        <span><strong>合规框架:</strong>FINTRAC PCMLTFA · 加拿大 MSB</span>
+        <span><strong>法规核实日期:</strong>2026-05-06</span>
+      </div>
+    </div>
+
+    <!-- ========== Changelog ========== -->
+    <section class="entity" id="changelog">
+      <h2><span class="num">v2</span>v1 → v2 修订摘要</h2>
+      <p class="entity-desc">v1 版本中部分法规细节有误,v2 经过 FINTRAC 现行规定核实重新撰写。所有法定时限、阈值、留存期均带出处。</p>
+
+      <div class="changelog">
+        <h3>本次修订内容 <span class="v-tag">5 项重大修正</span></h3>
+        <ul>
+          <li>
+            <span class="marker fix">修正</span>
+            <div class="body">
+              <strong>STR 提交时限</strong>:v1 写"30 天硬约束",这是 2019 年之前的旧规。<strong>现行规定(2020 年 6 月起)</strong>是 <code>as soon as practicable</code>(尽快),无具体天数硬约束。意为合规人员形成"合理怀疑"后必须把 STR 当优先任务处理,允许合理延迟但需有解释。
+            </div>
+          </li>
+          <li>
+            <span class="marker fix">修正</span>
+            <div class="body">
+              <strong>数据留存期</strong>:v1 在订单实体写"7 年",混淆了税务与 AML 留存。<strong>FINTRAC 法定留存期统一为 5 年</strong>(从报告提交日或记录创建日起)。FINTRAC 自身保留 10 年/15 年是 FINTRAC 内部规定,与 RE(Reporting Entity)无关。
+            </div>
+          </li>
+          <li>
+            <span class="marker fix">修正</span>
+            <div class="body">
+              <strong>大额申报类型区分</strong>:v1 把 LCTR / EFTR / LVCTR 混为一谈。实际是<strong>三个独立报告</strong>:LCTR 仅针对现金 $10k+,EFTR 针对国际电子转账 $10k+,LVCTR 针对虚拟币 $10k+。MSB 经营什么业务决定要报哪种。
+            </div>
+          </li>
+          <li>
+            <span class="marker fix">修正</span>
+            <div class="body">
+              <strong>阈值币种</strong>:v1 用 <code>$10,000 USD</code>,实际 FINTRAC 法定阈值是 <strong>$10,000 CAD</strong>。外币按交易当时加拿大央行汇率换算。
+            </div>
+          </li>
+          <li>
+            <span class="marker improve">改进</span>
+            <div class="body">
+              <strong>24 小时规则细节</strong>:v1 未说明这是 <strong>"static window"(预定义静态窗口)</strong>而非滚动窗口。MSB 必须在合规政策里预先定义该 24h 窗口的起止时间,并在报告提交时填入。
+            </div>
+          </li>
+          <li>
+            <span class="marker add">新增</span>
+            <div class="body">
+              <strong>颜色编码区分</strong>:法定红线(蓝色边)vs 内部 SLA(灰色边)在每章明确标注。<strong>法定红线不可调,内部 SLA 公司可自定</strong>。
+            </div>
+          </li>
+          <li>
+            <span class="marker add">新增</span>
+            <div class="body">
+              <strong>法规出处附录</strong>:文档末尾增加章节 B,所有引用的 FINTRAC 规定带原文链接,便于审计核查。
+            </div>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ========== Legend (Legal vs SLA) ========== -->
+    <section class="entity" id="legend">
+      <h2><span class="num">L</span>法规红线 vs 内部 SLA</h2>
+      <p class="entity-desc">这是本文档最关键的概念区分。法定红线由 PCMLTFA 和 FINTRAC 规定,违反即面临行政罚款或刑事追究。内部 SLA 由本公司合规政策自定,可基于业务需要调整。</p>
+
+      <div class="legal-mandate">
+        <div class="head">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-4"/></svg>
+          法定红线(Legal Mandate)
+        </div>
+        <div class="body">
+          <strong>不可协商、不可豁免、不可自定</strong>。所有标注为"法定"的时限、阈值、留存期均由 PCMLTFA 及其法规规定,违反将面临 FINTRAC 行政罚款(最高 $1M+)或刑事处罚(STR tipping off 可处 5 年监禁)。<br>
+          <strong>本文档中以蓝色边框</strong>标注。
+        </div>
+      </div>
+
+      <div class="internal-sla">
+        <div class="head">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+          内部 SLA(Internal Service Level)
+        </div>
+        <div class="body">
+          <strong>由本公司合规政策自定</strong>,目的是确保不会因内部拖延导致违反法定红线。例如法定 STR 是"as soon as practicable",我们设内部 SLA 为"形成 RGS 后 7 个工作日内提交",留出 buffer 应对 L3 复核退回等情况。<br>
+          <strong>本文档中以灰色边框</strong>标注 · 公司可根据业务规模、风险偏好调整。
+        </div>
+      </div>
+
+      <div class="entity-meta" style="grid-template-columns: 1fr 1fr; margin-top: 24px;">
+        <div class="meta-tile legal">
+          <div class="l">本文档涉及的法定红线</div>
+          <div style="margin-top: 8px; font-size: 12px; color: var(--text-primary); line-height: 1.7;">
+            · STR:<strong>as soon as practicable</strong>(尽快,无天数硬约束)<br>
+            · LCTR:现金 $10k CAD,<strong>15 个日历日</strong>内提交<br>
+            · EFTR:国际转账 $10k CAD,<strong>5 个工作日</strong>内提交<br>
+            · LVCTR:虚拟币 $10k CAD,<strong>5 个工作日</strong>内提交<br>
+            · 所有报告留存:<strong>5 年</strong>(从提交/创建日起)<br>
+            · 24h 规则:<strong>static window</strong>(预定义)<br>
+            · Tipping off 禁止:<strong>刑事罪</strong>,最高 5 年
+          </div>
+        </div>
+        <div class="meta-tile">
+          <div class="l">本文档涉及的内部 SLA(示例)</div>
+          <div style="margin-top: 8px; font-size: 12px; color: var(--text-primary); line-height: 1.7;">
+            · 告警 L2 处置:4 小时<br>
+            · 告警 L3 复核:24 小时<br>
+            · 双轨订单 风控:2 小时<br>
+            · 双轨订单 合规:4 小时<br>
+            · 事后审计:3 个工作日<br>
+            · 案件调查:30 天<br>
+            · STR 内部 SLA:RGS 形成后 7 个工作日内提交<br>
+            <span style="color: var(--text-tertiary); font-size: 11px;">⚠ 上述均可根据业务调整,但 SLA 总和必须 ≤ 任何法定红线</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== Overview ========== -->
+    <section class="entity" id="overview">
+      <h2><span class="num">00</span>系统总览</h2>
+      <p class="entity-desc">系统中 7 类实体各自有独立状态机,但实体之间存在跨实体的联动:告警可以升级为 STR,案件聚合多个告警,订单触发告警,商户的等级影响订单审批策略。</p>
+
+      <div class="state-diagram">
+        <h3>实体关系总览</h3>
+        <svg viewBox="0 0 900 480" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <marker id="arr-overview" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+              <path d="M0 0 L10 5 L0 10 z" fill="#5F5E5A"/>
+            </marker>
+          </defs>
+
+          <text x="60" y="40" font-size="11" fill="#8B8A85" letter-spacing="1" font-weight="500">事中实体</text>
+          <line x1="60" y1="50" x2="840" y2="50" stroke="#E5E2DA" stroke-dasharray="3 3"/>
+
+          <g>
+            <rect x="80" y="80" width="200" height="80" rx="10" fill="#FAEEDA" stroke="#854F0B" stroke-width="0.5"/>
+            <text x="180" y="108" text-anchor="middle" font-size="14" font-weight="500" fill="#633806">订单 Order</text>
+            <text x="180" y="128" text-anchor="middle" font-size="11" fill="#854F0B">充值 / 提现 / 兑换 / A2A</text>
+            <text x="180" y="146" text-anchor="middle" font-size="10" fill="#854F0B" font-style="italic">双轨审批 · 风控 + 合规</text>
+          </g>
+
+          <g>
+            <rect x="350" y="80" width="200" height="80" rx="10" fill="#FCEBEB" stroke="#A32D2D" stroke-width="0.5"/>
+            <text x="450" y="108" text-anchor="middle" font-size="14" font-weight="500" fill="#791F1F">告警 Alert</text>
+            <text x="450" y="128" text-anchor="middle" font-size="11" fill="#A32D2D">监控规则触发</text>
+            <text x="450" y="146" text-anchor="middle" font-size="10" fill="#A32D2D" font-style="italic">L2/L3 处置 · 必要时升级</text>
+          </g>
+
+          <g>
+            <rect x="620" y="80" width="200" height="80" rx="10" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
+            <text x="720" y="108" text-anchor="middle" font-size="14" font-weight="500" fill="#0C447C">商户 Merchant</text>
+            <text x="720" y="128" text-anchor="middle" font-size="11" fill="#185FA5">KYC 等级 · CRR 评分</text>
+            <text x="720" y="146" text-anchor="middle" font-size="10" fill="#185FA5" font-style="italic">长期主体 · 等级影响审批</text>
+          </g>
+
+          <text x="60" y="220" font-size="11" fill="#8B8A85" letter-spacing="1" font-weight="500">事后实体</text>
+          <line x1="60" y1="230" x2="840" y2="230" stroke="#E5E2DA" stroke-dasharray="3 3"/>
+
+          <g>
+            <rect x="80" y="260" width="200" height="80" rx="10" fill="#FFEDD5" stroke="#B85C00" stroke-width="0.5"/>
+            <text x="180" y="288" text-anchor="middle" font-size="14" font-weight="500" fill="#7A3D00">事后审计 Audit</text>
+            <text x="180" y="308" text-anchor="middle" font-size="11" fill="#B85C00">放行后回查的订单</text>
+            <text x="180" y="326" text-anchor="middle" font-size="10" fill="#B85C00" font-style="italic">合规价值核心</text>
+          </g>
+
+          <g>
+            <rect x="350" y="260" width="200" height="80" rx="10" fill="#EEEDFE" stroke="#3C3489" stroke-width="0.5"/>
+            <text x="450" y="288" text-anchor="middle" font-size="14" font-weight="500" fill="#3C3489">案件 Case</text>
+            <text x="450" y="308" text-anchor="middle" font-size="11" fill="#3C3489">多告警聚合的调查容器</text>
+            <text x="450" y="326" text-anchor="middle" font-size="10" fill="#3C3489" font-style="italic">长期跟踪 · 跨告警关联</text>
+          </g>
+
+          <g>
+            <rect x="620" y="260" width="200" height="80" rx="10" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.5"/>
+            <text x="720" y="288" text-anchor="middle" font-size="14" font-weight="500" fill="#0A5340">FINTRAC 申报</text>
+            <text x="720" y="308" text-anchor="middle" font-size="11" fill="#0F6E56">STR / LCTR / EFTR / LVCTR</text>
+            <text x="720" y="326" text-anchor="middle" font-size="10" fill="#0F6E56" font-style="italic">5 年留存(法定)</text>
+          </g>
+
+          <path d="M280 110 Q315 110 350 110" fill="none" stroke="#5F5E5A" stroke-width="1.2" marker-end="url(#arr-overview)"/>
+          <text x="315" y="100" text-anchor="middle" class="arrow-label" font-size="10">触发</text>
+
+          <path d="M350 130 Q315 145 280 130" fill="none" stroke="#5F5E5A" stroke-width="1.2" marker-end="url(#arr-overview)" stroke-dasharray="3 2"/>
+          <text x="315" y="160" text-anchor="middle" class="arrow-label" font-size="10">影响审批</text>
+
+          <path d="M550 110 Q585 110 620 110" fill="none" stroke="#5F5E5A" stroke-width="1.2" marker-end="url(#arr-overview)"/>
+          <text x="585" y="100" text-anchor="middle" class="arrow-label" font-size="10">归属</text>
+
+          <path d="M180 160 L180 260" fill="none" stroke="#5F5E5A" stroke-width="1.2" marker-end="url(#arr-overview)"/>
+          <text x="195" y="215" class="arrow-label" font-size="10">放行后</text>
+
+          <path d="M450 160 L450 260" fill="none" stroke="#5F5E5A" stroke-width="1.2" marker-end="url(#arr-overview)"/>
+          <text x="465" y="215" class="arrow-label" font-size="10">立案</text>
+
+          <path d="M280 300 Q315 300 350 300" fill="none" stroke="#5F5E5A" stroke-width="1.2" marker-end="url(#arr-overview)"/>
+          <text x="315" y="290" text-anchor="middle" class="arrow-label" font-size="10">合并</text>
+
+          <path d="M550 300 Q585 300 620 300" fill="none" stroke="#5F5E5A" stroke-width="1.2" marker-end="url(#arr-overview)"/>
+          <text x="585" y="290" text-anchor="middle" class="arrow-label" font-size="10">起草</text>
+
+          <path d="M280 320 Q450 380 620 320" fill="none" stroke="#5F5E5A" stroke-width="1.2" marker-end="url(#arr-overview)" stroke-dasharray="3 2"/>
+          <text x="450" y="375" text-anchor="middle" class="arrow-label" font-size="10">直接起 STR</text>
+
+          <path d="M720 160 L720 260" fill="none" stroke="#5F5E5A" stroke-width="1.2" marker-end="url(#arr-overview)" stroke-dasharray="3 2"/>
+          <text x="735" y="215" class="arrow-label" font-size="10">归属</text>
+
+          <text x="60" y="425" font-size="11" fill="#8B8A85" letter-spacing="1" font-weight="500">监管输出</text>
+          <line x1="60" y1="435" x2="840" y2="435" stroke="#E5E2DA" stroke-dasharray="3 3"/>
+          <text x="450" y="465" text-anchor="middle" font-size="12" fill="#5F5E5A">FINTRAC · 加拿大金融交易和报告分析中心</text>
+          <path d="M720 340 Q720 400 720 435" fill="none" stroke="#0F6E56" stroke-width="1.5" marker-end="url(#arr-overview)"/>
+        </svg>
+      </div>
+    </section>
+
+    <!-- ========== E1: Alert ========== -->
+    <section class="entity" id="e1">
+      <h2><span class="num">01</span>告警 Alert</h2>
+      <p class="entity-desc">监控规则触发的可疑事件 · 由 L2 合规分析师初筛,必要时升级为 STR 或转化为案件</p>
+
+      <div class="entity-meta">
+        <div class="meta-tile"><div class="l">实体编号</div><div class="v mono">ALT-YYYY-MMDD-NNNNNN</div></div>
+        <div class="meta-tile"><div class="l">状态总数</div><div class="v">7 种</div></div>
+        <div class="meta-tile"><div class="l">关键时效</div><div class="v">见下方分类</div></div>
+        <div class="meta-tile legal"><div class="l">数据保留(法定)</div><div class="v">5 年</div></div>
+      </div>
+
+      <div class="legal-mandate">
+        <div class="head">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M5 21V7l8-4v18"/></svg>
+          法定红线
+        </div>
+        <div class="body">
+          <strong>告警相关记录留存 5 年</strong>,自记录创建日起。包括告警内容、调查过程、处置决定。<br>
+          告警的<strong>结案理由记录是 FINTRAC 抽查重点</strong> — 若调查后认为"无可疑"而结案,需详细说明判断依据。
+        </div>
+        <div class="source">出处:PCMLTFR SOR/2002-184 · FINTRAC Record Keeping Guidance for MSBs</div>
+      </div>
+
+      <div class="internal-sla">
+        <div class="head">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>
+          内部 SLA(本公司自定)
+        </div>
+        <div class="body">
+          · L2 处置:认领后 <strong>4 小时</strong>内出初步判断<br>
+          · L3 复核:接收后 <strong>24 小时</strong>内完成<br>
+          · 评分 ≥ 80 强制 L3 复核(本公司风险偏好)<br>
+          · 4h 未处置自动升级 L3
+        </div>
+      </div>
+
+      <div class="state-diagram">
+        <h3>告警状态机</h3>
+        <svg viewBox="0 0 900 360" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <marker id="arr-alert" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+              <path d="M0 0 L10 5 L0 10 z" fill="#5F5E5A"/>
+            </marker>
+          </defs>
+          <g><rect x="40" y="140" width="120" height="50" rx="25" fill="#EDEBE4" stroke="#8B8A85" stroke-width="1"/><text x="100" y="170" text-anchor="middle" font-size="12.5" font-weight="500">未分派</text></g>
+          <g><rect x="220" y="140" width="120" height="50" rx="25" fill="#FAEEDA" stroke="#854F0B" stroke-width="1"/><text x="280" y="170" text-anchor="middle" font-size="12.5" font-weight="500" fill="#633806">待调查</text></g>
+          <g><rect x="400" y="140" width="120" height="50" rx="25" fill="#FAEEDA" stroke="#854F0B" stroke-width="1"/><text x="460" y="170" text-anchor="middle" font-size="12.5" font-weight="500" fill="#633806">调查中</text></g>
+          <g><rect x="580" y="140" width="130" height="50" rx="25" fill="#EEEDFE" stroke="#3C3489" stroke-width="1"/><text x="645" y="170" text-anchor="middle" font-size="12.5" font-weight="500" fill="#3C3489">等待 L3 复核</text></g>
+          <g><rect x="400" y="40" width="120" height="50" rx="25" fill="#E1F5EE" stroke="#0F6E56" stroke-width="1" stroke-dasharray="4 3"/><text x="460" y="70" text-anchor="middle" font-size="12.5" font-weight="500" fill="#0A5340">已结案 · 误报</text></g>
+          <g><rect x="580" y="40" width="120" height="50" rx="25" fill="#E1F5EE" stroke="#0F6E56" stroke-width="1" stroke-dasharray="4 3"/><text x="640" y="70" text-anchor="middle" font-size="12.5" font-weight="500" fill="#0A5340">已结案 · 已说明</text></g>
+          <g><rect x="400" y="270" width="120" height="50" rx="25" fill="#FCEBEB" stroke="#A32D2D" stroke-width="1" stroke-dasharray="4 3"/><text x="460" y="300" text-anchor="middle" font-size="12.5" font-weight="500" fill="#791F1F">已升级 STR</text></g>
+          <g><rect x="580" y="270" width="130" height="50" rx="25" fill="#E6F1FB" stroke="#185FA5" stroke-width="1" stroke-dasharray="4 3"/><text x="645" y="300" text-anchor="middle" font-size="12.5" font-weight="500" fill="#0C447C">已转 EDD 任务</text></g>
+          <path d="M160 165 L220 165" stroke="#5F5E5A" stroke-width="1.2" marker-end="url(#arr-alert)"/>
+          <text x="190" y="158" text-anchor="middle" class="arrow-label">认领</text>
+          <path d="M340 165 L400 165" stroke="#5F5E5A" stroke-width="1.2" marker-end="url(#arr-alert)"/>
+          <text x="370" y="158" text-anchor="middle" class="arrow-label">开始</text>
+          <path d="M520 165 L580 165" stroke="#5F5E5A" stroke-width="1.2" marker-end="url(#arr-alert)"/>
+          <text x="550" y="158" text-anchor="middle" class="arrow-label">提交复核</text>
+          <path d="M460 140 L460 90" stroke="#5F5E5A" stroke-width="1.2" marker-end="url(#arr-alert)"/>
+          <text x="475" y="120" class="arrow-label">判定误报</text>
+          <path d="M645 140 L640 90" stroke="#5F5E5A" stroke-width="1.2" marker-end="url(#arr-alert)"/>
+          <text x="670" y="120" class="arrow-label">L3 通过</text>
+          <path d="M460 190 L460 270" stroke="#5F5E5A" stroke-width="1.2" marker-end="url(#arr-alert)"/>
+          <text x="475" y="235" class="arrow-label">升级 STR</text>
+          <path d="M645 190 L645 270" stroke="#5F5E5A" stroke-width="1.2" marker-end="url(#arr-alert)"/>
+          <text x="660" y="235" class="arrow-label">需补尽调</text>
+          <g transform="translate(40, 320)">
+            <rect x="0" y="0" width="14" height="14" rx="7" fill="#FAEEDA" stroke="#854F0B" stroke-width="0.8"/>
+            <text x="22" y="11" font-size="10.5" fill="#5F5E5A">进行中</text>
+            <rect x="100" y="0" width="14" height="14" rx="7" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.8" stroke-dasharray="3 2"/>
+            <text x="122" y="11" font-size="10.5" fill="#5F5E5A">终态(虚线)</text>
+          </g>
+        </svg>
+      </div>
+
+      <div class="transitions-card">
+        <div class="head">
+          <h3>转移规则</h3>
+          <p>SLA 列已明确标注法定 vs 内部</p>
+        </div>
+        <table class="trans-table">
+          <thead>
+            <tr>
+              <th style="width: 16%;">从</th>
+              <th style="width: 6%;"></th>
+              <th style="width: 16%;">到</th>
+              <th style="width: 24%;">触发条件</th>
+              <th style="width: 14%;">操作方</th>
+              <th style="width: 24%;">SLA</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>—</td><td class="arrow-cell">→</td>
+              <td><span class="state-pill muted"><span class="dot"></span>未分派</span></td>
+              <td><span class="trigger-tag system">系统</span>监控规则触发</td>
+              <td><span class="role-tag system">系统</span></td>
+              <td>实时(系统自动)</td>
+            </tr>
+            <tr>
+              <td><span class="state-pill muted"><span class="dot"></span>未分派</span></td><td class="arrow-cell">→</td>
+              <td><span class="state-pill review"><span class="dot"></span>待调查</span></td>
+              <td><span class="trigger-tag user">人</span>L2 主动认领或系统派单</td>
+              <td><span class="role-tag l2">L2</span></td>
+              <td><span class="tag-internal">内部</span> 1h 内派单</td>
+            </tr>
+            <tr>
+              <td><span class="state-pill review"><span class="dot"></span>待调查</span></td><td class="arrow-cell">→</td>
+              <td><span class="state-pill review"><span class="dot"></span>调查中</span></td>
+              <td><span class="trigger-tag user">人</span>处理人开始调查</td>
+              <td><span class="role-tag l2">L2</span></td>
+              <td>立即</td>
+            </tr>
+            <tr>
+              <td><span class="state-pill review"><span class="dot"></span>调查中</span></td><td class="arrow-cell">→</td>
+              <td><span class="state-pill pass terminal"><span class="dot"></span>已结案 · 误报</span></td>
+              <td><span class="trigger-tag user">人</span>判定为误报,需详细记录</td>
+              <td><span class="role-tag l2">L2</span></td>
+              <td><span class="tag-internal">内部</span> 4h 内决策</td>
+            </tr>
+            <tr>
+              <td><span class="state-pill review"><span class="dot"></span>调查中</span></td><td class="arrow-cell">→</td>
+              <td><span class="state-pill purple"><span class="dot"></span>等待 L3 复核</span></td>
+              <td><span class="trigger-tag user">人</span>评分 ≥ 80 强制 / 主动升级</td>
+              <td><span class="role-tag l2">L2</span></td>
+              <td><span class="tag-internal">内部</span> 评分 ≥80 强制</td>
+            </tr>
+            <tr>
+              <td><span class="state-pill review"><span class="dot"></span>调查中</span></td><td class="arrow-cell">→</td>
+              <td><span class="state-pill reject terminal"><span class="dot"></span>已升级 STR</span></td>
+              <td><span class="trigger-tag user">人</span>形成"合理怀疑"(RGS)</td>
+              <td><span class="role-tag l2">L2</span><span class="role-tag l3">L3</span></td>
+              <td><span class="tag-legal">法定</span> as soon as practicable</td>
+            </tr>
+            <tr>
+              <td><span class="state-pill purple"><span class="dot"></span>等待 L3 复核</span></td><td class="arrow-cell">→</td>
+              <td><span class="state-pill pass terminal"><span class="dot"></span>已结案 · 已说明</span></td>
+              <td><span class="trigger-tag user">人</span>L3 认为已合理说明</td>
+              <td><span class="role-tag l3">L3</span></td>
+              <td><span class="tag-internal">内部</span> 24h 内</td>
+            </tr>
+            <tr>
+              <td><span class="state-pill review"><span class="dot"></span>调查中</span></td><td class="arrow-cell">⚡</td>
+              <td><span class="state-pill purple"><span class="dot"></span>等待 L3 复核</span></td>
+              <td><span class="trigger-tag timer">超时</span>SLA 4h 未处置自动升级</td>
+              <td><span class="role-tag system">系统</span></td>
+              <td><span class="tag-internal">内部</span> 自动 · 通知 L3</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ========== E2: Order ========== -->
+    <section class="entity" id="e2">
+      <h2><span class="num">02</span>订单 Order(双轨审批)</h2>
+      <p class="entity-desc">充值 / 提现 / 兑换 / A2A 订单 · 触发<strong>本公司自定阈值</strong>后进入双轨人审 · 注意:本公司业务阈值与 FINTRAC 法定 LCTR/EFTR/LVCTR 阈值是<strong>两件事</strong></p>
+
+      <div class="entity-meta">
+        <div class="meta-tile"><div class="l">实体编号</div><div class="v mono">WD/DP/EX/A2A-YYYYMMDD-NNNNN</div></div>
+        <div class="meta-tile"><div class="l">状态总数</div><div class="v">单轨 5 × 双轨</div></div>
+        <div class="meta-tile"><div class="l">触发阈值</div><div class="v">本公司自定 · 见说明</div></div>
+        <div class="meta-tile legal"><div class="l">数据保留(法定)</div><div class="v">5 年</div></div>
+      </div>
+
+      <div class="legal-mandate">
+        <div class="head">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M5 21V7l8-4v18"/></svg>
+          法定红线 · 阈值与申报
+        </div>
+        <div class="body">
+          订单本身没有"通过/拒绝"的法定时限,但<strong>订单触发的客观申报义务</strong>有法定时限:<br>
+          · 现金 ≥ <strong>$10,000 CAD</strong> → 触发 LCTR,15 个日历日内提交<br>
+          · 国际电子转账(EFT)≥ <strong>$10,000 CAD</strong> → 触发 EFTR,5 个工作日内提交<br>
+          · 虚拟币交易 ≥ <strong>$10,000 CAD</strong> → 触发 LVCTR,5 个工作日内提交<br>
+          阈值<strong>仅指 CAD 或等值外币</strong>,按交易当时加拿大央行汇率换算。
+        </div>
+        <div class="source">出处:PCMLTFR SOR/2002-184 · FINTRAC LCTR/EFTR/LVCTR Guidance</div>
+      </div>
+
+      <div class="internal-sla">
+        <div class="head">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>
+          内部 SLA · 双轨审批
+        </div>
+        <div class="body">
+          · 风控通道决策:<strong>2 小时</strong>内出结果<br>
+          · 合规通道决策:<strong>4 小时</strong>内出结果<br>
+          · 商户补材料挂起:<strong>72 小时</strong>未补则自动拒绝<br>
+          · 本公司自定的"双轨审批触发阈值"可与法定 LCTR/EFTR/LVCTR 阈值<strong>不同</strong>,通常更低,以提供更早的人工干预窗口
+        </div>
+      </div>
+
+      <div class="state-diagram">
+        <h3>双轨状态机(每条通道独立)</h3>
+        <svg viewBox="0 0 900 280" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <marker id="arr-order" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+              <path d="M0 0 L10 5 L0 10 z" fill="#5F5E5A"/>
+            </marker>
+          </defs>
+          <g><rect x="30" y="115" width="100" height="50" rx="25" fill="#EDEBE4" stroke="#8B8A85" stroke-width="1"/><text x="80" y="145" text-anchor="middle" font-size="12.5" font-weight="500">提交</text></g>
+          <g><rect x="170" y="115" width="120" height="50" rx="25" fill="#EDEBE4" stroke="#8B8A85" stroke-width="1"/><text x="230" y="145" text-anchor="middle" font-size="12.5" font-weight="500">系统初审</text></g>
+          <g><rect x="330" y="115" width="120" height="50" rx="25" fill="#FAEEDA" stroke="#854F0B" stroke-width="1"/><text x="390" y="145" text-anchor="middle" font-size="12.5" font-weight="500">人工审核中</text></g>
+          <g><rect x="500" y="40" width="100" height="50" rx="25" fill="#E1F5EE" stroke="#0F6E56" stroke-width="1" stroke-dasharray="4 3"/><text x="550" y="70" text-anchor="middle" font-size="12.5" font-weight="500" fill="#0A5340">已通过</text></g>
+          <g><rect x="500" y="115" width="120" height="50" rx="25" fill="#E6F1FB" stroke="#185FA5" stroke-width="1"/><text x="560" y="145" text-anchor="middle" font-size="12.5" font-weight="500" fill="#0C447C">等待补材料</text></g>
+          <g><rect x="500" y="190" width="100" height="50" rx="25" fill="#FCEBEB" stroke="#A32D2D" stroke-width="1" stroke-dasharray="4 3"/><text x="550" y="220" text-anchor="middle" font-size="12.5" font-weight="500" fill="#791F1F">已拒绝</text></g>
+          <g><rect x="700" y="40" width="160" height="50" rx="25" fill="#E1F5EE" stroke="#0F6E56" stroke-width="1" stroke-dasharray="4 3"/><text x="780" y="70" text-anchor="middle" font-size="12.5" font-weight="500" fill="#0A5340">秒过 · 自动放行</text></g>
+          <path d="M130 140 L170 140" stroke="#5F5E5A" stroke-width="1.2" marker-end="url(#arr-order)"/>
+          <path d="M290 140 L330 140" stroke="#5F5E5A" stroke-width="1.2" marker-end="url(#arr-order)"/>
+          <text x="310" y="133" text-anchor="middle" class="arrow-label">触发阈值</text>
+          <path d="M290 130 Q500 95 700 75" fill="none" stroke="#0F6E56" stroke-width="1.2" marker-end="url(#arr-order)"/>
+          <text x="500" y="100" class="arrow-label" fill="#0F6E56">未触发阈值</text>
+          <path d="M450 130 Q475 95 500 80" fill="none" stroke="#5F5E5A" stroke-width="1.2" marker-end="url(#arr-order)"/>
+          <text x="475" y="115" class="arrow-label">通过</text>
+          <path d="M450 140 L500 140" stroke="#5F5E5A" stroke-width="1.2" marker-end="url(#arr-order)"/>
+          <text x="475" y="133" text-anchor="middle" class="arrow-label">需补</text>
+          <path d="M450 165 Q475 195 500 210" fill="none" stroke="#5F5E5A" stroke-width="1.2" marker-end="url(#arr-order)"/>
+          <text x="475" y="195" class="arrow-label">拒绝</text>
+          <path d="M560 165 Q470 200 390 165" fill="none" stroke="#5F5E5A" stroke-width="1.2" marker-end="url(#arr-order)" stroke-dasharray="3 2"/>
+          <text x="475" y="200" text-anchor="middle" class="arrow-label">商户已补</text>
+          <path d="M560 165 L560 190" stroke="#A32D2D" stroke-width="1" marker-end="url(#arr-order)" stroke-dasharray="3 2"/>
+          <text x="610" y="180" class="arrow-label" fill="#A32D2D">72h 超时</text>
+        </svg>
+      </div>
+
+      <div class="transitions-card">
+        <div class="head">
+          <h3>双轨合并规则(最终处置)</h3>
+          <p>风控通道结果 × 合规通道结果 = 订单最终处置</p>
+        </div>
+        <table class="trans-table">
+          <thead>
+            <tr>
+              <th>风控通道</th>
+              <th>合规通道</th>
+              <th>最终处置</th>
+              <th>商户感知</th>
+              <th>资金动作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="state-pill pass"><span class="dot"></span>通过</span></td>
+              <td><span class="state-pill pass"><span class="dot"></span>通过</span></td>
+              <td><span class="state-pill pass"><span class="dot"></span>已放行</span></td>
+              <td>"提现成功" + TxHash</td>
+              <td>链上广播</td>
+            </tr>
+            <tr>
+              <td><span class="state-pill pass"><span class="dot"></span>通过</span></td>
+              <td><span class="state-pill brand"><span class="dot"></span>需补材料</span></td>
+              <td><span class="state-pill brand"><span class="dot"></span>需补材料</span></td>
+              <td>"需补充材料" + 通用文案</td>
+              <td>挂起</td>
+            </tr>
+            <tr>
+              <td><span class="state-pill pass"><span class="dot"></span>通过</span></td>
+              <td><span class="state-pill reject"><span class="dot"></span>拒绝</span></td>
+              <td><span class="state-pill reject"><span class="dot"></span>已拒绝</span></td>
+              <td>"未通过审核" + 通用文案</td>
+              <td>退回余额</td>
+            </tr>
+            <tr>
+              <td><span class="state-pill brand"><span class="dot"></span>需补材料</span></td>
+              <td>任意</td>
+              <td><span class="state-pill brand"><span class="dot"></span>需补材料</span></td>
+              <td>"需补充材料" + 风控原因</td>
+              <td>挂起</td>
+            </tr>
+            <tr>
+              <td><span class="state-pill reject"><span class="dot"></span>拒绝</span></td>
+              <td>任意 · 自动停止</td>
+              <td><span class="state-pill reject"><span class="dot"></span>已拒绝</span></td>
+              <td>"未通过审核" + 风控原因</td>
+              <td>退回余额</td>
+            </tr>
+            <tr style="background: var(--legal-bg);">
+              <td colspan="5" style="font-size: 12px; color: var(--legal); padding: 12px 16px;">
+                <strong>⚠ 法定 Tipping off 禁令:</strong>合规拒绝/需补材料的<strong>真实原因</strong>(如"涉嫌洗钱"、"已起 STR")<strong>永远不能向商户披露或暗示</strong>。商户端文案必须脱敏使用通用语句。<br>
+                <span style="font-family: 'SF Mono', Menlo, monospace; font-size: 11px; opacity: 0.85;">出处:PCMLTFA s.8 · 违反可处最高 5 年监禁</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ========== E3: Post-Release Audit ========== -->
+    <section class="entity" id="e3">
+      <h2><span class="num">03</span>事后审计 Post-Release Audit</h2>
+      <p class="entity-desc">订单放行后的合规复核 · 来源:系统抽样 / 新告警关联 / 监管线索 / 商户举报 · 资金已到账,关注 STR、商户分级、商户冻结</p>
+
+      <div class="entity-meta">
+        <div class="meta-tile"><div class="l">实体编号</div><div class="v mono">PRA-YYYY-MMDD-NNNNNN</div></div>
+        <div class="meta-tile"><div class="l">状态总数</div><div class="v">5 种</div></div>
+        <div class="meta-tile"><div class="l">默认 SLA</div><div class="v">3 个工作日(内部)</div></div>
+        <div class="meta-tile legal"><div class="l">数据保留(法定)</div><div class="v">5 年</div></div>
+      </div>
+
+      <div class="legal-mandate">
+        <div class="head">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M5 21V7l8-4v18"/></svg>
+          法定红线
+        </div>
+        <div class="body">
+          事后审计本身没有专门的法定时限,但其触发的<strong>下游动作</strong>有:<br>
+          · 形成 RGS → STR <strong>as soon as practicable</strong>(尽快,优先任务)<br>
+          · 商户冻结涉及制裁名单 → <strong>立即</strong>(Ministerial Directive 要求)<br>
+          · 所有审计记录留存 <strong>5 年</strong>
+        </div>
+        <div class="source">出处:PCMLTFA s.7 · FINTRAC STR Guidance</div>
+      </div>
+
+      <div class="internal-sla">
+        <div class="head">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>
+          内部 SLA · 触发与处置
+        </div>
+        <div class="body">
+          · 系统抽样 / 商户举报:<strong>3 个工作日</strong>内处置<br>
+          · 新告警关联:<strong>1 个工作日</strong>内处置<br>
+          · 监管线索:<strong>7 天</strong>内回复(此项实际是监管要求,本公司视为法定)<br>
+          · 系统每日抽 <strong>10%</strong>已放行订单做事后复核(高风险商户抽 30%)
+        </div>
+      </div>
+
+      <div class="transitions-card">
+        <div class="head">
+          <h3>触发与处置规则</h3>
+        </div>
+        <table class="trans-table">
+          <thead>
+            <tr>
+              <th style="width: 20%;">触发来源</th>
+              <th style="width: 30%;">说明</th>
+              <th style="width: 16%;">默认状态</th>
+              <th style="width: 14%;">默认处理人</th>
+              <th style="width: 20%;">SLA</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="trigger-tag system">系统</span>系统抽样</td>
+              <td>系统按规则随机抽 10% 已放行订单</td>
+              <td><span class="state-pill review"><span class="dot"></span>已标记</span></td>
+              <td><span class="role-tag l2">L2 池</span></td>
+              <td><span class="tag-internal">内部</span> 3 个工作日</td>
+            </tr>
+            <tr>
+              <td><span class="trigger-tag system">系统</span>新告警关联</td>
+              <td>新告警触发后,回溯该商户近 30 天订单</td>
+              <td><span class="state-pill review"><span class="dot"></span>已标记</span></td>
+              <td>同告警处理人</td>
+              <td><span class="tag-internal">内部</span> 1 个工作日</td>
+            </tr>
+            <tr>
+              <td><span class="trigger-tag external">监管</span>监管线索</td>
+              <td>FINTRAC 来函 / Production Order</td>
+              <td><span class="state-pill review"><span class="dot"></span>调查中</span></td>
+              <td><span class="role-tag l3">L3</span></td>
+              <td>视监管要求(通常 7-30 天)</td>
+            </tr>
+            <tr>
+              <td><span class="trigger-tag external">举报</span>商户举报</td>
+              <td>其他用户/合规渠道举报</td>
+              <td><span class="state-pill review"><span class="dot"></span>已标记</span></td>
+              <td><span class="role-tag l3">L3</span></td>
+              <td><span class="tag-internal">内部</span> 3 天</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ========== E4: STR ========== -->
+    <section class="entity" id="e4">
+      <h2><span class="num">04</span>STR 申报 Suspicious Transaction Report</h2>
+      <p class="entity-desc">向 FINTRAC 提交的可疑交易报告 · 法定时限 <strong>"as soon as practicable"</strong> · 提交后 5 年留存 · 商户全程不可知</p>
+
+      <div class="entity-meta">
+        <div class="meta-tile"><div class="l">实体编号</div><div class="v mono">STR-YYYY-MM-NNNNN</div></div>
+        <div class="meta-tile"><div class="l">状态总数</div><div class="v">7 种</div></div>
+        <div class="meta-tile legal"><div class="l">法定时限</div><div class="v">as soon as practicable</div></div>
+        <div class="meta-tile legal"><div class="l">数据保留(法定)</div><div class="v">5 年</div></div>
+      </div>
+
+      <div class="legal-mandate">
+        <div class="head">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M5 21V7l8-4v18"/></svg>
+          法定红线 · 重要修正(v1 → v2)
+        </div>
+        <div class="body">
+          ⚠ <strong>v1 写"30 天硬约束"是错误的</strong>,这是 2019 年之前的旧规。<br><br>
+          <strong>现行规定(2020 年 6 月 1 日起,2019 PCMLTFA 修订案):</strong><br>
+          STR 必须在合规人员形成 <strong>RGS(Reasonable Grounds to Suspect,合理怀疑)</strong>那一刻起 <strong>"as soon as practicable"</strong>(尽快)提交。无具体天数硬约束,但意为:<br>
+          · 必须把 STR 当<strong>优先任务</strong>处理,不能让常规监控挤占<br>
+          · 允许合理延迟(完成必要的尽调),但需有解释<br>
+          · FINTRAC 案例审查时会问"为什么用了这么久"<br><br>
+          <strong>无金额阈值</strong> — 任何金额触发 RGS 都要报。<br>
+          <strong>不可向商户披露(tipping off)</strong>是<strong>刑事罪</strong>,最高可处 5 年监禁。
+        </div>
+        <div class="source">出处:PCMLTFA s.7 · 2019 修订案 · FINTRAC STR Guidance(2020-06-01 生效)</div>
+      </div>
+
+      <div class="internal-sla">
+        <div class="head">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>
+          内部 SLA · STR 工作流(本公司自定 buffer)
+        </div>
+        <div class="body">
+          因法定时限是模糊的"as soon as practicable",本公司设以下内部 SLA 以确保不被认为延迟:<br>
+          · L2 起草:RGS 形成后 <strong>3 个工作日</strong>内提交 L3<br>
+          · L3 复核:接收后 <strong>2 个工作日</strong>内决策<br>
+          · L3 提交 FINTRAC:签字后 <strong>当日</strong><br>
+          · <strong>整体目标:RGS 形成后 7 个工作日内提交 FINTRAC</strong><br>
+          · 任何超过 7 工作日的案例需 L3 主管书面解释
+        </div>
+      </div>
+
+      <div class="state-diagram">
+        <h3>STR 状态机</h3>
+        <svg viewBox="0 0 900 280" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <marker id="arr-str" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+              <path d="M0 0 L10 5 L0 10 z" fill="#5F5E5A"/>
+            </marker>
+          </defs>
+          <g><rect x="30" y="120" width="100" height="50" rx="25" fill="#EDEBE4" stroke="#8B8A85" stroke-width="1"/><text x="80" y="150" text-anchor="middle" font-size="12.5" font-weight="500">起草中</text></g>
+          <g><rect x="170" y="120" width="120" height="50" rx="25" fill="#FAEEDA" stroke="#854F0B" stroke-width="1"/><text x="230" y="150" text-anchor="middle" font-size="12.5" font-weight="500">L3 复核中</text></g>
+          <g><rect x="330" y="120" width="120" height="50" rx="25" fill="#EEEDFE" stroke="#3C3489" stroke-width="1"/><text x="390" y="150" text-anchor="middle" font-size="12.5" font-weight="500">已签署</text></g>
+          <g><rect x="490" y="120" width="120" height="50" rx="25" fill="#E6F1FB" stroke="#185FA5" stroke-width="1"/><text x="550" y="150" text-anchor="middle" font-size="12.5" font-weight="500">已提交 FINTRAC</text></g>
+          <g><rect x="660" y="60" width="140" height="50" rx="25" fill="#E1F5EE" stroke="#0F6E56" stroke-width="1" stroke-dasharray="4 3"/><text x="730" y="90" text-anchor="middle" font-size="12.5" font-weight="500" fill="#0A5340">已签收 · 完成</text></g>
+          <g><rect x="660" y="180" width="140" height="50" rx="25" fill="#FCEBEB" stroke="#A32D2D" stroke-width="1"/><text x="730" y="210" text-anchor="middle" font-size="12.5" font-weight="500" fill="#791F1F">已退回 · 重提</text></g>
+          <g><rect x="170" y="40" width="120" height="50" rx="25" fill="#EDEBE4" stroke="#8B8A85" stroke-width="1" stroke-dasharray="4 3"/><text x="230" y="70" text-anchor="middle" font-size="12.5" font-weight="500">已撤回</text></g>
+          <path d="M130 145 L170 145" stroke="#5F5E5A" stroke-width="1.2" marker-end="url(#arr-str)"/>
+          <text x="150" y="138" text-anchor="middle" class="arrow-label">提交</text>
+          <path d="M290 145 L330 145" stroke="#5F5E5A" stroke-width="1.2" marker-end="url(#arr-str)"/>
+          <text x="310" y="138" text-anchor="middle" class="arrow-label">通过</text>
+          <path d="M450 145 L490 145" stroke="#5F5E5A" stroke-width="1.2" marker-end="url(#arr-str)"/>
+          <text x="470" y="138" text-anchor="middle" class="arrow-label">L3 提交</text>
+          <path d="M610 135 Q635 100 660 90" fill="none" stroke="#5F5E5A" stroke-width="1.2" marker-end="url(#arr-str)"/>
+          <text x="635" y="115" class="arrow-label">FINTRAC 签收</text>
+          <path d="M610 160 Q635 195 660 205" fill="none" stroke="#5F5E5A" stroke-width="1.2" marker-end="url(#arr-str)"/>
+          <text x="635" y="195" class="arrow-label">FINTRAC 退回</text>
+          <path d="M660 195 Q400 240 130 170" fill="none" stroke="#A32D2D" stroke-width="1" marker-end="url(#arr-str)" stroke-dasharray="3 2"/>
+          <text x="400" y="255" text-anchor="middle" class="arrow-label" fill="#A32D2D">退回重起草</text>
+          <path d="M80 120 L80 80 L170 65" fill="none" stroke="#5F5E5A" stroke-width="1.2" marker-end="url(#arr-str)"/>
+          <text x="100" y="95" class="arrow-label">主管撤回</text>
+        </svg>
+      </div>
+
+      <div class="transitions-card">
+        <div class="head">
+          <h3>转移规则</h3>
+        </div>
+        <table class="trans-table">
+          <thead>
+            <tr>
+              <th>从</th><th></th><th>到</th>
+              <th>触发</th><th>角色</th><th>SLA</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>—</td><td class="arrow-cell">→</td>
+              <td><span class="state-pill draft"><span class="dot"></span>起草中</span></td>
+              <td>RGS 形成 · L2/L3 触发起草</td>
+              <td><span class="role-tag l2">L2</span><span class="role-tag l3">L3</span></td>
+              <td><span class="tag-legal">法定</span> 起草本身需作为优先</td>
+            </tr>
+            <tr>
+              <td><span class="state-pill draft"><span class="dot"></span>起草中</span></td><td class="arrow-cell">→</td>
+              <td><span class="state-pill review"><span class="dot"></span>L3 复核中</span></td>
+              <td>起草人提交</td>
+              <td><span class="role-tag l2">L2</span></td>
+              <td><span class="tag-internal">内部</span> 3 工作日</td>
+            </tr>
+            <tr>
+              <td><span class="state-pill review"><span class="dot"></span>L3 复核中</span></td><td class="arrow-cell">→</td>
+              <td><span class="state-pill purple"><span class="dot"></span>已签署</span></td>
+              <td>L3 主管签字</td>
+              <td><span class="role-tag l3">L3</span></td>
+              <td><span class="tag-internal">内部</span> 2 工作日</td>
+            </tr>
+            <tr>
+              <td><span class="state-pill purple"><span class="dot"></span>已签署</span></td><td class="arrow-cell">→</td>
+              <td><span class="state-pill brand"><span class="dot"></span>已提交 FINTRAC</span></td>
+              <td>L3 通过 FWR/API 提交</td>
+              <td><span class="role-tag l3">L3</span></td>
+              <td><span class="tag-legal">法定</span> as soon as practicable</td>
+            </tr>
+            <tr>
+              <td><span class="state-pill brand"><span class="dot"></span>已提交 FINTRAC</span></td><td class="arrow-cell">→</td>
+              <td><span class="state-pill pass terminal"><span class="dot"></span>已签收</span></td>
+              <td>FINTRAC 返回回执</td>
+              <td><span class="role-tag system">FINTRAC</span></td>
+              <td>1-5 工作日(对方)</td>
+            </tr>
+            <tr>
+              <td><span class="state-pill brand"><span class="dot"></span>已提交 FINTRAC</span></td><td class="arrow-cell">→</td>
+              <td><span class="state-pill reject"><span class="dot"></span>已退回</span></td>
+              <td>FINTRAC 要求修改/补充</td>
+              <td><span class="role-tag system">FINTRAC</span></td>
+              <td>需立即重新起草</td>
+            </tr>
+            <tr>
+              <td><span class="state-pill draft"><span class="dot"></span>起草中</span></td><td class="arrow-cell">→</td>
+              <td><span class="state-pill muted terminal"><span class="dot"></span>已撤回</span></td>
+              <td>L3 主管决定不申报</td>
+              <td><span class="role-tag l3">L3</span></td>
+              <td>需详细记录理由(审计重点)</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ========== E5: LCTR/EFTR/LVCTR ========== -->
+    <section class="entity" id="e5">
+      <h2><span class="num">05</span>客观阈值申报 LCTR / EFTR / LVCTR</h2>
+      <p class="entity-desc">三类不同业务的客观阈值申报 · 与 STR 不同,这些是<strong>纯阈值触发</strong>,不需要"可疑"判断 · v1 把它们混为一谈是错误的</p>
+
+      <div class="entity-meta">
+        <div class="meta-tile"><div class="l">实体类型</div><div class="v">3 种(LCTR / EFTR / LVCTR)</div></div>
+        <div class="meta-tile legal"><div class="l">阈值(法定)</div><div class="v">$10,000 CAD</div></div>
+        <div class="meta-tile legal"><div class="l">汇率换算</div><div class="v">交易当时加央行汇率</div></div>
+        <div class="meta-tile legal"><div class="l">数据保留(法定)</div><div class="v">5 年</div></div>
+      </div>
+
+      <div class="legal-mandate">
+        <div class="head">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M5 21V7l8-4v18"/></svg>
+          法定红线 · 三类报告对照
+        </div>
+        <div class="body">
+          MSB 经营什么业务,决定要报哪种 — <strong>不是"任意大额"都报 LCTR</strong>。<br><br>
+          <strong>LCTR(Large Cash Transaction Report)</strong> · 大额现金报告<br>
+          · 触发:MSB 收到 ≥ $10,000 CAD <strong>现金</strong>(单笔或 24h 聚合)<br>
+          · 时限:<strong>15 个日历日</strong>内提交 FINTRAC<br>
+          · 不适用:加密货币、银行转账、电子支付<br><br>
+          <strong>EFTR(Electronic Funds Transfer Report)</strong> · 国际电子转账报告<br>
+          · 触发:发起或最终接收 ≥ $10,000 CAD 的<strong>国际</strong> EFT(单笔或 24h 聚合)<br>
+          · 时限:<strong>5 个工作日</strong>内提交<br>
+          · 不适用:国内转账(2025 起部分高风险类别已降至 $3k 阈值,需查最新)<br><br>
+          <strong>LVCTR(Large Virtual Currency Transaction Report)</strong> · 大额虚拟币报告<br>
+          · 触发:接收 ≥ $10,000 CAD <strong>等值虚拟币</strong>(单笔或 24h 聚合)<br>
+          · 时限:<strong>5 个工作日</strong>内提交<br>
+          · 适用于多数加密货币 MSB
+        </div>
+        <div class="source">出处:PCMLTFR SOR/2002-184 · FINTRAC LCTR Guidance · EFTR Guidance · LVCTR Guidance</div>
+      </div>
+
+      <div class="legal-mandate">
+        <div class="head">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M5 21V7l8-4v18"/></svg>
+          法定红线 · 24 小时规则(static window)
+        </div>
+        <div class="body">
+          <strong>v1 没说清楚这一点</strong>:24 小时聚合规则是 <strong>static window</strong>(预定义静态窗口),不是滚动窗口。<br><br>
+          MSB 必须在自己的合规政策里<strong>预先定义</strong> 24h 窗口的开始/结束时间(例如每天 0:00-24:00,或 9:00-次日 9:00),并在每份 LCTR/EFTR/LVCTR 提交时填入该时间字段。<br><br>
+          同一商户在该 static window 内的多笔同方向同性质交易若总额 ≥ $10k CAD,需聚合成<strong>一份</strong>报告。
+        </div>
+        <div class="source">出处:PCMLTFR s.126 · FINTRAC 24-Hour Rule Guidance</div>
+      </div>
+
+      <div class="transitions-card">
+        <div class="head">
+          <h3>三类报告时效对照</h3>
+        </div>
+        <table class="trans-table">
+          <thead>
+            <tr>
+              <th>报告类型</th>
+              <th>触发条件</th>
+              <th>法定时限</th>
+              <th>适用业务</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>LCTR</strong></td>
+              <td>现金 ≥ $10,000 CAD(单笔或 24h 聚合)</td>
+              <td><span class="tag-legal">法定</span> 15 个日历日</td>
+              <td>实体 MSB 网点、外汇兑换</td>
+            </tr>
+            <tr>
+              <td><strong>EFTR</strong></td>
+              <td>国际 EFT ≥ $10,000 CAD(单笔或 24h 聚合)</td>
+              <td><span class="tag-legal">法定</span> 5 个工作日</td>
+              <td>跨境汇款、国际电汇</td>
+            </tr>
+            <tr>
+              <td><strong>LVCTR</strong></td>
+              <td>虚拟币交易 ≥ $10,000 CAD 等值(24h 聚合)</td>
+              <td><span class="tag-legal">法定</span> 5 个工作日</td>
+              <td>加密货币 MSB · 钱包服务</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="legal-mandate">
+        <div class="head">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M5 21V7l8-4v18"/></svg>
+          关键:与 STR 的区别
+        </div>
+        <div class="body">
+          · LCTR/EFTR/LVCTR <strong>没有"撤回"或"主观判断"</strong> — 阈值满足就必须报<br>
+          · 同一笔交易可以<strong>同时</strong>触发 LCTR/EFTR/LVCTR(因金额)和 STR(因可疑),需要<strong>分别申报</strong><br>
+          · 错误地<strong>过度申报</strong>(over-reporting)也是违规 — FINTRAC 要求 RE 准确判断
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== E6: Merchant ========== -->
+    <section class="entity" id="e6">
+      <h2><span class="num">06</span>商户档案 Merchant Profile</h2>
+      <p class="entity-desc">长期主体 · KYC 等级与 CRR 评分驱动审批策略</p>
+
+      <div class="entity-meta">
+        <div class="meta-tile"><div class="l">实体编号</div><div class="v mono">CUS-NNNN-XXXXX</div></div>
+        <div class="meta-tile"><div class="l">KYC 等级</div><div class="v">Tier 1 / 2 / 3</div></div>
+        <div class="meta-tile"><div class="l">CRR 评分</div><div class="v">0-100 · 自动+人工</div></div>
+        <div class="meta-tile legal"><div class="l">数据保留(法定)</div><div class="v">关闭后 5 年</div></div>
+      </div>
+
+      <div class="legal-mandate">
+        <div class="head">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M5 21V7l8-4v18"/></svg>
+          法定红线 · KYC 与持续监控
+        </div>
+        <div class="body">
+          · KYC 验证是<strong>开户必需</strong>(Section 64-67 of PCMLTFR)<br>
+          · 高风险客户需 <strong>EDD(Enhanced Due Diligence)+ ongoing monitoring</strong><br>
+          · 商户记录(身份证明、KYC 资料、交易关联)留存 <strong>5 年</strong>,从客户关系结束日起<br>
+          · 制裁名单命中需<strong>立即冻结</strong>(Ministerial Directive)
+        </div>
+        <div class="source">出处:PCMLTFR s.64-67, s.71-72 · FINTRAC KYC Guidance</div>
+      </div>
+
+      <div class="internal-sla">
+        <div class="head">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>
+          内部 SLA · 等级管理
+        </div>
+        <div class="body">
+          · Tier 1 → Tier 2 升级:事后审计触发或 CRR ≥ 70<br>
+          · Tier 2 EDD 周期:<strong>每 12 个月</strong>复核<br>
+          · Tier 3 EDD 周期:<strong>每 6 个月</strong>复核<br>
+          · 高风险商户的事后审计抽样率提升至 <strong>30%</strong>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== E7: Case ========== -->
+    <section class="entity" id="e7">
+      <h2><span class="num">07</span>调查案件 Case</h2>
+      <p class="entity-desc">长期跟踪容器 · 聚合多个告警 / 订单 / 事后审计 · 输出可能是 STR / EDD / 商户冻结</p>
+
+      <div class="entity-meta">
+        <div class="meta-tile"><div class="l">实体编号</div><div class="v mono">CASE-YYYY-NNN</div></div>
+        <div class="meta-tile"><div class="l">状态总数</div><div class="v">5 种</div></div>
+        <div class="meta-tile"><div class="l">默认 SLA</div><div class="v">30 天调查期(内部)</div></div>
+        <div class="meta-tile legal"><div class="l">数据保留(法定)</div><div class="v">5 年</div></div>
+      </div>
+
+      <div class="internal-sla">
+        <div class="head">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>
+          内部 SLA · 案件管理
+        </div>
+        <div class="body">
+          · 立案后 <strong>30 天</strong>内出阶段性结论<br>
+          · 持续监控状态:每月一次复核<br>
+          · 案件聚合的告警 / 订单 / 事后审计若任一形成 RGS,立即按 STR 法定时限处理(<strong>不能因案件未结而延迟 STR 申报</strong>)
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== Matrix ========== -->
+    <section class="entity" id="matrix">
+      <h2><span class="num">A</span>跨实体联动矩阵</h2>
+      <p class="entity-desc">某个实体的状态变化会触发其他实体的状态变化</p>
+
+      <div class="matrix-card">
+        <div class="head">
+          <h3>状态变化的下游影响</h3>
+        </div>
+        <table class="trans-table">
+          <thead>
+            <tr>
+              <th>源实体 · 状态变化</th>
+              <th>下游实体 · 自动触发</th>
+              <th>SLA 性质</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>告警 → 已升级 STR</td>
+              <td>新建 STR(状态:起草中)</td>
+              <td><span class="tag-legal">法定</span> as soon as practicable</td>
+            </tr>
+            <tr>
+              <td>告警 → 已转 EDD</td>
+              <td>商户档案添加 EDD 任务</td>
+              <td><span class="tag-internal">内部</span> 30 天内完成</td>
+            </tr>
+            <tr>
+              <td>订单 ≥ $10k CAD 现金 → 已放行</td>
+              <td>自动加入 LCTR 待报队列</td>
+              <td><span class="tag-legal">法定</span> 15 日历日</td>
+            </tr>
+            <tr>
+              <td>订单 ≥ $10k CAD 国际 EFT → 已放行</td>
+              <td>自动加入 EFTR 待报队列</td>
+              <td><span class="tag-legal">法定</span> 5 工作日</td>
+            </tr>
+            <tr>
+              <td>订单 ≥ $10k CAD 虚拟币 → 已放行</td>
+              <td>自动加入 LVCTR 待报队列</td>
+              <td><span class="tag-legal">法定</span> 5 工作日</td>
+            </tr>
+            <tr>
+              <td>事后审计 → 已起 STR</td>
+              <td>新建 STR + 商户档案 → Tier 2</td>
+              <td><span class="tag-legal">法定</span> + <span class="tag-internal">内部</span></td>
+            </tr>
+            <tr>
+              <td>事后审计 → 商户已分级</td>
+              <td>商户后续订单进入双轨人审</td>
+              <td><span class="tag-internal">内部</span></td>
+            </tr>
+            <tr>
+              <td>事后审计 → 商户已冻结</td>
+              <td>商户档案 → 已冻结 + 暂停未完成订单</td>
+              <td><span class="tag-internal">内部</span>(除非制裁触发)</td>
+            </tr>
+            <tr>
+              <td>商户命中制裁名单</td>
+              <td>商户立即冻结 + 不可解冻(除非 Ministerial 撤销)</td>
+              <td><span class="tag-legal">法定</span> 立即</td>
+            </tr>
+            <tr>
+              <td>STR → 已签收</td>
+              <td>关联告警终态保持 · 案件可结</td>
+              <td>—</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ========== References ========== -->
+    <section class="entity" id="refs">
+      <h2><span class="num">B</span>法规出处</h2>
+      <p class="entity-desc">本文档所有"法定"标注的出处 · 便于审计核查</p>
+
+      <div class="transitions-card">
+        <div class="head">
+          <h3>主要法规与 FINTRAC 指引</h3>
+        </div>
+        <table class="trans-table">
+          <thead>
+            <tr>
+              <th style="width: 30%;">法规 / 指引</th>
+              <th style="width: 25%;">缩写</th>
+              <th>覆盖内容</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Proceeds of Crime (Money Laundering) and Terrorist Financing Act</td>
+              <td>PCMLTFA · S.C. 2000, c.17</td>
+              <td>主法 · 包含 STR 义务、tipping off 禁令、刑罚</td>
+            </tr>
+            <tr>
+              <td>Proceeds of Crime (Money Laundering) and Terrorist Financing Regulations</td>
+              <td>PCMLTFR · SOR/2002-184</td>
+              <td>详细执行规则 · 包含 LCTR/EFTR/LVCTR 阈值、24h 规则、KYC 要求</td>
+            </tr>
+            <tr>
+              <td>Suspicious Transaction Reporting Regulations</td>
+              <td>PCMLTFSTRR · SOR/2001-317</td>
+              <td>STR 专项规则 · 5 年留存</td>
+            </tr>
+            <tr>
+              <td>2019 修订案(2020-06-01 生效)</td>
+              <td>—</td>
+              <td>STR 时限改为 "as soon as practicable"</td>
+            </tr>
+            <tr>
+              <td>2021-06-01 修订(EFTR / LVCTR)</td>
+              <td>—</td>
+              <td>新增 LVCTR · EFTR 范围调整</td>
+            </tr>
+            <tr>
+              <td>FINTRAC STR Guidance</td>
+              <td>—</td>
+              <td>"as soon as practicable" 解释</td>
+            </tr>
+            <tr>
+              <td>FINTRAC 24-Hour Rule Guidance</td>
+              <td>—</td>
+              <td>Static window 定义</td>
+            </tr>
+            <tr>
+              <td>FINTRAC Record Keeping for MSBs</td>
+              <td>—</td>
+              <td>5 年留存细节</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="legal-mandate" style="margin-top: 24px;">
+        <div class="head">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+          重要免责说明
+        </div>
+        <div class="body">
+          本文档基于 FINTRAC 公开指引整理,仅作系统设计参考。<strong>实际部署前必须由公司合规主管(MLRO)和外部法律顾问审核</strong>。FINTRAC 指引会定期更新(2025 年 10 月已有新规生效),请定期校对最新版本。<br><br>
+          <strong>本公司应建立法规追踪机制</strong>,任何 FINTRAC 指引变更需在 30 天内评估系统配置是否需要调整。
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script>
+function goSection(id) {
+  document.querySelectorAll('.toc-item').forEach(i => i.classList.remove('active'));
+  if (event && event.target) {
+    event.target.closest('.toc-item').classList.add('active');
+  }
+  document.getElementById(id).scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+const sections = document.querySelectorAll('section.entity');
+const tocItems = document.querySelectorAll('.toc-item');
+
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      const id = entry.target.id;
+      tocItems.forEach(item => {
+        item.classList.toggle('active', item.getAttribute('onclick')?.includes(`'${id}'`));
+      });
+    }
+  });
+}, { rootMargin: '-30% 0px -50% 0px' });
+
+sections.forEach(s => observer.observe(s));
+</script>
+</body>
+</html>

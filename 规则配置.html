@@ -1,0 +1,1548 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>分拆交易·Structuring 检测 R-052 – 风控规则</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Segoe UI',sans-serif;color:#0f172a;font-size:14px;line-height:1.5}
+
+/* HEADER */
+.hdr{height:56px;background:#fff;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between;padding:0 24px;position:fixed;top:0;left:0;right:0;z-index:100}
+.bc{display:flex;align-items:center;gap:6px;font-size:13px;color:#64748b}
+.bc span{cursor:pointer}.bc span:hover{color:#2563eb}
+.bc .cur{color:#0f172a;font-weight:500}
+.bc .sep{color:#cbd5e1}
+.hdr-r{display:flex;align-items:center;gap:10px}
+.ib{width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:6px;border:none;background:transparent;color:#64748b;cursor:pointer;position:relative}
+.ib:hover{background:#f1f5f9;color:#0f172a}
+.ndot{position:absolute;top:6px;right:6px;width:6px;height:6px;background:#ef4444;border-radius:50%;border:1.5px solid #fff}
+.av{width:32px;height:32px;border-radius:50%;background:#2563eb;color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;cursor:pointer}
+
+/* TOOLBAR */
+.tb{height:56px;background:#fff;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between;padding:0 20px;position:fixed;top:56px;left:0;right:0;z-index:99}
+.tb-l{display:flex;align-items:center;gap:8px}
+.xbtn{width:28px;height:28px;border-radius:6px;border:none;background:transparent;color:#64748b;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s}
+.xbtn:hover{background:#fee2e2;color:#ef4444}
+.rn{font-size:15px;font-weight:600;color:#0f172a;border:none;background:transparent;outline:none;cursor:text;border-bottom:1.5px solid transparent;padding:2px 4px}
+.rn:hover{border-bottom-color:#cbd5e1}
+.rn:focus{border-bottom-color:#2563eb}
+.badge{padding:2px 8px;border-radius:4px;font-size:11.5px;font-weight:500;border:1px solid transparent}
+.bd-d{background:#f1f5f9;color:#64748b;border-color:#e2e8f0}
+.bd-l{background:#dcfce7;color:#16a34a;border-color:#bbf7d0}
+.svi{font-size:12px;color:#94a3b8;min-width:60px}
+.tb-r{display:flex;align-items:center;gap:8px}
+.btn{height:32px;padding:0 14px;border-radius:6px;font-size:13px;font-weight:500;cursor:pointer;display:inline-flex;align-items:center;gap:5px;border:none;transition:all .15s;white-space:nowrap}
+.btn-o{background:#fff;border:1px solid #e2e8f0;color:#374151}.btn-o:hover{background:#f9fafb}
+.btn-b{background:#2563eb;color:#fff}.btn-b:hover{background:#1d4ed8}
+.btn-b:active{transform:scale(.97)}
+.btn-g{background:transparent;color:#64748b;padding:0 8px}.btn-g:hover{background:#f1f5f9}
+
+/* LAYOUT */
+.main{position:fixed;top:112px;left:0;right:0;bottom:0;display:flex}
+
+/* CANVAS */
+.cv{flex:1;position:relative;overflow:hidden;background:#eef2f7;background-image:radial-gradient(circle,#c2cedb 1px,transparent 1px);background-size:20px 20px;cursor:grab}
+.cv.pan{cursor:grabbing}
+.cv-t{position:absolute;top:0;left:0;width:100%;height:100%;transform-origin:0 0}
+.cv-w{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%)}
+
+/* ZOOM */
+.zm{position:absolute;bottom:20px;left:20px;display:flex;flex-direction:column;gap:2px;z-index:10}
+.zb{width:28px;height:28px;background:#fff;border:1px solid #e2e8f0;border-radius:5px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#64748b;font-size:15px;user-select:none}
+.zb:hover{background:#f1f5f9}
+.zp{font-size:11px;text-align:center;color:#94a3b8;user-select:none;padding:1px 0}
+.cv-tip{position:absolute;bottom:20px;right:20px;font-size:11px;color:#94a3b8;background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:4px 10px;pointer-events:none}
+
+/* WORKFLOW NODES */
+.wf{display:flex;flex-direction:column;align-items:center}
+.nc{background:#fff;border:1px solid #dde6ed;border-radius:10px;padding:14px 16px;cursor:pointer;transition:all .18s;box-shadow:0 1px 3px rgba(0,0,0,.04),0 1px 8px rgba(0,0,0,.03);position:relative;user-select:none}
+.nc:hover{border-color:#8fb8d4;box-shadow:0 4px 16px rgba(37,99,235,.1);transform:translateY(-1px)}
+.nc:active{transform:translateY(0)}
+.nc.dash{border:1.5px dashed #a8c4d8;background:#fff}.nc.dash:hover{background:#f7fbff}
+.nc.sel{border:1.5px solid #2563eb!important;box-shadow:0 0 0 3px rgba(37,99,235,.1)!important;transform:none!important}
+.nc.pulse{animation:pulse .5s ease}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(37,99,235,.4)}100%{box-shadow:0 0 0 10px rgba(37,99,235,0)}}
+.nl{font-size:10px;color:#9aaebb;font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
+.nr{display:flex;align-items:center;gap:9px}
+.ni{width:26px;height:26px;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.ni-b{background:#e8f0fb;color:#2b6cb0}
+.ni-a{background:#fef5e7;color:#b45309}
+.ni-r{background:#fdf0f0;color:#b83232}
+.nt{font-size:14px;font-weight:600}
+.nt-b{color:#1e50b0}.nt-k{color:#1a2b3c}
+.nm{margin-top:8px;font-size:11.5px;color:#5a7080;background:#f6f9fb;border-radius:6px;padding:6px 10px;line-height:1.75;word-break:break-all;border:1px solid #e8eff4}
+
+/* CONNECTORS */
+.vl{width:2px;background:repeating-linear-gradient(to bottom,#b8c9d8 0,#b8c9d8 5px,transparent 5px,transparent 10px);flex-shrink:0}
+.dot{width:8px;height:8px;border-radius:50%;background:#f0f5fa;border:1.5px solid #8fadc4;flex-shrink:0}
+.hl{height:2px;background:repeating-linear-gradient(to right,#b8c9d8 0,#b8c9d8 5px,transparent 5px,transparent 10px)}
+/* diamond */
+.dw{display:flex;align-items:center;justify-content:center;width:60px;height:60px}
+.dm{width:50px;height:50px;background:#fff;border:1.5px solid #c8d9e6;border-radius:5px;transform:rotate(45deg);cursor:pointer;transition:all .18s;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.dm:hover{border-color:#7aa7c7;box-shadow:0 0 0 3px rgba(100,160,210,.12)}
+.dm.sel-d{border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.1)}
+.di{transform:rotate(-45deg);color:#64748b}
+/* branches */
+.br{display:flex;gap:56px;align-items:flex-start;position:relative}
+.br::before{content:'';position:absolute;top:0;left:calc(50% - 164px);right:calc(50% - 164px);height:2px;background:repeating-linear-gradient(to right,#b8c9d8 0,#b8c9d8 5px,transparent 5px,transparent 10px)}
+.bc-col{display:flex;flex-direction:column;align-items:center;width:295px}
+.blbl{font-size:11px;color:#7a94a8;background:#f6f9fc;border:1px solid #d8e5ed;border-radius:20px;padding:3px 11px;white-space:nowrap}
+/* add circle */
+.ac{width:24px;height:24px;border-radius:50%;background:#2563eb;color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:400;cursor:pointer;transition:all .15s;flex-shrink:0;box-shadow:0 2px 8px rgba(37,99,235,.3)}
+.ac:hover{background:#1d4ed8;transform:scale(1.1)}
+.ac:active{transform:scale(.95)}
+
+/* RIGHT PANEL */
+.rp{width:476px;background:#fff;border-left:1px solid #e2e8f0;display:flex;flex-direction:column;overflow:hidden;flex-shrink:0;animation:sli .2s ease}
+@keyframes sli{from{transform:translateX(16px);opacity:0}to{transform:translateX(0);opacity:1}}
+#rp-content{display:flex;flex-direction:column;height:100%;overflow:hidden;flex:1}
+.rph{padding:18px 20px 15px;border-bottom:1px solid #e2e8f0;font-size:18px;font-weight:700;color:#0f172a;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.rph button{width:26px;height:26px;border:none;background:transparent;border-radius:4px;cursor:pointer;color:#94a3b8;display:flex;align-items:center;justify-content:center}
+.rph button:hover{background:#f1f5f9;color:#64748b}
+.rpb{flex:1;overflow-y:auto;padding:16px 20px}
+.rpb::-webkit-scrollbar{width:4px}.rpb::-webkit-scrollbar-thumb{background:#e2e8f0;border-radius:4px}
+.rpf{padding:12px 20px;border-top:1px solid #e2e8f0;display:flex;justify-content:flex-end;gap:8px;flex-shrink:0}
+
+/* FORM ELEMENTS */
+.nsel{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:#fff;border:1px solid #e2e8f0;border-radius:8px;margin-bottom:14px;cursor:pointer;transition:background .15s}
+.nsel:hover{background:#f8fafc}
+.nsl{display:flex;align-items:center;gap:8px;font-weight:500;color:#0f172a;font-size:13px}
+.nsi{width:22px;height:22px;border-radius:4px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.lnk{font-size:13px;color:#2563eb;background:none;border:none;cursor:pointer;padding:0;white-space:nowrap}
+.lnk:hover{text-decoration:underline}
+.ibox{background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 12px;font-size:12.5px;color:#1e40af;margin-bottom:14px;display:flex;gap:8px;line-height:1.65}
+.ibox svg{flex-shrink:0;margin-top:1px;color:#3b82f6}
+.sec{font-size:13px;font-weight:600;color:#0f172a;margin-bottom:7px}
+.sdesc{font-size:12.5px;color:#64748b;margin-bottom:11px;line-height:1.6}
+.lbl{font-size:12.5px;color:#374151;margin-bottom:5px;display:flex;align-items:center;gap:3px}
+.req{color:#ef4444}
+.fsel,.fin{width:100%;height:36px;padding:0 11px;border:1px solid #e2e8f0;border-radius:6px;background:#fff;font-size:13px;color:#0f172a;transition:border-color .15s}
+.fsel{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2394A3B8' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 9px center;padding-right:28px;cursor:pointer}
+.fsel:focus,.fin:focus{outline:none;border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.08)}
+.fin::placeholder{color:#94a3b8}
+.fin.err{border-color:#ef4444;box-shadow:0 0 0 3px rgba(239,68,68,.08)}
+.mb8{margin-bottom:8px}.mb12{margin-bottom:12px}.mb16{margin-bottom:16px}
+.chkr{display:flex;align-items:center;gap:8px;padding:5px 0;cursor:pointer;font-size:13px;color:#0f172a;user-select:none}
+.chkr:hover{color:#2563eb}
+.ck{width:16px;height:16px;border-radius:3px;border:2px solid #cbd5e1;background:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s}
+.ck.on{background:#2563eb;border-color:#2563eb}
+.ck.on::after{content:'✓';color:#fff;font-size:10px;font-weight:700}
+.sub-in{padding-left:24px;margin-top:4px;margin-bottom:6px}
+/* condition groups */
+.cgrp{background:#f8fafc;border:1px solid #dde6ed;border-radius:10px;padding:12px 14px;margin-bottom:6px}
+.cgrp-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.cgrp-lbl{font-size:11px;font-weight:700;color:#7a94a8;text-transform:uppercase;letter-spacing:.6px}
+.cgrp-del{width:22px;height:22px;border:none;background:transparent;border-radius:4px;cursor:pointer;color:#c0ccd6;display:flex;align-items:center;justify-content:center;font-size:14px;transition:all .13s;flex-shrink:0}
+.cgrp-del:hover{background:#fef2f2;color:#b83232}
+.cgor{font-size:12px;font-weight:700;color:#7c3aed;text-align:center;padding:7px 0;letter-spacing:.8px;user-select:none}
+.addgrp-btn{display:flex;align-items:center;gap:6px;padding:9px 14px;border:1.5px dashed #c4b5fd;border-radius:8px;background:transparent;color:#7c3aed;font-size:12.5px;font-weight:500;cursor:pointer;justify-content:center;transition:all .15s;width:100%;margin-top:8px}
+.addgrp-btn:hover{background:#faf5ff;border-color:#7c3aed}
+/* condition rows */
+.ccg{background:#fff;border:1px solid #e8eff4;border-radius:8px;padding:10px 12px;margin-bottom:0}
+.crow{display:flex;align-items:center;gap:8px;animation:fadeup .18s ease}
+@keyframes fadeup{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+/* condition field — takes remaining width */
+.cf{height:38px;flex:1;min-width:0;padding:0 10px;border:1px solid #dde6ed;border-radius:6px;background:#fff;font-size:13px;color:#1a2b3c;cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394A3B8' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center;padding-right:28px;transition:border-color .15s}
+.cf:focus{outline:none;border-color:#2b6cb0;box-shadow:0 0 0 3px rgba(43,108,176,.08)}
+/* condition operator — fixed medium width */
+.co{height:38px;width:120px;flex-shrink:0;padding:0 8px;border:1px solid #dde6ed;border-radius:6px;background:#fff;font-size:12.5px;color:#1a2b3c;cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394A3B8' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 6px center;padding-right:22px;transition:border-color .15s}
+.co:focus{outline:none;border-color:#2b6cb0;box-shadow:0 0 0 3px rgba(43,108,176,.08)}
+/* condition value — fixed narrow width */
+.cval{height:38px;width:78px;flex-shrink:0;padding:0 10px;border:1px solid #dde6ed;border-radius:6px;font-size:13px;color:#1a2b3c;background:#fff;transition:border-color .15s}
+.cval:focus{outline:none;border-color:#2b6cb0;box-shadow:0 0 0 3px rgba(43,108,176,.08)}
+.cval::placeholder{color:#94a3b8}
+/* drag handle — 6-dot grid */
+.dh{flex-shrink:0;cursor:grab;color:#c8d5de;display:flex;align-items:center;padding:0 1px}
+.dh:active{cursor:grabbing}
+/* delete button */
+.db{width:30px;height:30px;border-radius:6px;background:transparent;color:#c0ccd6;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s}
+.db:hover{background:#fef2f2;color:#b83232}
+/* AND/OR connector between rows */
+.cand{font-size:12.5px;font-weight:700;color:#94a3b8;text-align:center;padding:8px 0;cursor:pointer;user-select:none;transition:color .15s;letter-spacing:.5px}
+.cand:hover{color:#6d28d9}
+.cand.cor{color:#7c3aed}
+/* add condition button */
+.addrow-btn{display:flex;align-items:center;gap:6px;padding:11px 14px;border:1.5px dashed #b0c8da;border-radius:8px;background:transparent;color:#5b8eae;font-size:13px;font-weight:500;cursor:pointer;justify-content:center;transition:all .15s;width:100%;margin-top:10px}
+.addrow-btn:hover{background:#f0f7ff;border-color:#2b6cb0;color:#2b6cb0}
+/* radio */
+.ro{display:flex;align-items:flex-start;gap:10px;padding:9px 12px;border:1px solid #e2e8f0;border-radius:8px;cursor:pointer;margin-bottom:7px;transition:all .15s}
+.ro:hover{border-color:#93c5fd;background:#f0f8ff}
+.ro.on{border-color:#2563eb;background:#eff6ff}
+.rc{width:15px;height:15px;border-radius:50%;border:2px solid #cbd5e1;margin-top:2px;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:border-color .15s}
+.rc.on{border-color:#2563eb}
+.rc.on::after{content:'';width:6px;height:6px;border-radius:50%;background:#2563eb;display:block}
+.rt{font-size:13px;font-weight:500;color:#0f172a}
+.rd{font-size:12px;color:#64748b;margin-top:1px;line-height:1.5}
+/* score bar */
+.sr{display:flex;gap:7px;align-items:center;margin-bottom:4px}
+.sscl{height:36px;padding:0 8px;border:1px solid #e2e8f0;border-radius:6px;background:#fff;font-size:13px;color:#0f172a;cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394A3B8' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 6px center;padding-right:22px;flex-shrink:0}
+.sin{flex:1;height:36px;padding:0 11px;border:1px solid #e2e8f0;border-radius:6px;font-size:14px;color:#0f172a}
+.sin:focus{outline:none;border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.08)}
+.hint{font-size:12px;color:#94a3b8;margin-top:2px}
+.pbw{background:#f1f5f9;border-radius:100px;height:6px;margin-top:6px;overflow:hidden}
+.pb{height:100%;border-radius:100px;transition:width .35s,background .35s}
+.plbl{display:flex;justify-content:space-between;font-size:11px;color:#94a3b8;margin-top:3px}
+/* AND/OR divider */
+.andiv{display:flex;align-items:center;gap:8px;margin:4px 0}
+.aline{flex:1;height:1px;background:#e2e8f0}
+.atag{font-size:11px;font-weight:600;color:#64748b;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:10px;padding:1px 8px;cursor:pointer;user-select:none;transition:all .13s}
+.atag:hover{background:#ede9fe;color:#7c3aed;border-color:#c4b5fd}
+.atag.or{background:#fdf4ff;color:#9333ea;border-color:#e9d5ff}
+/* subgroup */
+.subg{border-left:2.5px solid #bfdbfe;margin-left:5px;padding-left:9px;margin-top:7px}
+.subgh{display:flex;align-items:center;justify-content:space-between;margin-bottom:5px}
+/* add btns row */
+.abr{display:flex;gap:6px;margin-top:6px}
+.abr .addrow-btn{margin:0;flex:1}
+/* nested mini-branches */
+.mini-br{display:flex;gap:16px;align-items:flex-start;position:relative;width:268px}
+.mini-br::before{content:'';position:absolute;top:0;left:calc(50% - 74px);right:calc(50% - 74px);height:2px;background:repeating-linear-gradient(to right,#b8c9d8 0,#b8c9d8 5px,transparent 5px,transparent 10px)}
+.mini-col{display:flex;flex-direction:column;align-items:center;width:126px}
+.mini-dm{width:36px;height:36px;background:#fff;border:1.5px solid #c8d9e6;border-radius:4px;transform:rotate(45deg);cursor:pointer;transition:all .18s;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.mini-dm:hover{border-color:#7aa7c7;box-shadow:0 0 0 3px rgba(100,160,210,.12)}
+.mini-dm.sel-d{border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.1)}
+.mini-di{transform:rotate(-45deg);color:#64748b}
+
+/* MODAL */
+.mob{position:fixed;inset:0;background:rgba(15,23,42,.32);z-index:200;display:flex;align-items:center;justify-content:center;animation:fbg .18s}
+@keyframes fbg{from{opacity:0}to{opacity:1}}
+.moc{width:540px;max-height:520px;background:#fff;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,.18);display:flex;flex-direction:column;overflow:hidden;animation:sci .18s ease}
+@keyframes sci{from{transform:scale(.95);opacity:0}to{transform:scale(1);opacity:1}}
+.mosr{display:flex;align-items:center;gap:9px;padding:12px 16px;border-bottom:1px solid #e2e8f0}
+.moin{flex:1;border:none;font-size:14px;color:#0f172a;outline:none}
+.moin::placeholder{color:#94a3b8}
+.motabs{display:flex;padding:0 16px;border-bottom:1px solid #e2e8f0}
+.motab{padding:9px 13px;font-size:13px;color:#64748b;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .13s;white-space:nowrap;user-select:none}
+.motab:hover{color:#0f172a}
+.motab.on{color:#2563eb;border-bottom-color:#2563eb;font-weight:500}
+.molist{flex:1;overflow-y:auto}
+.molist::-webkit-scrollbar{width:4px}.molist::-webkit-scrollbar-thumb{background:#e2e8f0;border-radius:4px}
+.mosec{padding:9px 16px 3px;font-size:11px;color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:.4px}
+.moi{display:flex;align-items:center;gap:11px;padding:9px 16px;cursor:pointer;transition:background .1s}
+.moi:hover{background:#f8fafc}
+.moii{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.mot{font-size:13.5px;font-weight:500;color:#0f172a}
+.mod{font-size:12px;color:#64748b;margin-top:1px}
+.nores{padding:32px;text-align:center;color:#94a3b8;font-size:13px}
+
+/* CONFIRM */
+.cfmbg{position:fixed;inset:0;background:rgba(15,23,42,.32);z-index:250;display:flex;align-items:center;justify-content:center;animation:fbg .18s;backdrop-filter:blur(2px)}
+.cfm{background:#fff;border-radius:12px;padding:24px;width:400px;box-shadow:0 16px 48px rgba(0,0,0,.15);animation:sci .18s ease}
+.cfmt{font-size:15px;font-weight:600;margin-bottom:8px}
+.cfmd{font-size:13px;color:#64748b;line-height:1.6;margin-bottom:18px}
+.cfmc{display:flex;align-items:center;gap:8px;font-size:13px;color:#64748b;margin-bottom:16px;cursor:pointer;user-select:none}
+.cfmf{display:flex;justify-content:flex-end;gap:8px}
+
+/* CTX */
+.ctx{position:fixed;background:#fff;border:1px solid #e2e8f0;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.12);z-index:300;min-width:155px;padding:4px 0;animation:sci .12s ease}
+.cxi{padding:7px 14px;font-size:13px;color:#0f172a;cursor:pointer;display:flex;align-items:center;gap:8px;transition:background .1s}
+.cxi:hover{background:#f8fafc}
+.cxi.red{color:#ef4444}.cxi.red:hover{background:#fff1f2}
+.cxs{height:1px;background:#e2e8f0;margin:3px 0}
+
+/* TOAST */
+#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#0f172a;color:#fff;padding:8px 16px;border-radius:8px;font-size:13px;opacity:0;transition:opacity .22s;z-index:999;pointer-events:none;display:flex;align-items:center;gap:7px}
+#toast.show{opacity:1}
+#toast.ok::before{content:'✓';color:#4ade80;font-weight:700}
+#toast.err::before{content:'✕';color:#f87171;font-weight:700}
+#toast.inf::before{content:'ℹ';color:#60a5fa;font-weight:700}
+
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="hdr">
+  <nav class="bc">
+    <span>风控</span><span class="sep">›</span>
+    <span>风控规则</span><span class="sep">›</span>
+    <span>STR 规则库</span><span class="sep">›</span>
+    <span class="cur" id="bc-name">分拆交易·Structuring 检测 R-052</span>
+  </nav>
+  <div class="hdr-r">
+    <button class="ib"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span class="ndot"></span></button>
+    <button class="ib"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+    <div class="av">JS</div>
+  </div>
+</header>
+
+<!-- TOOLBAR -->
+<div class="tb">
+  <div class="tb-l">
+    <button class="xbtn" onclick="if(confirm('关闭后未保存的更改将丢失'))location.reload()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <input class="rn" id="rule-name" value="分拆交易·Structuring 检测 R-052" onblur="syncName(this)" onkeydown="if(event.key==='Enter')this.blur();if(event.key==='Escape'){this.value=rule.name;this.blur()}" />
+    <span class="badge bd-d" id="badge">草稿</span>
+    <span class="svi" id="svi"></span>
+  </div>
+  <div class="tb-r">
+    <button class="btn btn-o" onclick="saveDraft()">保存草稿</button>
+    <button class="btn btn-b" id="pub-btn" onclick="openPublish()">发布</button>
+    <button class="btn btn-g" onclick="showMoreCtx(event)">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+    </button>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- CANVAS -->
+  <div class="cv" id="canvas" onwheel="onWheel(event)" onmousedown="cvDown(event)" oncontextmenu="cvCtx(event)">
+    <div class="cv-t" id="cvt">
+      <div class="cv-w" id="cvw">
+        <!-- injected by renderCanvas() -->
+      </div>
+    </div>
+    <div class="zm">
+      <div class="zb" onclick="zoom(-0.1)">−</div>
+      <div class="zp" id="zpct">100%</div>
+      <div class="zb" onclick="zoom(0.1)">+</div>
+      <div class="zb" onclick="zoomFit()" style="font-size:11px;">⤢</div>
+    </div>
+    <div class="cv-tip">拖拽平移 · 滚轮缩放 · 右键菜单</div>
+  </div>
+
+  <!-- RIGHT PANEL (injected by renderPanel()) -->
+  <div class="rp hidden" id="rp">
+    <div id="rp-content"></div>
+  </div>
+
+</div>
+
+<!-- MODAL -->
+<div class="mob hidden" id="modal" onclick="if(event.target===this)closeModal()">
+  <div class="moc">
+    <div class="mosr">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input class="moin" id="mo-search" placeholder="搜索节点(支持中英文)" oninput="filterNodes(this.value)" />
+    </div>
+    <div class="motabs" id="mo-tabs">
+      <div class="motab on" data-cat="all" onclick="switchMoTab(this)">全部</div>
+      <div class="motab" data-cat="判断" onclick="switchMoTab(this)">判断</div>
+      <div class="motab" data-cat="动作" onclick="switchMoTab(this)">动作</div>
+      <div class="motab" data-cat="取数" onclick="switchMoTab(this)">取数</div>
+      <div class="motab" data-cat="终点" onclick="switchMoTab(this)">终点</div>
+    </div>
+    <div class="molist" id="mo-list"></div>
+  </div>
+</div>
+
+<!-- CONFIRM PUBLISH -->
+<div class="cfmbg hidden" id="cfm">
+  <div class="cfm">
+    <div class="cfmt">发布规则</div>
+    <div class="cfmd">发布后规则将立即对所有匹配交易生效。请仔细检查配置无误后再发布。</div>
+    <label class="cfmc" onclick="toggleCfmCk()"><div class="ck" id="cfm-ck"></div>我已仔细检查，确认发布</label>
+    <div class="cfmf">
+      <button class="btn btn-o" onclick="document.getElementById('cfm').classList.add('hidden')">取消</button>
+      <button class="btn btn-b" id="cfm-ok" onclick="doPublish()" style="opacity:.4;pointer-events:none">确认发布</button>
+    </div>
+  </div>
+</div>
+
+<!-- CTX MENU -->
+<div class="ctx hidden" id="ctx"></div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<script>
+// ════════════════════════════════════════════════
+//  DATA MODEL  — single source of truth
+// ════════════════════════════════════════════════
+const TRIGGER_TYPES = [
+  {id:'transaction', label:'交易事件触发', cat:'trigger', icon:'monitor', desc:'监听提现/入金/转账等业务事件'},
+  {id:'alert',       label:'创建告警案件', cat:'trigger', icon:'bell',    desc:'创建合规告警，指派合规组'},
+  {id:'kyc',         label:'KYC 申请触发', cat:'trigger', icon:'user',    desc:'用户提交 KYC 申请时触发'},
+  {id:'login',       label:'登录事件触发', cat:'trigger', icon:'key',     desc:'用户登录行为触发'},
+];
+const ACTION_TYPES = [
+  {id:'score',  label:'累加风险评分',       cat:'动作', icon:'bar',    desc:'按配置值累加或减少风险评分'},
+  {id:'alert',  label:'创建告警案件',       cat:'动作', icon:'bell',   desc:'高优先级，自动指派合规组',   color:'r'},
+  {id:'str',    label:'生成 STR 报告草稿',  cat:'动作', icon:'file',   desc:'FINTRAC 30天内提交'},
+  {id:'email',  label:'发送邮件通知',       cat:'动作', icon:'mail',   desc:'通知合规团队负责人'},
+  {id:'block',  label:'拦截·终止交易',     cat:'终点', icon:'stop',   desc:'触发拦截流程，立即停止',     color:'r'},
+  {id:'pass',   label:'放行·继续后续规则', cat:'终点', icon:'chk',    desc:'通过本规则，继续执行'},
+];
+const STEP_TYPES = [
+  {id:'condition', label:'条件分支 (IF/ELSE)', cat:'判断', icon:'filter', desc:'根据条件走不同分支', color:'a'},
+  {id:'score',     label:'累加风险评分',       cat:'动作', icon:'bar',    desc:'按配置值累加或减少风险评分'},
+  {id:'alert',     label:'创建告警案件',       cat:'动作', icon:'bell',   desc:'高优先级，自动指派合规组',   color:'r'},
+  {id:'str',       label:'生成 STR 报告草稿',  cat:'动作', icon:'file',   desc:'FINTRAC 30天内提交'},
+  {id:'email',     label:'发送邮件通知',       cat:'动作', icon:'mail',   desc:'通知合规团队负责人'},
+  {id:'kyt',       label:'查询 KYT 评分',      cat:'取数', icon:'search', desc:'调用外部 KYT 供应商 API'},
+  {id:'kyc-q',     label:'查询 KYC 状态',      cat:'取数', icon:'user',   desc:'获取用户认证状态'},
+  {id:'block',     label:'拦截·终止交易',     cat:'终点', icon:'stop',   desc:'触发拦截，立即停止',         color:'r'},
+  {id:'pass',      label:'放行·继续后续规则', cat:'终点', icon:'chk',    desc:'通过，继续执行'},
+];
+const FIELD_OPTS = ['单笔金额(CAD)','KYW 评分','交易次数(24h)','交易总额(7d,CAD)','账户余额(CAD)','账户年龄(天)','KYC 等级','kyt_score','同IP设备数'];
+const OP_OPTS    = ['≥大于等于','≤小于等于','=等于','≠不等于','>大于','<小于','包含','不包含'];
+
+let rule = {
+  name: '分拆交易·Structuring 检测 R-052',
+  status: 'draft',
+
+  // ── Trigger ────────────────────────────────────
+  trigger: {
+    id: 'transaction',
+    label: '交易事件触发',
+    eventType: '提现 或 法币 加密提币',
+    scope: ['全部商户'],
+  },
+
+  // ── Steps ──────────────────────────────────────
+  // 复杂规则示例：分拆交易（Structuring / Smurfing）检测
+  //
+  // 核心逻辑：
+  //   触发任意一组信号即进入风险分支：
+  //   ① 单笔接近 FINTRAC 上报阈值 ($9,500–$10,000)
+  //      AND 7日累计超 $25,000（多次拆单规避）
+  //   OR ② 24h 频次 ≥ 3 次（高频小额）
+  //      AND 7日累计超 $15,000
+  //   OR ③ KYW 风险评分 ≥ 75（已知高风险账户）
+  //
+  // 条件矩阵（5行混合 AND/OR）：
+  //   [0] 单笔金额(CAD)   ≥ 9500         (null  → 首行无连接符)
+  //   [1] 交易总额(7d,CAD)≥ 25000        (AND   → 与第0行联合)
+  //   [2] 交易次数(24h)   ≥ 3            (OR    → 独立触发条件)
+  //   [3] 交易总额(7d,CAD)≥ 15000        (AND   → 与第2行联合)
+  //   [4] KYW 评分        ≥ 75           (OR    → 独立触发条件)
+  steps: [
+    {
+      kind: 'condition',
+      label: '条件分支 (IF/ELSE)',
+      branch: null,
+      // groups 之间用 OR 连接；每个 group 内部各行用 AND 连接
+      // 逻辑：(组1) OR (组2) OR (组3)
+      groups: [
+        { rows: [
+          { field: '单笔金额(CAD)',    op: '≥大于等于', val: '9500',  connector: null  },
+          { field: '交易总额(7d,CAD)', op: '≥大于等于', val: '25000', connector: 'AND' },
+        ]},
+        { rows: [
+          { field: '交易次数(24h)',    op: '≥大于等于', val: '3',     connector: null  },
+          { field: '交易总额(7d,CAD)', op: '≥大于等于', val: '15000', connector: 'AND' },
+        ]},
+        { rows: [
+          { field: 'KYW 评分',        op: '≥大于等于', val: '75',    connector: null  },
+        ]},
+      ],
+      strategy: 'interrupt',
+    },
+
+    // ── LEFT ── 命中分拆信号 → 深度核查流程 ──────
+    // Step 1: 查询 KYC 状态，确认用户认证等级
+    {
+      kind: 'kyc-q',
+      label: '查询 KYC 认证状态',
+      branch: 'left',
+      checkType: 'KYC 完整等级',
+      storeAs: 'kyc_status',
+      strategy: 'interrupt',
+    },
+    // Step 2: KYT 链上溯源，检查目标地址风险
+    {
+      kind: 'kyt',
+      label: '查询 KYT 链上风险',
+      branch: 'left',
+      provider: 'Chainalysis',
+      checkType: '地址溯源 + 交易风险评分',
+      storeAs: 'kyt_score',
+      strategy: 'interrupt',
+    },
+    // Step 3: 综合累加风险评分（分拆交易权重较高）
+    {
+      kind: 'score',
+      label: '累加风险评分',
+      branch: 'left',
+      dir: '+',
+      val: 85,
+      strategy: 'interrupt',
+    },
+    // Step 3.5: KYT 风险二次判断（嵌套条件）
+    // kyt_score ≥ 80 → 立即拦截（左-左分支）
+    // kyt_score < 80 → 人工审核流程（左-右分支）
+    {
+      kind: 'condition',
+      label: 'KYT 风险二次判断',
+      branch: 'left',
+      groups: [
+        { rows: [{ field: 'kyt_score', op: '≥大于等于', val: '80', connector: null }] },
+      ],
+      strategy: 'interrupt',
+    },
+    // Step 4a: 极高风险 → 立即拦截（kyt_score ≥ 80）
+    {
+      kind: 'block',
+      label: '立即拦截·高风险交易',
+      branch: 'left-left',
+      reason: '高风险交易拦截',
+      notifyUser: true,
+      strategy: 'interrupt',
+    },
+    // Step 4: 创建高优先级合规工单（SLA 1 小时）
+    {
+      kind: 'alert',
+      label: '创建分拆案件工单',
+      branch: 'left-right',
+      queue: '风控审批工作台（compliance-review）',
+      priority: '高 - SLA 2 小时',
+      titleTemplate: '[Structuring] KYW={score.total} KYT={kyt_score} 7d累计={tx.7d_total}CAD 用户={tx.user_id}',
+      txRef: '{tx.id}（当前触发交易）',
+      assignRule: '合规组一轮询分派（round-robin）',
+      strategy: 'retry',
+    },
+    // Step 5: 生成 STR 报告草稿（FINTRAC 30天内提交）
+    {
+      kind: 'str',
+      label: '生成 STR 报告草稿',
+      branch: 'left-right',
+      reportType: '可疑交易报告 (STR)',
+      deadline: 30,
+      autoSubmit: false,
+      strategy: 'retry',
+    },
+    // Step 6: 邮件通知合规负责人启动调查
+    {
+      kind: 'email',
+      label: '通知合规负责人启动调查',
+      branch: 'left-right',
+      recipients: 'compliance@futurepay.ca',
+      subject: '[Structuring 预警] 案件={alert.id} · 用户={tx.user_id} · 7d累计={tx.7d_total}CAD',
+      emailTpl: 'STR 提交提醒模板',
+      strategy: 'retry',
+    },
+
+    // ── RIGHT ── 无分拆信号，正常放行 ────────────
+    {
+      kind: 'email',
+      label: '写入审计日志',
+      branch: 'right',
+      recipients: 'audit-trail@futurepay.ca',
+      subject: '[审计] 正常提现放行 · {tx.id} · {tx.amount}CAD · KYW={score.current}',
+      emailTpl: '标准风控告警模板',
+      strategy: 'ignore',
+    },
+    {
+      kind: 'pass',
+      label: '放行·继续后续规则',
+      branch: 'right',
+      strategy: 'ignore',
+    },
+  ],
+};
+
+let selected = null;  // 'trigger' | 'step-N' | null
+let modalMode = null; // 'trigger' | 'step-N'
+let moTab = 'all', moQ = '';
+let svTimer = null;
+
+// ════════════════════════════════════════════════
+//  CANVAS  — data-driven render
+// ════════════════════════════════════════════════
+function renderCanvas() {
+  const w = document.getElementById('cvw');
+  const hasTrigger = !!rule.trigger;
+  const hasCondition = rule.steps.some(s=>s.kind==='condition');
+  const leftSteps = rule.steps.filter(s=>s.kind!=='pass-right');
+  const condStep = rule.steps.find(s=>s.kind==='condition');
+  const actionSteps = rule.steps.filter(s=>s.kind!=='condition');
+
+  let html = '<div class="wf">';
+
+  // ── TRIGGER ──
+  if (!hasTrigger) {
+    html += emptyCard('trigger','When this happens','Add a trigger','clickAddTrigger()');
+  } else {
+    const t = rule.trigger;
+    const scopeTxt = t.scope.join('、') || '全部商户';
+    html += nodeCard('trigger', 'When this happens', t.label, icon(t.id||'monitor'), 'ni-b', `事件类型：${t.eventType||'--'}<br>适用范围：${scopeTxt}`, selected==='trigger');
+  }
+
+  if (!hasCondition) {
+    // ── LINEAR FLOW ──
+    html += vl(20);
+    html += `<div class="dot"></div>`;
+    html += vl(20);
+    if (actionSteps.length === 0) {
+      html += emptyCard('step-new','Do this','Add a step','clickAddStep(null)');
+    } else {
+      actionSteps.forEach((s,i)=>{
+        if(i>0){ html += vl(14); html += `<div class="dot"></div>`; html += vl(14); }
+        html += stepCard(s, `step-${rule.steps.indexOf(s)}`, selected===`step-${rule.steps.indexOf(s)}`);
+      });
+      html += vl(14);
+      html += `<div class="ac" onclick="clickAddStep(null)" title="添加步骤">+</div>`;
+    }
+  } else {
+    // ── BRANCH FLOW ──
+    html += vl(20);
+    html += `<div style="display:flex;flex-direction:column;align-items:center;">${vl(12)}<div class="dot"></div>${vl(12)}</div>`;
+    const dsel = (selected==='step-'+rule.steps.indexOf(condStep));
+    html += `<div class="dw" onclick="selectNode('step-${rule.steps.indexOf(condStep)}')"><div class="dm${dsel?' sel-d':''}"><div class="di"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="1.6"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div></div></div>`;
+    html += vl(12);
+
+    // separate steps by branch tag
+    const nestedCondStep = rule.steps.find(s => s.kind==='condition' && s.branch==='left');
+    const leftPreSteps   = rule.steps.filter(s => s.branch==='left' && s.kind!=='condition');
+    const leftActions    = rule.steps.filter(s => s.kind!=='condition' && s.branch!=='right' && s.branch!=='left-left' && s.branch!=='left-right');
+    const rightActions   = rule.steps.filter(s => s.branch==='right');
+    const leftLeftSteps  = rule.steps.filter(s => s.branch==='left-left');
+    const leftRightSteps = rule.steps.filter(s => s.branch==='left-right');
+    const condIdx = rule.steps.indexOf(condStep);
+    html += '<div class="br" style="width:660px;">';
+
+    // LEFT branch — condition IS met
+    html += '<div class="bc-col">';
+    html += vl(20);
+    const cSummary = condSummary(condStep);
+    html += nodeCard(`step-${condIdx}`,'If this condition is met', condStep.label||'条件分支 (IF/ELSE)', icon('filter'), 'ni-a', cSummary||'(尚未配置条件)', selected===`step-${condIdx}`,'292px');
+    if (!nestedCondStep) {
+      // Simple left branch (no nested condition)
+      if (leftActions.length===0) {
+        html += vl(14);
+        html += emptyCard('step-new-left','Do this','Add a step','clickAddStep(\'left\')', '292px');
+      } else {
+        leftActions.forEach(s=>{
+          html += vl(14);
+          const si = `step-${rule.steps.indexOf(s)}`;
+          html += stepCard(s, si, selected===si, '292px');
+        });
+        html += vl(12);
+        html += `<div class="ac" onclick="clickAddStep('left')" title="添加步骤">+</div>`;
+      }
+    } else {
+      // Nested condition: pre-steps → nested diamond → mini sub-branches
+      leftPreSteps.forEach(s=>{
+        html += vl(14);
+        const si = `step-${rule.steps.indexOf(s)}`;
+        html += stepCard(s, si, selected===si, '292px');
+      });
+      const ncIdx = rule.steps.indexOf(nestedCondStep);
+      const ncSel = selected===`step-${ncIdx}`;
+      const ncSum = condSummary(nestedCondStep);
+      html += vl(10);
+      html += `<div class="nm" style="width:292px;font-size:11px;margin-bottom:0;text-align:center;">嵌套条件：${ncSum}</div>`;
+      html += vl(6);
+      html += `<div style="display:flex;flex-direction:column;align-items:center;"><div class="dw" onclick="selectNode('step-${ncIdx}')"><div class="mini-dm${ncSel?' sel-d':''}"><div class="mini-di">${icon('filter')}</div></div></div></div>`;
+      html += vl(10);
+      html += '<div class="mini-br">';
+      // Left-left (nested IS met)
+      html += '<div class="mini-col">';
+      html += `<div class="blbl" style="font-size:10px;padding:2px 7px;">✓ 高风险</div>`;
+      if (leftLeftSteps.length===0) {
+        html += vl(8);
+        html += emptyCard('step-new-left-left','高风险','添加步骤',"clickAddStep('left-left')", '126px');
+      } else {
+        leftLeftSteps.forEach(s=>{
+          html += vl(8);
+          const si = `step-${rule.steps.indexOf(s)}`;
+          html += stepCard(s, si, selected===si, '126px');
+        });
+        html += vl(6);
+        html += `<div class="ac" onclick="clickAddStep('left-left')" title="添加步骤" style="width:20px;height:20px;font-size:14px;">+</div>`;
+      }
+      html += '</div>';
+      // Left-right (nested NOT met)
+      html += '<div class="mini-col">';
+      html += `<div class="blbl" style="font-size:10px;padding:2px 7px;">✗ 中风险</div>`;
+      if (leftRightSteps.length===0) {
+        html += vl(8);
+        html += emptyCard('step-new-left-right','中风险','添加步骤',"clickAddStep('left-right')", '126px');
+      } else {
+        leftRightSteps.forEach(s=>{
+          html += vl(8);
+          const si = `step-${rule.steps.indexOf(s)}`;
+          html += stepCard(s, si, selected===si, '126px');
+        });
+        html += vl(6);
+        html += `<div class="ac" onclick="clickAddStep('left-right')" title="添加步骤" style="width:20px;height:20px;font-size:14px;">+</div>`;
+      }
+      html += '</div>';
+      html += '</div>'; // .mini-br
+    }
+    html += '</div>'; // .bc-col (left)
+
+    // RIGHT branch — condition IS NOT met
+    html += '<div class="bc-col">';
+    html += vl(20);
+    html += `<div class="blbl">If this condition isn't met</div>`;
+    if (rightActions.length===0) {
+      html += vl(14);
+      html += `<div class="dot"></div>`;
+      html += vl(14);
+      html += emptyCard('step-new-right','Take this action','Add a step','clickAddStep(\'right\')', '292px');
+    } else {
+      rightActions.forEach((s,i)=>{
+        html += vl(14);
+        if(i===0) html += `<div class="dot"></div>${vl(14)}`;
+        const si = `step-${rule.steps.indexOf(s)}`;
+        html += stepCard(s, si, selected===si, '292px');
+      });
+      html += vl(12);
+      html += `<div class="ac" onclick="clickAddStep('right')" title="添加步骤">+</div>`;
+    }
+    html += '</div>';
+
+    html += '</div>'; // .br
+  }
+
+  html += '</div>'; // .wf
+  w.innerHTML = html;
+}
+
+function emptyCard(id, label, title, onclick, width='360px') {
+  return `<div class="nc dash" style="width:${width};" onclick="${onclick}">
+    <div class="nl">${label}</div>
+    <div class="nr" style="margin-top:6px;">
+      <div class="ni ni-b" style="font-size:20px;line-height:1;font-weight:200;color:#6897c4;">+</div>
+      <span class="nt" style="color:#5b85b5;font-weight:500;">${title}</span>
+    </div>
+  </div>`;
+}
+function nodeCard(id, label, title, iconHtml, niClass, meta, isSel, width='360px') {
+  return `<div class="nc${isSel?' sel':''}" style="width:${width};" onclick="selectNode('${id}')" oncontextmenu="nodeCtx(event,'${id}')">
+    <div class="nl">${label}</div>
+    <div class="nr" style="margin-top:5px;">
+      <div class="ni ${niClass}">${iconHtml}</div>
+      <span class="nt${isSel?' nt-b':' nt-k'}">${title}</span>
+    </div>
+    ${meta?`<div class="nm">${meta}</div>`:''}
+  </div>`;
+}
+function strategyLabel(s) {
+  return {interrupt:'中断流程(关键动作)',retry:'重试 3 次后告警',ignore:'静默忽略'}[s||'interrupt']||'中断流程';
+}
+function escQ(s) { return String(s||'').replace(/"/g,'&quot;'); }
+
+function niFor(kind) {
+  return {alert:'ni-r', block:'ni-r', condition:'ni-a'}[kind] || 'ni-b';
+}
+function stepCard(s, id, isSel, width='360px') {
+  const niClass = niFor(s.kind);
+  let title = s.label || s.kind;
+  let meta = null;
+  if (s.kind==='score') {
+    title = `${s.dir==='+'?'累加':'减少'}风险评分 ${s.dir}${s.val||90}`;
+    meta = `当前 ${s.dir}${s.val||90}·阈值 100\n失败:${strategyLabel(s.strategy)}`;
+  } else if (s.kind==='alert') {
+    meta = `→ ${(s.queue||'--').split('（')[0]}\n失败:${strategyLabel(s.strategy)}`;
+  } else if (s.kind==='str') {
+    meta = `${s.reportType||'STR 报告'}·${s.deadline||30} 天内提交`;
+  } else if (s.kind==='email') {
+    meta = s.recipients ? `收件人: ${s.recipients}` : null;
+  } else if (s.kind==='block') {
+    meta = `原因: ${s.reason||'高风险交易拦截'}`;
+  } else if (s.kind==='kyt') {
+    meta = `${s.provider||'KYT'} · 结果存入 ${s.storeAs||'kyt_score'}`;
+  } else if (s.kind==='kyc-q') {
+    meta = `查询: ${s.checkType||'KYC 状态'}`;
+  }
+  return `<div class="nc${isSel?' sel':''}" style="width:${width};" onclick="selectNode('${id}')" oncontextmenu="nodeCtx(event,'${id}')">
+    <div class="nl">Take this action</div>
+    <div class="nr" style="margin-top:5px;">
+      <div class="ni ${niClass}">${icon(s.kind)}</div>
+      <span class="nt${isSel?' nt-b':' nt-k'}">${title}</span>
+    </div>
+    ${meta?`<div class="nm">${meta.replace(/\n/g,'<br>')}</div>`:''}
+  </div>`;
+}
+function vl(h) { return `<div class="vl" style="height:${h}px;"></div>`; }
+
+function icon(type) {
+  // Base shapes
+  const s = (d,sw='1.8') => `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${sw}">${d}</svg>`;
+  const base = {
+    monitor:  s('<rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/>'),
+    bell:     s('<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>'),
+    user:     s('<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>'),
+    users:    s('<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>'),
+    key:      s('<path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>'),
+    bar:      s('<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>'),
+    file:     s('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>'),
+    mail:     s('<rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>'),
+    search:   s('<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>'),
+    chk:      s('<polyline points="20 6 9 17 4 12"/>','2'),
+    stop:     s('<circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>'),
+    filter:   s('<polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>'),
+    git:      s('<line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/>'),
+  };
+  // Step kind → shape mapping
+  const map = {
+    // trigger types
+    transaction:'monitor', login:'key', kyc:'user',
+    // step kinds → all actions use bar chart to match design language
+    score:'bar', alert:'bar', str:'bar', email:'bar',
+    block:'stop', pass:'chk', kyt:'search', 'kyc-q':'user',
+    // condition card in left branch
+    condition:'filter',
+    // modal list aliases
+    bell:'bell', file:'file', diamond:'users',
+  };
+  return base[map[type]||type] || base.bar;
+}
+
+// ════════════════════════════════════════════════
+//  PANEL  — renders based on selected node
+// ════════════════════════════════════════════════
+function renderPanel() {
+  const rp = document.getElementById('rp');
+  const cnt = document.getElementById('rp-content');
+  if (!selected) { rp.classList.add('hidden'); return; }
+  rp.classList.remove('hidden');
+
+  if (selected==='trigger') { cnt.innerHTML = panelTrigger(); }
+  else if (selected.startsWith('step-')) {
+    const idx = parseInt(selected.split('-')[1]);
+    const step = rule.steps[idx];
+    if (!step) { rp.classList.add('hidden'); return; }
+    if (step.kind==='condition') cnt.innerHTML = panelCondition(idx);
+    else cnt.innerHTML = panelAction(idx);
+  } else {
+    rp.classList.add('hidden'); return;
+  }
+  // bind dynamic events
+  bindPanelEvents();
+}
+
+function panelTrigger() {
+  const t = rule.trigger;
+  const niClass = 'ni-b';
+  const scopeAll = t.scope.includes('全部商户');
+  const scopeRisk = t.scope.includes('指定风险等级');
+  const scopeNew = t.scope.includes('新商户(30天内)');
+  return `
+  <div class="rph">配置触发节点
+    <button onclick="closePanel()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+  </div>
+  <div class="rpb">
+    <div class="nsel" onclick="openModal('trigger')">
+      <div class="nsl"><div class="nsi ${niClass}">${icon(t.id)}</div>${t.label}</div>
+      <button class="lnk">更换</button>
+    </div>
+    <div class="ibox">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <span id="tp-preview">${triggerPreviewText()}</span>
+    </div>
+    <div class="sec">事件类型</div>
+    <div class="lbl">监听的业务事件 <span class="req">*</span></div>
+    <select class="fsel mb16" id="ev-type" onchange="onEvTypeChange(this.value)">
+      <option ${t.eventType==='提现 或 法币 加密提币'?'selected':''}>提现 或 法币 加密提币</option>
+      <option ${t.eventType==='入金'?'selected':''}>入金</option>
+      <option ${t.eventType==='转账'?'selected':''}>转账</option>
+      <option ${t.eventType==='KYC 申请'?'selected':''}>KYC 申请</option>
+      <option ${t.eventType==='用户登录'?'selected':''}>用户登录</option>
+    </select>
+    <div class="sec">适用范围</div>
+    <div class="lbl">商户范围 <span class="req">*</span></div>
+    <label class="chkr mb8" onclick="toggleScope('全部商户',this)"><div class="ck ${scopeAll?'on':''}"></div>全部商户</label>
+    <label class="chkr mb8" onclick="toggleScope('指定风险等级',this)"><div class="ck ${scopeRisk?'on':''}"></div>指定风险等级</label>
+    ${scopeRisk?`<div class="sub-in"><select class="fsel" id="risk-lv" onchange="rule.trigger.riskLevel=this.value;updateCanvas()"><option>高风险</option><option>中风险</option><option>低风险</option><option>所有等级</option></select></div>`:''}
+    <label class="chkr" onclick="toggleScope('新商户(30天内)',this)"><div class="ck ${scopeNew?'on':''}"></div>新商户(30天内)</label>
+  </div>
+  <div class="rpf">
+    <button class="btn btn-b" onclick="closePanel();toast('触发节点已保存','ok')">完成</button>
+  </div>`;
+}
+
+function triggerPreviewText() {
+  const t = rule.trigger; if(!t) return '';
+  const scope = t.scope.join('、')||'全部商户';
+  return `预览<br>当 <b>${scope}</b> 发生 <b>${t.eventType||'--'}</b> 时，执行本规则`;
+}
+
+function condSummary(step) {
+  const groups = step.groups||[];
+  if(!groups.length) return '(尚未配置条件)';
+  const parts = groups.map(g=>{
+    const rowStr = (g.rows||[]).map((r,i)=>{
+      const conn = i===0 ? '' : ` ${r.connector||'AND'} `;
+      return conn + `${r.field} ${r.op} ${r.val||'--'}`;
+    }).join('');
+    return groups.length>1 && (g.rows||[]).length>1 ? `(${rowStr})` : rowStr;
+  });
+  return parts.join(' OR ');
+}
+
+function panelCondition(idx) {
+  const s = rule.steps[idx];
+  const groups = s.groups||[];
+  let groupsHtml = '';
+  groups.forEach((g,gi)=>{
+    if(gi>0) groupsHtml += `<div class="cgor">OR</div>`;
+    let rowsHtml = '';
+    (g.rows||[]).forEach((r,ri)=>{
+      if(ri>0){
+        const conn = r.connector||'AND';
+        rowsHtml += `<div class="cand${conn==='OR'?' cor':''}" id="cand-${idx}-${gi}-${ri}" onclick="toggleRowConnector(${idx},${gi},${ri})">${conn}</div>`;
+      }
+      rowsHtml += condRowHtml(idx,gi,ri,r);
+    });
+    groupsHtml += `<div class="cgrp" id="cgrp-${idx}-${gi}">
+      <div class="cgrp-hd">
+        <span class="cgrp-lbl">条件组 ${gi+1}</span>
+        ${groups.length>1?`<button class="cgrp-del" onclick="removeCondGroup(${idx},${gi})" title="删除此条件组">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>`:''}
+      </div>
+      <div class="ccg">${rowsHtml}</div>
+      <button class="addrow-btn" onclick="addCondRow(${idx},${gi})" style="margin-top:8px;">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        添加条件行
+      </button>
+    </div>`;
+  });
+  return `
+  <div class="rph">配置条件
+    <button onclick="closePanel()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+  </div>
+  <div class="rpb">
+    <div class="nsel" onclick="openModal('step-${idx}')">
+      <div class="nsl"><div class="nsi ni-a">${icon('filter')}</div>${s.label||'条件分支 (IF/ELSE)'}</div>
+      <button class="lnk">更换</button>
+    </div>
+    <div class="ibox">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <span id="cond-preview">${condSummary(s)}</span>
+    </div>
+    <div style="font-size:14px;font-weight:700;color:#0f172a;margin-bottom:4px;">判断条件</div>
+    <p class="sdesc" style="margin-bottom:12px;">条件组之间用 OR 连接；组内各行用 AND 连接。命中任意一组即走左侧分支。</p>
+    ${groupsHtml}
+    <button class="addgrp-btn" onclick="addCondGroup(${idx})">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      添加条件组 (OR)
+    </button>
+  </div>
+  <div class="rpf">
+    <button class="btn btn-o" onclick="closePanel()">取消</button>
+    <button class="btn btn-b" onclick="saveCondPanel(${idx})">完成</button>
+  </div>`;
+}
+
+const DRAG_HANDLE = `<svg width="10" height="14" viewBox="0 0 10 14" fill="currentColor"><circle cx="2.5" cy="2" r="1.5"/><circle cx="7.5" cy="2" r="1.5"/><circle cx="2.5" cy="7" r="1.5"/><circle cx="7.5" cy="7" r="1.5"/><circle cx="2.5" cy="12" r="1.5"/><circle cx="7.5" cy="12" r="1.5"/></svg>`;
+const TRASH_ICON  = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>`;
+
+function condRowHtml(si, gi, ri, r) {
+  const fieldOpts = FIELD_OPTS.map(f=>`<option ${r.field===f?'selected':''}>${f}</option>`).join('');
+  const opOpts    = OP_OPTS.map(o=>`<option ${r.op===o?'selected':''}>${o}</option>`).join('');
+  return `<div class="crow" id="crow-${si}-${gi}-${ri}" draggable="true">
+    <span class="dh">${DRAG_HANDLE}</span>
+    <select class="cf" onchange="updateCondRow(${si},${gi},${ri},'field',this.value)">${fieldOpts}</select>
+    <select class="co" onchange="updateCondRow(${si},${gi},${ri},'op',this.value)">${opOpts}</select>
+    <input  class="cval" id="cval-${si}-${gi}-${ri}" type="text" value="${escQ(r.val)}" placeholder="值" oninput="updateCondRow(${si},${gi},${ri},'val',this.value)" />
+    <button class="db" onclick="removeCondRow(${si},${gi},${ri})">${TRASH_ICON}</button>
+  </div>`;
+}
+
+function actionPreviewText(s) {
+  const m = {
+    score:   ()=>`风险评分 ${s.dir==='+'?'累加':'减少'} ${s.val||90}·达到 100 自动触发拦截`,
+    alert:   ()=>`工单类动作·推送至${(s.queue||'--').split('（')[0]}·由合规专员审核`,
+    str:     ()=>`生成 ${s.reportType||'STR 报告'}·${s.deadline||30} 天内${s.autoSubmit?'自动':'手动'}提交`,
+    email:   ()=>`发送邮件至 ${s.recipients||'(未设置)'}·主题：${s.subject||'(未设置)'}`,
+    block:   ()=>`拦截并终止交易·原因：${s.reason||'高风险交易拦截'}`,
+    pass:    ()=>'放行本次交易·继续执行后续规则',
+    kyt:     ()=>`调用 ${s.provider||'KYT'} API·结果存入 \`${s.storeAs||'kyt_score'}\``,
+    'kyc-q': ()=>`查询 ${s.checkType||'KYC 状态'}·结果存入 \`${s.storeAs||'kyc_status'}\``,
+  };
+  return (m[s.kind] && m[s.kind]()) || '条件命中时，系统执行此动作';
+}
+
+function strategySection(idx, s) {
+  return `<div class="sec" style="margin-top:16px;">失败策略 <span class="req">*</span></div>
+  ${radioOpt('interrupt','中断流程','后续动作全部不执行·立即告警工程团队',s.strategy,idx)}
+  ${radioOpt('retry','重试后失败告警','重试 3 次·仍失败则记录错误队列·不阻塞后续',s.strategy,idx)}
+  ${radioOpt('ignore','静默忽略','失败只写日志·不影响任何后续',s.strategy,idx)}`;
+}
+
+function panelAction(idx) {
+  const s = rule.steps[idx];
+  const niClass = niFor(s.kind);
+  let extra = '';
+
+  if (s.kind === 'score') {
+    const pct = Math.min(100, Math.max(0, s.val||0));
+    const barColor = pct>=90?'#ef4444':pct>=70?'#f59e0b':'#2563eb';
+    extra = `
+    <div class="sec">基本配置</div>
+    <div class="lbl">评分变化 <span class="req">*</span></div>
+    <div class="sr">
+      <select class="sscl" onchange="updateStep(${idx},'dir',this.value==='+ 累加'?'+':'-')">
+        <option ${s.dir==='+'?'selected':''}>+ 累加</option><option ${s.dir==='-'?'selected':''}>- 减少</option>
+      </select>
+      <input class="sin" type="number" value="${s.val||90}" min="1" max="100" oninput="updateStep(${idx},'val',+this.value)" />
+    </div>
+    <div class="hint">达到 100 阈值自动触发拦截</div>
+    <div class="pbw" style="margin-top:8px;"><div class="pb" id="score-pb" style="width:${pct}%;background:${barColor};"></div></div>
+    <div class="plbl"><span>0</span><span id="score-lbl">${pct} / 100</span></div>
+    ${strategySection(idx, s)}`;
+  }
+  else if (s.kind === 'alert') {
+    extra = `
+    <div class="sec">基本配置</div>
+    <div class="lbl">推送工作台 <span class="req">*</span></div>
+    <select class="fsel mb16" onchange="updateStep(${idx},'queue',this.value)">
+      <option ${s.queue==='风控审批工作台（compliance-review）'?'selected':''}>风控审批工作台（compliance-review）</option>
+      <option ${s.queue==='合规工作台（compliance）'?'selected':''}>合规工作台（compliance）</option>
+      <option ${s.queue==='人工审核工作台（manual-review）'?'selected':''}>人工审核工作台（manual-review）</option>
+    </select>
+    <div class="lbl">优先级 <span class="req">*</span></div>
+    <select class="fsel mb16" onchange="updateStep(${idx},'priority',this.value)">
+      <option ${s.priority==='高 - SLA 2 小时'?'selected':''}>高 - SLA 2 小时</option>
+      <option ${s.priority==='中 - SLA 8 小时'?'selected':''}>中 - SLA 8 小时</option>
+      <option ${s.priority==='低 - SLA 24 小时'?'selected':''}>低 - SLA 24 小时</option>
+    </select>
+    <div class="lbl">工单标题模板 <span class="req">*</span></div>
+    <input class="fin mb16" type="text" value="${escQ(s.titleTemplate||'')}" placeholder="高风险提现·评分={score.total}·用户={tx.user_id}" oninput="updateStep(${idx},'titleTemplate',this.value)" />
+    <div class="lbl">关联交易 <span class="req">*</span></div>
+    <select class="fsel mb16" onchange="updateStep(${idx},'txRef',this.value)">
+      <option ${s.txRef==='{tx.id}（当前触发交易）'?'selected':''}>{tx.id}（当前触发交易）</option>
+      <option ${s.txRef==='无'?'selected':''}>无</option>
+    </select>
+    <div class="lbl">指派规则 <span class="req">*</span></div>
+    <select class="fsel mb16" onchange="updateStep(${idx},'assignRule',this.value)">
+      <option ${s.assignRule==='合规组一轮询分派（round-robin）'?'selected':''}>合规组一轮询分派（round-robin）</option>
+      <option ${s.assignRule==='指定负责人'?'selected':''}>指定负责人</option>
+      <option ${s.assignRule==='空闲优先'?'selected':''}>空闲优先</option>
+    </select>
+    ${strategySection(idx, s)}`;
+  }
+  else if (s.kind === 'str') {
+    extra = `
+    <div class="sec">基本配置</div>
+    <div class="lbl">报告类型 <span class="req">*</span></div>
+    <select class="fsel mb16" onchange="updateStep(${idx},'reportType',this.value)">
+      <option ${s.reportType==='可疑交易报告 (STR)'?'selected':''}>可疑交易报告 (STR)</option>
+      <option ${s.reportType==='大额现金交易报告 (LCTR)'?'selected':''}>大额现金交易报告 (LCTR)</option>
+      <option ${s.reportType==='电子资金转移报告 (EFTR)'?'selected':''}>电子资金转移报告 (EFTR)</option>
+    </select>
+    <div class="lbl">提交截止（天） <span class="req">*</span></div>
+    <input class="fin mb16" type="number" value="${escQ(s.deadline||30)}" min="1" max="90" oninput="updateStep(${idx},'deadline',+this.value)" />
+    <label class="chkr mb16" onclick="updateStep(${idx},'autoSubmit',!rule.steps[${idx}].autoSubmit);this.querySelector('.ck').classList.toggle('on')"><div class="ck${s.autoSubmit?' on':''}"></div>草稿完成后自动提交 FINTRAC</label>
+    ${strategySection(idx, s)}`;
+  }
+  else if (s.kind === 'email') {
+    extra = `
+    <div class="sec">基本配置</div>
+    <div class="lbl">收件人 <span class="req">*</span></div>
+    <input class="fin mb16" type="text" value="${escQ(s.recipients||'')}" placeholder="compliance@company.com，多个用逗号分隔" oninput="updateStep(${idx},'recipients',this.value)" />
+    <div class="lbl">邮件主题 <span class="req">*</span></div>
+    <input class="fin mb16" type="text" value="${escQ(s.subject||'')}" placeholder="[风控告警] {rule.name} · {tx.id}" oninput="updateStep(${idx},'subject',this.value)" />
+    <div class="lbl">邮件模板 <span class="req">*</span></div>
+    <select class="fsel mb16" onchange="updateStep(${idx},'emailTpl',this.value)">
+      <option ${s.emailTpl==='标准风控告警模板'?'selected':''}>标准风控告警模板</option>
+      <option ${s.emailTpl==='STR 提交提醒模板'?'selected':''}>STR 提交提醒模板</option>
+      <option ${s.emailTpl==='KYC 审核通知模板'?'selected':''}>KYC 审核通知模板</option>
+      <option ${s.emailTpl==='自定义'?'selected':''}>自定义</option>
+    </select>
+    ${strategySection(idx, s)}`;
+  }
+  else if (s.kind === 'block') {
+    extra = `
+    <div class="sec">基本配置</div>
+    <div class="lbl">拦截原因 <span class="req">*</span></div>
+    <select class="fsel mb16" onchange="updateStep(${idx},'reason',this.value)">
+      <option ${s.reason==='高风险交易拦截'?'selected':''}>高风险交易拦截</option>
+      <option ${s.reason==='制裁名单命中'?'selected':''}>制裁名单命中</option>
+      <option ${s.reason==='KYC 未通过'?'selected':''}>KYC 未通过</option>
+      <option ${s.reason==='评分超阈值'?'selected':''}>评分超阈值</option>
+      <option ${s.reason==='手动拦截'?'selected':''}>手动拦截</option>
+    </select>
+    <label class="chkr mb16" onclick="updateStep(${idx},'notifyUser',!rule.steps[${idx}].notifyUser);this.querySelector('.ck').classList.toggle('on')"><div class="ck${s.notifyUser?' on':''}"></div>通知用户拦截原因（发送系统消息）</label>
+    ${strategySection(idx, s)}`;
+  }
+  else if (s.kind === 'pass') {
+    extra = `
+    <div class="ibox" style="margin-top:4px;">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+      <span>此步骤不需要额外配置。交易将通过本规则并继续执行后续规则链。</span>
+    </div>
+    ${strategySection(idx, s)}`;
+  }
+  else if (s.kind === 'kyt') {
+    extra = `
+    <div class="sec">基本配置</div>
+    <div class="lbl">KYT 供应商 <span class="req">*</span></div>
+    <select class="fsel mb16" onchange="updateStep(${idx},'provider',this.value)">
+      <option ${s.provider==='Chainalysis'?'selected':''}>Chainalysis</option>
+      <option ${s.provider==='Elliptic'?'selected':''}>Elliptic</option>
+      <option ${s.provider==='TRM Labs'?'selected':''}>TRM Labs</option>
+    </select>
+    <div class="lbl">查询类型 <span class="req">*</span></div>
+    <select class="fsel mb16" onchange="updateStep(${idx},'checkType',this.value)">
+      <option ${s.checkType==='交易风险评分'?'selected':''}>交易风险评分</option>
+      <option ${s.checkType==='地址风险评分'?'selected':''}>地址风险评分</option>
+      <option ${s.checkType==='完整风险报告'?'selected':''}>完整风险报告</option>
+    </select>
+    <div class="lbl">存储为变量</div>
+    <input class="fin mb16" type="text" value="${escQ(s.storeAs||'kyt_score')}" placeholder="kyt_score" oninput="updateStep(${idx},'storeAs',this.value)" />
+    ${strategySection(idx, s)}`;
+  }
+  else if (s.kind === 'kyc-q') {
+    extra = `
+    <div class="sec">基本配置</div>
+    <div class="lbl">查询类型 <span class="req">*</span></div>
+    <select class="fsel mb16" onchange="updateStep(${idx},'checkType',this.value)">
+      <option ${s.checkType==='身份认证状态'?'selected':''}>身份认证状态</option>
+      <option ${s.checkType==='风险等级'?'selected':''}>风险等级</option>
+      <option ${s.checkType==='完整 KYC 档案'?'selected':''}>完整 KYC 档案</option>
+    </select>
+    <div class="lbl">存储为变量</div>
+    <input class="fin mb16" type="text" value="${escQ(s.storeAs||'kyc_status')}" placeholder="kyc_status" oninput="updateStep(${idx},'storeAs',this.value)" />
+    ${strategySection(idx, s)}`;
+  }
+
+  return `
+  <div class="rph">配置触发动作
+    <button onclick="closePanel()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+  </div>
+  <div class="rpb">
+    <div class="nsel" onclick="openModal('step-${idx}')">
+      <div class="nsl"><div class="nsi ${niClass}">${icon(s.kind)}</div>${s.label||s.kind}</div>
+      <button class="lnk">更换</button>
+    </div>
+    <div class="ibox">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <span id="act-preview">${actionPreviewText(s)}</span>
+    </div>
+    ${extra}
+  </div>
+  <div class="rpf">
+    <button class="btn btn-o" onclick="closePanel()">取消</button>
+    <button class="btn btn-b" onclick="closePanel();toast('动作配置已保存','ok')">完成</button>
+  </div>`;
+}
+
+function radioOpt(id, title, desc, current, si) {
+  const sel = current===id;
+  return `<div class="ro${sel?' on':''}" onclick="updateStep(${si},'strategy','${id}');document.querySelectorAll('#rp .ro').forEach(r=>r.classList.remove('on'));this.classList.add('on');this.querySelector('.rc').classList.add('on');document.querySelectorAll('#rp .rc').forEach(r=>{if(!r.closest('.ro.on'))r.classList.remove('on')})">
+    <div class="rc${sel?' on':''}"></div>
+    <div><div class="rt">${title}</div><div class="rd">${desc}</div></div>
+  </div>`;
+}
+
+// ════════════════════════════════════════════════
+//  INTERACTION HANDLERS
+// ════════════════════════════════════════════════
+function selectNode(id) {
+  selected = id;
+  renderCanvas();
+  renderPanel();
+}
+function closePanel() {
+  selected = null;
+  renderCanvas();
+  document.getElementById('rp').classList.add('hidden');
+}
+
+function clickAddTrigger() { openModal('trigger'); }
+function clickAddStep(branch) { openModal('step-new-'+(branch||'main')); }
+
+// Trigger config
+function onEvTypeChange(val) {
+  rule.trigger.eventType = val;
+  updateCanvas();
+  document.getElementById('tp-preview').innerHTML = triggerPreviewText();
+}
+function toggleScope(scope, label) {
+  const ck = label.querySelector('.ck');
+  ck.classList.toggle('on');
+  const has = rule.trigger.scope.includes(scope);
+  if (has) rule.trigger.scope = rule.trigger.scope.filter(s=>s!==scope);
+  else rule.trigger.scope.push(scope);
+  if (!rule.trigger.scope.length) { rule.trigger.scope=['全部商户']; const first=document.querySelector('.rpb .chkr .ck'); if(first)first.classList.add('on'); }
+  updateCanvas();
+  const prev = document.getElementById('tp-preview');
+  if(prev) prev.innerHTML = triggerPreviewText();
+  // show/hide risk level sub-select
+  const hasSub = rule.trigger.scope.includes('指定风险等级');
+  let sub = document.getElementById('risk-lv')?.closest('.sub-in');
+  if(!sub && hasSub) {
+    const lbEls = document.querySelectorAll('.rpb .chkr');
+    lbEls.forEach(lb=>{ if(lb.textContent.includes('指定风险等级')) {
+      const d=document.createElement('div'); d.className='sub-in'; d.innerHTML='<select class="fsel" id="risk-lv" onchange="rule.trigger.riskLevel=this.value;updateCanvas()"><option>高风险</option><option>中风险</option><option>低风险</option></select>';
+      lb.after(d);
+    }});
+  } else if(sub && !hasSub) sub.remove();
+}
+
+// Condition rows & groups
+function updateCondRow(si, gi, ri, field, val) {
+  rule.steps[si].groups[gi].rows[ri][field] = val;
+  updateCanvas();
+  const prev = document.getElementById('cond-preview');
+  if(prev) prev.textContent = condSummary(rule.steps[si]);
+}
+function addCondRow(si, gi) {
+  const rows = rule.steps[si].groups[gi].rows;
+  rows.push({ field: FIELD_OPTS[0], op: OP_OPTS[0], val: '', connector: 'AND' });
+  renderPanel(); updateCanvas();
+}
+function removeCondRow(si, gi, ri) {
+  const grp = rule.steps[si].groups[gi];
+  if(grp.rows.length<=1){
+    // removing the only row in a group removes the group
+    removeCondGroup(si, gi); return;
+  }
+  grp.rows.splice(ri, 1);
+  // fix first row connector
+  if(grp.rows[0]) grp.rows[0].connector = null;
+  renderPanel(); renderCanvas();
+}
+function addCondGroup(si) {
+  rule.steps[si].groups.push({ rows:[{ field: FIELD_OPTS[0], op: OP_OPTS[0], val: '', connector: null }] });
+  renderPanel(); updateCanvas();
+}
+function removeCondGroup(si, gi) {
+  if(rule.steps[si].groups.length<=1){ toast('至少需要一个条件组','err'); return; }
+  rule.steps[si].groups.splice(gi, 1);
+  renderPanel(); renderCanvas();
+}
+function toggleRowConnector(si, gi, ri) {
+  const row = rule.steps[si].groups[gi].rows[ri];
+  row.connector = row.connector==='OR' ? 'AND' : 'OR';
+  const el = document.getElementById(`cand-${si}-${gi}-${ri}`);
+  if(el){ el.textContent=row.connector; el.classList.toggle('cor', row.connector==='OR'); }
+  updateCanvas();
+  const prev = document.getElementById('cond-preview');
+  if(prev) prev.textContent = condSummary(rule.steps[si]);
+}
+function saveCondPanel(si) {
+  const allEmpty = rule.steps[si].groups.some(g=>g.rows.some(r=>!String(r.val).trim()));
+  if(allEmpty){ toast('请填写所有条件的值','err'); return; }
+  closePanel(); toast('条件配置已保存','ok');
+}
+
+// Action / step updates
+function updateStep(si, field, val) {
+  rule.steps[si][field] = val;
+  updateCanvas();
+  // live updates inside panel (no full re-render)
+  if(field==='val') {
+    const pct = Math.min(100,Math.max(0,val));
+    const bar = document.getElementById('score-pb');
+    const lbl = document.getElementById('score-lbl');
+    if(bar){ bar.style.width=pct+'%'; bar.style.background=pct>=90?'#ef4444':pct>=70?'#f59e0b':'#2563eb'; }
+    if(lbl) lbl.textContent=pct+' / 100';
+  }
+  const prev = document.getElementById('act-preview');
+  if(prev) prev.textContent = actionPreviewText(rule.steps[si]);
+}
+
+// Step update that only refreshes canvas (not panel)
+function updateCanvas() {
+  renderCanvas();
+}
+
+// ════════════════════════════════════════════════
+//  MODAL  — pick trigger or step type
+// ════════════════════════════════════════════════
+function openModal(mode) {
+  modalMode = mode;
+  moQ=''; moTab='all';
+  document.getElementById('mo-search').value='';
+  document.querySelectorAll('.motab').forEach(t=>t.classList.remove('on'));
+  document.querySelector('.motab').classList.add('on');
+  renderModalList();
+  document.getElementById('modal').classList.remove('hidden');
+  setTimeout(()=>document.getElementById('mo-search').focus(),60);
+}
+function closeModal() { document.getElementById('modal').classList.add('hidden'); }
+function switchMoTab(el) {
+  document.querySelectorAll('.motab').forEach(t=>t.classList.remove('on'));
+  el.classList.add('on'); moTab=el.dataset.cat;
+  renderModalList();
+}
+function filterNodes(q) { moQ=q; renderModalList(); }
+
+function renderModalList() {
+  const body = document.getElementById('mo-list');
+  const isTrigger = modalMode==='trigger';
+  const pool = isTrigger ? TRIGGER_TYPES : STEP_TYPES;
+  let items = pool.filter(n=>{
+    const mc = moTab==='all'||n.cat===moTab||(isTrigger&&moTab==='all');
+    const mq = !moQ || n.label.toLowerCase().includes(moQ.toLowerCase())||n.desc.toLowerCase().includes(moQ.toLowerCase());
+    return mc&&mq;
+  });
+  if(!items.length){ body.innerHTML='<div class="nores">没有找到匹配的节点</div>'; return; }
+  const cats=[...new Set(items.map(n=>n.cat))];
+  let html='';
+  cats.forEach(cat=>{
+    html+=`<div class="mosec">${cat==='trigger'?'触发器':cat==='推荐'?'推荐(基于上一步)':cat}</div>`;
+    items.filter(n=>n.cat===cat).forEach(n=>{
+      const niCls = n.color?'ni-'+n.color:'ni-b'; // color: 'r'|'a'|undefined
+      html+=`<div class="moi" onclick="pickNode('${n.id}')">
+        <div class="moii ${niCls}">${icon(n.icon||n.id)}</div>
+        <div><div class="mot">${hl(n.label,moQ)}</div><div class="mod">${hl(n.desc,moQ)}</div></div>
+      </div>`;
+    });
+  });
+  body.innerHTML=html;
+}
+
+function hl(t,q){
+  if(!q) return t;
+  const i=t.toLowerCase().indexOf(q.toLowerCase());
+  if(i<0) return t;
+  return t.slice(0,i)+`<mark style="background:#fef9c3;border-radius:2px;">`+t.slice(i,i+q.length)+'</mark>'+t.slice(i+q.length);
+}
+
+function pickNode(id) {
+  closeModal();
+  if (modalMode==='trigger') {
+    const def = TRIGGER_TYPES.find(t=>t.id===id)||STEP_TYPES.find(t=>t.id===id);
+    rule.trigger = {
+      id, label: def?def.label:id,
+      eventType: '提现 或 法币 加密提币',
+      scope: ['全部商户'],
+    };
+    selected = 'trigger';
+    renderCanvas(); renderPanel();
+    toast('触发器已添加：'+rule.trigger.label,'ok');
+    return;
+  }
+  // adding a step — determine which branch this belongs to
+  const branchMap = {
+    'step-new-left':'left', 'step-new-right':'right',
+    'step-new-left-left':'left-left', 'step-new-left-right':'left-right',
+  };
+  const stepBranch = branchMap[modalMode] || null; // null = linear flow
+
+  const def = STEP_TYPES.find(t=>t.id===id)||ACTION_TYPES.find(t=>t.id===id);
+  const typeDefaults = {
+    score:   {dir:'+', val:90, strategy:'interrupt'},
+    alert:   {queue:'风控审批工作台（compliance-review）', priority:'高 - SLA 2 小时', titleTemplate:'高风险提现·评分={score.total}·用户={tx.user_id}', txRef:'{tx.id}（当前触发交易）', assignRule:'合规组一轮询分派（round-robin）', strategy:'retry'},
+    str:     {reportType:'可疑交易报告 (STR)', deadline:30, autoSubmit:false, strategy:'interrupt'},
+    email:   {recipients:'', subject:'[风控告警] {rule.name}', emailTpl:'标准风控告警模板', strategy:'retry'},
+    block:   {reason:'高风险交易拦截', notifyUser:true, strategy:'interrupt'},
+    pass:    {strategy:'ignore'},
+    kyt:     {provider:'Chainalysis', checkType:'交易风险评分', storeAs:'kyt_score', strategy:'interrupt'},
+    'kyc-q': {checkType:'身份认证状态', storeAs:'kyc_status', strategy:'interrupt'},
+    condition:{label:'条件分支 (IF/ELSE)', groups:[{rows:[{field:'KYW 评分',op:'≥大于等于',val:'',connector:null}]}]},
+  };
+  const newStep = {
+    kind: id,
+    label: def?def.label:id,
+    branch: stepBranch,
+    ...(typeDefaults[id]||{strategy:'interrupt'}),
+  };
+  rule.steps.push(newStep);
+  const si = rule.steps.length-1;
+  selected = `step-${si}`;
+  renderCanvas(); renderPanel();
+  const el = document.querySelector(`[onclick*="selectNode('step-${si}')"]`);
+  if(el){ el.classList.add('pulse'); setTimeout(()=>el.classList.remove('pulse'),500); }
+  toast('步骤已添加：'+newStep.label,'ok');
+}
+
+// ════════════════════════════════════════════════
+//  NODE CONTEXT MENU
+// ════════════════════════════════════════════════
+function nodeCtx(e, id) {
+  e.preventDefault(); e.stopPropagation();
+  const isStep = id.startsWith('step-');
+  const si = isStep ? parseInt(id.split('-')[1]) : -1;
+  const items = [];
+  if(id==='trigger') {
+    items.push({label:'配置触发节点',icon:'⚙️',fn:()=>selectNode('trigger')},{label:'更换触发器',icon:'🔄',fn:()=>openModal('trigger')});
+    items.push({sep:true},{label:'删除触发器',icon:'🗑',red:true,fn:()=>{rule.trigger=null;rule.steps=[];selected=null;renderCanvas();document.getElementById('rp').classList.add('hidden');toast('触发器已删除','inf')}});
+  } else if(isStep && si>=0) {
+    const s=rule.steps[si];
+    items.push({label:'配置节点',icon:'⚙️',fn:()=>selectNode(id)},{label:'更换节点',icon:'🔄',fn:()=>openModal(id)});
+    if(si>0) items.push({label:'上移',icon:'↑',fn:()=>moveStep(si,-1)});
+    if(si<rule.steps.length-1) items.push({label:'下移',icon:'↓',fn:()=>moveStep(si,1)});
+    items.push({sep:true},{label:'删除此步骤',icon:'🗑',red:true,fn:()=>deleteStep(si)});
+  }
+  showCtx(e.clientX,e.clientY,items);
+}
+function deleteStep(si) {
+  rule.steps.splice(si,1);
+  if(selected===`step-${si}`) { selected=null; document.getElementById('rp').classList.add('hidden'); }
+  renderCanvas(); toast('步骤已删除','inf');
+}
+function moveStep(si, d) {
+  const s=rule.steps; const ni=si+d;
+  if(ni<0||ni>=s.length) return;
+  [s[si],s[ni]]=[s[ni],s[si]];
+  selected=`step-${ni}`;
+  renderCanvas(); renderPanel(); toast('步骤顺序已更新','ok');
+}
+
+function showCtx(x,y,items) {
+  const m=document.getElementById('ctx');
+  m.innerHTML='';
+  items.forEach(it=>{
+    if(it.sep){const d=document.createElement('div');d.className='cxs';m.appendChild(d);return;}
+    const el=document.createElement('div'); el.className='cxi'+(it.red?' red':'');
+    el.innerHTML=`<span>${it.icon}</span><span>${it.label}</span>`;
+    el.onclick=()=>{m.classList.add('hidden');it.fn();};
+    m.appendChild(el);
+  });
+  m.classList.remove('hidden');
+  const vw=window.innerWidth,vh=window.innerHeight;
+  m.style.left=(x+m.offsetWidth>vw?x-m.offsetWidth:x)+'px';
+  m.style.top=(y+m.offsetHeight>vh?y-m.offsetHeight:y)+'px';
+  setTimeout(()=>document.addEventListener('click',()=>m.classList.add('hidden'),{once:true}),10);
+}
+function cvCtx(e) {
+  e.preventDefault();
+  if(e.target.closest('.nc,.ac,.dm')) return;
+  showCtx(e.clientX,e.clientY,[
+    {label:'适应屏幕',icon:'⤢',fn:zoomFit},
+    {label:'放大',icon:'+',fn:()=>zoom(0.15)},
+    {label:'缩小',icon:'−',fn:()=>zoom(-0.15)},
+    {sep:true},
+    ...(!rule.trigger?[{label:'添加触发器',icon:'⚡',fn:clickAddTrigger}]:[]),
+    ...(rule.trigger?[{label:'添加步骤',icon:'＋',fn:()=>clickAddStep(null)}]:[]),
+  ]);
+}
+
+function showMoreCtx(e) {
+  showCtx(e.clientX,e.clientY,[
+    {label:'复制规则',icon:'📋',fn:()=>toast('规则已复制','ok')},
+    {label:'导出 JSON',icon:'📤',fn:()=>{ const j=JSON.stringify(rule,null,2); const b=new Blob([j],{type:'application/json'}); const a=Object.assign(document.createElement('a'),{href:URL.createObjectURL(b),download:'rule.json'}); a.click(); toast('已导出 rule.json','ok'); }},
+    {label:'版本历史',icon:'🕐',fn:()=>toast('版本历史即将上线','inf')},
+    {sep:true},
+    {label:'删除规则',icon:'🗑',red:true,fn:()=>{if(confirm('确认删除？'))location.reload();}},
+  ]);
+}
+
+// ════════════════════════════════════════════════
+//  CANVAS PAN & ZOOM
+// ════════════════════════════════════════════════
+let zt=1, tx=0, ty=0, isPan=false, ps={x:0,y:0};
+function applyT(){
+  document.getElementById('cvt').style.transform=`translate(${tx}px,${ty}px) scale(${zt})`;
+  document.getElementById('zpct').textContent=Math.round(zt*100)+'%';
+}
+function zoom(d){
+  const cv=document.getElementById('canvas');
+  const cx=cv.offsetWidth/2,cy=cv.offsetHeight/2;
+  const oz=zt; zt=Math.min(2,Math.max(0.25,zt+d));
+  tx=cx-(cx-tx)*(zt/oz); ty=cy-(cy-ty)*(zt/oz); applyT();
+}
+function zoomFit(){
+  const cvEl=document.getElementById('canvas');
+  const cvwEl=document.getElementById('cvw');
+  const cW=cvEl.clientWidth||window.innerWidth;
+  const cH=cvEl.clientHeight||(window.innerHeight-112);
+  const wW=cvwEl.offsetWidth||660;
+  const wH=cvwEl.offsetHeight||600;
+  const pad=60;
+  // .cv-w is CSS-centered (top:50%,left:50%,translate(-50%,-50%)).
+  // .cv-t has transform-origin:0 0, so scaling by zt shifts the centered content.
+  // Correct offset to keep content centered after scale: tx=cW*(1-zt)/2, ty=cH*(1-zt)/2
+  zt=Math.max(0.3,Math.min(1,(cW-pad*2)/wW,(cH-pad*2)/wH));
+  tx=cW*(1-zt)/2; ty=cH*(1-zt)/2;
+  applyT();
+}
+function onWheel(e){ e.preventDefault(); const d=e.deltaY>0?-.08:.08; const rect=document.getElementById('canvas').getBoundingClientRect(); const cx=e.clientX-rect.left,cy=e.clientY-rect.top; const oz=zt; zt=Math.min(2,Math.max(0.25,zt+d)); tx=cx-(cx-tx)*(zt/oz); ty=cy-(cy-ty)*(zt/oz); applyT(); }
+function cvDown(e){ if(e.button!==0||e.target.closest('.nc,.ac,.dw,.zm,.cv-tip')) return; isPan=true; ps={x:e.clientX-tx,y:e.clientY-ty}; document.getElementById('canvas').classList.add('pan'); document.addEventListener('mousemove',cvMove); document.addEventListener('mouseup',cvUp); }
+function cvMove(e){ if(!isPan) return; tx=e.clientX-ps.x; ty=e.clientY-ps.y; applyT(); }
+function cvUp(){ isPan=false; document.getElementById('canvas').classList.remove('pan'); document.removeEventListener('mousemove',cvMove); document.removeEventListener('mouseup',cvUp); }
+
+// ════════════════════════════════════════════════
+//  SAVE / PUBLISH / NAME
+// ════════════════════════════════════════════════
+let svT=null;
+function syncName(el){
+  if(!el.value.trim()) el.value=rule.name; else { rule.name=el.value; document.getElementById('bc-name').textContent=el.value; document.title=el.value+' – 风控规则'; autoSave(); }
+}
+function autoSave(){
+  clearTimeout(svT);
+  const ind=document.getElementById('svi'); ind.textContent='保存中…';
+  svT=setTimeout(()=>{ ind.textContent='已保存 ✓'; setTimeout(()=>ind.textContent='',2000); },800);
+}
+function saveDraft(){ autoSave(); toast('草稿已保存','ok'); }
+function openPublish(){
+  document.getElementById('cfm-ck').classList.remove('on');
+  document.getElementById('cfm-ok').style.cssText='opacity:.4;pointer-events:none';
+  document.getElementById('cfm').classList.remove('hidden');
+}
+function toggleCfmCk(){
+  const ck=document.getElementById('cfm-ck'); ck.classList.toggle('on');
+  const ok=document.getElementById('cfm-ok');
+  ok.style.opacity=ck.classList.contains('on')?'1':'.4';
+  ok.style.pointerEvents=ck.classList.contains('on')?'auto':'none';
+}
+function doPublish(){
+  document.getElementById('cfm').classList.add('hidden');
+  document.getElementById('badge').className='badge bd-l'; document.getElementById('badge').textContent='已发布';
+  const pb=document.getElementById('pub-btn'); pb.textContent='重新编辑'; pb.onclick=()=>{ document.getElementById('badge').className='badge bd-d'; document.getElementById('badge').textContent='草稿'; pb.textContent='发布'; pb.onclick=openPublish; toast('已切换回草稿','inf'); };
+  autoSave(); toast('规则已成功发布！','ok');
+}
+
+// ════════════════════════════════════════════════
+//  KEYBOARD
+// ════════════════════════════════════════════════
+document.addEventListener('keydown',e=>{
+  const inInput = ['INPUT','SELECT','TEXTAREA'].includes(e.target.tagName);
+  if(e.key==='Escape'){
+    if(!document.getElementById('modal').classList.contains('hidden')){ closeModal();return; }
+    if(!document.getElementById('cfm').classList.contains('hidden')){ document.getElementById('cfm').classList.add('hidden');return; }
+    if(selected){ closePanel();return; }
+  }
+  if((e.ctrlKey||e.metaKey) && !inInput){
+    if(e.key==='s'){ e.preventDefault(); saveDraft(); }
+    if(e.key==='='||e.key==='+'){ e.preventDefault(); zoom(0.1); }
+    if(e.key==='-'){ e.preventDefault(); zoom(-0.1); }
+    if(e.key==='0'){ e.preventDefault(); zoomFit(); }
+    if(e.key==='k'){ e.preventDefault(); if(rule.trigger) openModal('step-new-main'); else openModal('trigger'); }
+  }
+});
+
+// ════════════════════════════════════════════════
+//  PANEL BIND (after innerHTML inject)
+// ════════════════════════════════════════════════
+function bindPanelEvents() {
+  // Fix select values — innerHTML injection doesn't guarantee <option selected> works in all browsers
+  // Re-apply via .value property after DOM insertion
+  if(selected && selected.startsWith('step-')) {
+    const idx = parseInt(selected.split('-')[1]);
+    const step = rule.steps[idx];
+    if(step && step.kind==='condition') {
+      (step.groups||[]).forEach((g,gi)=>{
+        (g.rows||[]).forEach((r,ri)=>{
+          const fEl = document.getElementById(`crow-${idx}-${gi}-${ri}`)?.querySelector('.cf');
+          const oEl = document.getElementById(`crow-${idx}-${gi}-${ri}`)?.querySelector('.co');
+          const vEl = document.getElementById(`cval-${idx}-${gi}-${ri}`);
+          if(fEl) fEl.value = r.field;
+          if(oEl) oEl.value = r.op;
+          if(vEl) vEl.value = r.val||'';
+        });
+      });
+    }
+  }
+  // drag-to-reorder for condition rows
+  let dragging=null;
+  document.querySelectorAll('.crow').forEach(row=>{
+    row.addEventListener('dragstart',()=>{ dragging=row; row.style.opacity='.4'; });
+    row.addEventListener('dragend',()=>{ row.style.opacity='1'; dragging=null; });
+    row.addEventListener('dragover',e=>{ e.preventDefault(); if(dragging&&dragging!==row){ row.parentNode.insertBefore(dragging,row); } });
+  });
+}
+
+// ════════════════════════════════════════════════
+//  TOAST
+// ════════════════════════════════════════════════
+let toastT;
+function toast(msg,type=''){
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.className=type?type:''; el.classList.add('show');
+  clearTimeout(toastT); toastT=setTimeout(()=>el.classList.remove('show'),2400);
+}
+
+// ════════════════════════════════════════════════
+//  INIT
+// ════════════════════════════════════════════════
+renderCanvas();
+window.addEventListener('load', zoomFit);
+</script>
+</body>
+</html>
