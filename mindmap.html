@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FuturePayCA MSB — 用户旅程全景思维导图</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:#0f172a; font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Helvetica Neue',sans-serif; overflow:hidden; height:100vh; }
+
+/* ── Controls ── */
+.controls {
+  position:fixed; top:16px; left:50%; transform:translateX(-50%);
+  z-index:100; display:flex; align-items:center; gap:8px;
+  background:rgba(15,23,42,.85); backdrop-filter:blur(12px);
+  border:1px solid rgba(255,255,255,.08); border-radius:10px;
+  padding:8px 16px;
+}
+.controls h1 { font-size:13px; font-weight:700; color:#e2e8f0; margin-right:12px; }
+.ctrl-btn {
+  padding:4px 12px; border-radius:6px; cursor:pointer; font-size:12px;
+  font-weight:600; border:1px solid rgba(255,255,255,.12);
+  background:rgba(255,255,255,.06); color:#94a3b8; transition:all .15s;
+}
+.ctrl-btn:hover { background:rgba(255,255,255,.12); color:#e2e8f0; }
+.ctrl-sep { width:1px; height:20px; background:rgba(255,255,255,.1); }
+
+/* ── Legend ── */
+.legend {
+  position:fixed; bottom:20px; left:20px; z-index:100;
+  background:rgba(15,23,42,.85); backdrop-filter:blur(12px);
+  border:1px solid rgba(255,255,255,.08); border-radius:10px;
+  padding:12px 16px; display:flex; flex-direction:column; gap:7px;
+}
+.legend-title { font-size:10px; font-weight:700; color:#475569; text-transform:uppercase; letter-spacing:.6px; margin-bottom:2px; }
+.legend-row { display:flex; align-items:center; gap:8px; font-size:11px; color:#94a3b8; }
+.legend-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+
+/* ── Hint ── */
+.hint {
+  position:fixed; bottom:20px; right:20px; z-index:100;
+  font-size:11px; color:#475569;
+  background:rgba(15,23,42,.85); backdrop-filter:blur(12px);
+  border:1px solid rgba(255,255,255,.06); border-radius:8px;
+  padding:8px 12px; line-height:1.6;
+}
+
+/* ── Canvas ── */
+#canvas { width:100vw; height:100vh; cursor:grab; }
+#canvas:active { cursor:grabbing; }
+
+/* ── Tooltip ── */
+.tooltip {
+  position:fixed; pointer-events:none;
+  background:rgba(15,23,42,.96); border:1px solid rgba(255,255,255,.1);
+  border-radius:8px; padding:8px 12px; font-size:12px; color:#e2e8f0;
+  max-width:240px; line-height:1.5; z-index:200;
+  display:none; box-shadow:0 8px 24px rgba(0,0,0,.4);
+}
+.tooltip strong { color:#fff; display:block; margin-bottom:3px; font-size:13px; }
+.tooltip span { color:#8b90a7; font-size:11px; }
+</style>
+</head>
+<body>
+
+<div class="controls">
+  <h1>📊 MSB 用户旅程全景</h1>
+  <div class="ctrl-sep"></div>
+  <button class="ctrl-btn" onclick="resetView()">重置视图</button>
+  <button class="ctrl-btn" onclick="zoomIn()">放大 +</button>
+  <button class="ctrl-btn" onclick="zoomOut()">缩小 −</button>
+  <div class="ctrl-sep"></div>
+  <button class="ctrl-btn" onclick="toggleLabels()">切换标签</button>
+</div>
+
+<div class="legend">
+  <div class="legend-title">用户角色</div>
+  <div class="legend-row"><div class="legend-dot" style="background:#f59e0b"></div>客户代理</div>
+  <div class="legend-row"><div class="legend-dot" style="background:#3b82f6"></div>L1 分析师</div>
+  <div class="legend-row"><div class="legend-dot" style="background:#8b5cf6"></div>L2 审核员</div>
+  <div class="legend-row"><div class="legend-dot" style="background:#ec4899"></div>合规管理员</div>
+  <div class="legend-row"><div class="legend-dot" style="background:#10b981"></div>系统自动</div>
+  <div class="legend-row"><div class="legend-dot" style="background:#ef4444"></div>监管上报</div>
+</div>
+
+<div class="hint">
+  🖱 拖拽移动 · 滚轮缩放 · 点击节点查看详情
+</div>
+
+<div class="tooltip" id="tooltip"></div>
+<svg id="canvas"></svg>
+
+<script>
+// ── Data ──────────────────────────────────────────────────────
+const TREE = {
+  id:'root', label:'FuturePayCA\nMSB', color:'#4f8ef7', r:52, desc:'合规运营平台 · FINTRAC监管',
+  children:[
+    {
+      id:'agent', label:'客户代理\n旅程', color:'#f59e0b', r:36,
+      desc:'商户开户申请 · 材料跟进 · 钱包管理',
+      children:[
+        { id:'a1', label:'商户申请', color:'#f59e0b', r:26, desc:'填写公司信息 · 上传KYC材料 · 提交申请',
+          children:[
+            { id:'a1a', label:'企业信息', color:'#fcd34d', r:18, desc:'公司注册号 · 营业执照 · 成立日期 · 注册资本 · 员工人数 · 注册/经营地址' },
+            { id:'a1b', label:'人员信息', color:'#fcd34d', r:18, desc:'法定人 · 董事 · UBO(最终受益人)\n国籍 · 证件 · 控股比例' },
+            { id:'a1c', label:'材料上传', color:'#fcd34d', r:18, desc:'注册证书(CI) · 企业章程(AOA)\n银行流水 · 源资金证明' },
+          ]
+        },
+        { id:'a2', label:'进度跟踪', color:'#f59e0b', r:22, desc:'查看KYC审核状态 · 接收缺材料通知 · 催促商户补充',
+          children:[
+            { id:'a2a', label:'状态查看', color:'#fcd34d', r:16, desc:'待审核 · 审核中 · 待补材料 · 已通过 · 已拒绝' },
+            { id:'a2b', label:'材料催促', color:'#fcd34d', r:16, desc:'系统通知商户 · 跟进补充 · 重新提交' },
+          ]
+        },
+        { id:'a3', label:'钱包注册', color:'#f59e0b', r:22, desc:'添加提币地址 · 标注钱包类型 · 跟踪KYW状态',
+          children:[
+            { id:'a3a', label:'添加地址', color:'#fcd34d', r:16, desc:'链 + 地址 + 标签(热钱包/冷钱包)' },
+            { id:'a3b', label:'KYW跟踪', color:'#fcd34d', r:16, desc:'查看扫描结果 · 上传资金来源文件' },
+          ]
+        },
+        { id:'a4', label:'日常监控', color:'#f59e0b', r:20, desc:'商户交易状态 · 异常警报通知 · KYC到期提醒',
+          children:[
+            { id:'a4a', label:'异常通知', color:'#fcd34d', r:14, desc:'账户冻结 · 大额警报 · 证件到期' },
+          ]
+        },
+      ]
+    },
+    {
+      id:'kyc', label:'KYC/KYB\n审核', color:'#3b82f6', r:38,
+      desc:'L1分析师主导 · L2最终审批',
+      children:[
+        { id:'k1', label:'案件认领', color:'#3b82f6', r:22, desc:'L1从队列中认领 · SLA倒计时开始 · 分配处理人' },
+        { id:'k2', label:'基本信息\n审查', color:'#3b82f6', r:26, desc:'企业注册信息核实 · UBO身份验证',
+          children:[
+            { id:'k2a', label:'公司核实', color:'#60a5fa', r:18, desc:'公司注册号 · 商业登记证 · 成立日期 · 注册地址' },
+            { id:'k2b', label:'人员核实', color:'#60a5fa', r:18, desc:'法定人 · 董事 · UBO\n证件真实性 · 控股比例' },
+            { id:'k2c', label:'文件审查', color:'#60a5fa', r:18, desc:'KYC文件 · 交易文件\n上传原因标注 · 版本管理' },
+          ]
+        },
+        { id:'k3', label:'风险评分\nCRR', color:'#3b82f6', r:28, desc:'14个风险指标 · 自动计算综合评分',
+          children:[
+            { id:'k3a', label:'地域风险', color:'#60a5fa', r:18, desc:'注册国家&地区 · 省份\n运营国家 · 董事/UBO居住地\n付款方/受益人国家' },
+            { id:'k3b', label:'主体风险', color:'#60a5fa', r:18, desc:'成立时间 · 证件类型\n产品&服务类型 · 企业类型' },
+            { id:'k3c', label:'行为风险', color:'#60a5fa', r:18, desc:'名单扫描 · Channel\nIP&Machine · 命中规则频率 · 风险事件' },
+            { id:'k3d', label:'评分输出', color:'#93c5fd', r:16, desc:'低风险 0-39\n中风险 40-69\n高风险 70-100' },
+          ]
+        },
+        { id:'k4', label:'EDD调查', color:'#3b82f6', r:26, desc:'高风险触发 · 5项加强调查',
+          children:[
+            { id:'k4a', label:'身份加强验证', color:'#60a5fa', r:16, desc:'第三方身份核实 · 视频面审' },
+            { id:'k4b', label:'业务模式验证', color:'#60a5fa', r:16, desc:'业务合法性 · 资金流向合理性' },
+            { id:'k4c', label:'UBO 10%声明', color:'#60a5fa', r:16, desc:'股权架构声明 · 受益人核实' },
+            { id:'k4d', label:'负面新闻扫描', color:'#60a5fa', r:16, desc:'扩展媒体筛查 · 不良记录' },
+          ]
+        },
+        { id:'k5', label:'系统检查', color:'#3b82f6', r:22, desc:'自动制裁名单匹配\nOFAC · UN · EU · FINTRAC',
+          children:[
+            { id:'k5a', label:'制裁匹配', color:'#60a5fa', r:16, desc:'实时比对4大制裁名单' },
+            { id:'k5b', label:'历史记录', color:'#60a5fa', r:16, desc:'可展开历史检查记录' },
+          ]
+        },
+        { id:'k6', label:'审核决定', color:'#1d4ed8', r:28, desc:'L1建议 → L2最终审批',
+          children:[
+            { id:'k6a', label:'✅ 批准入网', color:'#10b981', r:18, desc:'KYC通过 · 商户激活 · 可开始交易' },
+            { id:'k6b', label:'❌ 拒绝', color:'#ef4444', r:18, desc:'KYC不通过 · 记录拒绝原因 · 通知代理' },
+            { id:'k6c', label:'📋 请求信息', color:'#f59e0b', r:18, desc:'待补充材料 · 发送清单 · 暂停SLA' },
+            { id:'k6d', label:'⬆️ 升级L2/L3', color:'#8b5cf6', r:18, desc:'高风险案件 · L2二次审批 · 可再升L3' },
+          ]
+        },
+      ]
+    },
+    {
+      id:'kyw', label:'KYW\n钱包尽调', color:'#06b6d4', r:36,
+      desc:'钱包风险筛查 · 阈值配置 · 持续监控',
+      children:[
+        { id:'w1', label:'区块链扫描', color:'#06b6d4', r:26, desc:'Chainalysis / Bit2Go API',
+          children:[
+            { id:'w1a', label:'风险暴露分析', color:'#22d3ee', r:18, desc:'混币器 · 未知来源 · 低风险交易所\n赌博平台 · 高风险交易所 · 合规来源' },
+            { id:'w1b', label:'制裁匹配', color:'#22d3ee', r:18, desc:'OFAC · UN · EU · FINTRAC\n直接制裁匹配检测' },
+            { id:'w1c', label:'扫描历史', color:'#22d3ee', r:16, desc:'时间戳记录 · 每次扫描存档' },
+          ]
+        },
+        { id:'w2', label:'KYW审核', color:'#06b6d4', r:24, desc:'L1审核扫描结果 · 资金来源文件',
+          children:[
+            { id:'w2a', label:'资金来源', color:'#22d3ee', r:16, desc:'资金来源说明PDF · 交易所提现截图' },
+            { id:'w2b', label:'钱包信息', color:'#22d3ee', r:16, desc:'地址 · 链 · 代币 · 标签 · 提交日期' },
+            { id:'w2c', label:'商户关联', color:'#22d3ee', r:16, desc:'关联商户信息 · 注册日期 · 国家 · 风险等级' },
+          ]
+        },
+        { id:'w3', label:'阈值配置', color:'#06b6d4', r:26, desc:'就低原则 · Per-Chain > Per-Asset > 全局',
+          children:[
+            { id:'w3a', label:'钱包级阈值', color:'#22d3ee', r:18, desc:'单日累计上限\n月累计上限\n低于商户级 → 生效' },
+            { id:'w3b', label:'商户级阈值', color:'#22d3ee', r:18, desc:'Per-Chain · Per-Asset · 全局默认\n自动审批上限 · 人工审核阈值' },
+          ]
+        },
+        { id:'w4', label:'持续监控', color:'#06b6d4', r:22, desc:'自动每3天扫描(可配置) · 异常触发复审',
+          children:[
+            { id:'w4a', label:'自动再扫', color:'#22d3ee', r:16, desc:'每小时/日/周/月/自定义\n默认每3天' },
+            { id:'w4b', label:'复审触发', color:'#22d3ee', r:16, desc:'评分≥15 · 风险等级变化\n休眠：180天不活跃' },
+          ]
+        },
+        { id:'w5', label:'KYW决定', color:'#0891b2', r:22, desc:'',
+          children:[
+            { id:'w5a', label:'✅ 通过', color:'#10b981', r:14, desc:'钱包清白 · 允许交易' },
+            { id:'w5b', label:'❌ 拒绝', color:'#ef4444', r:14, desc:'钱包风险过高 · 封禁' },
+            { id:'w5c', label:'🔄 请求扫描', color:'#f59e0b', r:14, desc:'获取最新扫描报告' },
+          ]
+        },
+      ]
+    },
+    {
+      id:'tx', label:'交易监控\n&审核', color:'#10b981', r:38,
+      desc:'规则触发 · 警报处理 · 订单审核',
+      children:[
+        { id:'t1', label:'监控规则', color:'#10b981', r:26, desc:'5条默认规则 · 可配置扩展',
+          children:[
+            { id:'t1a', label:'大额交易\n≥$10K', color:'#34d399', r:18, desc:'TM-00-001 · 金额阈值\n加密货币交易 · 告警+生成报告' },
+            { id:'t1b', label:'可疑交易\n报告', color:'#34d399', r:18, desc:'TM-00-002 · 任意金额\n告警+生成报告+拦截+通知' },
+            { id:'t1c', label:'PEP/HIO\n检测', color:'#34d399', r:18, desc:'TM-00-003 · 制裁筛查\n≥$1,000 · 告警+触发EDD' },
+            { id:'t1d', label:'高频入账', color:'#34d399', r:16, desc:'TM-00-004 · 频率异常\n≥$5,000/h · 上报升级' },
+            { id:'t1e', label:'高风险\n司法区', color:'#34d399', r:16, desc:'TM-00-005 · 可疑交易\n任意金额 · 上报升级' },
+          ]
+        },
+        { id:'t2', label:'自动评估', color:'#10b981', r:24, desc:'规则引擎实时评估每笔交易',
+          children:[
+            { id:'t2a', label:'自动通过', color:'#34d399', r:18, desc:'低于自动审批阈值\n系统直接入账 · 无需人工' },
+            { id:'t2b', label:'进入队列', color:'#34d399', r:18, desc:'超过人工审核阈值\n进入订单审核队列' },
+            { id:'t2c', label:'触发警报', color:'#34d399', r:18, desc:'规则命中 → 生成交易警报\n指派分析师处理' },
+          ]
+        },
+        { id:'t3', label:'订单审核', color:'#10b981', r:26, desc:'充值 · 提现 · 兑换 · A2A',
+          children:[
+            { id:'t3a', label:'充值订单', color:'#34d399', r:18, desc:'DEP-YYYY-NNN · 发送方地址 · 链\n商户CRR · 匹配规则 · SLA' },
+            { id:'t3b', label:'提现订单', color:'#34d399', r:18, desc:'WIT-YYYY-NNN · 目标地址\nKYW评分 · 制裁匹配' },
+            { id:'t3c', label:'兑换订单', color:'#34d399', r:18, desc:'EXC-YYYY-NNN · 交易对\n点差配置 · 汇率锁定' },
+            { id:'t3d', label:'A2A订单', color:'#34d399', r:16, desc:'账户间转账 · 内部合规审查' },
+          ]
+        },
+        { id:'t4', label:'交易决定', color:'#059669', r:26, desc:'L1审核 · L2升级审批',
+          children:[
+            { id:'t4a', label:'✅ 入账', color:'#10b981', r:16, desc:'交易通过 · 资金到账' },
+            { id:'t4b', label:'⏸ 暂缓入账', color:'#f59e0b', r:16, desc:'暂停处理 · 待进一步核查' },
+            { id:'t4c', label:'❌ 拒绝/退款', color:'#ef4444', r:16, desc:'退回资金 · 记录原因' },
+            { id:'t4d', label:'🔒 冻结', color:'#dc2626', r:16, desc:'冻结账户 · 所有交易暂停' },
+          ]
+        },
+        { id:'t5', label:'事中监控', color:'#10b981', r:22, desc:'实时警报处理 · L1/L2审核',
+          children:[
+            { id:'t5a', label:'警报队列', color:'#34d399', r:16, desc:'ALT-YYYY-NNN · 触发规则\n商户 · 金额 · 状态 · 经手人' },
+            { id:'t5b', label:'供应商筛查', color:'#34d399', r:16, desc:'Chainalysis实时比对\n风险暴露分析 · 制裁匹配' },
+          ]
+        },
+      ]
+    },
+    {
+      id:'str', label:'监管\n上报', color:'#ef4444', r:34,
+      desc:'STR · LCTR · FINTRAC合规',
+      children:[
+        { id:'s1', label:'STR可疑\n交易报告', color:'#ef4444', r:28, desc:'FINTRAC强制要求 · 30天内上报',
+          children:[
+            { id:'s1a', label:'触发来源', color:'#f87171', r:18, desc:'交易审核标记 · KYC审核标记\n规则自动触发(TM-00-002)' },
+            { id:'s1b', label:'L1起草', color:'#f87171', r:18, desc:'填写STR表格 · 记录可疑行为\n关联交易记录' },
+            { id:'s1c', label:'L2确认', color:'#f87171', r:18, desc:'二次审查 · 确认提交\n不同意→退回L1修改' },
+            { id:'s1d', label:'FINTRAC\n提交', color:'#dc2626', r:18, desc:'F2R系统提交 · 状态：已提交\n存档留查备用' },
+            { id:'s1e', label:'状态流转', color:'#f87171', r:16, desc:'草稿 → 待L2确认 → 已提交' },
+          ]
+        },
+        { id:'s2', label:'LCTR大额\n现金报告', color:'#ef4444', r:24, desc:'≥CAD $10,000 · 15个工作日内',
+          children:[
+            { id:'s2a', label:'自动触发', color:'#f87171', r:16, desc:'大额现金交易自动识别' },
+            { id:'s2b', label:'合规审批', color:'#f87171', r:16, desc:'合规管理员审核 · 提交FINTRAC' },
+          ]
+        },
+        { id:'s3', label:'升级案件', color:'#ef4444', r:20, desc:'严重违规 · L3/法务介入',
+          children:[
+            { id:'s3a', label:'L3升级', color:'#f87171', r:14, desc:'合规管理员最终裁决' },
+            { id:'s3b', label:'法务上报', color:'#f87171', r:14, desc:'涉及刑事风险时对接法务' },
+          ]
+        },
+      ]
+    },
+    {
+      id:'mgmt', label:'商户\n生命周期', color:'#8b5cf6', r:36,
+      desc:'开户后的全周期运营管理',
+      children:[
+        { id:'m1', label:'商户档案', color:'#8b5cf6', r:26, desc:'7个标签页 · 全生命周期记录',
+          children:[
+            { id:'m1a', label:'基本信息', color:'#a78bfa', r:16, desc:'公司资料 · 合规专员 · 入网时间' },
+            { id:'m1b', label:'交易记录', color:'#a78bfa', r:16, desc:'全历史交易 · 多维筛选' },
+            { id:'m1c', label:'配置', color:'#a78bfa', r:16, desc:'费率配置 · 阈值配置 · 点差' },
+            { id:'m1d', label:'提币地址', color:'#a78bfa', r:16, desc:'注册钱包 · KYW状态 · 阈值' },
+            { id:'m1e', label:'活动日志', color:'#a78bfa', r:16, desc:'所有变更记录 · 谁改 · 改什么 · 何时' },
+            { id:'m1f', label:'账户状态', color:'#a78bfa', r:16, desc:'正常/冻结/暂停 · 历史变更' },
+          ]
+        },
+        { id:'m2', label:'配置管理', color:'#8b5cf6', r:24, desc:'费率 · 阈值 · 点差 · 需要审批',
+          children:[
+            { id:'m2a', label:'充值手续费', color:'#a78bfa', r:16, desc:'固定/百分比 · 按币种配置' },
+            { id:'m2b', label:'提现手续费', color:'#a78bfa', r:16, desc:'固定金额 · 按链+币种' },
+            { id:'m2c', label:'兑换点差', color:'#a78bfa', r:16, desc:'基础点差bps · 交易对点差覆盖' },
+            { id:'m2d', label:'提现阈值', color:'#a78bfa', r:16, desc:'Per-Chain · 自动/人工分界线' },
+          ]
+        },
+        { id:'m3', label:'账户操作', color:'#8b5cf6', r:22, desc:'高权限操作 · 需审批',
+          children:[
+            { id:'m3a', label:'更新CRR', color:'#a78bfa', r:14, desc:'手动重新计算风险评分' },
+            { id:'m3b', label:'冻结商户', color:'#a78bfa', r:14, desc:'暂停所有交易 · 触发审核' },
+            { id:'m3c', label:'申请解冻', color:'#a78bfa', r:14, desc:'商户申请 → L2审批' },
+          ]
+        },
+        { id:'m4', label:'定期复查', color:'#8b5cf6', r:20, desc:'KYC到期续期 · CRR重评',
+          children:[
+            { id:'m4a', label:'KYC续期', color:'#a78bfa', r:14, desc:'证件到期提前30天提醒' },
+            { id:'m4b', label:'年度评审', color:'#a78bfa', r:14, desc:'高风险商户年度重审' },
+          ]
+        },
+      ]
+    },
+    {
+      id:'admin', label:'系统\n配置', color:'#ec4899', r:32,
+      desc:'合规管理员专属 · 全局参数配置',
+      children:[
+        { id:'ad1', label:'监控规则\n配置', color:'#ec4899', r:24, desc:'新增/编辑/启停规则',
+          children:[
+            { id:'ad1a', label:'触发条件', color:'#f472b6', r:16, desc:'金额 · 频率 · 制裁匹配 · 客户类型' },
+            { id:'ad1b', label:'触发动作', color:'#f472b6', r:16, desc:'告警 · 拦截 · 生成报告 · 触发EDD · 升级' },
+          ]
+        },
+        { id:'ad2', label:'阈值体系\n配置', color:'#ec4899', r:22, desc:'Per-Chain > Per-Asset > 全局',
+          children:[
+            { id:'ad2a', label:'全局默认', color:'#f472b6', r:14, desc:'所有未配置商户适用' },
+            { id:'ad2b', label:'商户覆盖', color:'#f472b6', r:14, desc:'单商户专属阈值' },
+            { id:'ad2c', label:'钱包覆盖', color:'#f472b6', r:14, desc:'单钱包专属阈值' },
+          ]
+        },
+        { id:'ad3', label:'SLA配置', color:'#ec4899', r:18, desc:'按案件类型+风险等级设置时限' },
+        { id:'ad4', label:'监控配置', color:'#ec4899', r:18, desc:'KYW自动扫频率 · 复审触发条件 · 休眠阈值(180天)' },
+        { id:'ad5', label:'角色权限', color:'#ec4899', r:20, desc:'4角色 · 细粒度权限',
+          children:[
+            { id:'ad5a', label:'客户代理', color:'#f472b6', r:14, desc:'只读 · 材料催促 · 无决策权' },
+            { id:'ad5b', label:'L1分析师', color:'#f472b6', r:14, desc:'审核 · 标记STR · 不能最终审批高风险' },
+            { id:'ad5c', label:'L2审核员', color:'#f472b6', r:14, desc:'升级案件 · STR确认 · 不能覆盖L3' },
+            { id:'ad5d', label:'合规管理员', color:'#f472b6', r:14, desc:'全权限 · 系统配置 · 团队管理' },
+          ]
+        },
+        { id:'ad6', label:'财务配置', color:'#ec4899', r:18, desc:'日记账 · 结算 · PSP结算 · 收支日报' },
+      ]
+    },
+  ]
+};
+
+// ── Layout engine ──────────────────────────────────────────────
+const cx = window.innerWidth / 2;
+const cy = window.innerHeight / 2;
+
+function polarToCart(angle, r) {
+  return { x: Math.cos(angle) * r, y: Math.sin(angle) * r };
+}
+
+function layoutTree(node, x, y, startAngle, endAngle, depth) {
+  node.x = x; node.y = y;
+  if (!node.children || node.children.length === 0) return;
+  const n = node.children.length;
+  const gap = (endAngle - startAngle) / n;
+  const radii = [260, 200, 155];
+  const rad = radii[Math.min(depth, radii.length-1)];
+  node.children.forEach((child, i) => {
+    const angle = startAngle + gap * i + gap / 2;
+    const pos = polarToCart(angle, rad);
+    layoutTree(child, x + pos.x, y + pos.y, angle - gap/2, angle + gap/2, depth + 1);
+  });
+}
+
+const rootAngleParts = [
+  [Math.PI * 0.88, Math.PI * 1.18],   // agent    left-bottom
+  [Math.PI * 1.22, Math.PI * 1.58],   // kyc      bottom
+  [Math.PI * 1.62, Math.PI * 1.98],   // kyw      bottom-right
+  [Math.PI * -0.08, Math.PI * 0.28],  // tx       right
+  [Math.PI * 0.30, Math.PI * 0.58],   // str      right-bottom
+  [Math.PI * 0.52, Math.PI * 0.82],   // mgmt     bottom-right-ish
+  [Math.PI * -0.42, Math.PI * -0.12], // admin    top-right
+];
+
+TREE.x = cx; TREE.y = cy;
+TREE.children.forEach((child, i) => {
+  const [sa, ea] = rootAngleParts[i];
+  const mid = (sa + ea) / 2;
+  const pos = polarToCart(mid, 220);
+  layoutTree(child, cx + pos.x, cy + pos.y, sa, ea, 1);
+});
+
+// ── Render ──────────────────────────────────────────────────────
+const svg = document.getElementById('canvas');
+svg.setAttribute('width', window.innerWidth);
+svg.setAttribute('height', window.innerHeight);
+
+let zoom = 1, panX = 0, panY = 0;
+let showLabels = true;
+const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+svg.appendChild(g);
+
+function hexToRgba(hex, a) {
+  const r = parseInt(hex.slice(1,3),16);
+  const gg = parseInt(hex.slice(3,5),16);
+  const b = parseInt(hex.slice(5,7),16);
+  return `rgba(${r},${gg},${b},${a})`;
+}
+
+function renderEdges(node) {
+  if (!node.children) return;
+  node.children.forEach(child => {
+    const line = document.createElementNS('http://www.w3.org/2000/svg','path');
+    const dx = child.x - node.x, dy = child.y - node.y;
+    const len = Math.sqrt(dx*dx+dy*dy);
+    const ux = dx/len, uy = dy/len;
+    const x1 = node.x + ux*node.r, y1 = node.y + uy*node.r;
+    const x2 = child.x - ux*(child.r+2), y2 = child.y - uy*(child.r+2);
+    const mx = (x1+x2)/2, my = (y1+y2)/2;
+    const curvature = 30;
+    const px = -uy*curvature, py = ux*curvature;
+    line.setAttribute('d', `M${x1},${y1} Q${mx+px},${my+py} ${x2},${y2}`);
+    line.setAttribute('stroke', child.color);
+    line.setAttribute('stroke-width', Math.max(1.5, child.r * 0.12));
+    line.setAttribute('stroke-opacity', '0.35');
+    line.setAttribute('fill', 'none');
+    line.setAttribute('stroke-linecap', 'round');
+    g.appendChild(line);
+    renderEdges(child);
+  });
+}
+
+const tooltip = document.getElementById('tooltip');
+const allNodes = [];
+
+function renderNodes(node) {
+  allNodes.push(node);
+  // Glow
+  const glow = document.createElementNS('http://www.w3.org/2000/svg','circle');
+  glow.setAttribute('cx', node.x); glow.setAttribute('cy', node.y);
+  glow.setAttribute('r', node.r + 8);
+  glow.setAttribute('fill', hexToRgba(node.color, 0.08));
+  g.appendChild(glow);
+
+  // Circle
+  const circle = document.createElementNS('http://www.w3.org/2000/svg','circle');
+  circle.setAttribute('cx', node.x); circle.setAttribute('cy', node.y);
+  circle.setAttribute('r', node.r);
+  circle.setAttribute('fill', hexToRgba(node.color, 0.18));
+  circle.setAttribute('stroke', node.color);
+  circle.setAttribute('stroke-width', node.r > 30 ? 2.5 : 1.5);
+  circle.style.cursor = 'pointer';
+  circle.style.transition = 'all .2s';
+
+  circle.addEventListener('mouseenter', (e) => {
+    circle.setAttribute('fill', hexToRgba(node.color, 0.4));
+    tooltip.style.display = 'block';
+    tooltip.innerHTML = `<strong>${node.label.replace('\n',' ')}</strong><span>${node.desc || ''}</span>`;
+  });
+  circle.addEventListener('mousemove', (e) => {
+    tooltip.style.left = (e.clientX + 14) + 'px';
+    tooltip.style.top = (e.clientY - 10) + 'px';
+  });
+  circle.addEventListener('mouseleave', () => {
+    circle.setAttribute('fill', hexToRgba(node.color, 0.18));
+    tooltip.style.display = 'none';
+  });
+  g.appendChild(circle);
+
+  // Label
+  const lines = node.label.split('\n');
+  const fs = node.r > 35 ? 13 : node.r > 22 ? 11 : node.r > 15 ? 10 : 9;
+  const lineH = fs + 2;
+  const totalH = lines.length * lineH;
+
+  lines.forEach((line, i) => {
+    const text = document.createElementNS('http://www.w3.org/2000/svg','text');
+    text.setAttribute('x', node.x);
+    text.setAttribute('y', node.y - totalH/2 + i*lineH + fs*0.8);
+    text.setAttribute('text-anchor', 'middle');
+    text.setAttribute('fill', '#fff');
+    text.setAttribute('font-size', fs);
+    text.setAttribute('font-weight', node.r > 30 ? '700' : '600');
+    text.setAttribute('font-family', "-apple-system,BlinkMacSystemFont,'PingFang SC',sans-serif");
+    text.setAttribute('pointer-events', 'none');
+    text.setAttribute('class', 'node-label');
+    text.textContent = line;
+    g.appendChild(text);
+  });
+
+  if (node.children) node.children.forEach(renderNodes);
+}
+
+renderEdges(TREE);
+renderNodes(TREE);
+
+// ── Pan & Zoom ──────────────────────────────────────────────────
+let isDragging = false, lastX = 0, lastY = 0;
+
+svg.addEventListener('mousedown', e => {
+  isDragging = true; lastX = e.clientX; lastY = e.clientY;
+});
+window.addEventListener('mousemove', e => {
+  if (!isDragging) return;
+  panX += e.clientX - lastX; panY += e.clientY - lastY;
+  lastX = e.clientX; lastY = e.clientY;
+  applyTransform();
+});
+window.addEventListener('mouseup', () => { isDragging = false; });
+
+svg.addEventListener('wheel', e => {
+  e.preventDefault();
+  const delta = e.deltaY > 0 ? 0.9 : 1.1;
+  zoom = Math.max(0.2, Math.min(3, zoom * delta));
+  applyTransform();
+}, { passive: false });
+
+function applyTransform() {
+  g.setAttribute('transform', `translate(${panX},${panY}) scale(${zoom})`);
+  // Fix transform origin around center
+  g.style.transformOrigin = `${cx}px ${cy}px`;
+}
+
+function resetView() { zoom = 1; panX = 0; panY = 0; applyTransform(); }
+function zoomIn()    { zoom = Math.min(3, zoom * 1.2); applyTransform(); }
+function zoomOut()   { zoom = Math.max(0.2, zoom / 1.2); applyTransform(); }
+
+function toggleLabels() {
+  showLabels = !showLabels;
+  document.querySelectorAll('.node-label').forEach(el => {
+    el.style.display = showLabels ? '' : 'none';
+  });
+}
+
+// Touch support
+let lastTouchDist = null;
+svg.addEventListener('touchstart', e => {
+  if (e.touches.length === 1) { isDragging = true; lastX = e.touches[0].clientX; lastY = e.touches[0].clientY; }
+  if (e.touches.length === 2) { lastTouchDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY); }
+});
+svg.addEventListener('touchmove', e => {
+  e.preventDefault();
+  if (e.touches.length === 1 && isDragging) {
+    panX += e.touches[0].clientX - lastX; panY += e.touches[0].clientY - lastY;
+    lastX = e.touches[0].clientX; lastY = e.touches[0].clientY;
+    applyTransform();
+  }
+  if (e.touches.length === 2) {
+    const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+    if (lastTouchDist) { zoom = Math.max(0.2, Math.min(3, zoom * dist / lastTouchDist)); applyTransform(); }
+    lastTouchDist = dist;
+  }
+}, { passive: false });
+svg.addEventListener('touchend', () => { isDragging = false; lastTouchDist = null; });
+</script>
+</body>
+</html>
