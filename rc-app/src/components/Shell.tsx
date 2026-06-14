@@ -20,7 +20,7 @@ const NAV: ({ group: string } | Item)[] = [
   { to: "/audit", label: "审计日志", icon: Clock },
 ];
 
-export function Shell({ crumb, children }: { crumb: string[]; children: ReactNode }) {
+export function Shell({ crumb, wide, children }: { crumb: string[]; wide?: boolean; children: ReactNode }) {
   return (
     <div className="flex h-screen overflow-hidden bg-[var(--page)]">
       <aside className="flex w-[236px] shrink-0 flex-col overflow-y-auto border-r border-divider bg-content1">
@@ -62,7 +62,7 @@ export function Shell({ crumb, children }: { crumb: string[]; children: ReactNod
             <Initials p={{ i: "JL", c: "var(--brand)" }} size={32} />
           </div>
         </header>
-        <main className="flex-1 overflow-y-auto px-7 py-6"><div className="mx-auto max-w-[1180px]">{children}</div></main>
+        <main className="flex-1 overflow-y-auto px-7 py-6"><div className={`mx-auto ${wide ? "max-w-[1480px]" : "max-w-[1180px]"}`}>{children}</div></main>
       </div>
     </div>
   );

@@ -11,12 +11,12 @@ const TONE: Record<Tone, [string, string, string]> = {
 };
 export const toneVar = (t: Tone) => TONE[t][1];
 
-// soft colored pill with dot — matches the Figma status/severity chips (theme-independent)
-export function Pill({ tone = "grey", dot = true, children }: { tone?: Tone; dot?: boolean; children: ReactNode }) {
+// soft colored pill — matches the Figma status/severity chips (theme-independent)
+export function Pill({ tone = "grey", dot = true, icon, children }: { tone?: Tone; dot?: boolean; icon?: ReactNode; children: ReactNode }) {
   const [bg, fg, bd] = TONE[tone];
   return (
-    <span style={{ background: bg, color: fg, borderColor: bd }} className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11.5px] font-semibold whitespace-nowrap">
-      {dot && <span className="h-1.5 w-1.5 rounded-full" style={{ background: fg }} />}
+    <span style={{ background: bg, color: fg, borderColor: bd }} className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11.5px] font-semibold whitespace-nowrap">
+      {icon ? <span className="flex items-center" style={{ color: fg }}>{icon}</span> : dot ? <span className="h-1.5 w-1.5 rounded-full" style={{ background: fg }} /> : null}
       {children}
     </span>
   );

@@ -1,23 +1,41 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Button, Input, Tabs, Tab, Pagination, Card } from "@heroui/react";
-import { Search, Check, Users, Filter, MoreHorizontal } from "lucide-react";
+import { Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Button, Input, Pagination } from "@heroui/react";
+import { Search, SlidersHorizontal, Tag, Clock, CheckCircle2, AlertTriangle, CircleArrowUp, CircleDot, UserRound, FolderOpen, XCircle, Check, Users } from "lucide-react";
 import { Shell, PageHead } from "@/components/Shell";
-import { Pill, SoftChip, Initials, toneVar } from "@/components/bits";
+import { Pill, Initials } from "@/components/bits";
 import { ReviewDialog } from "@/components/ReviewDialog";
-import { alerts, RC_STATES, sevMeta, type Tone } from "@/lib/data";
+import { alerts, RC_STATES, sevMeta } from "@/lib/data";
 import { alertStore, useAlertVersion } from "@/lib/store";
 
-const TILES: { f: string; label: string; dot?: Tone; num: number }[] = [
-  { f: "all", label: "全部", num: 128 },
-  { f: "high", label: "高危", dot: "red", num: 19 },
-  { f: "mid", label: "中危", dot: "amber", num: 63 },
-  { f: "low", label: "低危", dot: "blue", num: 46 },
-  { f: "unclaimed", label: "待认领", dot: "grey", num: 24 },
-  { f: "escalated", label: "已升级", dot: "violet", num: 5 },
-  { f: "done", label: "今日已结", dot: "green", num: 87 },
+const TILES: { f: string; label: string }[] = [
+  { f: "all", label: "全部警报" },
+  { f: "unclaimed", label: "待认领" },
+  { f: "progress", label: "处理中" },
+  { f: "pending", label: "待补充材料" },
+  { f: "escalated", label: "已升级" },
+  { f: "done", label: "已结案" },
 ];
-const SEG = ["all", "high", "mid", "low"];
+const matchTile = (f: string, state: string) =>
+  f === "all" ? true
+    : f === "unclaimed" ? state === "new"
+    : f === "progress" ? state === "progress" || state === "pending_l2"
+    : f === "pending" ? state === "pending"
+    : f === "escalated" ? state === "escalated"
+    : f === "done" ? state.startsWith("closed") : false;
+
+const STATUS_ICON: Record<string, typeof Clock> = {
+  new: Clock, progress: CircleDot, pending_l2: Clock, pending: AlertTriangle,
+  escalated: CircleArrowUp, closed_done: CheckCircle2, closed_case: FolderOpen, closed_fp: XCircle,
+};
+const sevShort = (s: string) => (s === "high" ? "高" : s === "mid" ? "中" : "低");
+
+function fundStatus(a: typeof alerts[number], state: string): string {
+  if (state === "escalated" || a.sanctions.status === "直接命中") return "账户冻结";
+  if (state === "pending") return "审核拒绝";
+  if (state.startsWith("closed")) return a.sev === "low" ? "审核入账" : "审核拒绝";
+  return a.type === "提现" ? "暂缓出金" : "暂缓入账";
+}
 
 export default function AlertList() {
   const nav = useNavigate();
@@ -27,79 +45,85 @@ export default function AlertList() {
   const [reviewId, setReviewId] = useState<string | null>(null);
   const [reviewOpen, setReviewOpen] = useState(false);
 
+  const count = (f: string) => alerts.filter((a) => matchTile(f, alertStore.stateOf(a.id, a.state))).length;
   const rows = alerts.filter((a) => {
-    const bucket = RC_STATES[alertStore.stateOf(a.id, a.state)].bucket;
-    const okF = filter === "all" ? true : SEG.includes(filter) ? a.sev === filter : bucket === filter;
+    const st = alertStore.stateOf(a.id, a.state);
     const okQ = !q.trim() || (a.id + a.order + a.merchant).toLowerCase().includes(q.toLowerCase());
-    return okF && okQ;
+    return matchTile(filter, st) && okQ;
   });
   const openReview = (id: string) => { setReviewId(id); setReviewOpen(true); };
 
   return (
-    <Shell crumb={["风控", "监控运营", "交易警报"]}>
+    <Shell crumb={["交易", "交易监控", "交易警报"]} wide>
       <PageHead
         title="交易警报"
-        sub="调查规则引擎与链上监控产生的风险信号 — 研判后决定建案、STR 上报或加入名单；资金的实际放行/拒绝在「事中监控」闸口执行。"
+        sub="规则引擎与链上监控产生的实时告警，点击任意告警查看详情与处置。"
         actions={<>
           <Button size="sm" variant="bordered" startContent={<Check className="h-3.5 w-3.5" />}>批量认领</Button>
           <Button size="sm" variant="bordered" startContent={<Users className="h-3.5 w-3.5" />}>分配</Button>
         </>}
       />
 
-      {/* stat tiles */}
-      <Card shadow="sm" radius="lg" className="mb-[18px] border border-divider">
-        <div className="grid grid-cols-7 divide-x divide-divider">
-          {TILES.map((t) => {
-            const on = filter === t.f;
-            return (
-              <button key={t.f} onClick={() => setFilter(t.f)} className="px-4 py-3.5 text-left transition-colors hover:bg-default-50"
-                style={on ? { background: "var(--brand-softer)", boxShadow: "inset 0 -2px 0 var(--brand)" } : undefined}>
-                <div className="flex items-center gap-1.5 text-[12px] text-default-500">{t.dot && <span className="h-[5px] w-[5px] rounded-full" style={{ background: toneVar(t.dot) }} />}{t.label}</div>
-                <div className="mt-1.5 text-2xl font-bold tnum" style={on ? { color: "var(--brand)" } : undefined}>{t.num}</div>
-              </button>
-            );
-          })}
-        </div>
-      </Card>
+      {/* lifecycle filter tiles — flat, bordered, active = blue */}
+      <div className="mb-[18px] grid grid-cols-3 gap-3 md:grid-cols-6">
+        {TILES.map((t) => {
+          const on = filter === t.f;
+          return (
+            <button key={t.f} onClick={() => setFilter(t.f)}
+              className="rounded-xl border bg-content1 px-4 py-3 text-left transition-colors"
+              style={{ borderColor: on ? "var(--brand)" : "var(--heroui-default-200, #e8eaed)", borderWidth: on ? 2 : 1 }}>
+              <div className="text-[12.5px] text-default-500">{t.label}</div>
+              <div className="mt-1 text-2xl font-extrabold tnum" style={{ color: on ? "var(--brand)" : undefined }}>{count(t.f)}</div>
+            </button>
+          );
+        })}
+      </div>
 
       {/* toolbar */}
       <div className="mb-3.5 flex flex-wrap items-center gap-2.5">
-        <Input size="sm" radius="md" value={q} onValueChange={setQ} placeholder="搜索告警ID、订单号、地址或商户…" startContent={<Search className="h-4 w-4 text-default-400" />} className="max-w-[420px] flex-1" classNames={{ inputWrapper: "bg-content1 border border-divider shadow-none" }} />
-        <Tabs size="sm" radius="md" selectedKey={SEG.includes(filter) ? filter : "all"} onSelectionChange={(k) => setFilter(String(k))} aria-label="severity" classNames={{ cursor: "bg-primary", tabContent: "group-data-[selected=true]:text-white" }}>
-          <Tab key="all" title="全部" /><Tab key="high" title="高危" /><Tab key="mid" title="中危" /><Tab key="low" title="低危" />
-        </Tabs>
-        <Button size="sm" variant="bordered" startContent={<Filter className="h-3.5 w-3.5" />}>类型</Button>
+        <Input size="sm" radius="md" value={q} onValueChange={setQ} placeholder="搜索告警ID、订单号或商户…"
+          startContent={<Search className="h-4 w-4 text-default-400" />} className="max-w-[360px] flex-1"
+          classNames={{ inputWrapper: "bg-content1 border border-default-200 shadow-none data-[hover=true]:bg-content1" }} />
+        <div className="ml-auto flex items-center gap-2">
+          <Button size="sm" variant="bordered" startContent={<SlidersHorizontal className="h-3.5 w-3.5" />}>风险等级</Button>
+          <Button size="sm" variant="bordered" startContent={<Tag className="h-3.5 w-3.5" />}>交易类型</Button>
+        </div>
       </div>
 
-      {/* table */}
-      <Table aria-label="交易警报" radius="lg" classNames={{ wrapper: "border border-divider shadow-sm p-0", th: "bg-default-50 text-default-500 text-[11.5px]", td: "py-3" }}>
+      {/* table — flat, no shadow */}
+      <Table aria-label="交易警报" radius="lg"
+        classNames={{ wrapper: "border border-default-200 shadow-none p-0 rounded-xl overflow-x-auto", th: "bg-content1 text-default-500 text-[11.5px] font-medium border-b border-default-200 whitespace-nowrap", td: "py-3.5 text-[13px] whitespace-nowrap", tr: "border-b border-default-100 last:border-0" }}>
         <TableHeader>
-          <TableColumn>告警ID</TableColumn><TableColumn>风险等级</TableColumn><TableColumn>类型</TableColumn><TableColumn>命中告警</TableColumn>
-          <TableColumn>商户 / 订单</TableColumn><TableColumn>金额</TableColumn><TableColumn>网络</TableColumn>
-          <TableColumn>状态</TableColumn><TableColumn>分配给</TableColumn><TableColumn>时间</TableColumn><TableColumn align="end">操作</TableColumn>
+          <TableColumn>警报ID</TableColumn><TableColumn>商户名称/交易ID</TableColumn><TableColumn>类型</TableColumn>
+          <TableColumn>风险评分</TableColumn><TableColumn>命中告警</TableColumn><TableColumn>交易金额</TableColumn>
+          <TableColumn>状态</TableColumn><TableColumn>资金状态</TableColumn><TableColumn>经手人</TableColumn>
+          <TableColumn>SLA剩余</TableColumn><TableColumn>触发时间</TableColumn><TableColumn align="end">操作</TableColumn>
         </TableHeader>
         <TableBody emptyContent="没有符合条件的告警">
           {rows.map((a) => {
-            const sd = RC_STATES[alertStore.stateOf(a.id, a.state)];
+            const st = alertStore.stateOf(a.id, a.state);
+            const sd = RC_STATES[st];
             const assignee = alertStore.assigneeOf(a.id, a.assignee);
-            const sev = sevMeta[a.sev];
+            const Icon = STATUS_ICON[st] || Clock;
             return (
               <TableRow key={a.id}>
-                <TableCell><span className="font-mono text-[12px] font-semibold" style={{ color: "var(--brand)" }}>{a.id}</span></TableCell>
-                <TableCell><span className="inline-flex items-center gap-1.5"><span className="h-[7px] w-[7px] rounded-full" style={{ background: toneVar(sev.tone) }} /><span className="font-semibold" style={{ color: toneVar(sev.tone) }}>{sev.label}</span><span className="text-[12px] text-default-400 tnum">{a.score}</span></span></TableCell>
-                <TableCell><SoftChip>{a.type}</SoftChip></TableCell>
-                <TableCell><div className="text-[13px] font-semibold">{a.title}</div><div className="text-[11px] text-default-400">{a.ruleShort}</div></TableCell>
-                <TableCell><div className="text-[13px] font-semibold">{a.merchant}</div><div className="font-mono text-[11px] text-default-400">{a.order}</div></TableCell>
+                <TableCell><span className="font-mono text-[12.5px] font-medium">{a.id}</span></TableCell>
+                <TableCell><div className="font-semibold">{a.merchant}</div><div className="font-mono text-[11px] text-default-400">{a.order}</div></TableCell>
+                <TableCell><span className="text-default-600">{a.type}</span></TableCell>
+                <TableCell><span className="rounded-md bg-default-100 px-2 py-0.5 text-[12px] font-semibold text-default-700">{sevShort(a.sev)} {a.score}</span></TableCell>
+                <TableCell><span className="text-default-700">{a.title}</span></TableCell>
                 <TableCell><span className="font-semibold tnum">{a.amount}</span></TableCell>
-                <TableCell><SoftChip net>◈ {a.network}</SoftChip></TableCell>
-                <TableCell><Pill tone={sd.cls}>{sd.label}</Pill></TableCell>
-                <TableCell>{assignee ? <span className="inline-flex items-center gap-1.5"><Initials p={assignee} />{assignee.n}</span> : <span className="text-default-400">未分配</span>}</TableCell>
-                <TableCell><span className="text-[12px] text-default-400">{a.ago}</span></TableCell>
+                <TableCell><Pill tone={sd.cls} icon={<Icon className="h-3 w-3" />}>{sd.label}</Pill></TableCell>
+                <TableCell><span className="text-default-500">{fundStatus(a, st)}</span></TableCell>
+                <TableCell>{assignee ? <span className="inline-flex items-center gap-1.5"><Initials p={assignee} size={22} />{assignee.n}</span> : <span className="inline-flex items-center gap-1.5 text-default-400"><UserRound className="h-3.5 w-3.5" />未分配</span>}</TableCell>
+                <TableCell><span className="inline-flex items-center gap-1 text-default-500"><Clock className="h-3.5 w-3.5" />{a.sla.text.replace("剩 ", "")}</span></TableCell>
+                <TableCell><span className="text-default-500 tnum">{a.submitted}</span></TableCell>
                 <TableCell>
                   <div className="flex items-center justify-end gap-1.5">
-                    <Button size="sm" color="primary" onPress={() => openReview(a.id)}>审核</Button>
-                    <Button size="sm" variant="bordered" onPress={() => nav(`/alert?id=${a.id}`)}>详情</Button>
-                    <Button isIconOnly size="sm" variant="bordered"><MoreHorizontal className="h-3.5 w-3.5" /></Button>
+                    <Button size="sm" variant="light" className="min-w-0 text-default-600" onPress={() => openReview(a.id)}>认领</Button>
+                    {st === "new"
+                      ? <Button size="sm" variant="bordered" onPress={() => openReview(a.id)}>审核</Button>
+                      : <Button size="sm" variant="bordered" onPress={() => nav(`/alert?id=${a.id}`)}>查看</Button>}
                   </div>
                 </TableCell>
               </TableRow>
@@ -109,8 +133,8 @@ export default function AlertList() {
       </Table>
 
       <div className="mt-3.5 flex items-center justify-between text-[12.5px] text-default-500">
-        <span>显示 {rows.length} · 全部 128 条</span>
-        <Pagination size="sm" total={7} initialPage={1} showControls />
+        <span>显示 1-10 · 全部 120 条</span>
+        <Pagination size="sm" total={10} initialPage={1} showControls variant="light" />
       </div>
 
       <ReviewDialog alertId={reviewId} open={reviewOpen} onOpenChange={setReviewOpen} />
