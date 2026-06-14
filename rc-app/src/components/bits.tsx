@@ -11,6 +11,7 @@ const TONE: Record<Tone, [string, string, string]> = {
 };
 export const toneVar = (t: Tone) => TONE[t][1];
 
+// soft colored pill with dot — matches the Figma status/severity chips (theme-independent)
 export function Pill({ tone = "grey", dot = true, children }: { tone?: Tone; dot?: boolean; children: ReactNode }) {
   const [bg, fg, bd] = TONE[tone];
   return (
@@ -21,7 +22,7 @@ export function Pill({ tone = "grey", dot = true, children }: { tone?: Tone; dot
   );
 }
 
-export function Chip({ children, net }: { children: ReactNode; net?: boolean }) {
+export function SoftChip({ children, net }: { children: ReactNode; net?: boolean }) {
   return (
     <span className="inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-semibold"
       style={net ? { background: "var(--brand-softer)", color: "var(--brand)", borderColor: "#bcd4ff" } : { background: "#f3f4f6", color: "#636c7b", borderColor: "#e8eaed" }}>
@@ -35,14 +36,14 @@ export function RiskBadge({ tone, children }: { tone: Tone; children: ReactNode 
   return <span style={{ background: bg, color: fg }} className="rounded-md px-1.5 py-0.5 text-[10.5px] font-bold">{children}</span>;
 }
 
-export function Avatar({ p, size = 24 }: { p: { i: string; c: string }; size?: number }) {
+export function Initials({ p, size = 24 }: { p: { i: string; c: string }; size?: number }) {
   return <span className="inline-flex shrink-0 items-center justify-center rounded-full font-bold text-white" style={{ width: size, height: size, fontSize: size * 0.42, background: p.c }}>{p.i}</span>;
 }
 
 export function SectionLabel({ children }: { children: ReactNode }) {
-  return <div className="mb-2 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">{children}</div>;
+  return <div className="mb-2 text-[11px] font-bold uppercase tracking-wider text-default-400">{children}</div>;
 }
 export function Mono({ children }: { children: ReactNode }) { return <span className="font-mono text-[12px]">{children}</span>; }
-export function KV({ label, children }: { label: string; children: ReactNode }) {
-  return <div className="flex items-baseline justify-between gap-3 border-b border-dashed py-2 text-[12.5px]"><span className="text-muted-foreground">{label}</span><span className="text-right font-semibold">{children}</span></div>;
+export function KvRow({ label, children }: { label: string; children: ReactNode }) {
+  return <div className="flex items-baseline justify-between gap-3 border-b border-dashed border-default-200 py-2 text-[12.5px]"><span className="text-default-500">{label}</span><span className="text-right font-semibold">{children}</span></div>;
 }
