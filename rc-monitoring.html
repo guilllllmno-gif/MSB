@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>事中监控 · FuturePayCA 风控</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="risk-design-system.css">
+<style>
+  .act{display:inline-flex;gap:4px}
+  .row-check{width:15px;height:15px;accent-color:var(--brand);cursor:pointer}
+  .more-btn{width:26px;height:26px;border-radius:7px;border:1px solid var(--line);background:var(--surface);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;color:var(--text-2)}
+  .more-btn:hover{background:var(--surface-2)}
+
+  /* ── 事中放行闸口 modal (lean live-gate) ── */
+  .ov{position:fixed;inset:0;background:rgba(18,21,27,.45);backdrop-filter:blur(2px);display:none;align-items:flex-start;justify-content:center;z-index:60;padding:48px 16px;overflow-y:auto}
+  .ov.open{display:flex}
+  .dlg{background:var(--surface);width:100%;max-width:480px;border-radius:16px;box-shadow:var(--shadow-pop);overflow:hidden;animation:dlgIn .18s ease}
+  @keyframes dlgIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+  .dlg-head{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--line)}
+  .dlg-head h3{font-size:16px;font-weight:700;display:flex;align-items:center;gap:8px}
+  .dlg-head h3 svg{width:18px;height:18px;color:var(--amber)}
+  .dlg-x{width:30px;height:30px;border-radius:8px;border:none;background:transparent;color:var(--text-3);cursor:pointer;display:flex;align-items:center;justify-content:center}
+  .dlg-x svg{width:18px;height:18px}.dlg-x:hover{background:var(--surface-2);color:var(--text)}
+  .dlg-body{padding:18px 20px}
+  .dlg-foot{display:flex;gap:10px;padding:14px 20px;border-top:1px solid var(--line);background:var(--surface-3)}
+  .dlg-foot .btn{flex:1;height:42px;justify-content:center;font-weight:600}
+  .held{display:flex;align-items:center;gap:10px;background:var(--amber-bg);border:1px solid var(--amber-bd);border-radius:11px;padding:12px 14px;font-size:13px;color:var(--text)}
+  .held svg{width:18px;height:18px;color:var(--amber);flex-shrink:0}
+  .gkv{display:grid;grid-template-columns:auto 1fr;gap:7px 14px;margin-top:16px;font-size:12.5px}
+  .gkv dt{color:var(--text-2)}.gkv dd{font-weight:600;text-align:right}
+  .sec-lbl{font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.5px;margin:18px 0 9px}
+  .gate-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .gate{border:1.5px solid var(--line);background:var(--surface);border-radius:11px;padding:13px 6px;display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:600;color:var(--text-2);transition:all .12s}
+  .gate svg{width:19px;height:19px}
+  .gate:hover{background:var(--surface-2);color:var(--text)}
+  .gate.on[data-gate=release]{border-color:var(--green);background:var(--green-bg);color:var(--green);box-shadow:0 0 0 3px var(--green-bg)}
+  .gate.on[data-gate=hold]{border-color:var(--amber);background:var(--amber-bg);color:var(--amber);box-shadow:0 0 0 3px var(--amber-bg)}
+  .gate.on[data-gate=reject]{border-color:var(--red);background:var(--red-bg);color:var(--red);box-shadow:0 0 0 3px var(--red-bg)}
+  .impact{display:flex;gap:10px;background:var(--blue-bg);border:1px solid var(--blue-bd);border-radius:10px;padding:11px 13px;margin-top:12px;font-size:12px;color:var(--text);line-height:1.55}
+  .impact svg{width:16px;height:16px;color:var(--brand);flex-shrink:0;margin-top:1px}
+  .impact.tone-green{background:var(--green-bg);border-color:var(--green-bd)} .impact.tone-green svg{color:var(--green)}
+  .impact.tone-amber{background:var(--amber-bg);border-color:var(--amber-bd)} .impact.tone-amber svg{color:var(--amber)}
+  .impact.tone-red{background:var(--red-bg);border-color:var(--red-bd)} .impact.tone-red svg{color:var(--red)}
+  .fld{margin-top:14px}.fld>label{display:block;font-size:12.5px;font-weight:600;margin-bottom:6px}.fld .req{color:var(--red)}
+  .ftxt{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px 11px;font-family:inherit;font-size:13px;color:var(--text);min-height:62px;resize:vertical}
+  .fsel{width:100%;height:42px;border:1px solid var(--line);border-radius:10px;padding:0 11px;font-family:inherit;font-size:13px;color:var(--text);background:var(--surface)}
+  .ftxt:focus,.fsel:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-soft)}
+  .fld.err .ftxt,.fld.err .fsel{border-color:var(--red);box-shadow:0 0 0 3px var(--red-bg)}
+  .rel-alert{display:flex;align-items:center;gap:10px;margin-top:16px;padding:11px 13px;border:1px dashed var(--violet-bd);background:var(--violet-bg);border-radius:11px;text-decoration:none;color:var(--violet);font-size:12.5px;font-weight:600}
+  .rel-alert:hover{filter:brightness(.985)}
+  .rel-alert svg{width:17px;height:17px;flex-shrink:0}
+  .rel-alert .ra-sub{display:block;font-size:11px;font-weight:500;color:var(--text-2);margin-top:1px}
+  #toast{position:fixed;left:50%;bottom:30px;transform:translateX(-50%) translateY(20px);background:var(--text);color:#fff;padding:11px 18px;border-radius:10px;font-size:13px;font-weight:600;box-shadow:var(--shadow-pop);opacity:0;transition:all .25s;pointer-events:none;z-index:80}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body data-page="monitoring" data-crumb="风控·监控运营·事中监控">
+<div class="app">
+  <aside class="sidebar" id="rcSidebar"></aside>
+  <div class="main">
+    <header class="topbar" id="rcTopbar"></header>
+    <div class="content"><div class="content-wrap">
+
+      <div class="pg-head">
+        <div>
+          <h1 class="pg-title">事中监控</h1>
+          <p class="pg-sub">规则命中后暂缓的充值与提现订单 — 资金当前冻结在闸口，需尽快决定放行、暂缓或拒绝。需深入调查（链上溯源 / 建案 / STR）请转「告警工作台」。</p>
+        </div>
+        <button class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5M12 15V3"/></svg>导出工单</button>
+      </div>
+
+      <div class="tabs">
+        <div class="tab active">充值</div>
+        <div class="tab">提现</div>
+      </div>
+
+      <div class="stat-row mb-md">
+        <div class="stat active"><div class="stat-lbl">全部</div><div class="stat-num tnum">10</div></div>
+        <div class="stat"><div class="stat-lbl"><span class="pin" style="background:var(--amber)"></span>审核中</div><div class="stat-num tnum">2</div></div>
+        <div class="stat"><div class="stat-lbl"><span class="pin" style="background:var(--amber)"></span>待补充材料</div><div class="stat-num tnum">2</div></div>
+        <div class="stat"><div class="stat-lbl"><span class="pin" style="background:var(--blue)"></span>暂缓入账</div><div class="stat-num tnum">1</div></div>
+        <div class="stat"><div class="stat-lbl"><span class="pin" style="background:var(--green)"></span>审核入账</div><div class="stat-num tnum">3</div></div>
+        <div class="stat"><div class="stat-lbl"><span class="pin" style="background:var(--grey)"></span>已拒绝</div><div class="stat-num tnum">1</div></div>
+        <div class="stat"><div class="stat-lbl"><span class="pin" style="background:var(--red)"></span>冻结</div><div class="stat-num tnum">1</div></div>
+      </div>
+
+      <div class="toolbar">
+        <div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg><input placeholder="搜索订单号、商户名、发送方地址或交易哈希…"></div>
+        <button class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 6h18M7 12h10M11 18h2"/></svg>触发规则</button>
+        <button class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 2 2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>风险等级</button>
+        <button class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 0 20 15 15 0 0 1 0-20"/></svg>网络</button>
+      </div>
+
+      <div class="table-card">
+        <table class="tbl">
+          <thead><tr>
+            <th style="width:34px"><input type="checkbox" class="row-check" id="checkAll"></th>
+            <th>订单号</th><th>发送方地址</th><th>网络</th><th>商户名称</th><th>充值金额</th><th>触发规则</th><th>命中风险</th><th>状态</th><th>分配给</th><th>SLA剩余</th><th>提交时间</th><th style="text-align:right">操作</th>
+          </tr></thead>
+          <tbody id="tblBody"></tbody>
+        </table>
+        <div class="pager">
+          <div class="row"><span>显示</span><select class="sel"><option>1-10</option><option>1-20</option></select><span>条数据 · 全部 120 条</span></div>
+          <div class="pager-nav"><button class="pg-btn">上一页</button><button class="pg-btn active">1</button><button class="pg-btn">2</button><button class="pg-btn" disabled style="border:none;background:none">…</button><button class="pg-btn">10</button><button class="pg-btn">下一页</button></div>
+        </div>
+      </div>
+
+    </div></div>
+  </div>
+</div>
+
+<!-- ── 事中放行闸口 modal ── -->
+<div class="ov" id="gtOv" onclick="closeGate()">
+  <div class="dlg" onclick="event.stopPropagation()">
+    <div class="dlg-head"><h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>事中放行闸口</h3>
+      <button class="dlg-x" onclick="closeGate()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+    </div>
+    <div class="dlg-body" id="gtBody"></div>
+    <div class="dlg-foot">
+      <button class="btn btn-ghost" onclick="closeGate()">取消</button>
+      <button class="btn btn-primary" onclick="submitGate()">确认处置</button>
+    </div>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script src="rc-shell.js"></script>
+<script>
+  const MON=[
+    {id:'DEP-20260315-001', merchant:'NovaPay Technologies Ltd.', country:'美国', addrShort:'0x5078…Ec8c', addrFull:'0x5078dd37ee699eB59c096b41C6415417fA02Ec8c', net:'ERC-20', amount:'CAD 8,200.00', rule:'大额充值监控', ruleExtra:'等2条', sev:['高','risk-hi',95], status:['审核中','p-amber'], assignee:{i:'SC',n:'Sarah Chen',c:'var(--brand)'}, sla:{t:'1d 02h',c:''}, held:'1d 02h', submitted:'2026-03-15 09:30:15', alt:'ALT-50231'},
+    {id:'DEP-20260313-188', merchant:'Acme Pay Ltd.', country:'加拿大', addrShort:'0x9a1c…44Bd', addrFull:'0x9a1c4477d1e2b6f0a3c8e5417fA0244Bd', net:'ERC-20', amount:'CAD 6,000.00', rule:'新商户首充', ruleExtra:'等2条', sev:['中','risk-md',55], status:['暂缓入账','p-blue'], assignee:null, sla:{t:'23h',c:''}, held:'2h 10m', submitted:'2026-03-13 07:48:11', alt:'ALT-50220'},
+    {id:'DEP-20260313-204', merchant:'Eastwind Exchange', country:'新加坡', addrShort:'TQ5n…9wEx', addrFull:'TQ5nHe8s9wEx...kP3v9wEx', net:'TRC-20', amount:'CAD 3,150.00', rule:'高频拆分入金', ruleExtra:'', sev:['中','risk-md',62], status:['待补充材料','p-amber'], assignee:{i:'ML',n:'Mike Lin',c:'var(--green)'}, sla:{t:'已暂停',c:'p-amber'}, held:'已暂停', submitted:'2026-03-13 08:12:40', alt:'ALT-50224'},
+    {id:'DEP-20260312-733', merchant:'OffshoreFX Ltd.', country:'离岸', addrShort:'0x33bc…91aa', addrFull:'0x33bce4419d77a0cf2b81e6415417fA091aa', net:'ERC-20', amount:'CAD 14,500.00', rule:'混币器关联', ruleExtra:'', sev:['高','risk-hi',91], status:['已拒绝','p-grey'], assignee:{i:'SC',n:'Sarah Chen',c:'var(--brand)'}, sla:{t:'已完结',c:'p-grey'}, held:'已完结', submitted:'2026-03-12 22:04:55', alt:null},
+    {id:'WD-20260313-021', merchant:'OffshoreFX Ltd.', country:'离岸', addrShort:'0x7F4a…9c21', addrFull:'0x7F4ad2e91c08b3417fA09c21', net:'ERC-20', amount:'CAD 11,900.00', rule:'制裁地址命中', ruleExtra:'', sev:['高','risk-hi',99], status:['冻结','p-red'], assignee:{i:'ML',n:'MLRO',c:'var(--violet)'}, sla:{t:'已冻结',c:'p-red'}, held:'已冻结', submitted:'2026-03-13 06:20:33', alt:'ALT-50218'},
+    {id:'DEP-20260312-512', merchant:'NovaPay Technologies Ltd.', country:'美国', addrShort:'7xKp…Qz1', addrFull:'7xKp4Hs9...vQz1', net:'SOL', amount:'CAD 980.00', rule:'高风险地址检测', ruleExtra:'', sev:['低','risk-lo',38], status:['审核入账','p-green'], assignee:{i:'SC',n:'Sarah Chen',c:'var(--brand)'}, sla:{t:'已完结',c:'p-grey'}, held:'已完结', submitted:'2026-03-12 06:30:55', alt:'ALT-50212'},
+  ];
+  const ACTIVE=s=>['审核中','暂缓入账','待补充材料'].includes(s);
+  const flagFor=c=>({'美国':'linear-gradient(180deg,#b22 33%,#fff 33% 66%,#3c3b6e 66%)','加拿大':'linear-gradient(90deg,#d52b1e 28%,#fff 28% 72%,#d52b1e 72%)','新加坡':'linear-gradient(180deg,#ef3340 50%,#fff 50%)','离岸':'var(--grey)'}[c]||'var(--grey)');
+
+  const slaCell=s=>s.c?`<span class="pill ${s.c}">${s.t}</span>`:`<span class="tnum">${s.t}</span>`;
+  const assigneeCell=a=>a?`<span class="row" style="gap:7px"><span class="avatar" style="width:24px;height:24px;font-size:10px;background:${a.c}">${a.i}</span>${a.n}</span>`:`<span class="muted">未分配</span>`;
+  const ruleCell=r=>`<span class="cell-strong">${r.rule}</span>${r.ruleExtra?` <span class="chip">${r.ruleExtra}</span>`:''}`;
+  function actionCell(r,i){
+    const alt = r.alt?`<a class="btn btn-sm" href="rc-alerts.html" title="转告警工作台深入调查">关联告警</a>`:'';
+    const gate = ACTIVE(r.status[0])
+      ? `<button class="btn btn-sm btn-primary" onclick="openGate(${i})">处置</button>`
+      : `<button class="btn btn-sm" onclick="openGate(${i})">查看</button>`;
+    return `<span class="act">${gate}${alt}<button class="more-btn"><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></button></span>`;
+  }
+  function renderTable(){
+    document.getElementById('tblBody').innerHTML=MON.map((r,i)=>`
+      <tr>
+        <td><input type="checkbox" class="row-check"></td>
+        <td><a class="cell-strong cell-addr" onclick="openGate(${i});return false" href="#">${r.id}</a></td>
+        <td><div class="cell-addr mono">${r.addrShort}</div><div class="cell-sub mono">${r.addrFull}</div></td>
+        <td><span class="chip chip-net">◈ ${r.net}</span></td>
+        <td><span class="flag"><span class="flagmark" style="background:${flagFor(r.country)}"></span>${r.merchant}</span><div class="cell-sub">${r.country}</div></td>
+        <td class="cell-strong tnum">${r.amount}</td>
+        <td>${ruleCell(r)}</td>
+        <td><span class="risk"><span class="risk-badge ${r.sev[1]}">${r.sev[0]}</span><span class="risk-score tnum">${r.sev[2]}</span></span></td>
+        <td><span class="pill ${r.status[1]}"><span class="pdot"></span>${r.status[0]}</span></td>
+        <td>${assigneeCell(r.assignee)}</td>
+        <td>${slaCell(r.sla)}</td>
+        <td class="muted tnum">${r.submitted}</td>
+        <td style="text-align:right">${actionCell(r,i)}</td>
+      </tr>`).join('');
+  }
+  renderTable();
+  document.getElementById('checkAll').addEventListener('change',e=>document.querySelectorAll('#tblBody .row-check').forEach(c=>c.checked=e.target.checked));
+  document.querySelectorAll('.tabs .tab').forEach(t=>t.addEventListener('click',()=>{document.querySelectorAll('.tabs .tab').forEach(x=>x.classList.remove('active'));t.classList.add('active')}));
+
+  /* ── lean gate decision: 放行 / 暂缓 / 拒绝 — money-movement only, no investigation ── */
+  const GATE=[
+    {k:'release', label:'放行入账', ico:'<path d="M20 6 9 17l-5-5"/>',  status:['审核入账','p-green'], evt:'放行入账'},
+    {k:'hold',    label:'暂缓',     ico:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>', status:['暂缓入账','p-blue'], evt:'暂缓入账'},
+    {k:'reject',  label:'拒绝',     ico:'<circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/>', status:['已拒绝','p-grey'], evt:'拒绝入账'},
+  ];
+  // reason list specific to each gate decision — mandatory, recorded to the audit log
+  const GREASONS={
+    release:['风险已澄清，资料齐全','金额在放行区间内','与历史交易模式一致','关联告警已结案放行','其他（见补充说明）'],
+    hold:   ['等待商户补充材料','等待关联告警调查结论','等待 L2 / MLRO 复核','资金来源待核实','其他（见补充说明）'],
+    reject: ['链上溯源命中制裁 / 混币器','商户无法提供合理说明','超出限额且无业务依据','确认为欺诈 / 违规交易','其他（见补充说明）'],
+  };
+  // what each gate decision will DO once confirmed
+  const GIMPACT={
+    release:r=>`资金 <b>${r.amount}</b> 解除闸口冻结，约 12 分钟内入账至 <b>${r.merchant}</b> 余额。该决定不可撤销，记入审计日志。`,
+    hold:   r=>`订单维持冻结、转「暂缓 / 待补充材料」，SLA 计时暂停；客户资金继续锁定，直至材料回补或调查结论。`,
+    reject: r=>`拒绝入账，资金 <b>${r.amount}</b> 按原路退回发送方，订单关闭。该决定不可撤销，并按商户并入 / 新建合规案件供后续调查。`,
+  };
+  const GITONE={release:'tone-green', hold:'tone-amber', reject:'tone-red'};
+  let GT=null;
+  window.openGate=function(i){
+    const r=MON[i]; if(!r) return;
+    GT={i, k:null};
+    const active=ACTIVE(r.status[0]);
+    document.getElementById('gtBody').innerHTML=`
+      <div class="held"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        <span>${active?`资金 <b>${r.amount}</b> 已暂缓于闸口 · 已冻结 <b>${r.held}</b>`:`本订单已处置 · <b>${r.status[0]}</b>`}</span></div>
+      <dl class="gkv">
+        <dt>订单号</dt><dd class="mono">${r.id}</dd>
+        <dt>商户</dt><dd>${r.merchant} · ${r.country}</dd>
+        <dt>金额</dt><dd class="tnum">${r.amount}</dd>
+        <dt>网络</dt><dd>◈ ${r.net}</dd>
+        <dt>触发规则</dt><dd>${r.rule}${r.ruleExtra?' '+r.ruleExtra:''}</dd>
+        <dt>命中风险</dt><dd style="color:var(--red)">${r.sev[0]} · ${r.sev[2]}</dd>
+      </dl>
+      ${active?`
+      <div class="sec-lbl">闸口处置 · 仅决定资金是否放行</div>
+      <div class="gate-grid">${GATE.map(g=>`<div class="gate" data-gate="${g.k}" onclick="selGate('${g.k}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor">${g.ico}</svg>${g.label}</div>`).join('')}</div>
+      <div id="gtImpact" class="impact" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg><span id="gtImpactTxt"></span></div>
+      <div class="fld" id="gtReasonFld" style="display:none"><label id="gtReasonLbl">原因 <span class="req">*</span></label>
+        <select class="fsel" id="gtReason"><option value="">请选择…</option></select></div>
+      <div class="fld" id="gtNoteFld" style="display:none"><label>补充说明 <span class="muted" style="font-weight:400">· 选填</span></label>
+        <textarea class="ftxt" id="gtNote" placeholder="可选 · 补充处置依据，记入审计日志…"></textarea></div>`:''}
+      ${r.alt?`<a class="rel-alert" href="rc-alerts.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 2l2.4 7.4H22l-6 4.4 2.3 7.2-6.3-4.6L5.7 21l2.3-7.2-6-4.4h7.6z"/></svg><span>需深入调查（链上溯源 / 建案 / STR）？<span class="ra-sub">前往告警工作台 · 关联告警 ${r.alt} →</span></span></a>`:''}`;
+    document.querySelector('#gtOv .dlg-foot').style.display=active?'flex':'none';
+    document.getElementById('gtOv').classList.add('open');
+    document.body.style.overflow='hidden';
+  };
+  window.selGate=function(k){
+    GT.k=(GT.k===k?null:k);
+    document.querySelectorAll('.gate').forEach(g=>g.classList.toggle('on',g.dataset.gate===GT.k));
+    const rf=document.getElementById('gtReasonFld'), nf=document.getElementById('gtNoteFld'), imp=document.getElementById('gtImpact');
+    if(GT.k){
+      const g=GATE.find(x=>x.k===GT.k), r=MON[GT.i], sel=document.getElementById('gtReason'), prev=sel.value;
+      imp.style.display='flex'; imp.className='impact '+(GITONE[GT.k]||''); document.getElementById('gtImpactTxt').innerHTML=GIMPACT[GT.k](r);
+      rf.style.display='block'; nf.style.display='block'; rf.classList.remove('err');
+      document.getElementById('gtReasonLbl').innerHTML=`${g.label} · 原因 <span class="req">*</span>`;
+      sel.innerHTML='<option value="">请选择…</option>'+GREASONS[GT.k].map(x=>`<option>${x}</option>`).join('');
+      if(GREASONS[GT.k].includes(prev)) sel.value=prev;
+    } else { imp.style.display='none'; rf.style.display='none'; nf.style.display='none'; }
+  };
+  window.closeGate=function(){ document.getElementById('gtOv').classList.remove('open'); document.body.style.overflow=''; GT=null; };
+  window.submitGate=function(){
+    if(!GT||GT.k==null){ toast('请选择闸口处置'); return; }
+    const g=GATE.find(x=>x.k===GT.k), r=MON[GT.i];
+    const reasonEl=document.getElementById('gtReason'), noteEl=document.getElementById('gtNote');
+    document.querySelectorAll('#gtBody .fld.err').forEach(f=>f.classList.remove('err'));
+    if(reasonEl && !reasonEl.value){ document.getElementById('gtReasonFld').classList.add('err'); reasonEl.focus(); toast(`请选择「${g.label}」的原因`); return; }
+    if(reasonEl && reasonEl.value.indexOf('其他')===0 && noteEl && !noteEl.value.trim()){ document.getElementById('gtNoteFld').classList.add('err'); noteEl.focus(); toast('选择「其他」需填写补充说明'); return; }
+    // 拒绝 → intake into the merchant's compliance case (find-or-create, deduped via the linked alert)
+    let caseMsg='';
+    if(GT.k==='reject' && window.RC_CASES){
+      const res=RC_CASES.intake({merchant:r.merchant, type:r.rule, amount:r.amount, owner:{i:'JL',n:'James Liu',c:'var(--brand)'}, orderId:r.id, alertId:r.alt||null});
+      caseMsg=' · '+(res.created?'新建案件 ':'并入案件 ')+res.caseNo;
+    }
+    r.status=g.status; r.sla={t:'已完结',c:'p-grey'};
+    renderTable();
+    toast('已'+g.evt+' · '+r.id+caseMsg);
+    closeGate();
+  };
+  function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(window._tt);window._tt=setTimeout(()=>t.classList.remove('show'),1700);}
+  document.addEventListener('keydown',e=>{if(e.key==='Escape')closeGate();});
+</script>
+</body>
+</html>

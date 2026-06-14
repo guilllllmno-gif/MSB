@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>审核决策 · FuturePayCA 风控</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="risk-design-system.css">
+<style>
+  .detail-grid{display:grid;grid-template-columns:1fr 368px;gap:18px;align-items:start}
+  @media(max-width:1080px){.detail-grid{grid-template-columns:1fr}}
+  .back{display:inline-flex;align-items:center;gap:6px;color:var(--text-2);font-size:13px;font-weight:500;margin-bottom:14px;cursor:pointer}
+  .back:hover{color:var(--text)} .back svg{width:15px;height:15px}
+  .gauge{width:104px;height:104px;border-radius:50%;display:flex;align-items:center;justify-content:center;position:relative;flex-shrink:0}
+  .gauge::before{content:"";position:absolute;inset:11px;border-radius:50%;background:var(--surface)}
+  .gauge .g-val{position:relative;text-align:center}
+  .gauge .g-num{font-size:24px;font-weight:800;line-height:1}
+  .gauge .g-lbl{font-size:10px;color:var(--text-2);margin-top:2px}
+  .decision-btns{display:flex;flex-direction:column;gap:9px}
+  .decision-btns .btn{height:40px;justify-content:center;font-weight:600}
+  .btn-violet{border-color:var(--violet-bd);color:var(--violet)}
+  .factor{display:flex;gap:10px;align-items:flex-start;padding:0;border:none}
+  .factor-ico{width:26px;height:26px;border-radius:7px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:12px}
+  .factor-t{font-size:12.5px;font-weight:600} .factor-d{font-size:11px;color:var(--text-2);margin-top:1px}
+  .chk{display:flex;align-items:flex-start;gap:9px;padding:7px 0}
+  .chk-box{width:18px;height:18px;border-radius:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:11px}
+  .chk-done{background:var(--green);color:#fff} .chk-todo{border:1.5px solid var(--line)}
+  .trace{display:flex;align-items:center;flex-wrap:wrap;gap:6px}
+  .closed-banner{background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:12px 14px;font-size:12.5px;color:var(--text-2);text-align:center;margin-bottom:9px}
+  .state-pipe{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:11px;margin-bottom:12px}
+  .state-pipe .sp{padding:3px 9px;border-radius:999px;background:var(--surface-2);color:var(--text-3);font-weight:600}
+  .state-pipe .sp.on{background:var(--brand-soft);color:var(--brand)}
+  .state-pipe .sp.done{background:var(--green-bg);color:var(--green)}
+  .state-pipe svg{width:11px;height:11px;color:var(--text-light)}
+  #toast{position:fixed;left:50%;bottom:30px;transform:translateX(-50%) translateY(20px);background:var(--text);color:#fff;padding:11px 18px;border-radius:10px;font-size:13px;font-weight:600;box-shadow:var(--shadow-pop);opacity:0;transition:all .25s;pointer-events:none;z-index:50}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  /* ── unified hero + stepper ── */
+  .hero{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:20px 22px;margin-bottom:18px;box-shadow:var(--shadow-sm)}
+  .hero .top{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}
+  .hero h1{font-size:23px;font-weight:800;letter-spacing:-.015em}
+  .hero .pills{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:7px}
+  .hero .sub{font-size:13px;color:var(--text-2);margin-top:11px}.hero .sub b{color:var(--text);font-weight:700}
+  .hero-right{display:flex;align-items:center;gap:16px;flex-shrink:0}
+  .ownerbox{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600}
+  .stepper{display:flex;align-items:center;flex-wrap:wrap;margin-top:18px;padding-top:16px;border-top:1px solid var(--line-soft)}
+  .step{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--text-3)}
+  .step .dot{width:22px;height:22px;border-radius:50%;border:2px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:10.5px;font-weight:800;background:var(--surface);color:var(--text-3)}
+  .step.done .dot{background:var(--green);border-color:var(--green);color:#fff}
+  .step.on .dot{background:var(--brand);border-color:var(--brand);color:#fff}
+  .step.on{color:var(--brand);font-weight:700}.step.done{color:var(--text-2)}
+  .step-line{flex:1;min-width:18px;height:2px;background:var(--line);margin:0 8px}
+  .step-line.done{background:var(--green)}
+</style>
+</head>
+<body data-page="alerts" data-crumb="风控·监控运营·告警工作台·审核决策">
+<div class="app">
+  <aside class="sidebar" id="rcSidebar"></aside>
+  <div class="main">
+    <header class="topbar" id="rcTopbar"></header>
+    <div class="content"><div class="content-wrap">
+      <a class="back" href="rc-alerts.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>返回告警工作台</a>
+      <div id="app"></div>
+    </div></div>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script src="rc-alerts-data.js"></script>
+<script src="rc-shell.js"></script>
+<script src="rc-review-modal.js"></script>
+<script>
+  const id=new URLSearchParams(location.search).get('id');
+  const a=(window.RC_ALERTS||[]).find(x=>x.id===id) || (window.RC_ALERTS||[])[0];
+  const sevMap={high:['高风险','risk-hi','var(--red)','p-red'],mid:['中风险','risk-md','var(--amber)','p-amber'],low:['低风险','risk-lo','var(--green)','p-green']};
+  const releaseLabel = a.type==='提现' ? '放行出金' : '放行入账';
+  const PIPE=[['new','待认领'],['progress','处理中'],['escalated','已升级'],['done','已结']];
+
+  function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(window._tt);window._tt=setTimeout(()=>t.classList.remove('show'),1700);}
+
+  // 共享风险卡的「请求重新扫描」按钮 → 更新扫描时间并重渲染（演示）
+  let rescanAt=null;
+  window.rcRescan=function(){ const d=new Date(),p=n=>('0'+n).slice(-2); rescanAt=`${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`; toast('已向 Chainalysis 发起重新扫描'); render(); };
+
+  window.act=function(to,label,opts){
+    opts=opts||{};
+    RC.set(a.id,to,{event:label+(opts.reason?'：'+opts.reason:''),assignee:opts.assignee});
+    toast('已'+label);
+    render();
+  };
+
+  function actionArea(state){
+    const B=(label,cls,onclick)=>`<button class="btn ${cls}" onclick="${onclick}">${label}</button>`;
+    if(!RC_STATES[state].active){
+      const reason=RC_STATES[state].label.replace('已结 · ','');
+      return `<div class="closed-banner">✓ 本告警已关闭 · <b>${reason}</b></div>`
+        + (state==='closed_case'?`<a class="btn btn-violet" style="height:40px;justify-content:center;font-weight:600;margin-bottom:9px" href="rc-cases.html">前往案件管理</a>`:'')
+        + (state==='closed_fp'?`<a class="btn" style="height:40px;justify-content:center;font-weight:600;margin-bottom:9px" href="rc-feedback.html">查看误报反馈</a>`:'')
+        + B('重新打开','',"act('progress','重新打开告警')");
+    }
+    let out='';
+    if(state==='new') out += B('认领工单','btn-primary',"act('progress','认领工单',{assignee:{i:'JS',n:'你 (JS)',c:'var(--brand)'}})");
+    if(state==='pending_l2') out = `<div class="closed-banner" style="background:var(--blue-bg);color:var(--blue);border-color:var(--blue-bd)">⏳ L1 已提交建议 · 待 L2 复核</div>`+out;
+    if(!out) out=`<p class="small muted" style="text-align:center;padding:6px 0">点右上角「做出审核决定」处置本告警</p>`;
+    return out;
+  }
+
+  function alertStepper(state){
+    const stage = state==='new'?'new': (['progress','pending','pending_l2'].includes(state))?'progress' : state==='escalated'?'escalated':'done';
+    const order=['new','progress','escalated','done'], ci=order.indexOf(stage);
+    return `<div class="stepper">`+PIPE.map((p,i)=>{const cl=i<ci?'done':i===ci?'on':'';
+      return `<div class="step ${cl}"><span class="dot">${i<ci?'✓':i+1}</span>${p[1]}</div>${i<PIPE.length-1?`<span class="step-line ${i<ci?'done':''}"></span>`:''}`;
+    }).join('')+`</div>`;
+  }
+
+  const kv=(rows)=>`<dl class="kv" style="grid-template-columns:120px 1fr 120px 1fr">${rows.map(r=>`<dt>${r[0]}</dt><dd>${r[1]}</dd>`).join('')}</dl>`;
+
+  function render(){
+    const state=RC.state(a.id), ss=RC_STATES[state], sev=sevMap[a.sev];
+    const gaugeCol=a.sev==='high'?'var(--red)':a.sev==='mid'?'var(--amber)':'var(--green)';
+    const sancCls={'直接命中':'p-red','间接命中':'p-amber','未命中':'p-green'}[a.sanctions.status]||'p-grey';
+    const risk=RC_RISK({type:a.title, priority:a.sev==='high'?'高':a.sev==='mid'?'中':'低', lastScan:rescanAt||undefined, sanctions:a.sanctions.status==='未命中'?'未命中':(a.sanctions.status+' · '+a.sanctions.list)});
+    const assignee=RC.assignee(a.id);
+    const tl=a.timeline.concat(RC.events(a.id).map(e=>[e.t,e.text+(e.reason?'：'+e.reason:''),'done']));
+
+    document.getElementById('app').innerHTML=`
+      <div class="hero">
+        <div class="top">
+          <div style="min-width:0">
+            <h1>${a.order}</h1>
+            <div class="pills">
+              <span class="chip">${a.type}</span>
+              <span class="pill ${ss.cls}"><span class="pdot"></span>${ss.label}</span>
+              <span class="risk-badge ${sev[1]}">${sev[0]}</span>
+              <span class="muted small tnum">命中评分 ${a.score} · ${a.level}</span>
+            </div>
+            <div class="sub">${a.title} · <b>${a.merchant}</b> · 提交于 ${a.submitted} · 告警 <b>${a.id}</b> · SLA <b>${a.sla.text}</b></div>
+          </div>
+          <div class="hero-right">
+            ${assignee?`<span class="ownerbox"><span class="muted small" style="font-weight:400">处理人</span><span class="avatar" style="width:28px;height:28px;font-size:10px;background:${assignee.c}">${assignee.i}</span>${assignee.n}</span>`:`<span class="pill p-grey">未认领</span>`}
+            ${ss.active?`<button class="btn btn-primary" onclick="RCReview.open('${a.id}',{onDone:render})"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 11l3 3 8-8"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>做出审核决定</button>`:''}
+          </div>
+        </div>
+        ${alertStepper(state)}
+      </div>
+
+      <div class="detail-grid">
+        <div class="col" style="gap:18px">
+          <div class="card">
+            <div class="card-head"><div><div class="card-title">交易信息</div><div class="card-desc">${a.type}订单明细</div></div><span class="chip chip-net">◈ ${a.network}</span></div>
+            <div class="card-body">${kv([
+              ['金额',`<span class="cell-strong tnum">${a.amount}</span>`],['资产',a.asset],
+              ['发送方',`<span class="mono cell-addr">${a.sender}</span>`],['收款方',`<span class="mono">${a.receiver}</span>`],
+              ['交易哈希',`<span class="mono cell-addr">${a.txHash}</span>`],['区块确认',a.confirmations],
+              ['提交时间',`<span class="tnum">${a.submitted}</span>`],['告警ID',`<span class="mono">${a.id}</span>`],
+            ])}</div>
+          </div>
+          <div class="card">
+            <div class="card-head"><div class="card-title">命中规则 · ${a.rules.length} 条</div><a class="btn-link" href="rc-rules.html">规则配置 →</a></div>
+            <table class="tbl"><thead><tr><th>规则</th><th>类别</th><th>阈值 / 条件</th><th>命中值</th><th>权重</th></tr></thead>
+              <tbody>${a.rules.map(r=>`<tr><td class="cell-strong">${r.name}</td><td>${r.cat}</td><td>${r.cond}</td><td class="cell-strong" style="color:var(--red)">${r.hit}</td><td><span class="pill p-red">${r.weight}</span></td></tr>`).join('')}</tbody>
+            </table>
+          </div>
+          <div class="card">
+            <div class="card-head"><div><div class="card-title">链上资金溯源</div><div class="card-desc">来源/去向路径 · Chainalysis</div></div></div>
+            <div class="card-body"><div class="trace">${a.trace.map((t,i)=>`<span class="pill ${t[1]}">${t[0]}</span>${i<a.trace.length-1?'<span class="muted" style="font-size:11px">→</span>':''}`).join('')}</div><p class="small muted mt-sm">${a.traceNote}</p></div>
+          </div>
+          <div class="grid-2" style="gap:18px">
+            <div class="card"><div class="card-head"><div class="card-title">对手地址情报</div></div><div class="card-body"><dl class="kv">
+              <dt>地址链龄</dt><dd>${a.addrIntel.age}</dd><dt>链上标签</dt><dd>${a.addrIntel.labels.map(l=>`<span class="chip">${l}</span>`).join(' ')}</dd>
+              <dt>网络共享</dt><dd>${a.addrIntel.networkSeen}</dd><dt>历史拦截</dt><dd>${a.addrIntel.priorBlocks}</dd></dl></div></div>
+            <div class="card"><div class="card-head"><div class="card-title">商户 / 客户画像</div></div><div class="card-body"><dl class="kv">
+              <dt>商户</dt><dd>${a.merchant} <span class="muted">· ${a.country}</span></dd><dt>分级</dt><dd><span class="pill ${a.merchantTier[1]}"><span class="pdot"></span>${a.merchantTier[0]}</span></dd>
+              <dt>KYB</dt><dd>${a.kyb} · 账龄 ${a.accountAge}</dd><dt>历史订单</dt><dd>${a.custHistory.orders} · 违规 ${a.custHistory.violations}</dd>
+              <dt>30日交易额</dt><dd class="tnum">${a.custHistory.vol30}</dd><dt>限额</dt><dd class="tnum">${a.custHistory.limit}</dd></dl></div></div>
+          </div>
+          <div class="card"><div class="card-head"><div class="card-title">处理时间线</div></div><div class="card-body"><div class="timeline">${tl.map(t=>`<div class="tl-item ${t[2]}"><div class="tl-time">${t[0]}</div><div class="tl-title">${t[1]}</div></div>`).join('')}</div></div></div>
+        </div>
+
+        <div class="col" style="gap:18px">
+          <div class="panel">
+            <div class="panel-head"><div class="panel-title">审核决定</div><span class="pill ${sev[3]}"><span class="pdot"></span>${sev[0]} · ${a.level}</span></div>
+            <div class="panel-body">
+              <div class="ai-box">
+                <div class="ai-head"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 2l2.4 7.4H22l-6 4.4 2.3 7.2-6.3-4.6L5.7 21l2.3-7.2-6-4.4h7.6z"/></svg>AI 风险预判</div>
+                <div class="row" style="gap:14px;align-items:center">
+                  <div class="gauge" style="background:conic-gradient(${gaugeCol} ${a.score}%,var(--surface-2) 0)"><div class="g-val"><div class="g-num tnum" style="color:${gaugeCol}">${a.score}</div><div class="g-lbl">/ 100</div></div></div>
+                  <div class="col" style="gap:9px;flex:1">${a.factors.map(f=>`<div class="factor"><div class="factor-ico" style="background:${f[1]};color:${f[2]}">${f[0]}</div><div><div class="factor-t">${f[3]}</div><div class="factor-d">${f[4]}</div></div></div>`).join('')}</div>
+                </div>
+                <p class="small muted mt-sm" style="border-top:1px solid var(--violet-bd);padding-top:10px;margin-top:12px"><b>模型建议：</b>${a.recommendation}</p>
+              </div>
+              <div class="row" style="justify-content:space-between;background:var(--surface-3);border:1px solid var(--line);border-radius:10px;padding:10px 13px;margin-top:14px">
+                <span class="row" style="gap:7px"><span class="muted small">制裁筛查</span><span class="pill ${sancCls}"><span class="pdot"></span>${a.sanctions.status}</span></span>
+                <span class="muted small">${a.sanctions.list}</span>
+              </div>
+              <div class="small muted" style="font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin:16px 0 10px">审核清单</div>
+              ${a.checklist.map(c=>`<div class="chk"><span class="chk-box ${c[1]?'chk-done':'chk-todo'}">${c[1]?'✓':''}</span><span class="small" style="${c[1]?'':'color:var(--text-2)'}">${c[0]}</span></div>`).join('')}
+              <div class="small muted" style="font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin:16px 0 10px">处置</div>
+              <div class="decision-btns">${actionArea(state)}</div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><div class="panel-title">客户与钱包风险</div><a class="btn-link" href="compliance-kyw.html">KYW 档案 ↗</a></div>
+            <div class="panel-body">${RC_riskCard(risk,{bare:true})}</div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><div class="panel-title">SLA</div></div>
+            <div class="panel-body">
+              <div class="row" style="justify-content:space-between"><span class="muted">处理时限</span><span class="cell-strong tnum">${a.sla.text}</span></div>
+              <div class="bar-track mt-sm"><div class="bar-fill" style="width:${a.sla.pct}%;background:var(--${a.sla.color})"></div></div>
+              <p class="small muted mt-sm">高风险工单 SLA 为 48 小时，超时自动升级。</p>
+            </div>
+          </div>
+        </div>
+      </div>`;
+    document.title=`${a.order} · 审核决策 · FuturePayCA 风控`;
+  }
+
+  render();
+</script>
+</body>
+</html>

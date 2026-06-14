@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>风控总览 · FuturePayCA 风控</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="risk-design-system.css">
+<style>
+  .lc-card{display:block;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-card);padding:18px;box-shadow:var(--shadow-sm);transition:all .15s;position:relative;overflow:hidden}
+  .lc-card:hover{border-color:var(--brand);box-shadow:var(--shadow-md);transform:translateY(-2px)}
+  .lc-card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px}
+  .lc-head{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+  .lc-badge{width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:19px;color:#fff}
+  .lc-step-lbl{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text-3)}
+  .lc-title2{font-size:17px;font-weight:700;letter-spacing:-.01em}
+  .lc-feat{font-size:12.5px;color:var(--text-2);display:flex;align-items:center;gap:7px;padding:5px 0}
+  .lc-feat svg{width:14px;height:14px;color:var(--green);flex-shrink:0}
+  .lc-foot{display:flex;align-items:center;justify-content:space-between;margin-top:14px;padding-top:14px;border-top:1px solid var(--line-soft)}
+  .flow-arrow{display:flex;align-items:center;justify-content:center;color:var(--text-3)}
+  @media(max-width:1080px){.flow-arrow{transform:rotate(90deg)}}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="sb-logo"><div class="sb-logo-mark">F</div><div class="sb-logo-text">Future<span>Pay</span>CA</div></div>
+    <nav class="sb-nav">
+      <a class="sb-item active" href="risk-control.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 12l9-9 9 9M5 10v10h14V10"/></svg>风控总览</a>
+      <div class="sb-group">事前 · 配置</div>
+      <a class="sb-item" href="risk-pre.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-2.82 1.17V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 8 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 3.6 15H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 5 8.6a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 3.6V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 2 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 21 9h.6a2 2 0 0 1 0 4H21z"/></svg>风险策略与规则</a>
+      <div class="sb-group">事中 · 执行</div>
+      <a class="sb-item" href="risk-monitoring.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>事中监控<span class="sb-tag">10</span></a>
+      <a class="sb-item" href="risk-review.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 11l3 3 8-8"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>审核决策</a>
+      <div class="sb-group">事后 · 处置</div>
+      <a class="sb-item" href="risk-post.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 13h6M9 17h6"/></svg>案件处置与上报</a>
+      <div class="sb-group">反馈 · 优化</div>
+      <a class="sb-item" href="risk-feedback.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>规则效果与调优</a>
+    </nav>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div class="crumb"><span>风控</span><span class="sep">/</span><span class="cur">风控总览</span></div>
+      <div class="topbar-right"><button class="icon-btn"><span class="dot"></span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></button><button class="icon-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-2.82 1.17V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 8 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 3.6 15H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 5 8.6a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 3.6V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 2 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 21 9h.6a2 2 0 0 1 0 4H21z"/></svg></button><div class="avatar">JS</div></div>
+    </header>
+
+    <div class="content">
+      <div class="content-wrap">
+        <div class="pg-head">
+          <div>
+            <h1 class="pg-title">风险控制系统</h1>
+            <p class="pg-sub">覆盖「事前配置 → 事中执行 → 事后处置 → 反馈优化」全生命周期的闭环风控体系。</p>
+          </div>
+        </div>
+
+        <!-- top KPIs -->
+        <div class="grid-4 mb-md">
+          <div class="kpi"><div class="kpi-lbl"><span class="kpi-ico" style="background:var(--amber-bg);color:var(--amber)">🔍</span>事中待处理</div><div class="kpi-num tnum">10</div><div class="kpi-delta d-up">2 笔超 SLA</div></div>
+          <div class="kpi"><div class="kpi-lbl"><span class="kpi-ico" style="background:var(--red-bg);color:var(--red)">🧊</span>冻结待处置</div><div class="kpi-num tnum">6</div><div class="small muted mt-sm">事后队列</div></div>
+          <div class="kpi"><div class="kpi-lbl"><span class="kpi-ico" style="background:var(--blue-bg);color:var(--blue)">📤</span>STR 待上报</div><div class="kpi-num tnum">3</div><div class="small muted mt-sm">FINTRAC</div></div>
+          <div class="kpi"><div class="kpi-lbl"><span class="kpi-ico" style="background:var(--green-bg);color:var(--green)">🎯</span>规则准确率</div><div class="kpi-num tnum">76.3%</div><div class="kpi-delta d-down">↑ 4.1%</div></div>
+        </div>
+
+        <!-- lifecycle 4 phases -->
+        <div style="display:grid;grid-template-columns:1fr 28px 1fr 28px 1fr 28px 1fr;align-items:stretch;gap:0" id="lcGrid">
+          <a class="lc-card" href="risk-pre.html" style="--c:var(--blue)">
+            <div class="lc-head"><div class="lc-badge" style="background:var(--blue)">⚙</div><div><div class="lc-step-lbl">第 1 阶段 · 事前</div><div class="lc-title2">配置</div></div></div>
+            <div class="lc-feat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 6 9 17l-5-5"/></svg>风险策略与监控规则</div>
+            <div class="lc-feat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 6 9 17l-5-5"/></svg>阈值矩阵 / 评分模型</div>
+            <div class="lc-feat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 6 9 17l-5-5"/></svg>制裁与黑白名单</div>
+            <div class="lc-foot"><span class="muted small">42 条规则启用</span><span class="btn-link">进入 →</span></div>
+          </a>
+          <div class="flow-arrow"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+
+          <a class="lc-card" href="risk-monitoring.html" style="--c:var(--amber)">
+            <div class="lc-head"><div class="lc-badge" style="background:var(--amber)">🔍</div><div><div class="lc-step-lbl">第 2 阶段 · 事中</div><div class="lc-title2">执行</div></div></div>
+            <div class="lc-feat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 6 9 17l-5-5"/></svg>实时拦截与暂缓入账</div>
+            <div class="lc-feat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 6 9 17l-5-5"/></svg>AI 风险预判与队列</div>
+            <div class="lc-feat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 6 9 17l-5-5"/></svg>人工审核决策</div>
+            <div class="lc-foot"><span class="muted small">10 笔待处理</span><span class="btn-link">进入 →</span></div>
+          </a>
+          <div class="flow-arrow"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+
+          <a class="lc-card" href="risk-post.html" style="--c:var(--red)">
+            <div class="lc-head"><div class="lc-badge" style="background:var(--red)">📁</div><div><div class="lc-step-lbl">第 3 阶段 · 事后</div><div class="lc-title2">处置</div></div></div>
+            <div class="lc-feat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 6 9 17l-5-5"/></svg>案件归档与处置</div>
+            <div class="lc-feat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 6 9 17l-5-5"/></svg>STR 上报 FINTRAC</div>
+            <div class="lc-feat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 6 9 17l-5-5"/></svg>审计追溯</div>
+            <div class="lc-foot"><span class="muted small">3 笔待上报</span><span class="btn-link">进入 →</span></div>
+          </a>
+          <div class="flow-arrow"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+
+          <a class="lc-card" href="risk-feedback.html" style="--c:var(--green)">
+            <div class="lc-head"><div class="lc-badge" style="background:var(--green)">📈</div><div><div class="lc-step-lbl">第 4 阶段 · 反馈</div><div class="lc-title2">优化</div></div></div>
+            <div class="lc-feat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 6 9 17l-5-5"/></svg>规则效果与误报分析</div>
+            <div class="lc-feat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 6 9 17l-5-5"/></svg>AI 调优建议</div>
+            <div class="lc-feat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 6 9 17l-5-5"/></svg>回写事前配置（闭环）</div>
+            <div class="lc-foot"><span class="muted small">3 条优化建议</span><span class="btn-link">进入 →</span></div>
+          </a>
+        </div>
+
+        <p class="small muted mt-md" style="text-align:center">↻ 反馈优化结果回写「事前配置」，形成持续迭代的风控闭环</p>
+
+        <!-- recent activity -->
+        <div class="card mt-md">
+          <div class="card-head"><div class="card-title">全链路动态</div><a class="btn-link" href="risk-monitoring.html">查看事中队列 →</a></div>
+          <div class="card-body">
+            <div class="timeline">
+              <div class="tl-item done"><div class="tl-time">09:30 · 事中</div><div class="tl-title">DEP-20260315-001 命中「混币器关联」，AI 评分 95 → 暂缓入账</div></div>
+              <div class="tl-item done"><div class="tl-time">11:05 · 事中→事后</div><div class="tl-title">L1 驳回并冻结，自动升级 MLRO → 生成 CASE-2026-0312</div></div>
+              <div class="tl-item done"><div class="tl-time">14:20 · 事后</div><div class="tl-title">MLRO 确认可疑，启动 STR 上报流程</div></div>
+              <div class="tl-item"><div class="tl-time">今日 · 反馈</div><div class="tl-title">「新商户首充」误报率 52%，生成下调权重建议</div></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+<style>@media(max-width:1080px){#lcGrid{grid-template-columns:1fr!important}}</style>
+</body>
+</html>

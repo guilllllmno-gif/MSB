@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>L1 分析员 · 合规工作台</title>
+<style>
+:root{--bg:#f8fafc;--card:#fff;--ink:#0f172a;--ink2:#475569;--ink3:#64748b;--ink4:#94a3b8;--line:#e5e7eb;--soft:#f1f5f9;--muted:#f8fafc;--violet:#7c3aed;--vbg:#f5f3ff;--vbd:#ddd6fe;--em:#059669;--embg:#ecfdf5;--embd:#a7f3d0;--am:#b45309;--ambg:#fffbeb;--ambd:#fde68a;--red:#dc2626;--rbg:#fef2f2;--rbd:#fecaca;--blue:#2563eb;--bbg:#eff6ff;--bbd:#bfdbfe}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI",sans-serif;background:var(--bg);color:var(--ink);font-size:13px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.tab{font-variant-numeric:tabular-nums}
+.nav{position:sticky;top:0;z-index:20;border-bottom:1px solid var(--line);background:rgba(255,255,255,.85);backdrop-filter:blur(8px)}
+.nav-in{max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;padding:10px 20px}
+.brand{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600}
+.logo{width:24px;height:24px;border-radius:6px;background:var(--violet);color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.seg{display:flex;gap:2px;border:1px solid var(--line);background:var(--soft);border-radius:9px;padding:3px}
+.seg a{padding:6px 12px;border-radius:6px;font-size:13px;font-weight:500;color:var(--ink3);text-decoration:none}
+.seg a.on{background:#fff;color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.seg a:hover:not(.on){color:var(--ink)}
+.wrap{max-width:1200px;margin:0 auto;padding:22px 20px;display:flex;flex-direction:column;gap:18px}
+.head{display:flex;align-items:flex-end;justify-content:space-between}
+.h1{font-size:22px;font-weight:800;letter-spacing:-.01em}.hsub{font-size:13px;color:var(--ink3);margin-top:3px}
+.btn{height:32px;padding:0 14px;border-radius:8px;border:none;background:var(--ink);color:#fff;font-size:13px;font-weight:500;display:inline-flex;align-items:center;gap:6px;cursor:pointer}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:0 1px 2px rgba(15,23,42,.04)}
+.cpad{padding:16px 18px}
+.chead{padding:15px 18px 0;display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.ctitle{font-size:15px;font-weight:600;display:flex;align-items:center;gap:7px}
+.cdesc{font-size:12px;color:var(--ink3);margin-top:2px}.cmeta{font-size:11.5px;color:var(--ink3)}
+.link{font-size:12px;color:var(--violet);cursor:pointer;text-decoration:none}
+.pill{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:999px;font-size:11.5px;font-weight:500;border:1px solid transparent}
+.p-ok{background:var(--embg);color:var(--em);border-color:var(--embd)}.p-warn{background:var(--ambg);color:var(--am);border-color:var(--ambd)}.p-crit{background:var(--rbg);color:var(--red);border-color:var(--rbd)}.p-info{background:var(--bbg);color:var(--blue);border-color:var(--bbd)}.p-violet{background:var(--vbg);color:var(--violet);border-color:var(--vbd)}.p-muted{background:var(--muted);color:var(--ink3);border-color:var(--line)}
+.pill svg{width:13px;height:13px}
+.hero{display:flex;flex-wrap:wrap;align-items:center;gap:14px 24px}
+.av{width:44px;height:44px;border-radius:50%;color:#fff;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.vsep{width:1px;align-self:stretch;min-height:30px;background:var(--line)}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}@media(max-width:760px){.kpis{grid-template-columns:repeat(2,1fr)}}
+.kpi{border:1px solid var(--line);border-radius:14px;background:var(--card);padding:16px 18px;box-shadow:0 1px 2px rgba(15,23,42,.04)}
+.kpi-l{font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.4px;color:var(--ink3)}
+.kpi-v{font-size:26px;font-weight:800;margin-top:6px}.kpi-s{font-size:11px;color:var(--ink3);margin-top:4px}
+.c-crit{color:var(--red)}.c-warn{color:var(--am)}.c-ok{color:var(--em)}
+.g3{display:grid;grid-template-columns:2fr 1fr;gap:18px}@media(max-width:920px){.g3{grid-template-columns:1fr}}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{text-align:left;font-weight:500;color:var(--ink3);font-size:11.5px;padding:8px 10px;border-bottom:1px solid var(--line)}
+td{padding:9px 10px;border-bottom:1px solid var(--soft)}tr:last-child td{border-bottom:none}
+.tname{font-weight:500}.tid{font-size:11px;color:var(--ink3)}
+.badge{display:inline-flex;align-items:center;justify-content:center;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:600;border:1px solid transparent}
+.b-ok{background:var(--embg);color:var(--em);border-color:var(--embd)}.b-warn{background:var(--ambg);color:var(--am);border-color:var(--ambd)}.b-crit{background:var(--rbg);color:var(--red);border-color:var(--rbd)}.b-info{background:var(--bbg);color:var(--blue);border-color:var(--bbd)}.b-violet{background:var(--vbg);color:var(--violet);border-color:var(--vbd)}.b-muted{background:var(--muted);color:var(--ink3);border-color:var(--line)}
+.tbtn{height:28px;padding:0 10px;border-radius:7px;border:1px solid var(--line);background:#fff;font-size:12px;color:var(--ink2);cursor:pointer;display:inline-flex;align-items:center;gap:4px}
+.chart{display:flex;align-items:flex-end;gap:10px;height:200px;padding-top:8px}
+.bcol{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;height:100%}
+.bar{width:100%;max-width:30px;margin-top:auto;background:var(--vbg);border:1px solid var(--vbd);border-radius:5px 5px 0 0}
+.bx{font-size:9.5px;color:var(--ink3)}
+.foot{text-align:center;font-size:11px;color:var(--ink4);padding-top:2px}
+.muted{color:var(--ink3)}
+</style>
+</head>
+<body>
+<div class="nav"><div class="nav-in">
+  <div class="brand"><span class="logo">F</span> FuturePay 合规工作台</div>
+  <div class="seg">
+    <a class="on" href="compliance-l1.html">L1 分析员</a>
+    <a href="compliance-l2.html">L2 复核</a>
+    <a href="compliance-mlro.html">MLRO 报送</a>
+  </div>
+</div></div>
+
+<div class="wrap">
+  <div class="head">
+    <div><div class="h1">我的工作台 · L1 分析员</div><div class="hsub">清队列 · 守住 SLA · 不挑单</div></div>
+    <button class="btn">过滤</button>
+  </div>
+
+  <div class="card cpad">
+    <div class="hero">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div class="av" style="background:var(--violet)">SC</div>
+        <div><div style="font-size:15px;font-weight:600">早安，Sarah</div><div style="font-size:11.5px;color:var(--ink3)">星期六 · 2026-05-30 · 09:14 EDT</div></div>
+      </div>
+      <div class="vsep"></div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px">
+        <span class="pill p-crit">我的 SLA 临期 2 · 最紧 2h 06m</span>
+        <span class="pill p-ok">今日已清 14</span>
+        <span class="pill p-warn">待回收补料 3</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="kpis">
+    <div class="kpi"><div class="kpi-l">我的待办</div><div class="kpi-v tab">34</div><div class="kpi-s">分配给我</div></div>
+    <div class="kpi"><div class="kpi-l">SLA ≤ 4h</div><div class="kpi-v tab c-crit">2</div><div class="kpi-s">需优先清零</div></div>
+    <div class="kpi"><div class="kpi-l">今日已清</div><div class="kpi-v tab c-ok">14</div><div class="kpi-s">较昨日 +3</div></div>
+    <div class="kpi"><div class="kpi-l">平均处理时长</div><div class="kpi-v tab">2.4h</div><div class="kpi-s">本周</div></div>
+  </div>
+
+  <div class="g3">
+    <div class="card">
+      <div class="chead"><div><div class="ctitle">我的队列</div><div class="cdesc">按 SLA 紧急度排序 · 自上而下处理</div></div><a class="link" href="#">查看全部 →</a></div>
+      <div class="cpad">
+        <table>
+          <thead><tr><th>工单 / 商户</th><th>类型</th><th style="text-align:center">评分</th><th>SLA</th><th style="text-align:right">操作</th></tr></thead>
+          <tbody>
+            <tr><td><div class="tname">Skyline Pay</div><div class="tid tab">KYC-2026-0312</div></td><td class="muted">商户重审</td><td style="text-align:center"><span class="badge b-crit">84</span></td><td><span class="tab" style="font-weight:600;color:var(--red)">2h 06m</span></td><td style="text-align:right"><button class="tbtn">处理 →</button></td></tr>
+            <tr><td><div class="tname">NovaPay</div><div class="tid tab">KYW-2026-4071</div></td><td class="muted">提币地址</td><td style="text-align:center"><span class="badge b-crit">78</span></td><td><span class="tab" style="font-weight:600;color:var(--red)">3h 48m</span></td><td style="text-align:right"><button class="tbtn">处理 →</button></td></tr>
+            <tr><td><div class="tname">NovaPay</div><div class="tid tab">MON-2026-4042</div></td><td class="muted">交易监控</td><td style="text-align:center"><span class="badge b-crit">92</span></td><td><span class="tab" style="color:var(--am)">5h 20m</span></td><td style="text-align:right"><button class="tbtn">处理 →</button></td></tr>
+            <tr><td><div class="tname">Helios Crypto</div><div class="tid tab">KYC-2026-0308</div></td><td class="muted">新商户准入</td><td style="text-align:center"><span class="badge b-ok">42</span></td><td><span class="tab" style="color:var(--am)">11h 24m</span></td><td style="text-align:right"><button class="tbtn">处理 →</button></td></tr>
+            <tr><td><div class="tname">Bright FX</div><div class="tid tab">KYW-2026-4066</div></td><td class="muted">提币地址</td><td style="text-align:center"><span class="badge b-ok">35</span></td><td><span class="tab muted">1d 02h</span></td><td style="text-align:right"><button class="tbtn">处理 →</button></td></tr>
+            <tr><td><div class="tname">Bright FX</div><div class="tid tab">KYC-2026-0301</div></td><td class="muted">UBO 更新</td><td style="text-align:center"><span class="badge b-ok">28</span></td><td><span class="tab muted">2d 04h</span></td><td style="text-align:right"><button class="tbtn">处理 →</button></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="chead"><div><div class="ctitle">我的 24h SLA 分布</div><div class="cdesc">峰值 17:00 · 5 单 · 提前清</div></div></div>
+      <div class="cpad">
+        <div class="chart">
+          <div class="bcol"><div class="bar" style="height:20%"></div><div class="bx">10</div></div>
+          <div class="bcol"><div class="bar" style="height:40%"></div><div class="bx">12</div></div>
+          <div class="bcol"><div class="bar" style="height:6%"></div><div class="bx">14</div></div>
+          <div class="bcol"><div class="bar" style="height:20%"></div><div class="bx">16</div></div>
+          <div class="bcol"><div class="bar" style="height:100%;background:var(--violet);border-color:var(--violet)"></div><div class="bx">17</div></div>
+          <div class="bcol"><div class="bar" style="height:40%"></div><div class="bx">19</div></div>
+          <div class="bcol"><div class="bar" style="height:20%"></div><div class="bx">21</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot">FuturePay 合规工作台 · L1 视角 · 以「清队列 + 守 SLA」为中心</div>
+</div>
+</body>
+</html>

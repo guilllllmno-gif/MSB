@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>风控价值看板 · FuturePayCA 风控</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="risk-design-system.css">
+<style>
+  /* ── Stripe Radar–inspired skin (scoped to .radar) ── */
+  .radar{
+    --radar:#635bff; --radar-dk:#5046c9; --radar-soft:#eef0ff;
+    --ink:#1a1f36; --ink2:#3c4257; --muted:#697386; --line:#e6e8ee; --bg:#f7fafc;
+    --pos:#1f8a4c; --pos-bg:#ecfdf3; --warn:#b54708; --warn-bg:#fef6ee; --neg:#d92d20; --neg-bg:#fef3f2;
+    color:var(--ink);
+  }
+  .radar .card{border:1px solid var(--line);border-radius:12px;box-shadow:0 1px 3px rgba(26,31,54,.06),0 1px 1px rgba(26,31,54,.04)}
+  .radar .card-title{font-size:14px;font-weight:600;color:var(--ink)}
+  .radar .card-desc{color:var(--muted)}
+  .radar .pg-title{color:var(--ink)} .radar .pg-sub{color:var(--muted)}
+  .radar .btn{border-color:var(--line)} .radar .btn-link{color:var(--radar)}
+  .radar .btn-primary{background:var(--radar);border-color:var(--radar)} .radar .btn-primary:hover{background:var(--radar-dk)}
+  .radar a{color:var(--radar)}
+  .radar .tbl thead th{background:#fbfcfe;color:var(--muted)} .radar .tbl tbody td{border-color:var(--line)}
+  .radar .tabs{border-bottom:1px solid var(--line)}
+  .radar .tab.active{color:var(--ink)} .radar .tab.active::after{background:var(--radar)}
+  .tab-panel[hidden]{display:none}
+
+  .eng-badge{display:inline-flex;align-items:center;gap:6px;background:var(--radar-soft);color:var(--radar);font-size:11.5px;font-weight:700;padding:4px 10px;border-radius:999px;border:1px solid #dcdcff}
+  .eng-badge svg{width:13px;height:13px}
+
+  /* network-scale strip */
+  .net-strip{display:flex;align-items:center;gap:18px;flex-wrap:wrap;background:linear-gradient(100deg,#0b0f2b,#2b2566 60%,#635bff);border-radius:14px;padding:16px 20px;color:#fff;margin-bottom:18px}
+  .net-strip .ns-n{font-size:20px;font-weight:800;letter-spacing:-.01em}
+  .net-strip .ns-l{font-size:11px;opacity:.82;margin-top:2px}
+  .net-strip .ns-sep{width:1px;height:34px;background:rgba(255,255,255,.18)}
+
+  /* metric tiles */
+  .mrow{display:grid;grid-template-columns:repeat(6,1fr);border:1px solid var(--line);border-radius:12px;background:#fff;overflow:hidden;box-shadow:0 1px 3px rgba(26,31,54,.06)}
+  @media(max-width:1080px){.mrow{grid-template-columns:repeat(3,1fr)}}
+  .mtile{padding:14px 15px;border-right:1px solid var(--line);border-bottom:1px solid transparent}
+  .mtile:last-child{border-right:none}
+  .mt-lbl{font-size:11px;color:var(--muted);font-weight:500}
+  .mt-num{font-size:19px;font-weight:700;color:var(--ink);letter-spacing:-.01em;margin-top:6px}
+  .mt-foot{display:flex;align-items:center;justify-content:space-between;margin-top:7px}
+  .mt-delta{font-size:10.5px;font-weight:600}
+  .up{color:var(--pos)} .down{color:var(--neg)} .flat{color:var(--muted)}
+  .spark{width:56px;height:20px}
+
+  /* risk score distribution */
+  .bands{display:flex;gap:8px;margin-bottom:14px}
+  .band{flex:1;border-radius:9px;padding:10px 12px;border:1px solid}
+  .band.normal{background:var(--pos-bg);border-color:#bceccd}
+  .band.elev{background:var(--warn-bg);border-color:#f6dcb9}
+  .band.high{background:var(--neg-bg);border-color:#f6cdc9}
+  .band-h{display:flex;align-items:center;justify-content:space-between}
+  .band-name{font-size:12px;font-weight:700} .band-rng{font-size:10.5px;color:var(--muted);font-family:'SF Mono',ui-monospace,monospace}
+  .band-pct{font-size:20px;font-weight:800;margin-top:4px} .band-act{font-size:11px;color:var(--muted);margin-top:1px}
+  .hist{position:relative;height:160px;display:flex;align-items:flex-end;gap:3px;padding:0 2px;border-bottom:1px solid var(--line)}
+  .hbar{flex:1;border-radius:3px 3px 0 0;min-height:2px}
+  .thr{position:absolute;top:0;bottom:0;width:0;border-left:2px dashed var(--ink2);opacity:.5}
+  .thr span{position:absolute;top:-2px;left:4px;font-size:9.5px;color:var(--ink2);white-space:nowrap;background:#fff;padding:0 3px}
+  .hist-x{display:flex;justify-content:space-between;font-size:9.5px;color:var(--muted);margin-top:5px}
+
+  /* signals */
+  .signal{display:flex;gap:11px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--line)}
+  .signal:last-child{border:none}
+  .sig-ico{width:28px;height:28px;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:13px}
+  .sig-t{font-size:12.5px;font-weight:600;color:var(--ink)} .sig-d{font-size:11.5px;color:var(--muted);margin-top:2px}
+  .sig-w{margin-left:auto;font-size:12px;font-weight:700;font-family:'SF Mono',ui-monospace,monospace}
+
+  /* value bridge */
+  .vrow{display:grid;grid-template-columns:118px 1fr 88px;gap:12px;align-items:center;padding:7px 0}
+  .vtrack{height:12px;border-radius:6px;background:var(--bg);overflow:hidden} .vfill{height:100%;border-radius:6px}
+
+  /* outcome pills */
+  .opill{display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:6px;font-size:11px;font-weight:600;border:1px solid}
+  .o-allow{background:var(--pos-bg);color:var(--pos);border-color:#bceccd}
+  .o-review{background:var(--warn-bg);color:var(--warn);border-color:#f6dcb9}
+  .o-block{background:var(--neg-bg);color:var(--neg);border-color:#f6cdc9}
+
+  /* funnel */
+  .fn-step{margin-bottom:10px}
+  .fn-head{display:flex;align-items:baseline;justify-content:space-between;font-size:12.5px;margin-bottom:5px}
+  .fn-head .fn-name{font-weight:600;color:var(--ink)} .fn-head .fn-cnt{color:var(--muted)}
+  .fn-bar{height:30px;border-radius:8px;display:flex;align-items:center;padding:0 12px;color:#fff;font-weight:700;font-size:12px;min-width:56px}
+  .fn-drop{font-size:11px;color:var(--neg);font-weight:600;margin-top:4px} .fn-drop.ok{color:var(--muted)}
+
+  /* leak + opp */
+  .leak{display:grid;grid-template-columns:118px 1fr 70px;gap:10px;align-items:center;padding:7px 0}
+  .leak-track{height:12px;border-radius:6px;background:var(--bg);overflow:hidden} .leak-fill{height:100%;border-radius:6px}
+  .opp{display:flex;gap:13px;padding:13px 0;border-bottom:1px solid var(--line)} .opp:last-child{border:none}
+  .opp-ico{width:34px;height:34px;border-radius:10px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:16px}
+  .opp-up{font-size:12px;font-weight:700;color:var(--pos);background:var(--pos-bg);border-radius:6px;padding:2px 8px;white-space:nowrap}
+  .chart{display:flex;align-items:flex-end;gap:7px;height:140px;padding-top:8px}
+  .bcol{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;height:100%}
+  .bcol .b{width:100%;max-width:22px;margin-top:auto;border-radius:4px 4px 0 0;background:var(--radar)}
+  .bx{font-size:9px;color:var(--muted)}
+</style>
+</head>
+<body data-page="value" data-crumb="风控·风控价值看板">
+<div class="app">
+  <aside class="sidebar" id="rcSidebar"></aside>
+  <div class="main">
+    <header class="topbar" id="rcTopbar"></header>
+    <div class="content"><div class="content-wrap radar">
+
+      <div class="pg-head">
+        <div>
+          <div class="row" style="gap:10px">
+            <h1 class="pg-title">风控价值看板</h1>
+            <span class="eng-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>Radar 风险引擎</span>
+          </div>
+          <p class="pg-sub">拦截欺诈、放行好客户 —— 风控同时创造「防损」与「转化」两类价值，统一量化对利润与增长的贡献。</p>
+        </div>
+        <div class="row"><select class="sel" style="height:36px"><option>本月</option><option>本季度</option><option>本年度</option></select><button class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/></svg>导出</button></div>
+      </div>
+
+      <!-- network-scale strip -->
+      <div class="net-strip">
+        <div><div class="ns-n tnum">9.2 亿+</div><div class="ns-l">已标记链上地址（Chainalysis 网络）</div></div>
+        <div class="ns-sep"></div>
+        <div><div class="ns-n tnum">200+</div><div class="ns-l">每笔交易分析的风险信号</div></div>
+        <div class="ns-sep"></div>
+        <div><div class="ns-n tnum">−32%</div><div class="ns-l">欺诈损失同比下降</div></div>
+        <div class="ns-sep"></div>
+        <div><div class="ns-n tnum">+3.7pp</div><div class="ns-l">可挽回转化空间</div></div>
+      </div>
+
+      <!-- unified metric overview: loss + growth -->
+      <div class="mrow mb-md" id="mrow"></div>
+
+      <!-- tabs -->
+      <div class="tabs">
+        <div class="tab active" data-tab="loss">防损价值</div>
+        <div class="tab" data-tab="growth">转化价值</div>
+      </div>
+
+      <!-- ════ 防损价值 ════ -->
+      <section class="tab-panel" data-panel="loss">
+        <div class="grid-2 mb-md" style="grid-template-columns:1.55fr 1fr">
+          <div class="card">
+            <div class="card-head"><div><div class="card-title">风险评分分布</div><div class="card-desc">全部充提按风险评分 0–99 分布 · 引擎自动决策</div></div>
+              <div class="seg"><button class="active">充值</button><button>提现</button></div>
+            </div>
+            <div class="card-body">
+              <div class="bands">
+                <div class="band normal"><div class="band-h"><span class="band-name" style="color:var(--pos)">Normal</span><span class="band-rng">0–64</span></div><div class="band-pct" style="color:var(--pos)">93.6%</div><div class="band-act">自动放行 · 90,250</div></div>
+                <div class="band elev"><div class="band-h"><span class="band-name" style="color:var(--warn)">Elevated</span><span class="band-rng">65–74</span></div><div class="band-pct" style="color:var(--warn)">5.0%</div><div class="band-act">人工复核 · 4,820</div></div>
+                <div class="band high"><div class="band-h"><span class="band-name" style="color:var(--neg)">Highest</span><span class="band-rng">75–99</span></div><div class="band-pct" style="color:var(--neg)">1.4%</div><div class="band-act">自动拦截 · 1,350</div></div>
+              </div>
+              <div class="hist" id="hist">
+                <div class="thr" style="left:65%"><span>复核阈值 65</span></div>
+                <div class="thr" style="left:75%"><span>拦截阈值 75</span></div>
+              </div>
+              <div class="hist-x"><span>0</span><span>20</span><span>40</span><span>60</span><span>80</span><span>99</span></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-head"><div><div class="card-title">价值贡献</div><div class="card-desc">防损 + 提效（CAD）</div></div></div>
+            <div class="card-body">
+              <div class="vrow"><span>欺诈损失规避</span><div class="vtrack"><div class="vfill" style="width:100%;background:var(--neg)"></div></div><span class="cell-strong tnum" style="text-align:right">1.84M</span></div>
+              <div class="vrow"><span>误判挽回价值</span><div class="vtrack"><div class="vfill" style="width:7.1%;background:var(--radar)"></div></div><span class="cell-strong tnum" style="text-align:right">130K</span></div>
+              <div class="vrow"><span>自动化节省</span><div class="vtrack"><div class="vfill" style="width:5.2%;background:#8a82ff"></div></div><span class="cell-strong tnum" style="text-align:right">96K</span></div>
+              <div class="vrow" style="border-top:1px solid var(--line)"><span class="cell-strong">价值创造（毛）</span><div class="vtrack"><div class="vfill" style="width:100%;background:linear-gradient(90deg,var(--radar),var(--pos))"></div></div><span class="cell-strong tnum" style="text-align:right">2.07M</span></div>
+              <div class="vrow"><span class="muted">− 风控运营成本</span><div class="vtrack"><div class="vfill" style="width:6.9%;background:#c7ccd6"></div></div><span class="tnum muted" style="text-align:right">−142K</span></div>
+              <div class="vrow" style="border-top:2px solid var(--line)"><span class="cell-strong">净价值贡献</span><div class="vtrack"><div class="vfill" style="width:93%;background:var(--pos)"></div></div><span class="cell-strong tnum" style="text-align:right;color:var(--pos)">1.92M</span></div>
+              <div class="row" style="justify-content:space-between;background:var(--radar-soft);border-radius:10px;padding:10px 14px;margin-top:12px"><span style="color:var(--radar);font-weight:600">投资回报 ROI</span><span style="color:var(--radar);font-weight:800;font-size:16px">14.6×</span></div>
+              <p class="sig-d" style="margin-top:8px">ROI = 价值创造 2.07M ÷ 风控成本 142K。</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-head"><div><div class="card-title">风险信号洞察</div><div class="card-desc">最高评分交易 · 网络级信号</div></div><a class="btn-link" href="rc-review.html">示例 →</a></div>
+            <div class="card-body">
+              <div class="signal"><div class="sig-ico" style="background:var(--neg-bg);color:var(--neg)">⛓</div><div><div class="sig-t">链上溯源命中混币器</div><div class="sig-d">92% 资金 ≤2 跳触及 Tornado Cash（OFAC）</div></div><span class="sig-w" style="color:var(--neg)">+35</span></div>
+              <div class="signal"><div class="sig-ico" style="background:var(--radar-soft);color:var(--radar)">🌐</div><div><div class="sig-t">网络共享情报</div><div class="sig-d">该地址已在网络 7 家商户出现，3 次被拦截</div></div><span class="sig-w" style="color:var(--radar)">网络</span></div>
+              <div class="signal"><div class="sig-ico" style="background:var(--warn-bg);color:var(--warn)">💰</div><div><div class="sig-t">金额偏离基线</div><div class="sig-d">单笔 CAD 8,200，为商户均值 5.5×</div></div><span class="sig-w" style="color:var(--warn)">+60</span></div>
+              <div class="signal"><div class="sig-ico" style="background:var(--warn-bg);color:var(--warn)">🏷</div><div><div class="sig-t">主体新建且资料缺失</div><div class="sig-d">商户注册 &lt;7 天，KYB 未完成</div></div><span class="sig-w" style="color:var(--warn)">+20</span></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-head"><div><div class="card-title">规则效果</div><div class="card-desc">命中后的引擎动作与误判率</div></div><a class="btn-link" href="rc-rules.html">规则列表 →</a></div>
+            <table class="tbl">
+              <thead><tr><th>规则</th><th>动作</th><th>命中</th><th>误判率</th></tr></thead>
+              <tbody>
+                <tr><td class="cell-strong">制裁地址命中</td><td><span class="opill o-block">● Block</span></td><td class="tnum">12</td><td class="tnum">1%</td></tr>
+                <tr><td class="cell-strong">混币器关联</td><td><span class="opill o-block">● Block</span></td><td class="tnum">47</td><td class="tnum">4%</td></tr>
+                <tr><td class="cell-strong">大额充值监控</td><td><span class="opill o-review">● Review</span></td><td class="tnum">312</td><td class="tnum" style="color:var(--neg)">38%</td></tr>
+                <tr><td class="cell-strong">新商户首充</td><td><span class="opill o-review">● Review</span></td><td class="tnum">158</td><td class="tnum" style="color:var(--neg)">52%</td></tr>
+                <tr><td class="cell-strong">可信钱包白名单</td><td><span class="opill o-allow">● Allow</span></td><td class="tnum">1,204</td><td class="tnum">—</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════ 转化价值 ════ -->
+      <section class="tab-panel" data-panel="growth" hidden>
+        <div class="grid-2 mb-md">
+          <div class="card">
+            <div class="card-head"><div><div class="card-title">开户转化漏斗</div><div class="card-desc">注册 → 首充 · 最大流失在 KYC/KYW 环节</div></div></div>
+            <div class="card-body" id="onfn"></div>
+          </div>
+          <div class="card">
+            <div class="card-head"><div><div class="card-title">充提交易转化漏斗</div><div class="card-desc">发起 → 完成入账 · 暂缓与误判是主要可控漏点</div></div>
+              <div class="seg"><button class="active">充值</button><button>提现</button></div>
+            </div>
+            <div class="card-body" id="txfn"></div>
+          </div>
+        </div>
+
+        <div class="grid-2 mb-md" style="grid-template-columns:1fr 1.2fr">
+          <div class="card">
+            <div class="card-head"><div><div class="card-title">流失归因</div><div class="card-desc">本月风控可控流失 5.0% 拆解（不含真实拦截）</div></div></div>
+            <div class="card-body">
+              <div class="leak"><span>暂缓后放弃</span><div class="leak-track"><div class="leak-fill" style="width:100%;background:var(--warn)"></div></div><span class="cell-strong tnum" style="text-align:right">2.1%</span></div>
+              <div class="leak"><span>补料未完成</span><div class="leak-track"><div class="leak-fill" style="width:67%;background:var(--warn)"></div></div><span class="cell-strong tnum" style="text-align:right">1.4%</span></div>
+              <div class="leak"><span>误判拒绝</span><div class="leak-track"><div class="leak-fill" style="width:43%;background:var(--neg)"></div></div><span class="cell-strong tnum" style="text-align:right">0.9%</span></div>
+              <div class="leak"><span>限额受限放弃</span><div class="leak-track"><div class="leak-fill" style="width:29%;background:var(--radar)"></div></div><span class="cell-strong tnum" style="text-align:right">0.6%</span></div>
+              <div class="leak" style="border-top:1px solid var(--line);margin-top:4px"><span class="muted">真实拦截（非流失）</span><div class="leak-track"><div class="leak-fill" style="width:67%;background:#c7ccd6"></div></div><span class="tnum muted" style="text-align:right">1.4%</span></div>
+              <p class="sig-d" style="margin-top:8px">前四项为可优化项，合计 5.0% ≈ CAD 4.6M 交易额；真实拦截属应有损失，不计入转化漏损。</p>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-head"><div><div class="card-title">完成率趋势</div><div class="card-desc">近 12 周 · 标注规则与阈值调整</div></div></div>
+            <div class="card-body">
+              <div class="chart" id="trend"></div>
+              <div class="row" style="justify-content:space-between;border-top:1px solid var(--line);padding-top:10px;margin-top:6px"><span class="sig-d">↑ 第 7 周上调自动放行上限</span><span class="sig-d">↑ 第 10 周大额规则改动态阈值</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><div><div class="card-title">转化优化机会</div><div class="card-desc">每项含预估转化提升，可直接进入对应配置</div></div><span class="opill o-block" style="background:var(--radar-soft);color:var(--radar);border-color:#dcdcff">AI 测算</span></div>
+          <div class="card-body">
+            <div class="opp"><div class="opp-ico" style="background:var(--warn-bg)">⏱️</div><div style="flex:1"><div class="cell-strong" style="color:var(--ink)">暂缓订单平均等待 6.2h → 扩大绿色通道，目标 1h</div><div class="sig-d">缩短等待可减少「暂缓后放弃」，预计挽回 ~520 笔/月。</div></div><div class="col" style="align-items:flex-end;gap:8px"><span class="opp-up">完成率 +0.9pp</span><a class="btn btn-sm btn-primary" href="rc-strategy.html">去配置</a></div></div>
+            <div class="opp"><div class="opp-ico" style="background:var(--neg-bg)">🎯</div><div style="flex:1"><div class="cell-strong" style="color:var(--ink)">大额充值规则误判率 38% → 改商户动态阈值</div><div class="sig-d">减少对大额好客户的误拦，预计救回 CAD 1.2M GMV。</div></div><div class="col" style="align-items:flex-end;gap:8px"><span class="opp-up">完成率 +0.6pp</span><a class="btn btn-sm btn-primary" href="rc-rule-editor.html">去调优</a></div></div>
+            <div class="opp"><div class="opp-ico" style="background:var(--radar-soft)">🔁</div><div style="flex:1"><div class="cell-strong" style="color:var(--ink)">「新商户首充」硬拒 → 改自适应验证 (step-up)</div><div class="sig-d">可疑就验证而非拒绝，预计首充转化提升、误判流失下降。</div></div><div class="col" style="align-items:flex-end;gap:8px"><span class="opp-up">首充 +3.0pp</span><a class="btn btn-sm" href="rc-rule-editor.html">去设计</a></div></div>
+            <div class="opp"><div class="opp-ico" style="background:var(--pos-bg)">🪪</div><div style="flex:1"><div class="cell-strong" style="color:var(--ink)">KYC 材料被拒 18% → 即时校验 + 引导补正</div><div class="sig-d">开户漏斗最大漏点，减少反复提交流失。</div></div><div class="col" style="align-items:flex-end;gap:8px"><span class="opp-up">开户 +6.0pp</span><a class="btn btn-sm" href="rc-strategy.html">去优化</a></div></div>
+          </div>
+        </div>
+      </section>
+
+    </div></div>
+  </div>
+</div>
+<script src="rc-shell.js"></script>
+<script>
+  // sparklines
+  function spark(pts,color){
+    const w=56,h=20,max=Math.max(...pts),min=Math.min(...pts),rng=(max-min)||1;
+    const d=pts.map((p,i)=>`${(i/(pts.length-1)*w).toFixed(1)},${(h-((p-min)/rng)*(h-3)-1.5).toFixed(1)}`).join(' ');
+    return `<svg class="spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none"><polyline points="${d}" fill="none" stroke="${color}" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
+  }
+  const metrics=[
+    {l:'净价值 · ROI',n:'CAD 1.92M',d:'ROI 14.6×',dc:'flat',sp:[10,12,11,14,15,16,17,19],c:'var(--pos)'},
+    {l:'已拦截风险交易额',n:'CAD 1.84M',d:'↑ 12%',dc:'up',sp:[9,11,10,13,12,15,14,18],c:'var(--neg)'},
+    {l:'误判挽回交易额',n:'CAD 3.2M',d:'误判 ↓4.1pp',dc:'up',sp:[18,20,22,24,28,30,31,32],c:'var(--radar)'},
+    {l:'充提完成率',n:'93.6%',d:'↑ 1.8pp',dc:'up',sp:[91,91.4,91.8,92.3,93.0,93.2,93.5,93.6],c:'var(--pos)'},
+    {l:'开户转化率',n:'45.0%',d:'↓ 2.1pp',dc:'down',sp:[48,47,46.5,46,45.6,45.3,45.1,45],c:'var(--radar)'},
+    {l:'自动决策率',n:'81%',d:'↑ 6pp',dc:'up',sp:[70,72,74,75,77,79,80,81],c:'var(--radar)'},
+  ];
+  document.getElementById('mrow').innerHTML=metrics.map(m=>`
+    <div class="mtile"><div class="mt-lbl">${m.l}</div><div class="mt-num tnum">${m.n}</div>
+      <div class="mt-foot"><span class="mt-delta ${m.dc}">${m.d}</span>${spark(m.sp,m.c)}</div></div>`).join('');
+
+  // risk score histogram
+  let bars='';
+  for(let i=0;i<50;i++){
+    const score=i*2;
+    const val=Math.exp(-Math.pow((score-28)/20,2))*100 + (score>70? Math.exp(-Math.pow((score-90)/9,2))*7 : 0) + 1.5;
+    const color= score>=75?'var(--neg)': score>=65?'var(--warn)':'var(--pos)';
+    bars+=`<div class="hbar" style="height:${val}%;background:${color}" title="评分 ${score}-${score+1}"></div>`;
+  }
+  document.getElementById('hist').insertAdjacentHTML('afterbegin',bars);
+
+  // funnels
+  function funnel(el,steps){
+    const top=steps[0].n;
+    el.innerHTML=steps.map((s,i)=>{
+      const pct=s.n/top*100, w=Math.max(pct,14);
+      const drop=i>0?steps[i-1].n-s.n:0, dropPct=i>0?drop/steps[i-1].n*100:0;
+      const dh=i>0?`<div class="fn-drop ${s.benign?'ok':''}">${s.benign?'↘':'▼'} 流失 ${drop.toLocaleString()} (${dropPct.toFixed(1)}%)${s.why?' · '+s.why:''}</div>`:'';
+      return `<div class="fn-step"><div class="fn-head"><span class="fn-name">${s.t}</span><span class="fn-cnt tnum">${s.n.toLocaleString()}</span></div>
+        <div class="fn-bar" style="width:${w}%;background:${s.c}">${pct.toFixed(1)}%</div>${dh}</div>`;
+    }).join('');
+  }
+  funnel(document.getElementById('onfn'),[
+    {t:'注册',n:12400,c:'var(--radar)'},
+    {t:'启动 KYC/KYW',n:9920,c:'#7d76ff',why:'20% 未开始验证'},
+    {t:'提交材料',n:8680,c:'#928cff',why:'流程繁琐'},
+    {t:'KYC 通过',n:7440,c:'#a7a2ff',why:'材料被拒 18%'},
+    {t:'账户激活',n:7000,c:'#bcb8ff',benign:true},
+    {t:'完成首充',n:5580,c:'var(--pos)',why:'首充转化'},
+  ]);
+  funnel(document.getElementById('txfn'),[
+    {t:'发起充值',n:96420,c:'var(--radar)'},
+    {t:'名单/制裁筛查通过',n:96398,c:'#7d76ff',benign:true,why:'制裁命中 22（应拦）'},
+    {t:'风控决策放行',n:94180,c:'#a7a2ff',why:'拒绝/拦截 2,218（含误判）'},
+    {t:'完成入账',n:90250,c:'var(--pos)',why:'暂缓/补料中放弃 3,930'},
+  ]);
+
+  const conv=[91.0,91.4,91.2,91.8,92.0,92.3,93.1,93.0,93.2,93.5,93.4,93.6];
+  const mn=Math.min(...conv)-0.5, mx=Math.max(...conv);
+  document.getElementById('trend').innerHTML=conv.map((v,i)=>
+    `<div class="bcol"><div class="b" style="height:${(v-mn)/(mx-mn)*100}%" title="${v}%"></div><div class="bx">W${i+1}</div></div>`).join('');
+</script>
+</body>
+</html>

@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>回测模拟 · 操作文档 · FuturePayCA 风控</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --brand:#005df5;--brand-dark:#0049c7;--brand-soft:#e6efff;--brand-softer:#f2f7ff;
+    --text:#12151b;--text-2:#636c7b;--text-3:#8a92a3;
+    --page:#f7f8fa;--surface:#fff;--surface-3:#fafbfc;--line:#e8eaed;--line-soft:#f1f2f4;
+    --green:#16a34a;--green-bg:#e8f7ed;--green-bd:#bbe8c9;
+    --amber:#c2710c;--amber-bg:#fdf2e3;--amber-bd:#f5d9a8;
+    --red:#dc2626;--red-bg:#fdeaea;--red-bd:#f6c9c9;
+    --blue-bg:#e6efff;--blue-bd:#bcd4ff;
+    --violet:#6d4bd8;--violet-bg:#f0ecfb;--violet-bd:#d8ccf4;
+    --grey:#636c7b;--grey-bg:#f0f1f3;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'PingFang SC','Segoe UI',sans-serif;background:var(--page);color:var(--text);line-height:1.65;font-size:14.5px;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:880px;margin:0 auto;padding:0 24px 80px}
+
+  /* top bar */
+  .topbar{position:sticky;top:0;z-index:10;background:rgba(255,255,255,.85);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+  .topbar .inner{max-width:880px;margin:0 auto;padding:13px 24px;display:flex;align-items:center;gap:10px}
+  .logo-mark{width:26px;height:26px;border-radius:7px;background:linear-gradient(135deg,var(--brand),#4f8ef7);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#fff}
+  .logo-text{font-size:14px;font-weight:700}.logo-text span{color:var(--brand)}
+  .topbar .crumb{margin-left:6px;font-size:12.5px;color:var(--text-2)}
+  .topbar .back{margin-left:auto;font-size:13px;font-weight:600;color:var(--brand);text-decoration:none;display:inline-flex;align-items:center;gap:5px}
+  .topbar .back:hover{text-decoration:underline}
+
+  /* hero */
+  .hero{padding:40px 0 24px;border-bottom:1px solid var(--line);margin-bottom:30px}
+  .hero h1{font-size:30px;font-weight:800;letter-spacing:-.02em}
+  .hero .sub{font-size:15px;color:var(--text-2);margin-top:10px;max-width:680px}
+  .hero .meta{margin-top:14px;font-size:12.5px;color:var(--text-3);display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .hero .meta code{background:var(--surface);border:1px solid var(--line);border-radius:5px;padding:1px 7px;font-size:12px}
+
+  h2{font-size:21px;font-weight:800;letter-spacing:-.01em;margin:42px 0 4px;padding-top:14px;scroll-margin-top:70px}
+  h2 .num{color:var(--brand)}
+  h3{font-size:16.5px;font-weight:700;margin:26px 0 10px}
+  h3 .tag{font-size:12px;font-weight:600;color:var(--text-3);margin-left:8px}
+  p{margin:10px 0}
+  ul,ol{margin:10px 0 10px 22px}li{margin:5px 0}
+  a{color:var(--brand)}
+  strong{font-weight:700}
+  hr{border:none;border-top:1px solid var(--line);margin:34px 0}
+  .lead{font-size:15px;color:var(--text-2)}
+
+  /* TOC */
+  .toc{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px 20px;margin-bottom:8px;box-shadow:0 1px 2px rgba(18,21,27,.05)}
+  .toc .t{font-size:12px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
+  .toc ol{margin:0 0 0 18px;columns:2;gap:24px}
+  .toc a{text-decoration:none;font-weight:500}.toc a:hover{text-decoration:underline}
+
+  /* callouts */
+  .note{border-radius:11px;padding:13px 16px;margin:16px 0;font-size:13.5px;border:1px solid}
+  .note.info{background:var(--brand-softer);border-color:var(--blue-bd)}
+  .note.warn{background:var(--amber-bg);border-color:var(--amber-bd);color:#7a4a08}
+  .note .nt{font-weight:700;margin-bottom:3px}
+
+  /* code */
+  code{font-family:'SF Mono',ui-monospace,Menlo,monospace;font-size:12.5px;background:var(--surface-3);border:1px solid var(--line-soft);border-radius:5px;padding:1px 6px}
+  pre{background:#0f1320;color:#e6e9ef;border-radius:12px;padding:16px 18px;overflow:auto;margin:16px 0;font-size:12.5px;line-height:1.6}
+  pre code{background:none;border:none;color:inherit;padding:0}
+
+  /* tables */
+  table{width:100%;border-collapse:collapse;margin:16px 0;font-size:13.5px;background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  th,td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--line-soft);vertical-align:top}
+  th{background:var(--surface-3);font-weight:700;font-size:12.5px;color:var(--text-2)}
+  tr:last-child td{border-bottom:none}
+  td code{white-space:nowrap}
+
+  /* confusion matrix */
+  .cm{border-collapse:separate;border-spacing:0}
+  .cm td,.cm th{text-align:center}
+  .cm .tp{background:var(--green-bg);color:var(--green);font-weight:700}
+  .cm .fp{background:var(--red-bg);color:var(--red);font-weight:700}
+  .cm .fn{background:var(--red-bg);color:var(--red);font-weight:700}
+  .cm .tn{background:var(--surface-3);color:var(--text-3);font-weight:700}
+  .cm .rh{background:var(--surface-3);font-weight:700;color:var(--text-2);text-align:left}
+
+  .pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11.5px;font-weight:700}
+  .p-green{background:var(--green-bg);color:var(--green)}.p-amber{background:var(--amber-bg);color:var(--amber)}
+  .p-red{background:var(--red-bg);color:var(--red)}.p-blue{background:var(--blue-bg);color:var(--brand)}.p-violet{background:var(--violet-bg);color:var(--violet)}
+
+  .legend-dot{display:inline-block;width:10px;height:10px;border-radius:3px;vertical-align:middle;margin-right:4px}
+  footer{margin-top:48px;padding-top:18px;border-top:1px solid var(--line);font-size:12.5px;color:var(--text-3)}
+</style>
+</head>
+<body>
+
+<div class="topbar"><div class="inner">
+  <div class="logo-mark">F</div><div class="logo-text">Future<span>Pay</span>CA</div>
+  <span class="crumb">文档 · 回测模拟</span>
+  <a class="back" href="../rc-backtest.html">打开回测模拟 →</a>
+</div></div>
+
+<div class="wrap">
+
+  <div class="hero">
+    <h1>回测模拟 · 操作文档</h1>
+    <p class="sub">在历史交易上回放一条规则或阈值，发布前先评估它会命中多少、拦多少钱、误报多高，并扫描出最优阈值。</p>
+    <div class="meta">
+      <span>页面</span><code>rc-backtest.html</code>
+      <span>·</span><span>路径：风控 › 检测策略 › 回测模拟</span>
+    </div>
+  </div>
+
+  <div class="toc">
+    <div class="t">目录</div>
+    <ol>
+      <li><a href="#s1">这页是干什么的</a></li>
+      <li><a href="#s2">怎么打开</a></li>
+      <li><a href="#s3">操作流程</a></li>
+      <li><a href="#s4">三大区块逐块解读</a></li>
+      <li><a href="#s5">数据来源与真实化</a></li>
+      <li><a href="#s6">常见决策场景</a></li>
+      <li><a href="#s7">术语表</a></li>
+    </ol>
+  </div>
+
+  <h2 id="s1"><span class="num">一、</span>这页是干什么的</h2>
+  <p>风控规则的两难：<strong>调严了误伤好客户（误报↑、SLA↑），调松了漏掉真风险（漏报↑）</strong>。直接改线上规则要等几周才知道好坏，代价是真金白银 + 客诉。</p>
+  <p>回测模拟让你<strong>改完先在历史数据上模拟</strong>——量化看清「收益 vs 代价」，达标再发布。它在规则闭环里的位置：</p>
+  <pre><code>规则编辑器(改规则) → 回测模拟(发布前·历史验证) → 上线 → 规则效果/误报反馈(上线后·回溯) → 反哺再改</code></pre>
+
+  <h2 id="s2"><span class="num">二、</span>怎么打开</h2>
+  <table>
+    <thead><tr><th>方式</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td><strong>走后端（推荐）</strong></td><td>终端执行 <code>npm start</code>（即 <code>node server/server.js</code>），浏览器开 <code>http://localhost:3000/rc-backtest.html</code>。计算走真实后端引擎，页面右上角标「后端引擎」。</td></tr>
+      <tr><td><strong>直接打开文件</strong></td><td>双击 <code>rc-backtest.html</code>（<code>file://</code>）。后端不可达时<strong>自动回退</strong>到浏览器内同算法计算，标「本地回退」，结果一致。</td></tr>
+      <tr><td><strong>从规则详情进入</strong></td><td>规则详情页点「回测模拟」按钮，带 <code>?id=RULE-xxx</code> 深链，直接预选该规则并出结果。</td></tr>
+    </tbody>
+  </table>
+
+  <h2 id="s3"><span class="num">三、</span>操作流程</h2>
+  <ol>
+    <li><strong>选规则</strong>：顶部「回测设置」→ 规则下拉。未选时停在落地页（含 6 个快捷入口按钮，点一下即开始）。</li>
+    <li><strong>选回放窗口</strong>：近 30 日 / 近 90 日 / 2026 Q1。窗口越长，命中样本越多。</li>
+    <li><strong>选对比基线</strong>：
+      <ul>
+        <li><strong>当前线上规则 v1</strong>：跟现有线上规则比，看新规则相对变化。</li>
+        <li><strong>无规则（全放行）</strong>：假设没有任何规则，看这条规则净增的拦截。</li>
+      </ul>
+    </li>
+    <li><strong>运行</strong>：点「运行回测」（或换规则即时重跑）。</li>
+    <li><strong>看结果</strong>：页面分三块（下面逐块讲）。</li>
+    <li><strong>调阈值</strong>：在「阈值扫描」拖动滑块或直接在曲线上拖动，找到满意的阈值；可一键「应用」推荐阈值。</li>
+  </ol>
+
+  <h2 id="s4"><span class="num">四、</span>三大区块逐块解读</h2>
+  <p>页面顶部有蓝色「怎么读这页」引导条，对应下面三块：</p>
+
+  <h3>① 回测概览 <span class="tag">「上线后大概什么样」</span></h3>
+  <div class="note info"><div class="nt">口径</div><strong>基于该规则的线上统计</strong>，是「当前阈值下的一个战绩点」。</div>
+  <p><strong>4 个核心指标（KPI）</strong></p>
+  <table>
+    <thead><tr><th>指标</th><th>含义</th><th>怎么算（原型）</th></tr></thead>
+    <tbody>
+      <tr><td><strong>回放交易</strong></td><td>本次回放覆盖的历史交易笔数</td><td>该规则适用范围的交易池 × 窗口系数（近30日×1、近90日×3）</td></tr>
+      <tr><td><strong>命中笔数</strong></td><td>规则命中多少笔；下方「vs 基线 +N」是相对基线的增减</td><td>规则近30日命中 × 窗口系数</td></tr>
+      <tr><td><strong>拦截金额</strong></td><td>命中交易涉及总额（标签随命中动作变化：拦截/暂缓/仅记录）</td><td>命中笔数 × 该范围平均客单</td></tr>
+      <tr><td><strong>预估误报率</strong></td><td>命中里预计有多少是误伤；下方标「偏高/健康区间」</td><td>取自规则的误报率字段</td></tr>
+    </tbody>
+  </table>
+  <p><strong>每日命中分布（左下图）</strong></p>
+  <ul>
+    <li>横轴：<strong>真实日历日期</strong>（按今天与回放窗口反推；近90日则每柱代表 3 天）。</li>
+    <li>纵轴：当日/当段命中笔数，左侧有数量刻度与网格线。</li>
+    <li>颜色：<span class="legend-dot" style="background:var(--blue-bd)"></span><strong>浅蓝 = 命中正确</strong>，<span class="legend-dot" style="background:var(--red)"></span><strong>红色 = 预估误报</strong>（按误报率拆分每根柱）。</li>
+    <li>悬浮任意柱：显示「日期 · 命中 X（误报 Y / 正确 Z）」。</li>
+  </ul>
+  <div class="note warn"><div class="nt">⚠ 注意</div>逐日柱高是把真实总命中数有机地铺到真实日期上的<strong>模拟形态</strong>；日期与总量是真的。</div>
+  <p><strong>基线对比（右下卡片）</strong> —— 新规则 vs 基线，一眼看「收益 vs 代价」</p>
+  <table>
+    <thead><tr><th>项</th><th>含义</th></tr></thead>
+    <tbody>
+      <tr><td><strong>命中量</strong> <code>8 → 9</code></td><td>基线命中 → 新规则命中，右侧百分比为增幅</td></tr>
+      <tr><td><strong>拦截真风险</strong> <code>+1</code></td><td>比基线多识别出的真实风险笔数（收益）</td></tr>
+      <tr><td><strong>误报量</strong> <code>1 → 1</code></td><td>基线误报 → 新规则误报（代价）</td></tr>
+      <tr><td><strong>SLA 影响</strong> <code>↑0.0h</code></td><td>误报增加带来的平均处置时长变化</td></tr>
+      <tr><td>结论句</td><td>自动判断：误报偏高→建议放宽阈值再回测；质量良好→可考虑发布</td></tr>
+    </tbody>
+  </table>
+
+  <h3>② 阈值扫描 <span class="tag">「阈值该切在哪」</span></h3>
+  <div class="note info"><div class="nt">口径</div>在<strong>一份独立的模拟评分总体</strong>上做阈值实验（与①不同：①是线上单点，这里是扫描全阈值）。后端会标注样本量与真风险占比，如「在 4,000 笔模拟交易（约 3.9% 为真风险）上逐阈值计算混淆矩阵」；接入真实 CSV 时标「后端引擎 · 真实数据」。</div>
+  <p><strong>命中阈值滑块</strong>：风险评分 ≥ 多少才算命中。<strong>可直接在下方曲线上拖动</strong>改阈值。</p>
+  <p><strong>当前阈值下的 5 个指标</strong></p>
+  <table>
+    <thead><tr><th>指标</th><th>含义</th><th>公式</th></tr></thead>
+    <tbody>
+      <tr><td><strong>命中量</strong></td><td>评分 ≥ 阈值的交易数</td><td>TP + FP</td></tr>
+      <tr><td><strong>误报率</strong></td><td>命中里有多少是误伤</td><td>FP /（TP+FP）</td></tr>
+      <tr><td><strong>精确率</strong></td><td>命中里有多少是真风险</td><td>TP /（TP+FP）</td></tr>
+      <tr><td><strong>召回率</strong></td><td>全部真风险里抓住了多少</td><td>TP /（TP+FN）</td></tr>
+      <tr><td><strong>漏报</strong></td><td>没抓到的真风险笔数</td><td>FN</td></tr>
+    </tbody>
+  </table>
+  <p><strong>混淆矩阵（2×2）</strong> —— 把上面的「率」对上「数」</p>
+  <table class="cm">
+    <thead><tr><th></th><th>真值 · 真风险</th><th>真值 · 正常</th></tr></thead>
+    <tbody>
+      <tr><td class="rh">模型命中（≥阈值）</td><td class="tp">TP 命中正确</td><td class="fp">FP 误报</td></tr>
+      <tr><td class="rh">模型放行（&lt;阈值）</td><td class="fn">FN 漏报</td><td class="tn">TN 正确放行</td></tr>
+    </tbody>
+  </table>
+  <p><strong>权衡曲线（图）</strong></p>
+  <ul>
+    <li>横轴：阈值 0–100；左轴：命中量；右轴：比率 0–100%。</li>
+    <li>三条线：<span class="legend-dot" style="background:var(--brand)"></span><strong>蓝 = 命中量</strong>（带面积填充）、<span class="legend-dot" style="background:var(--red)"></span><strong>红 = 误报率</strong>、<span class="legend-dot" style="background:var(--green)"></span><strong>绿 = 召回率</strong>。</li>
+    <li>紫色虚线：F1 最优阈值标记。</li>
+    <li>读法：<strong>阈值往左 → 命中↑、召回↑、漏报↓，但误报↑、精确率↓</strong>；往右相反。</li>
+    <li>交互：在图上<strong>拖动/悬浮</strong>即可改阈值，光标处弹出「阈值 X · 命中 · 误报% · 召回%」，下方矩阵与指标实时联动。</li>
+  </ul>
+  <p><strong>推荐阈值（曲线下方）</strong></p>
+  <ul>
+    <li><span class="pill p-violet">F1 最优阈值</span>　精确率与召回率的平衡点（综合最优），点「应用」跳到该阈值。</li>
+    <li><span class="pill p-green">召回≥90% 下误报最低</span>　要求几乎不漏（召回≥90%）时误报最低的阈值——适合高风险、宁可错杀的规则。</li>
+  </ul>
+
+  <h3>③ 命中核验 <span class="tag">「凭什么说它误报」</span></h3>
+  <p>逐单对照历史人工结论，核验每条命中到底是真风险还是误报。</p>
+  <table>
+    <thead><tr><th>列</th><th>含义</th></tr></thead>
+    <tbody>
+      <tr><td>订单 / 告警</td><td>命中的交易标识</td></tr>
+      <tr><td>商户</td><td>交易主体</td></tr>
+      <tr><td>金额</td><td>交易金额</td></tr>
+      <tr><td><strong>命中评分</strong></td><td>该笔在本规则下的风险评分（误报多落在阈值边缘的中分，命中正确多为高分）</td></tr>
+      <tr><td><strong>模型判定</strong></td><td>规则给出的处置动作（暂缓/冻结/拒绝…）</td></tr>
+      <tr><td><strong>历史人工结论</strong></td><td>当时分析师/案件的最终结论（放行/驳回/补材料…）</td></tr>
+      <tr><td><strong>是否误报</strong></td><td>模型判定 vs 人工结论对照：含「放行」判为<span class="pill p-red">误报</span>，否则<span class="pill p-green">命中正确</span></td></tr>
+    </tbody>
+  </table>
+
+  <h2 id="s5"><span class="num">五、</span>数据来源与真实化</h2>
+  <p><strong>来源标签</strong>（阈值扫描卡右上）：</p>
+  <ul>
+    <li><span class="pill p-blue">后端引擎</span>　走 Node 后端的模拟总体计算；</li>
+    <li><span class="pill p-blue">后端引擎 · 真实数据</span>　后端读到了真实 CSV；</li>
+    <li><span class="pill p-amber">本地回退</span>　后端不可达，浏览器内同算法计算。</li>
+  </ul>
+  <p><strong>接入真实数据（零改码）</strong>：把带标注的历史交易放到 <code>server/data/&lt;ruleId&gt;.csv</code>：</p>
+  <pre><code>score,label
+92,1      # score=该笔在本规则下的风险评分(0-100)；label=人工真值 1风险/0正常
+14,0</code></pre>
+  <p>文件存在即自动改用真实数据，页面来源标签变为「真实数据」。</p>
+  <div class="note warn"><div class="nt">原型边界</div>未放 CSV 时，数据是<strong>确定性模拟</strong>（同一规则永远同一结果，可复现；误报率越高的规则，正常样本评分被抬得越高、两类越难分）。①回测概览的金额/命中由规则线上统计推算，是演示口径。</div>
+
+  <h2 id="s6"><span class="num">六、</span>常见决策场景</h2>
+  <table>
+    <thead><tr><th>看到</th><th>解读</th><th>行动</th></tr></thead>
+    <tbody>
+      <tr><td>误报率高（如 ≥35%）、放行多</td><td>规则过度拦截、误伤正常客户</td><td>调高阈值 / 加白名单豁免 / 下调权重，重新回测</td></tr>
+      <tr><td>召回低、漏报多</td><td>规则太松、放过真风险</td><td>调低阈值 / 叠加信号，重新回测</td></tr>
+      <tr><td>F1 最优阈值的误报仍很高</td><td>规则本身区分度差（真假分布重叠）</td><td>重构规则逻辑或叠加其他信号，而非只调阈值</td></tr>
+      <tr><td>基线对比：多拦真风险、误报与 SLA 变化小</td><td>收益 &gt; 代价</td><td>可考虑发布</td></tr>
+    </tbody>
+  </table>
+
+  <h2 id="s7"><span class="num">七、</span>术语表</h2>
+  <table>
+    <thead><tr><th>术语</th><th>含义</th></tr></thead>
+    <tbody>
+      <tr><td><strong>TP</strong>（命中正确）</td><td>模型命中且确实是真风险</td></tr>
+      <tr><td><strong>FP</strong>（误报）</td><td>模型命中但其实是正常交易（误伤）</td></tr>
+      <tr><td><strong>FN</strong>（漏报）</td><td>模型放行但其实是真风险（漏掉）</td></tr>
+      <tr><td><strong>TN</strong>（正确放行）</td><td>模型放行且确实正常</td></tr>
+      <tr><td>精确率 Precision</td><td>= TP/(TP+FP)　命中里有多少是对的</td></tr>
+      <tr><td>召回率 Recall</td><td>= TP/(TP+FN)　真风险里抓住了多少</td></tr>
+      <tr><td>误报率（本页口径）</td><td>= FP/(TP+FP)　命中里有多少是误伤</td></tr>
+      <tr><td>F1</td><td>精确率与召回率的调和平均，综合衡量</td></tr>
+      <tr><td>SLA</td><td>处置时效；误报越多、人工复核压力越大、SLA 越长</td></tr>
+    </tbody>
+  </table>
+
+  <footer>
+    文档对应实现：<code>rc-backtest.html</code>、<code>server/engine.js</code>、<code>server/server.js</code>。规则数据单一来源为 <code>rc-rules-data.js</code>。
+    &nbsp;·&nbsp; <a href="../rc-backtest.html">← 打开回测模拟</a>
+  </footer>
+
+</div>
+</body>
+</html>

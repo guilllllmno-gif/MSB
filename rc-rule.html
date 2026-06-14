@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>规则详情 · FuturePayCA 风控</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="risk-design-system.css">
+<style>
+  .back{display:inline-flex;align-items:center;gap:6px;color:var(--text-2);font-size:13px;font-weight:500;margin-bottom:14px;cursor:pointer;text-decoration:none}
+  .back:hover{color:var(--text)} .back svg{width:15px;height:15px}
+
+  /* header */
+  .r-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:18px}
+  .r-title{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .r-title h1{font-size:22px;font-weight:800;letter-spacing:-.015em}
+  .r-meta{font-size:12.5px;color:var(--text-2);margin-top:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .r-meta .mono{font-family:'SF Mono',ui-monospace,Menlo,monospace}
+  .r-meta .dot{width:3px;height:3px;border-radius:50%;background:var(--text-3)}
+  .r-desc{font-size:13px;color:var(--text-2);margin-top:8px;max-width:780px;line-height:1.55}
+  .r-acts{display:flex;align-items:center;gap:9px;flex-shrink:0}
+
+  /* 核心指标 */
+  .metrics{display:grid;grid-template-columns:repeat(5,1fr);border:1px solid var(--line);border-radius:14px;background:var(--surface);overflow:hidden;box-shadow:var(--shadow-sm);margin-bottom:18px}
+  .metric{padding:16px 18px;border-right:1px solid var(--line-soft)}
+  .metric:last-child{border-right:none}
+  .metric .ml{font-size:12px;color:var(--text-2);display:flex;align-items:center;gap:6px}
+  .metric .mv{font-size:26px;font-weight:800;margin-top:7px;letter-spacing:-.02em;line-height:1}
+  .metric .md{font-size:11px;font-weight:600;margin-top:6px;color:var(--text-3)}
+
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start;margin-bottom:18px}
+  @media(max-width:980px){.two{grid-template-columns:1fr} .metrics{grid-template-columns:repeat(2,1fr)}}
+
+  /* 规则概要 kv */
+  .summ-chips{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px}
+  .kv2{display:grid;grid-template-columns:auto 1fr;gap:11px 16px;font-size:12.5px}
+  .kv2 dt{color:var(--text-2);white-space:nowrap}
+  .kv2 dd{color:var(--text);font-weight:600;text-align:right}
+
+  /* 最近命中 list */
+  .hits{display:flex;flex-direction:column}
+  .hit{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--line-soft)}
+  .hit:last-child{border-bottom:none}
+  .hit .h-main{flex:1;min-width:0}
+  .hit .h-id{font-size:12.5px;font-weight:600;color:var(--brand);font-family:'SF Mono',ui-monospace,Menlo,monospace}
+  .hit .h-sub{font-size:11px;color:var(--text-3);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px}
+  .hit .h-amt{font-weight:700;font-size:12.5px;text-align:right;white-space:nowrap}
+  .hit .h-time{font-size:10.5px;color:var(--text-3);margin-top:3px;text-align:right}
+
+  /* 命中趋势 */
+  .trend-grid{display:grid;grid-template-columns:1fr 280px;gap:20px;align-items:stretch}
+  @media(max-width:980px){.trend-grid{grid-template-columns:1fr}}
+  .t30{display:flex;align-items:flex-end;gap:3px;height:150px}
+  .t30 i{flex:1;background:var(--brand-soft);border-radius:3px 3px 0 0;min-height:4px;transition:background .12s}
+  .t30 i.hi{background:var(--red)}
+  .t30 i:hover{background:var(--brand)}
+  .t30-x{display:flex;justify-content:space-between;font-size:10.5px;color:var(--text-3);margin-top:8px}
+  .t30-lg{display:flex;gap:16px;font-size:11px;color:var(--text-2);margin-top:10px}
+  .t30-lg span{display:inline-flex;align-items:center;gap:6px}
+  .t30-lg i{width:9px;height:9px;border-radius:2px}
+  .insight{border:1px solid var(--blue-bd);background:linear-gradient(180deg,var(--brand-softer),#fff);border-radius:12px;padding:15px 16px}
+  .insight h4{font-size:13px;font-weight:700;color:var(--brand);margin-bottom:11px;display:flex;align-items:center;gap:6px}
+  .insight h4 svg{width:15px;height:15px}
+  .insight li{font-size:12px;color:var(--text-2);margin:9px 0;padding-left:16px;position:relative;line-height:1.5;list-style:none}
+  .insight li::before{content:"";position:absolute;left:0;top:6px;width:6px;height:6px;border-radius:50%;background:var(--brand)}
+  .insight li b{color:var(--text)}
+
+  /* horizontal bars */
+  .bars{display:flex;flex-direction:column;gap:15px}
+  .bar-row .bt{display:flex;justify-content:space-between;align-items:baseline;font-size:12.5px;margin-bottom:7px}
+  .bar-row .bt .bl{color:var(--text);font-weight:500}
+  .bar-row .bt .bv{font-weight:700;font-variant-numeric:tabular-nums}
+  .bk{height:8px;border-radius:999px;background:var(--surface-2);overflow:hidden}
+  .bf{height:100%;border-radius:999px}
+
+  /* flow */
+  .flow{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .flow .node{padding:7px 12px;border-radius:9px;background:var(--surface-2);font-weight:600;font-size:12.5px}
+  .flow svg{width:14px;height:14px;color:var(--text-3)}
+
+  .switch{position:relative;width:40px;height:23px;border-radius:999px;background:var(--brand);cursor:pointer;flex-shrink:0}
+  .switch.off{background:var(--surface-2);border:1px solid var(--line)}
+  .switch::after{content:"";position:absolute;top:2px;left:2px;width:19px;height:19px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:left .15s}
+  .switch.off::after{left:2px;top:1px} .switch:not(.off)::after{left:19px}
+
+  #toast{position:fixed;left:50%;bottom:30px;transform:translateX(-50%) translateY(20px);background:var(--text);color:#fff;padding:11px 18px;border-radius:10px;font-size:13px;font-weight:600;box-shadow:var(--shadow-pop);opacity:0;transition:all .25s;pointer-events:none;z-index:50}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body data-page="rules" data-crumb="风控·检测策略·规则列表·规则详情">
+<div class="app">
+  <aside class="sidebar" id="rcSidebar"></aside>
+  <div class="main">
+    <header class="topbar" id="rcTopbar"></header>
+    <div class="content"><div class="content-wrap">
+      <a class="back" href="rc-rules.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>返回规则列表</a>
+      <div id="app"></div>
+    </div></div>
+  </div>
+</div>
+<div id="toast"></div>
+<script src="rc-rules-data.js"></script>
+<script src="rc-rules-overlay.js"></script>
+<script src="rc-changes-data.js"></script>
+<script src="rc-shell.js"></script>
+<script>
+  const id=new URLSearchParams(location.search).get('id');
+  const APPLIC={chain:['链上 · 全币种','chip chip-net'],deposit:['充值','chip'],withdraw:['提现','chip'],both:['充值 + 提现','chip']};
+  const clr=c=>({'p-red':'var(--red)','p-amber':'var(--amber)','p-green':'var(--green)','p-blue':'var(--brand)','p-violet':'var(--violet)','p-grey':'var(--grey)'}[c]||'var(--brand)');
+  function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(window._tt);window._tt=setTimeout(()=>t.classList.remove('show'),1700);}
+
+  let r=RC_RULE.get(id) || RC_RULES[0];
+
+  window.toggleRule=function(){ r.enabled=r.enabled?0:1; toast(r.enabled?'规则已启用':'规则已停用'); render(); };
+
+  // 版本历史：版本时间线（changelog）+ 经治理上线/回滚的变更 diff 与审批
+  window.versionHistory=function(){
+    const cl=r.changelog||[];
+    const tl=cl.length ? cl.map((c,i)=>`<div class="tl-item done"><div class="tl-time">${c[0]}${i===0?` · <span style="color:var(--green);font-weight:700">当前 ${r.version}</span>`:''}</div><div class="tl-title">${c[2]} <span class="muted">· ${c[1]}</span></div></div>`).join('') : '<p class="muted">暂无变更记录</p>';
+    let gov='';
+    if(window.RC_CHANGES){
+      const crs=RC_CHANGES.all().filter(c=>c.ruleId===r.id && (c.state==='live'||c.state==='rolled_back'));
+      if(crs.length) gov=`<div style="margin-top:18px"><div class="small muted" style="font-weight:600;margin-bottom:8px">经变更治理的版本（含 diff 与审批）</div>`+crs.map(c=>{
+        const appr=(c.events||[]).filter(e=>/批准|上线|回滚/.test(e.text)).slice(-1)[0];
+        const diff=(c.diff||[]).map(d=>`<tr><td class="cell-strong">${d[0]}</td><td class="muted">${d[1]}</td><td class="cell-strong" style="color:var(--brand)">${d[2]}</td></tr>`).join('')||'<tr><td colspan="3" class="muted">—</td></tr>';
+        return `<div style="border:1px solid var(--line);border-radius:11px;padding:12px 14px;margin-bottom:10px"><div class="row" style="justify-content:space-between;flex-wrap:wrap;gap:6px"><span class="cell-strong">${c.no} · ${c.summary}</span><span class="pill ${RC_CHANGES.STATES[c.state].cls}">${RC_CHANGES.STATES[c.state].label}</span></div><table class="tbl" style="margin-top:8px"><thead><tr><th>变更项</th><th>变更前</th><th>变更后</th></tr></thead><tbody>${diff}</tbody></table>${appr?`<div class="small muted" style="margin-top:6px">审批留痕：${appr.text} · ${appr.by} · ${appr.t}</div>`:''}</div>`;
+      }).join('')+`</div>`;
+    }
+    RCModal.dialog({ title:'版本历史 · '+r.name, desc:'当前版本 '+r.version, html:`<div class="timeline">${tl}</div>${gov}`, actions:[{label:'去变更治理',kind:'primary',onClick:()=>{location.href='rc-rule-governance.html';return false;}}] });
+  };
+
+  // ── 命中处置分布（按命中动作派生，合计≈100%）──
+  function disposition(r){
+    if(!r.enabled || r.hits30d===0) return [['仅记录 · 观察期',100,'p-grey']];
+    if(r.action[1]==='p-grey')  return [['仅记录',88,'p-grey'],['人工抽检',8,'p-blue'],['转规则评估',4,'p-amber']];
+    if(r.action[1]==='p-red')   return [['冻结 / 升级',46,'p-red'],['拒绝交易',24,'p-red'],['移交案件',18,'p-violet'],['解除放行',12,'p-green']];
+    return [['暂缓处理',38,'p-amber'],['人工审核',24,'p-blue'],['核实放行',22,'p-green'],['升级处置',9,'p-violet'],['拒绝',7,'p-red']];
+  }
+
+  function render(){
+    const app=document.getElementById('app');
+    if(!r){ app.innerHTML=`<div class="card"><div class="card-body"><p class="muted" style="text-align:center;padding:40px 0">未找到规则 ${id||''}。<a class="btn-link" href="rc-rules.html">返回规则列表</a></p></div></div>`; return; }
+    const ap=APPLIC[r.applic]||APPLIC.both;
+    const wn=parseInt(String(r.weight).replace(/[^\d]/g,''))||0;
+    const risk= wn>=50?['高风险','risk-hi','p-red'] : wn>=25?['中风险','risk-md','p-amber'] : ['低风险','risk-lo','p-green'];
+    const fpHigh = r.fp!=='—' && parseInt(r.fp)>=30;
+
+    // 派生指标
+    const cum = r.hits30d ? (r.hits30d * (37 + (r.id.charCodeAt(r.id.length-1)%26))) : 0;
+    const pending = Math.round(r.hits30d * 0.12);
+    const escalated = Math.round(r.hits30d * (r.action[1]==='p-red'?0.20 : r.action[1]==='p-grey'?0 : 0.05));
+
+    // 30 日趋势（由 8 点种子确定性展开）
+    const seed = (r.trend&&r.trend.length)?r.trend:[0];
+    const t30v = Array.from({length:30},(_,i)=>{
+      const a=seed[i%seed.length], b=seed[(i+1)%seed.length];
+      return Math.max(0, Math.round((a*2+b)/3) + ((i*7)%5>3?1:0));
+    });
+    const mxT=Math.max(1,...t30v);
+    const peak=Math.max(...t30v);
+    const hiThresh=Math.max(peak, Math.ceil(mxT*0.85));
+    const bars=t30v.map(v=>`<i class="${v>=hiThresh&&peak>0?'hi':''}" style="height:${Math.round(v/mxT*100)}%" title="${v} 笔"></i>`).join('');
+
+    // 环比（近端 vs 前端）
+    const d0=seed[0]||0, dN=seed[seed.length-1]||0;
+    const wow = d0? Math.round((dN-d0)/d0*100) : 0;
+
+    // 最近命中
+    const hitRows = r.samples.length
+      ? r.samples.map(s=>`<div class="hit"><div class="h-main"><a class="h-id" href="rc-review.html?id=${s[0]}">${s[0]}</a><div class="h-sub">${s[1]} · ${s[3]}</div></div><div><div class="h-amt">${s[2]}</div><div class="h-time">${s[4]}</div></div><span class="chip">${s[5]}</span></div>`).join('')
+      : `<p class="muted" style="text-align:center;padding:28px 0;font-size:12.5px">观察期 / 暂无命中样例</p>`;
+
+    // 实际效果
+    const effRows=[
+      ['命中有效率', r.precision==='—'?0:parseInt(r.precision), r.precision, 'p-green'],
+      ['误报率',     r.fp==='—'?0:parseInt(r.fp),             r.fp,        fpHigh?'p-red':'p-amber'],
+      ['升级转案率', r.hits30d?Math.round(escalated/r.hits30d*100):0, (r.hits30d?Math.round(escalated/r.hits30d*100):0)+'%', 'p-violet'],
+    ];
+    const effHtml=effRows.map(e=>`<div class="bar-row"><div class="bt"><span class="bl">${e[0]}</span><span class="bv">${e[2]}</span></div><div class="bk"><div class="bf" style="width:${e[1]}%;background:${clr(e[3])}"></div></div></div>`).join('');
+
+    // 处置队列分布
+    const disp=disposition(r);
+    const dispHtml=disp.map(d=>`<div class="bar-row"><div class="bt"><span class="bl">${d[0]}</span><span class="bv">${d[1]}%</span></div><div class="bk"><div class="bf" style="width:${d[1]}%;background:${clr(d[2])}"></div></div></div>`).join('');
+
+    const condRows=r.params.map(p=>`<tr><td class="cell-strong">${p[0]}</td><td><span class="chip">${p[1]}</span></td><td class="cell-strong" style="color:var(--brand)">${p[2]}</td></tr>`).join('');
+
+    app.innerHTML=`
+      <div class="r-head">
+        <div>
+          <div class="r-title">
+            <h1>${r.name}</h1>
+            <span class="pill ${r.enabled?'p-green':'p-grey'}"><span class="pdot"></span>${r.enabled?'启用中':'已停用'}</span>
+            <span class="risk-badge ${risk[1]}">${risk[0]}</span>
+          </div>
+          <div class="r-meta">
+            <span class="mono">${r.id}</span><span class="dot"></span>
+            <span>${r.category}</span><span class="dot"></span>
+            <span>更新于 ${r.updated}</span><span class="dot"></span>
+            <span class="row" style="gap:6px"><span class="avatar" style="width:18px;height:18px;font-size:8px;background:${r.owner.c}">${r.owner.i}</span>${r.owner.n}</span>
+          </div>
+          <p class="r-desc">${r.desc}</p>
+        </div>
+        <div class="r-acts">
+          <a class="btn" href="rc-backtest.html?id=${r.id}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg>回测模拟</a>
+          <button class="btn" onclick="toggleRule()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M18.36 6.64a9 9 0 1 1-12.73 0M12 2v10"/></svg>${r.enabled?'停用规则':'启用规则'}</button>
+          <a class="btn btn-primary" href="rc-rule-editor.html?id=${r.id}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4z"/></svg>编辑规则</a>
+        </div>
+      </div>
+
+      <div class="metrics">
+        <div class="metric"><div class="ml">累计命中</div><div class="mv tnum">${cum.toLocaleString()}</div><div class="md">自 ${r.created} 上线</div></div>
+        <div class="metric"><div class="ml">待复核</div><div class="mv tnum" style="color:${pending>0?'var(--red)':'inherit'}">${pending}</div><div class="md">${pending>0?'告警工作台待认领':'暂无待办'}</div></div>
+        <div class="metric"><div class="ml">误报率</div><div class="mv tnum" style="color:${fpHigh?'var(--red)':'inherit'}">${r.fp}</div><div class="md">${fpHigh?'偏高 · 建议调参':'健康区间'}</div></div>
+        <div class="metric"><div class="ml">升级案件</div><div class="mv tnum">${escalated}</div><div class="md">近 30 日建案</div></div>
+        <div class="metric"><div class="ml">精确率</div><div class="mv tnum" style="color:var(--green)">${r.precision}</div><div class="md">命中判定有效占比</div></div>
+      </div>
+
+      <div class="two">
+        <div class="card">
+          <div class="card-head"><div><div class="card-title">规则概要</div><div class="card-desc">检测规则的基本配置</div></div></div>
+          <div class="card-body">
+            <div class="summ-chips">
+              <span class="${ap[1]}">${ap[0]}</span>
+              <span class="chip">${r.category}</span>
+              <span class="chip">${r.stage}</span>
+              <span class="pill ${r.action[1]}">${r.action[0]}</span>
+              <span class="pill ${risk[2]}">权重 ${r.weight}</span>
+            </div>
+            <dl class="kv2">
+              <dt>触发条件</dt><dd>${r.cond}</dd>
+              <dt>适用范围</dt><dd>${ap[0]}</dd>
+              <dt>生命周期阶段</dt><dd>${r.stage}</dd>
+              <dt>命中动作</dt><dd><span class="pill ${r.action[1]}">${r.action[0]}</span></dd>
+              <dt>升级路径</dt><dd>${r.escalate}</dd>
+              <dt>处置队列</dt><dd>${r.queue}</dd>
+              <dt>数据来源</dt><dd>${r.source}</dd>
+              <dt>版本</dt><dd><a class="btn-link" onclick="versionHistory()" style="cursor:pointer">${r.version} · 版本历史 →</a></dd>
+            </dl>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><div><div class="card-title">最近命中</div><div class="card-desc">近 30 日命中样例</div></div><a class="btn-link" href="rc-alerts.html">查看全部 →</a></div>
+          <div class="card-body" style="padding-top:6px;padding-bottom:6px"><div class="hits">${hitRows}</div></div>
+        </div>
+      </div>
+
+      <div class="card mb-md">
+        <div class="card-head"><div><div class="card-title">命中趋势</div><div class="card-desc">近 30 日每日命中量</div></div></div>
+        <div class="card-body">
+          <div class="trend-grid">
+            <div>
+              <div class="t30">${bars}</div>
+              <div class="t30-x"><span>30 天前</span><span>15 天前</span><span>今日</span></div>
+              <div class="t30-lg"><span><i style="background:var(--brand-soft)"></i>日常命中</span><span><i style="background:var(--red)"></i>峰值 / 高命中日</span></div>
+            </div>
+            <div class="insight">
+              <h4><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 2v4M12 18v4M2 12h4M18 12h4M5 5l2.5 2.5M16.5 16.5 19 19M19 5l-2.5 2.5M7.5 16.5 5 19"/></svg>趋势洞察</h4>
+              <ul style="margin:0;padding:0">
+                <li>近 30 日命中 <b>${r.hits30d}</b> 笔，近端较前端 <b>${wow>=0?'+':''}${wow}%</b></li>
+                <li>${fpHigh?`误报率偏高（<b>${r.fp}</b>），建议结合商户分层 / 历史额度调参后再调阈值`:`误报率 <b>${r.fp}</b>，处于健康区间`}</li>
+                <li>精确率 <b>${r.precision}</b>，命中按权重 <b>${r.weight}</b> 计入订单风险评分</li>
+                <li>峰值日命中 <b>${peak}</b> 笔（图中红色高亮）</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="two">
+        <div class="card">
+          <div class="card-head"><div><div class="card-title">实际效果</div><div class="card-desc">命中质量与转化</div></div><a class="btn-link" href="rc-rule-perf.html?id=${r.id}">规则效果 →</a></div>
+          <div class="card-body"><div class="bars">${effHtml}</div>
+            ${fpHigh?`<p class="small" style="background:var(--amber-bg);border:1px solid var(--amber-bd);color:var(--amber);padding:8px 11px;border-radius:9px;margin-top:16px">⚠ 误报率偏高（${r.fp}）— 建议作为加分项而非单独拦截，或在回测中验证后再调阈值。</p>`:''}
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><div><div class="card-title">处置队列分布</div><div class="card-desc">命中后的下游处置去向</div></div></div>
+          <div class="card-body"><div class="bars">${dispHtml}</div></div>
+        </div>
+      </div>
+
+      <div class="card mb-md">
+        <div class="card-head"><div class="card-title">触发条件</div><a class="btn-link" href="rc-rule-editor.html?id=${r.id}">编辑条件 →</a></div>
+        <div class="card-body">
+          <div style="background:var(--surface-3);border:1px solid var(--line);border-radius:10px;padding:11px 14px;font-size:12.5px;color:var(--text);margin-bottom:14px"><b>表达式：</b>${r.cond}</div>
+          <table class="tbl"><thead><tr><th>字段</th><th>运算符</th><th>阈值 / 取值</th></tr></thead><tbody>${condRows}</tbody></table>
+        </div>
+      </div>
+
+      <div class="card mb-md">
+        <div class="card-head"><div class="card-title">命中动作与下游处置</div></div>
+        <div class="card-body">
+          <div class="flow">
+            <span class="node">命中规则</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            <span class="node" style="background:var(--${r.action[1].replace('p-','')}-bg);color:var(--${r.action[1].replace('p-','')})">${r.action[0]} · ${r.weight}</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            <span class="node">${r.queue}</span>
+            ${r.escalate!=='—'?`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M5 12h14M13 6l6 6-6 6"/></svg><span class="node" style="background:var(--violet-bg);color:var(--violet)">${r.escalate}</span>`:''}
+          </div>
+          <p class="small muted mt-md">命中后按权重 <b>${r.weight}</b> 计入订单风险评分；达到阈值即触发上述处置动作。停用后该规则不再参与评分与处置。</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><div class="card-title">变更历史 · 审计</div></div>
+        <div class="card-body"><div class="timeline">
+          ${r.changelog.map(c=>`<div class="tl-item done"><div class="tl-time">${c[0]}</div><div class="tl-title">${c[2]} <span class="muted">· ${c[1]}</span></div></div>`).join('')}
+        </div></div>
+      </div>`;
+    document.title=`${r.name} · 规则详情 · FuturePayCA 风控`;
+  }
+  render();
+  // 从编辑器「查看版本历史 →」带 history=1 进入时，自动打开版本历史弹窗
+  if(new URLSearchParams(location.search).get('history')==='1' && r) versionHistory();
+</script>
+</body>
+</html>

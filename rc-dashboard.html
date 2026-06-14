@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>风控仪表盘 · FuturePayCA 风控</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="risk-design-system.css">
+<style>
+  .lc-flow{display:grid;grid-template-columns:repeat(7,1fr);gap:0;align-items:stretch}
+  .lc-node{padding:14px 12px;border:1px solid var(--line);border-radius:12px;text-align:center;background:var(--surface)}
+  .lc-gate{display:flex;align-items:center;justify-content:center;color:var(--text-3)}
+  .lc-stage{font-size:12px;color:var(--text-2)}
+  .lc-cnt{font-size:20px;font-weight:800;margin-top:4px}
+  .lc-drop{font-size:11px;font-weight:600;margin-top:3px}
+  .chart{display:flex;align-items:flex-end;gap:8px;height:150px;padding-top:8px}
+  .bcol{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;height:100%}
+  .bcol .b{width:100%;max-width:22px;margin-top:auto;border-radius:4px 4px 0 0}
+  .bx{font-size:9.5px;color:var(--text-3)}
+  .net-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line-soft)}
+  .net-row:last-child{border:none}
+</style>
+</head>
+<body data-page="dashboard" data-crumb="风控·风控仪表盘">
+<div class="app">
+  <aside class="sidebar" id="rcSidebar"></aside>
+  <div class="main">
+    <header class="topbar" id="rcTopbar"></header>
+    <div class="content"><div class="content-wrap">
+
+      <div class="pg-head">
+        <div>
+          <h1 class="pg-title">风控仪表盘</h1>
+          <p class="pg-sub">加密货币充值 / 提现全生命周期风险总览 · 数据源 Chainalysis / Bit2Go KYW API · 实时刷新</p>
+        </div>
+        <div class="row"><select class="sel" style="height:36px"><option>今日</option><option>近 7 日</option><option>近 30 日</option></select><button class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/></svg>导出</button></div>
+      </div>
+
+      <!-- KPI row -->
+      <div class="grid-4 mb-md">
+        <div class="kpi"><div class="kpi-lbl"><span class="kpi-ico" style="background:var(--amber-bg);color:var(--amber)">🔔</span>今日告警</div><div class="kpi-num tnum">128</div><div class="kpi-delta d-up">↑ 12% · 24 待认领</div></div>
+        <div class="kpi"><div class="kpi-lbl"><span class="kpi-ico" style="background:var(--blue-bg);color:var(--blue)">🔍</span>事中待处理</div><div class="kpi-num tnum">10</div><div class="kpi-delta d-up">2 笔超 SLA</div></div>
+        <div class="kpi"><div class="kpi-lbl"><span class="kpi-ico" style="background:var(--red-bg);color:var(--red)">🧊</span>冻结资金</div><div class="kpi-num tnum">CAD 142K</div><div class="small muted mt-sm">6 笔待处置</div></div>
+        <div class="kpi" id="kpiSla"><div class="kpi-lbl"><span class="kpi-ico" style="background:var(--violet-bg);color:var(--violet)">📤</span>报送时限风险</div><div class="kpi-num tnum">—</div><div class="small muted mt-sm">FINTRAC 30 日时限</div></div>
+      </div>
+
+      <!-- lifecycle funnel -->
+      <div class="card mb-md">
+        <div class="card-head"><div><div class="card-title">充提全生命周期风控漏斗</div><div class="card-desc">每个阶段的风险闸口与拦截分布（今日充值笔数）</div></div>
+          <div class="seg"><button class="active">充值</button><button>提现</button></div>
+        </div>
+        <div class="card-body">
+          <div class="lc-flow">
+            <div class="lc-node"><div class="lc-stage">① 发起入金</div><div class="lc-cnt tnum">3,420</div><div class="lc-drop muted">链上待确认</div></div>
+            <div class="lc-gate"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+            <div class="lc-node"><div class="lc-stage">② 制裁/名单筛查</div><div class="lc-cnt tnum">3,398</div><div class="lc-drop" style="color:var(--red)">−22 命中</div></div>
+            <div class="lc-gate"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+            <div class="lc-node"><div class="lc-stage">③ 规则引擎评分</div><div class="lc-cnt tnum">3,210</div><div class="lc-drop" style="color:var(--amber)">−188 暂缓</div></div>
+            <div class="lc-gate"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+            <div class="lc-node" style="border-color:var(--green-bd);background:var(--green-bg)"><div class="lc-stage">④ 放行入账</div><div class="lc-cnt tnum" style="color:var(--green)">3,200</div><div class="lc-drop muted">93.6%</div></div>
+          </div>
+          <div class="grid-4 mt-md">
+            <div class="row" style="gap:8px"><span class="pill p-red"><span class="pdot"></span>制裁命中 22</span><span class="small muted">→ 冻结上报</span></div>
+            <div class="row" style="gap:8px"><span class="pill p-amber"><span class="pdot"></span>暂缓审核 188</span><span class="small muted">→ 事中监控</span></div>
+            <div class="row" style="gap:8px"><span class="pill p-blue"><span class="pdot"></span>补充材料 10</span><span class="small muted">→ 待客户</span></div>
+            <div class="row" style="gap:8px"><span class="pill p-green"><span class="pdot"></span>自动放行 3,012</span><span class="small muted">绿色通道</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid-2 mb-md" style="grid-template-columns:1.5fr 1fr">
+        <!-- alert trend -->
+        <div class="card">
+          <div class="card-head"><div><div class="card-title">告警趋势</div><div class="card-desc">近 14 日按严重度分布</div></div>
+            <div class="legend" style="display:flex;gap:14px;font-size:11.5px;color:var(--text-2)"><span class="row" style="gap:5px"><i style="width:9px;height:9px;border-radius:2px;background:var(--red)"></i>高</span><span class="row" style="gap:5px"><i style="width:9px;height:9px;border-radius:2px;background:var(--amber)"></i>中</span><span class="row" style="gap:5px"><i style="width:9px;height:9px;border-radius:2px;background:var(--blue)"></i>低</span></div>
+          </div>
+          <div class="card-body"><div class="chart" id="trend"></div></div>
+        </div>
+        <!-- risk by network -->
+        <div class="card">
+          <div class="card-head"><div><div class="card-title">链网络风险分布</div><div class="card-desc">命中告警按公链统计</div></div></div>
+          <div class="card-body">
+            <div class="net-row"><span class="chip chip-net">◈ ERC-20</span><div style="flex:1"><div class="bar-track"><div class="bar-fill" style="width:64%;background:var(--red)"></div></div></div><span class="cell-strong tnum">64%</span></div>
+            <div class="net-row"><span class="chip chip-net">₿ BTC</span><div style="flex:1"><div class="bar-track"><div class="bar-fill" style="width:22%;background:var(--amber)"></div></div></div><span class="cell-strong tnum">22%</span></div>
+            <div class="net-row"><span class="chip chip-net">◎ TRC-20</span><div style="flex:1"><div class="bar-track"><div class="bar-fill" style="width:11%;background:var(--blue)"></div></div></div><span class="cell-strong tnum">11%</span></div>
+            <div class="net-row"><span class="chip chip-net">◎ SOL</span><div style="flex:1"><div class="bar-track"><div class="bar-fill" style="width:3%;background:var(--grey)"></div></div></div><span class="cell-strong tnum">3%</span></div>
+            <p class="small muted mt-sm">ERC-20 混币器关联告警占比最高，建议加强该网络链上溯源规则权重。</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <!-- top rules -->
+        <div class="table-card" style="align-self:start">
+          <div class="card-head"><div class="card-title">Top 命中规则</div><a class="btn-link" href="rc-rules.html">规则列表 →</a></div>
+          <table class="tbl">
+            <thead><tr><th>规则</th><th>命中</th><th>误报率</th><th>处置</th></tr></thead>
+            <tbody>
+              <tr><td class="cell-strong">大额充值监控</td><td class="tnum">312</td><td class="tnum">38%</td><td><span class="pill p-amber">暂缓</span></td></tr>
+              <tr><td class="cell-strong">新商户首充</td><td class="tnum">158</td><td class="tnum">52%</td><td><span class="pill p-amber">人工</span></td></tr>
+              <tr><td class="cell-strong">高风险地址检测</td><td class="tnum">96</td><td class="tnum">19%</td><td><span class="pill p-amber">补材料</span></td></tr>
+              <tr><td class="cell-strong">混币器关联</td><td class="tnum">47</td><td class="tnum">4%</td><td><span class="pill p-red">冻结+升级</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <!-- recent high-risk -->
+        <div class="card">
+          <div class="card-head"><div class="card-title">最新高风险事件</div><a class="btn-link" href="rc-alerts.html">告警工作台 →</a></div>
+          <div class="card-body">
+            <div class="timeline">
+              <div class="tl-item done"><div class="tl-time">09:30 · 充值</div><div class="tl-title">DEP-20260315-001 · 混币器关联 评分 95</div><div class="tl-desc">链上 92% 溯源 Tornado Cash → 已暂缓</div></div>
+              <div class="tl-item done"><div class="tl-time">08:54 · 提现</div><div class="tl-title">WD-20260314-058 · KYW 评分超阈值</div><div class="tl-desc">CAD 21,400 → 冻结并报告</div></div>
+              <div class="tl-item done"><div class="tl-time">08:12 · 充值</div><div class="tl-title">DEP-20260313-204 · 高频拆分入金</div><div class="tl-desc">24h 内 7 笔相近金额 → 暂缓</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div></div>
+  </div>
+</div>
+<script src="rc-shell.js"></script>
+<script>
+  const data=[[8,14,22],[10,16,18],[12,12,20],[9,18,24],[14,15,19],[11,20,22],[13,17,21],[15,14,18],[12,19,25],[16,16,20],[14,21,23],[18,15,19],[15,22,26],[20,18,24]];
+  const max=Math.max(...data.map(d=>d[0]+d[1]+d[2]));
+  document.getElementById('trend').innerHTML=data.map((d,i)=>{
+    const tot=d[0]+d[1]+d[2];
+    return `<div class="bcol"><div class="b" style="height:${tot/max*100}%;display:flex;flex-direction:column">
+      <div style="flex:${d[2]};background:var(--blue)"></div><div style="flex:${d[1]};background:var(--amber)"></div><div style="flex:${d[0]};background:var(--red);border-radius:4px 4px 0 0"></div>
+    </div><div class="bx">${i+1}</div></div>`;
+  }).join('');
+
+  // 报送时限风险 KPI — 实时统计临期(≤7天)/逾期的在办案件（数据源 RC_CASES.sla）
+  (function(){
+    const cs=(window.RC_CASES?RC_CASES.all():[]);
+    let near=0, over=0, pending=0;
+    cs.forEach(c=>{ const s=RC_CASES.sla(c); if(!s.show) return; if(s.left<0) over++; else if(s.left<=7) near++; if(c.state==='pending_file') pending++; });
+    const el=document.getElementById('kpiSla'); if(!el) return;
+    const tone = over?'var(--red)':near?'var(--amber)':'var(--green)';
+    const parts=[]; if(over)parts.push(`逾期 ${over}`); if(near)parts.push(`临期 ${near}`); if(!parts.length)parts.push('全部在时限内');
+    el.innerHTML=`<div class="kpi-lbl"><span class="kpi-ico" style="background:var(--violet-bg);color:var(--violet)">📤</span>报送时限风险</div>
+      <div class="kpi-num tnum" style="color:${tone}">${near+over}</div>
+      <div class="kpi-delta" style="color:${tone}">${parts.join(' · ')} · 待报送 ${pending}</div>`;
+  })();
+</script>
+</body>
+</html>

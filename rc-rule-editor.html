@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>规则编辑器 · FuturePayCA 风控</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="risk-design-system.css">
+<style>
+  .ed-grid{display:grid;grid-template-columns:1fr 340px;gap:18px;align-items:start}
+  @media(max-width:1080px){.ed-grid{grid-template-columns:1fr}}
+  .fld{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+  .fld label{font-size:12px;font-weight:600;color:var(--text-2)}
+  .inp,.sel2{height:38px;border:1px solid var(--line);border-radius:10px;padding:0 12px;font-family:inherit;font-size:13px;background:var(--surface);width:100%}
+  .inp:focus,.sel2:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-soft)}
+  .cond{display:grid;grid-template-columns:1fr 130px 1fr 36px;gap:8px;align-items:center;margin-bottom:8px}
+  .andor{display:inline-flex;align-items:center;gap:6px;margin:4px 0 10px}
+  .chiprm{width:34px;height:38px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--text-3);cursor:pointer}
+  .sev-opt{display:flex;gap:8px}
+  .sev-opt label{flex:1;border:1px solid var(--line);border-radius:10px;padding:9px;text-align:center;font-size:12.5px;font-weight:600;cursor:pointer}
+  .sev-opt input{display:none}
+  .sev-opt input:checked+span{}
+  .sev-opt label:has(input:checked){border-color:var(--brand);background:var(--brand-softer);color:var(--brand)}
+</style>
+</head>
+<body data-page="rule-editor" data-crumb="风控·检测策略·规则编辑器">
+<div class="app">
+  <aside class="sidebar" id="rcSidebar"></aside>
+  <div class="main">
+    <header class="topbar" id="rcTopbar"></header>
+    <div class="content"><div class="content-wrap">
+
+      <a class="btn-link" href="rc-rules.html" style="display:inline-flex;align-items:center;gap:6px;margin-bottom:12px"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>返回规则列表</a>
+      <div class="pg-head">
+        <div>
+          <h1 class="pg-title" id="edTitle">规则编辑器 · 大额充值监控</h1>
+          <p class="pg-sub">定义触发条件、命中动作与风险权重。保存后进入「回测模拟」验证，再经复核发布生效。</p>
+        </div>
+        <div class="row"><a class="btn" id="btBtn" href="rc-backtest.html?id=RULE-003"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M5 3l14 9-14 9V3z"/></svg>回测</a><button class="btn btn-primary" onclick="submitChange()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 6 9 17l-5-5"/></svg>保存并提交变更</button></div>
+      </div>
+
+      <div id="edCtx" class="mb-md"></div>
+      <div id="crWarn"></div>
+
+      <div class="ed-grid">
+        <!-- builder -->
+        <div class="col" style="gap:18px">
+          <div class="card"><div class="card-body">
+            <div class="grid-2">
+              <div class="fld"><label>规则名称</label><input class="inp" id="rName" value="大额充值监控"></div>
+              <div class="fld"><label>类别</label><select class="sel2" id="catSel"><option>金额阈值</option><option>链上溯源</option><option>行为</option><option>名单</option><option>评分</option></select></div>
+            </div>
+            <div class="grid-2">
+              <div class="fld"><label>适用场景</label><select class="sel2" id="sceneSel"><option>充值</option><option>提现</option><option>充提通用</option></select></div>
+              <div class="fld"><label>适用网络</label><select class="sel2"><option>全部网络</option><option>ERC-20</option><option>BTC</option><option>TRC-20</option></select></div>
+            </div>
+            <div class="fld"><label>规则描述</label><input class="inp" id="rDesc" value="单笔充值金额达到大额阈值时暂缓入账，转人工审核"></div>
+          </div></div>
+
+          <div class="card">
+            <div class="card-head"><div><div class="card-title">触发条件 (IF)</div><div class="card-desc">满足以下条件时命中规则</div></div></div>
+            <div class="card-body">
+              <div class="cond">
+                <select class="sel2"><option>充值金额</option><option>提现金额</option><option>KYW 评分</option><option>对手地址链龄</option><option>24h 笔数</option></select>
+                <select class="sel2"><option>≥</option><option>≤</option><option>=</option><option>包含</option></select>
+                <input class="inp" id="condVal" value="5000">
+                <button class="chiprm">✕</button>
+              </div>
+              <div class="andor"><span class="chip">AND</span></div>
+              <div class="cond">
+                <select class="sel2"><option>商户风险分级</option><option>币种</option><option>地址标签</option></select>
+                <select class="sel2"><option>=</option><option>≠</option></select>
+                <select class="sel2"><option>中风险及以上</option><option>高风险</option></select>
+                <button class="chiprm">✕</button>
+              </div>
+              <button class="btn btn-sm" id="addCond" style="margin-top:6px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 5v14M5 12h14"/></svg>添加条件</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-head"><div><div class="card-title">命中动作 (THEN)</div></div></div>
+            <div class="card-body">
+              <div class="grid-2">
+                <div class="fld"><label>处置动作</label><select class="sel2" id="actSel"><option>暂缓入账（转人工审核）</option><option>冻结资金并升级 MLRO</option><option>要求补充材料</option><option>拒绝交易</option><option>仅记录</option></select></div>
+                <div class="fld"><label>升级路径</label><select class="sel2"><option>L1 → L2 → MLRO</option><option>直接 MLRO</option><option>不升级</option></select></div>
+              </div>
+              <div class="fld">
+                <label>风险权重（累加至评分）</label>
+                <div class="row" style="gap:12px"><input type="range" min="0" max="100" value="60" id="wr" style="flex:1;accent-color:var(--brand)"><span class="pill p-red" id="wv">+60</span></div>
+              </div>
+              <div class="fld"><label>严重度</label>
+                <div class="sev-opt">
+                  <label><input type="radio" name="sev"><span>低</span></label>
+                  <label><input type="radio" name="sev"><span>中</span></label>
+                  <label><input type="radio" name="sev" checked><span>高</span></label>
+                  <label><input type="radio" name="sev"><span>极高</span></label>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- live preview -->
+        <div class="col" style="gap:18px">
+          <div class="panel">
+            <div class="panel-head"><div class="panel-title">规则预览</div><span class="pill p-amber" id="prevPill"><span class="pdot"></span>草稿</span></div>
+            <div class="panel-body">
+              <div class="ai-box" style="background:var(--surface-3);border-color:var(--line)">
+                <div id="rPrev"></div>
+              </div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><div class="panel-title">即时校验</div></div>
+            <div class="panel-body col" style="gap:12px">
+              <div class="fld" style="margin:0"><label>试算充值金额 (CAD)</label><input class="inp tnum" id="testAmt" value="8200"></div>
+              <div id="testResult"></div>
+              <p class="small muted" id="edStat"></p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div></div>
+  </div>
+</div>
+<script src="rc-rules-data.js"></script>
+<script src="rc-rules-overlay.js"></script>
+<script src="rc-changes-data.js"></script>
+<script src="rc-shell.js"></script>
+<script>
+  const Q=id=>document.getElementById(id);
+  const wr=Q('wr'),wv=Q('wv');
+  wr.addEventListener('input',()=>{wv.textContent='+'+wr.value;wv.className='pill '+(+wr.value>=35?'p-red':'p-amber');});
+
+  // 按 ?id 加载对应规则（无 id 则保持默认 大额充值监控 / RULE-003）
+  function selByText(sel,txt){ for(const o of sel.options){ if(o.text===txt){sel.value=o.value;return true;} } return false; }
+  // 选项里有就选中、没有就新增再选中（field/op 不在预设列表时也能显示）
+  function setOrAdd(sel,txt){ if(sel.tagName!=='SELECT'){sel.value=txt;return;} for(const o of sel.options){if(o.text===txt){sel.value=o.value;return;}} const op=document.createElement('option');op.text=txt;sel.add(op);sel.value=txt; }
+  function fillCond(row,p){ setOrAdd(row.children[0],p[0]); setOrAdd(row.children[1],p[1]); const v=row.children[2]; const num=(String(p[2]).match(/[\d,.]+/)||[''])[0].replace(/,/g,''); if(v.tagName==='INPUT'){ v.value=num||p[2]; } else { setOrAdd(v,p[2]); } }
+  let RULE = null;
+  (function populate(){
+    const id=new URLSearchParams(location.search).get('id');
+    const r=(id&&window.RC_RULES)?RC_RULES.find(x=>x.id===id):null;
+    if(!r){ // 新建规则模式（无 id 或未找到）—— 空白起步，不再误填某条现有规则
+      Q('edTitle').textContent='规则编辑器 · 新建规则';
+      document.title='新建规则 · 规则编辑器 · FuturePayCA 风控';
+      Q('rName').value=''; Q('rName').placeholder='输入规则名称';
+      Q('rDesc').value=''; Q('rDesc').placeholder='一句话描述该规则';
+      Q('condVal').value=''; Q('condVal').placeholder='阈值';
+      wr.value=30; wr.dispatchEvent(new Event('input'));
+      Q('edCtx').innerHTML=`<div class="card" style="border-color:var(--green-bd);background:var(--green-bg)"><div class="card-body row" style="gap:12px;flex-wrap:wrap;align-items:center;padding:13px 16px"><span class="kpi-ico" style="background:#fff;color:var(--green);width:34px;height:34px;border-radius:9px;font-size:17px">＋</span><div style="flex:1;min-width:200px"><div style="font-weight:700;color:var(--green)">新建规则</div><div class="small muted" style="margin-top:2px">填写配置后保存为草稿，需回测验证并经评审后上线</div></div></div></div>`;
+      return;
+    }
+    RULE=r;
+    Q('edTitle').textContent='规则编辑器 · '+r.name;
+    document.title=r.name+' · 规则编辑器 · FuturePayCA 风控';
+    Q('edCtx').innerHTML=`<div class="card" style="border-color:var(--blue-bd);background:var(--brand-softer)"><div class="card-body row" style="gap:12px;flex-wrap:wrap;align-items:center;padding:13px 16px">
+      <span class="kpi-ico" style="background:var(--brand-soft);color:var(--brand);width:34px;height:34px;border-radius:9px;font-size:16px">✎</span>
+      <div style="flex:1;min-width:220px"><div style="font-weight:700">正在修改规则 · ${r.name}</div><div class="small muted" style="margin-top:2px"><span class="mono">${r.id}</span> · ${r.category} · 当前 <b>${r.version}</b> · 命中动作 ${r.action[0]} · 权重 ${r.weight} · <a class="btn-link" href="rc-rule.html?id=${r.id}&history=1">查看版本历史 →</a></div></div>
+      <span class="small muted" style="max-width:340px">保存后生成<b>变更请求</b>，经 MLRO 评审 → 灰度 → 上线生效（不直接改动线上规则）</span>
+    </div></div>`;
+    const pp=Q('prevPill'); if(pp){ pp.className='pill p-blue'; pp.innerHTML='<span class="pdot"></span>修改 '+r.version+' → 新草稿'; }
+    Q('rName').value=r.name;
+    Q('rDesc').value=r.desc||'';
+    const cat=Q('catSel'); if(!selByText(cat,r.category)){ const op=document.createElement('option'); op.text=r.category; cat.add(op); cat.value=r.category; }
+    selByText(Q('sceneSel'), {deposit:'充值',withdraw:'提现',both:'充提通用',chain:'充提通用'}[r.applic]||'充值');
+    const wn=parseInt(String(r.weight).replace(/[^\d]/g,''))||0; wr.value=wn; wr.dispatchEvent(new Event('input'));
+    const am={'暂缓入账':'暂缓入账（转人工审核）','暂缓出金':'暂缓入账（转人工审核）','暂缓+观察':'暂缓入账（转人工审核）','人工审核':'暂缓入账（转人工审核）','冻结+升级':'冻结资金并升级 MLRO','拒绝交易':'拒绝交易','待补充材料':'要求补充材料','仅记录':'仅记录'}[r.action[0]];
+    if(am) selByText(Q('actSel'),am);
+    // 按规则参数重建触发条件（取前 3 条），替换写死的示例条件
+    const body=Q('addCond').parentElement;
+    [...body.querySelectorAll('.andor')].forEach(a=>a.remove());
+    const rows=[...body.querySelectorAll('.cond')], first=rows[0];
+    rows.slice(1).forEach(x=>x.remove());
+    const params=(r.params||[]).slice(0,3);
+    if(params.length){
+      fillCond(first, params[0]);   // 第一行保留 #condVal
+      for(let i=1;i<params.length;i++){
+        const andor=document.createElement('div'); andor.className='andor'; andor.innerHTML='<span class="chip">AND</span>';
+        const row=first.cloneNode(true); const v=row.children[2]; if(v.tagName==='INPUT') v.removeAttribute('id');
+        Q('addCond').before(andor,row); fillCond(row,params[i]);
+      }
+    }
+  })();
+
+  // 进入时快照（现行）配置，提交时按字段做 diff
+  const snap=()=>({name:Q('rName').value,thr:Q('condVal').value,weight:'+'+wr.value,act:Q('actSel').value});
+  const BASE=snap();
+  const ACT2PAIR={'暂缓入账（转人工审核）':['暂缓入账','p-amber'],'冻结资金并升级 MLRO':['冻结+升级','p-red'],'要求补充材料':['待补充材料','p-amber'],'拒绝交易':['拒绝交易','p-red'],'仅记录':['仅记录','p-grey']};
+  window.submitChange=function(){
+    const cur=snap();
+    let diff, summary, champion=null, challenger=null, ruleId='', reason, patch=null;
+    if(!RULE){ // 新建规则
+      if(!cur.name){ RCModal.toast('请先填写规则名称'); Q('rName').focus(); return; }
+      diff=[['规则名称','（新增）',cur.name],['触发阈值','—',cur.thr||'—'],['风险权重','—',cur.weight],['处置动作','—',cur.act]];
+      summary='新增规则：'+cur.name; reason='（新建规则，待补充理由与回测依据）';
+    } else { // 修改现有规则 — 与现行配置做 diff
+      diff=[];
+      if(cur.name!==BASE.name) diff.push(['规则名称',BASE.name,cur.name]);
+      if(cur.thr!==BASE.thr)   diff.push(['触发阈值',BASE.thr,cur.thr]);
+      if(cur.weight!==BASE.weight) diff.push(['风险权重',BASE.weight,cur.weight]);
+      if(cur.act!==BASE.act)   diff.push(['处置动作',BASE.act,cur.act]);
+      if(!diff.length){ RCModal.toast('未检测到变更，无需提交'); return; }
+      summary=diff.map(d=>`${d[0]} ${d[1]}→${d[2]}`).join('；'); reason='（编辑器提交，待补充变更理由与回测依据）';
+      champion={hits:RULE.hits30d||0, fp:RULE.fp, precision:RULE.precision};
+      const cfp=parseInt(RULE.fp)||38, cpr=parseInt(RULE.precision)||62;
+      challenger={hits:Math.round((champion.hits||0)*0.85), fp:Math.max(0,cfp-8)+'%', precision:Math.min(99,cpr+8)+'%'};
+      ruleId=RULE.id;
+      patch={};                                          // 上线回写用的结构化补丁
+      if(cur.name!==BASE.name) patch.name=cur.name;
+      if(cur.weight!==BASE.weight) patch.weight=cur.weight;
+      if(cur.thr!==BASE.thr) patch.threshold=cur.thr;
+      if(cur.act!==BASE.act && ACT2PAIR[cur.act]) patch.action=ACT2PAIR[cur.act];
+    }
+    const diffRows=diff.map(d=>`<tr><td class="cell-strong">${d[0]}</td><td class="muted">${d[1]}</td><td class="cell-strong" style="color:var(--brand)">${d[2]}</td></tr>`).join('');
+    RCModal.dialog({
+      title: RULE?'提交变更评审':'提交新增规则评审',
+      desc: (RULE?RULE.name:cur.name)+' · 生成变更请求，提交 MLRO 评审',
+      html:`<div class="small muted" style="font-weight:600;margin-bottom:6px">变更内容</div>
+        <table class="tbl"><thead><tr><th>变更项</th><th>变更前</th><th>变更后</th></tr></thead><tbody>${diffRows}</tbody></table>
+        <div style="margin-top:14px"><label style="display:block;font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px">变更理由 · 监管可解释（必填）</label>
+          <textarea id="crReason" style="width:100%;min-height:84px;border:1px solid var(--line);border-radius:10px;padding:10px;font-family:inherit;font-size:13px;resize:vertical" placeholder="说明为何变更、依据与回测结论…&#10;例：误报率 52% 偏高，多为已完成 KYB 的正常新商户，下调权重以降低误伤。"></textarea></div>`,
+      actions:[
+        {label:'取消',kind:'ghost',onClick:()=>true},
+        {label:'提交评审',kind:'primary',onClick:()=>{
+          const ta=document.getElementById('crReason'); const v=(ta.value||'').trim();
+          if(!v){ ta.style.borderColor='var(--red)'; ta.style.boxShadow='0 0 0 3px var(--red-bg)'; ta.focus(); return false; }   // 必填，留空不关闭
+          const cr=RC_CHANGES.intake({ ruleId, rule:cur.name, by:'James Liu', summary, diff, reason:v, champion, challenger, patch });
+          RCModal.toast('变更已提交 · '+cr.no);
+          setTimeout(()=>RCModal.dialog({ title:'变更已提交 · '+cr.no, desc:'状态 待审批 · 已进入变更治理',
+            html:`<p style="font-size:13px;line-height:1.6">变更请求已创建并进入<b>「变更治理」</b>，等待 MLRO 复核 diff、回测对比与变更理由。</p>`,
+            actions:[{label:'去变更治理查看',kind:'primary',onClick:()=>{location.href='rc-rule-governance.html';return false;}},{label:'继续编辑',kind:'ghost',onClick:()=>true}] }), 30);
+          return true;
+        }}
+      ]
+    });
+  };
+  // 回测按钮指向当前规则
+  const bt=Q('btBtn'); if(bt) bt.href='rc-backtest.html?id='+((RULE&&RULE.id)||'RULE-003');
+
+  // 进行中变更提醒（避免重复发起）
+  if(window.RC_CHANGES&&RULE){
+    const open=RC_CHANGES.all().find(c=>c.ruleId===RULE.id&&(c.state==='submitted'||c.state==='shadow'));
+    if(open) Q('crWarn').innerHTML=`<div class="card mb-md" style="border-color:var(--amber-bd);background:var(--amber-bg)"><div class="card-body row" style="gap:10px;justify-content:space-between;flex-wrap:wrap"><span style="color:var(--amber);font-weight:600">⚠ 该规则有进行中的变更 ${open.no}（${RC_CHANGES.STATES[open.state].label}），建议先处理完再发起新变更。</span><a class="btn btn-sm" href="rc-rule-governance.html">去变更治理</a></div></div>`;
+  }
+
+  // 即时预览 + 校验（随任意字段实时刷新）
+  const sevCls={'低':'risk-lo','中':'risk-md','高':'risk-hi','极高':'risk-hi'};
+  const actShort=t=>(t||'').replace(/（.*?）/g,'');
+  function test(){
+    const v=+Q('testAmt').value||0, thr=Q('condVal')?+Q('condVal').value||0:0, hit=thr?v>=thr:false;
+    const act=actShort(Q('actSel').options[Q('actSel').selectedIndex].text);
+    Q('testResult').innerHTML=hit
+      ? `<div class="pill p-red" style="width:100%;justify-content:center;padding:10px"><span class="pdot"></span>命中 · ${act}（评分 +${wr.value}）</div>`
+      : `<div class="pill p-green" style="width:100%;justify-content:center;padding:10px"><span class="pdot"></span>未命中 · 自动放行</div>`;
+  }
+  function refresh(){
+    const conds=[...document.querySelectorAll('.cond')].map(row=>{
+      const f=row.children[0], op=row.children[1], val=row.children[2];
+      const fT=f.options[f.selectedIndex].text, opT=op.options[op.selectedIndex].text;
+      const vT=val.tagName==='SELECT'?val.options[val.selectedIndex].text:val.value;
+      return `${fT} <code>${opT} ${vT}</code>`;
+    });
+    const joins=[...document.querySelectorAll('.andor .chip')].map(c=>c.textContent.trim());
+    let condStr=conds[0]||'<span class="muted">未设置条件</span>';
+    for(let i=1;i<conds.length;i++) condStr+=` <b>${joins[i-1]||'AND'}</b> ${conds[i]}`;
+    const w='+'+wr.value, wcls=(+wr.value>=35)?'p-red':'p-amber';
+    const act=Q('actSel').options[Q('actSel').selectedIndex].text;
+    const sevEl=document.querySelector('input[name="sev"]:checked'); const sev=sevEl?sevEl.nextElementSibling.textContent.trim():'中';
+    Q('rPrev').innerHTML=`<p class="small" style="line-height:1.7"><b>IF</b> ${condStr}<br><b>THEN</b> ${act} · 风险权重 <span class="pill ${wcls}" style="padding:0 6px">${w}</span> · 严重度 <span class="risk-badge ${sevCls[sev]||'risk-md'}">${sev}</span></p>`;
+    if(Q('edStat')) Q('edStat').innerHTML = RULE
+      ? `基于近 30 日历史回放，此规则现行日均命中 <b>~${Math.max(1,Math.round((RULE.hits30d||0)/30))}</b> 笔，误报率约 <b>${RULE.fp}</b>。<a class="btn-link" href="rc-backtest.html?id=${RULE.id}">完整回测 →</a>`
+      : `保存并提交变更后进入回测验证。<a class="btn-link" href="rc-backtest.html">完整回测 →</a>`;
+    test();
+  }
+
+  // 添加 / 删除条件
+  Q('addCond').addEventListener('click',()=>{
+    const first=document.querySelector('.cond'); if(!first) return;
+    const andor=document.createElement('div'); andor.className='andor'; andor.innerHTML='<span class="chip">AND</span>';
+    const row=first.cloneNode(true); const val=row.children[2]; if(val.tagName==='INPUT') val.value='';
+    Q('addCond').before(andor, row); wireRow(row); refresh();
+  });
+  function wireRow(row){ row.querySelectorAll('select,input').forEach(el=>el.addEventListener('input',refresh)); row.querySelector('.chiprm').addEventListener('click',()=>{ const prev=row.previousElementSibling; if(prev&&prev.classList.contains('andor'))prev.remove(); row.remove(); refresh(); }); }
+
+  // 初始化：给现有条件行 + 全部影响预览的控件挂监听
+  document.querySelectorAll('.cond').forEach(wireRow);
+  document.querySelectorAll('#actSel, input[name="sev"]').forEach(el=>el.addEventListener('input',refresh));
+  wr.addEventListener('input',refresh);
+  Q('testAmt').addEventListener('input',test);
+  refresh();
+</script>
+</body>
+</html>

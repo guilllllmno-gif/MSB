@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>全局策略 · FuturePayCA 风控</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="risk-design-system.css">
+<style>
+  .switch{position:relative;width:38px;height:22px;border-radius:999px;background:var(--brand);cursor:pointer;flex-shrink:0}
+  .switch.off{background:var(--surface-2);border:1px solid var(--line)}
+  .switch::after{content:"";position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:left .15s}
+  .switch.off::after{left:2px;top:1px} .switch:not(.off)::after{left:18px}
+  .thr-input{width:110px;height:32px;border:1px solid var(--line);border-radius:8px;padding:0 10px;font-family:inherit;font-size:13px}
+  .seg{display:inline-flex;background:var(--surface-2);border-radius:9px;padding:3px;gap:2px}
+  .seg button{border:none;background:none;padding:5px 12px;border-radius:7px;font-size:12.5px;font-weight:500;color:var(--text-2);cursor:pointer;font-family:inherit}
+  .seg button.active{background:var(--surface);color:var(--text);box-shadow:var(--shadow-sm);font-weight:600}
+  .tab-panel[hidden]{display:none}
+  .appetite{display:flex;gap:0;border-radius:10px;overflow:hidden;border:1px solid var(--line)}
+  .appetite div{flex:1;padding:10px;text-align:center;font-size:12.5px;font-weight:600;cursor:pointer;color:var(--text-2)}
+  .appetite div.on{color:#fff}
+</style>
+</head>
+<body data-page="strategy" data-crumb="风控·治理与合规·全局策略">
+<div class="app">
+  <aside class="sidebar" id="rcSidebar"></aside>
+  <div class="main">
+    <header class="topbar" id="rcTopbar"></header>
+    <div class="content"><div class="content-wrap">
+
+      <div class="pg-head">
+        <div>
+          <h1 class="pg-title">全局策略</h1>
+          <p class="pg-sub">机构级风险偏好、评分阈值、金额矩阵与升级路径。所有检测规则在此框架下运行，变更需 MLRO 审批。</p>
+        </div>
+        <button class="btn btn-primary" onclick="publishStrategy()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 6 9 17l-5-5"/></svg>发布变更</button>
+      </div>
+
+      <div class="tabs">
+        <div class="tab active" data-tab="appetite">风险偏好与评分</div>
+        <div class="tab" data-tab="thr">阈值矩阵</div>
+        <div class="tab" data-tab="esc">升级路径</div>
+      </div>
+
+      <!-- 风险偏好与评分 -->
+      <section class="tab-panel" data-panel="appetite">
+        <div class="grid-2 mb-md">
+          <div class="card">
+            <div class="card-head"><div><div class="card-title">机构风险偏好</div><div class="card-desc">影响评分阈值与自动放行比例</div></div></div>
+            <div class="card-body">
+              <div class="appetite">
+                <div data-app="保守">保守</div>
+                <div data-app="均衡">均衡</div>
+                <div data-app="激进">激进</div>
+              </div>
+              <p class="small muted mt-md" id="appetiteDesc"></p>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-head"><div><div class="card-title">全局开关</div></div></div>
+            <div class="card-body col" style="gap:14px">
+              <div class="row" style="justify-content:space-between"><span>启用实时链上溯源（Chainalysis）</span><span class="switch"></span></div>
+              <div class="row" style="justify-content:space-between"><span>提现强制 KYW 评分校验</span><span class="switch"></span></div>
+              <div class="row" style="justify-content:space-between"><span>制裁命中熔断（全局拒绝）</span><span class="switch"></span></div>
+              <div class="row" style="justify-content:space-between"><span>新商户首月全单人工审核</span><span class="switch off"></span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><div><div class="card-title">风险评分阈值</div><div class="card-desc">规则权重累加后映射到处置动作</div></div>
+            <div class="seg" id="dirSeg"><button class="active">充值</button><button>提现</button></div>
+          </div>
+          <table class="tbl">
+            <thead><tr><th>评分区间</th><th>等级</th><th>处置动作</th><th>SLA</th><th>负责角色</th></tr></thead>
+            <tbody id="bandBody"></tbody>
+          </table>
+          <p class="small muted" style="padding:0 18px 16px" id="bandNote"></p>
+        </div>
+      </section>
+
+      <!-- 阈值矩阵 -->
+      <section class="tab-panel" data-panel="thr" hidden>
+        <div class="card mb-md">
+          <div class="card-head"><div><div class="card-title">金额阈值矩阵</div><div class="card-desc">商户风险分级 × 交易类型 · 引擎取就低原则触发</div></div><span class="pill p-blue"><span class="pdot"></span>就低原则</span></div>
+          <table class="tbl">
+            <thead><tr><th>商户风险分级</th><th>充值 · 暂缓阈值</th><th>提现 · 暂缓阈值</th><th>单日累计上限</th><th>自动放行上限</th></tr></thead>
+            <tbody>
+              <tr><td><span class="risk"><span class="risk-badge risk-lo">低</span>低风险</span></td><td><input class="thr-input tnum" value="10,000"></td><td><input class="thr-input tnum" value="8,000"></td><td><input class="thr-input tnum" value="50,000"></td><td><input class="thr-input tnum" value="1,000"></td></tr>
+              <tr><td><span class="risk"><span class="risk-badge risk-md">中</span>中风险</span></td><td><input class="thr-input tnum" value="5,000"></td><td><input class="thr-input tnum" value="3,000"></td><td><input class="thr-input tnum" value="20,000"></td><td><input class="thr-input tnum" value="500"></td></tr>
+              <tr><td><span class="risk"><span class="risk-badge risk-hi">高</span>高风险</span></td><td><input class="thr-input tnum" value="1,000"></td><td><input class="thr-input tnum" value="500"></td><td><input class="thr-input tnum" value="5,000"></td><td><input class="thr-input tnum" value="0"></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="card">
+          <div class="card-head"><div><div class="card-title">KYW 钱包级阈值</div><div class="card-desc">针对单一钱包地址的提现限额，与商户阈值取就低值</div></div></div>
+          <div class="card-body col" style="gap:14px">
+            <div class="row" style="justify-content:space-between"><span>单笔提现暂缓阈值</span><div class="row"><input class="thr-input tnum" value="3,000"><span class="muted">CAD</span></div></div>
+            <div class="row" style="justify-content:space-between"><span>24h 累计暂缓阈值</span><div class="row"><input class="thr-input tnum" value="10,000"><span class="muted">CAD</span></div></div>
+            <div class="row" style="justify-content:space-between"><span>休眠钱包激活阈值（突发大额）</span><div class="row"><input class="thr-input tnum" value="2,000"><span class="muted">CAD</span></div></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 升级路径 -->
+      <section class="tab-panel" data-panel="esc" hidden>
+        <div class="card mb-md">
+          <div class="card-head"><div><div class="card-title">升级路径矩阵</div><div class="card-desc">不同触发场景的人工升级链路</div></div></div>
+          <table class="tbl">
+            <thead><tr><th>触发场景</th><th>初始处理</th><th>升级条件</th><th>升级至</th><th>是否强制 STR 评估</th></tr></thead>
+            <tbody>
+              <tr><td>制裁/混币器命中</td><td>系统冻结</td><td>立即</td><td><span class="pill p-violet">MLRO</span></td><td><span class="pill p-red">是</span></td></tr>
+              <tr><td>高评分（90+）</td><td>L1 暂缓</td><td>评分 ≥ 90</td><td><span class="pill p-violet">MLRO</span></td><td><span class="pill p-red">是</span></td></tr>
+              <tr><td>中高评分（70-89）</td><td>L1 审核</td><td>L1 无法判定</td><td><span class="pill p-blue">L2</span></td><td><span class="pill p-grey">视情况</span></td></tr>
+              <tr><td>SLA 超时</td><td>—</td><td>超 SLA 100%</td><td><span class="pill p-blue">上级 + 提醒</span></td><td><span class="pill p-grey">否</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="card">
+          <div class="card-head"><div><div class="card-title">复核与生效控制</div></div></div>
+          <div class="card-body col" style="gap:14px">
+            <div class="row" style="justify-content:space-between"><span>策略变更需双人复核</span><span class="switch"></span></div>
+            <div class="row" style="justify-content:space-between"><span>阈值上调需 MLRO 审批</span><span class="switch"></span></div>
+            <div class="row" style="justify-content:space-between"><span>高风险阈值下调即时生效</span><span class="switch"></span></div>
+            <div class="row" style="justify-content:space-between;border-top:1px solid var(--line-soft);padding-top:14px"><span class="muted small" id="lastPub">上次发布：2026-05-28 · David Wu (MLRO)</span><span class="row" style="gap:14px"><a class="btn-link" onclick="strategyHistory()" style="cursor:pointer">发布历史 →</a><a class="btn-link" href="rc-audit.html">审计日志 →</a></span></div>
+          </div>
+        </div>
+      </section>
+
+    </div></div>
+  </div>
+</div>
+<script src="rc-shell.js"></script>
+<script>
+  // 风险偏好 → 自动放行上限；方向（提现更严，上限再降 10 分）→ 一起决定评分阈值表
+  const AUTOMAX={保守:39,均衡:49,激进:59};
+  const APP_COLOR={保守:'var(--green)',均衡:'var(--amber)',激进:'var(--red)'};
+  const APP_DESC={
+    保守:'低评分即转人工，自动放行上限较低，合规优先。',
+    均衡:'在拦截力度与客户体验之间平衡，自动放行上限适中。',
+    激进:'优先交易体验，仅较高评分才拦截，自动放行上限较高。'};
+  let curApp='保守', curDir='充值';
+
+  function bands(am){const a=am,b=am+30,c=Math.min(b+20,95);return [
+    [`0 – ${a}`,'低','risk-lo','自动放行','p-green','即时','系统'],
+    [`${a+1} – ${b}`,'中','risk-md','人工审核','p-amber','24h','L1 分析师'],
+    [`${b+1} – ${c}`,'高','risk-hi','复核 + 暂缓','p-amber','48h','L2 审核员'],
+    [`${c+1} – 100`,'极高','risk-hi','冻结 + 升级 MLRO','p-red','立即','MLRO'],
+  ];}
+  function renderBands(){
+    const am=AUTOMAX[curApp]-(curDir==='提现'?10:0);
+    document.getElementById('bandBody').innerHTML=bands(am).map(r=>`<tr><td class="tnum">${r[0]}</td><td><span class="risk-badge ${r[2]}">${r[1]}</span></td><td><span class="pill ${r[4]}">${r[3]}</span></td><td>${r[5]}</td><td>${r[6]}</td></tr>`).join('');
+    document.getElementById('bandNote').textContent=`偏好「${curApp}」· ${curDir}：评分 ≤ ${am} 自动放行${curDir==='提现'?'（提现方向已收紧 10 分）':''}。`;
+  }
+  function renderAppetite(){
+    document.querySelectorAll('.appetite div').forEach(d=>{const on=d.dataset.app===curApp;d.classList.toggle('on',on);d.style.background=on?APP_COLOR[curApp]:'';d.style.color=on?'#fff':'';});
+    document.getElementById('appetiteDesc').textContent='当前为「'+curApp+'」：'+APP_DESC[curApp];
+    renderBands();
+  }
+  document.querySelectorAll('.appetite div').forEach(d=>d.addEventListener('click',()=>{curApp=d.dataset.app;renderAppetite();}));
+  document.querySelectorAll('#dirSeg button').forEach(b=>b.addEventListener('click',()=>{curDir=b.textContent.trim();renderBands();}));
+  renderAppetite();
+
+  // ── 策略配置的读取 / 还原 / 发布（持久化 + 版本快照 + diff + 审计）──
+  // 遍历所有可配置项，回调 (key, el, type)；阈值矩阵按「档·列」命名，开关按标签命名
+  function walkCfg(cb){
+    document.querySelectorAll('.tbl').forEach(tbl=>{
+      const ths=[...tbl.querySelectorAll('thead th')].map(t=>t.textContent.trim());
+      tbl.querySelectorAll('tbody tr').forEach(tr=>{
+        const rl=((tr.children[0]||{}).textContent||'').match(/(低|中|高)风险/);
+        [...tr.children].forEach((td,ci)=>{ const inp=td.querySelector('.thr-input'); if(inp) cb(`${rl?rl[0]:'档'}·${ths[ci]||ci}`, inp, 'input'); });
+      });
+    });
+    document.querySelectorAll('.thr-input').forEach(inp=>{ if(!inp.closest('table')){ const row=inp.closest('.row'); cb('KYW·'+(row&&row.children[0]?row.children[0].textContent.trim():'阈值'), inp, 'input'); }});
+    document.querySelectorAll('.switch').forEach(sw=>{ const row=sw.closest('.row'); if(row&&row.children[0]) cb('开关·'+row.children[0].textContent.trim(), sw, 'switch'); });
+  }
+  function readConfig(){ const cfg={appetite:curApp, items:[]}; walkCfg((k,el,t)=>cfg.items.push({k, v: t==='switch'?(el.classList.contains('off')?'关':'开'):el.value})); return cfg; }
+  function applyConfig(cfg){ if(!cfg) return; curApp=cfg.appetite||curApp; renderAppetite(); const m={}; (cfg.items||[]).forEach(i=>m[i.k]=i.v); walkCfg((k,el,t)=>{ if(m[k]===undefined) return; if(t==='switch') el.classList.toggle('off', m[k]==='关'); else el.value=m[k]; }); }
+  function refreshPublishMeta(){ const h=RC_STRATEGY.history(); const el=document.getElementById('lastPub'); if(el&&h.length) el.textContent=`上次发布：${h[0].at} · ${h[0].by} · ${h[0].version}`; }
+
+  window.publishStrategy=function(){
+    const cfg=readConfig();
+    const isInitial=!RC_STRATEGY.current();
+    const diff=RC_STRATEGY._diff(RC_STRATEGY.current(), cfg).filter(d=>d.k!=='初始发布');
+    const nextVer='v'+(RC_STRATEGY.version()+1);
+    const rows = isInitial ? [{k:'策略基线',from:'—',to:'建立 '+nextVer}] : diff;
+    const body = (!isInitial && rows.length===0)
+      ? '<p class="muted">未检测到字段变更，将记录为「重新发布确认」。</p>'
+      : `<table class="tbl"><thead><tr><th>变更项</th><th>变更前</th><th>变更后</th></tr></thead><tbody>${rows.map(d=>`<tr><td class="cell-strong">${d.k}</td><td class="muted">${d.from}</td><td class="cell-strong" style="color:var(--brand)">${d.to}</td></tr>`).join('')}</tbody></table>`;
+    RCModal.dialog({
+      title:'发布策略变更 · 确认',
+      desc:'确认后将保存完整前/后快照、生成版本并留痕审计（提交 MLRO）',
+      html:`<div class="small muted" style="margin-bottom:10px">风险偏好 <b>${cfg.appetite}</b> · 即将生成 <b>${nextVer}</b></div>${body}`,
+      actions:[
+        {label:'取消',kind:'ghost',onClick:()=>true},
+        {label:'确认发布 · 提交 MLRO',kind:'primary',onClick:()=>{
+          const entry=RC_STRATEGY.publish(cfg,{by:(window.RC_ROLE?RC_ROLE.cur().actor.n:'David Wu')});
+          const summary=entry.diff.length?entry.diff.map(d=>`${d.k} ${d.from}→${d.to}`).join('；'):'无字段变更（重新发布确认）';
+          RC_AUDIT.log({action:'发布策略变更',object:'全局策略 '+entry.version,detail:summary,cat:'config'});
+          RCModal.toast(`策略已发布 ${entry.version} · 已保存快照并留痕`);
+          refreshPublishMeta();
+          return true;
+        }}
+      ]
+    });
+  };
+  window.strategyHistory=function(){
+    const h=RC_STRATEGY.history();
+    const html=h.length? h.map(e=>`<div style="border:1px solid var(--line);border-radius:11px;padding:12px 14px;margin-bottom:10px"><div class="row" style="justify-content:space-between;flex-wrap:wrap;gap:6px"><span class="cell-strong">${e.version} · 风险偏好 ${e.config.appetite}</span><span class="small muted">${e.at} · ${e.by}</span></div>${e.diff.length?`<table class="tbl" style="margin-top:8px"><thead><tr><th>变更项</th><th>变更前</th><th>变更后</th></tr></thead><tbody>${e.diff.map(d=>`<tr><td class="cell-strong">${d.k}</td><td class="muted">${d.from}</td><td class="cell-strong" style="color:var(--brand)">${d.to}</td></tr>`).join('')}</tbody></table>`:'<div class="small muted" style="margin-top:6px">无字段变更</div>'}</div>`).join('') : '<p class="muted" style="padding:6px 2px">暂无发布记录 · 当前为基线配置（HTML 默认值）</p>';
+    RCModal.dialog({title:'策略发布历史', desc:'当前版本 '+(RC_STRATEGY.version()?('v'+RC_STRATEGY.version()):'基线'), html, actions:[{label:'查看审计日志',kind:'primary',onClick:()=>{location.href='rc-audit.html';return false;}}]});
+  };
+
+  // 加载时还原上次发布的配置（跨会话持久），并刷新「上次发布」
+  applyConfig(RC_STRATEGY.current());
+  refreshPublishMeta();
+</script>
+</body>
+</html>

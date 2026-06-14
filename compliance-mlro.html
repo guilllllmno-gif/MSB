@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MLRO 报送 · 合规工作台</title>
+<style>
+:root{--bg:#f8fafc;--card:#fff;--ink:#0f172a;--ink2:#475569;--ink3:#64748b;--ink4:#94a3b8;--line:#e5e7eb;--soft:#f1f5f9;--muted:#f8fafc;--violet:#7c3aed;--vbg:#f5f3ff;--vbd:#ddd6fe;--em:#059669;--embg:#ecfdf5;--embd:#a7f3d0;--am:#b45309;--ambg:#fffbeb;--ambd:#fde68a;--red:#dc2626;--rbg:#fef2f2;--rbd:#fecaca;--blue:#2563eb;--bbg:#eff6ff;--bbd:#bfdbfe}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI",sans-serif;background:var(--bg);color:var(--ink);font-size:13px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.tab{font-variant-numeric:tabular-nums}
+.nav{position:sticky;top:0;z-index:20;border-bottom:1px solid var(--line);background:rgba(255,255,255,.85);backdrop-filter:blur(8px)}
+.nav-in{max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;padding:10px 20px}
+.brand{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600}
+.logo{width:24px;height:24px;border-radius:6px;background:var(--violet);color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.seg{display:flex;gap:2px;border:1px solid var(--line);background:var(--soft);border-radius:9px;padding:3px}
+.seg a{padding:6px 12px;border-radius:6px;font-size:13px;font-weight:500;color:var(--ink3);text-decoration:none}
+.seg a.on{background:#fff;color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.seg a:hover:not(.on){color:var(--ink)}
+.wrap{max-width:1200px;margin:0 auto;padding:22px 20px;display:flex;flex-direction:column;gap:18px}
+.head{display:flex;align-items:flex-end;justify-content:space-between}
+.h1{font-size:22px;font-weight:800;letter-spacing:-.01em}.hsub{font-size:13px;color:var(--ink3);margin-top:3px}
+.btn{height:32px;padding:0 14px;border-radius:8px;border:none;background:var(--ink);color:#fff;font-size:13px;font-weight:500;display:inline-flex;align-items:center;gap:6px;cursor:pointer}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:0 1px 2px rgba(15,23,42,.04)}
+.cpad{padding:16px 18px}
+.chead{padding:15px 18px 0;display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.ctitle{font-size:15px;font-weight:600;display:flex;align-items:center;gap:7px}
+.cdesc{font-size:12px;color:var(--ink3);margin-top:2px}.cmeta{font-size:11.5px;color:var(--ink3)}
+.link{font-size:12px;color:var(--violet);cursor:pointer;text-decoration:none}
+.pill{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:999px;font-size:11.5px;font-weight:500;border:1px solid transparent}
+.p-ok{background:var(--embg);color:var(--em);border-color:var(--embd)}.p-warn{background:var(--ambg);color:var(--am);border-color:var(--ambd)}.p-crit{background:var(--rbg);color:var(--red);border-color:var(--rbd)}.p-info{background:var(--bbg);color:var(--blue);border-color:var(--bbd)}.p-muted{background:var(--muted);color:var(--ink3);border-color:var(--line)}
+.hero{display:flex;flex-wrap:wrap;align-items:center;gap:14px 24px}
+.av{width:44px;height:44px;border-radius:50%;color:#fff;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.vsep{width:1px;align-self:stretch;min-height:30px;background:var(--line)}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}@media(max-width:760px){.kpis{grid-template-columns:repeat(2,1fr)}}
+.kpi{border:1px solid var(--line);border-radius:14px;background:var(--card);padding:16px 18px;box-shadow:0 1px 2px rgba(15,23,42,.04)}
+.kpi-l{font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.4px;color:var(--ink3)}
+.kpi-v{font-size:26px;font-weight:800;margin-top:6px}.kpi-s{font-size:11px;color:var(--ink3);margin-top:4px}
+.c-crit{color:var(--red)}.c-warn{color:var(--am)}.c-ok{color:var(--em)}
+.g3{display:grid;grid-template-columns:2fr 1fr;gap:18px}@media(max-width:920px){.g3{grid-template-columns:1fr}}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{text-align:left;font-weight:500;color:var(--ink3);font-size:11.5px;padding:8px 10px;border-bottom:1px solid var(--line)}
+td{padding:9px 10px;border-bottom:1px solid var(--soft)}tr:last-child td{border-bottom:none}
+.tname{font-weight:500}.tid{font-size:11px;color:var(--ink3)}
+.badge{display:inline-flex;align-items:center;justify-content:center;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:600;border:1px solid transparent}
+.b-ok{background:var(--embg);color:var(--em);border-color:var(--embd)}.b-warn{background:var(--ambg);color:var(--am);border-color:var(--ambd)}.b-crit{background:var(--rbg);color:var(--red);border-color:var(--rbd)}.b-info{background:var(--bbg);color:var(--blue);border-color:var(--bbd)}.b-muted{background:var(--muted);color:var(--ink3);border-color:var(--line)}
+.tbtn{height:28px;padding:0 11px;border-radius:7px;border:1px solid var(--line);background:#fff;font-size:12px;color:var(--ink2);cursor:pointer}
+.tbtn.primary{background:var(--ink);color:#fff;border-color:var(--ink)}
+.ready{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.ready.warn{border-color:var(--ambd);background:rgba(255,251,235,.6)}.ready.ok{border-color:var(--embd);background:rgba(236,253,245,.6)}
+.r-ic{width:16px;height:16px;flex-shrink:0}
+.r-t{font-size:12.5px;font-weight:500}.r-s{font-size:11px;color:var(--ink3)}
+.col{display:flex;flex-direction:column;gap:8px}
+.filing{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}@media(max-width:760px){.filing{grid-template-columns:1fr}}
+.fcard{border:1px solid var(--line);border-radius:14px;padding:16px}
+.prog{height:6px;background:var(--soft);border-radius:999px;overflow:hidden;margin-top:4px}
+.prog>i{display:block;height:100%;border-radius:999px}
+.foot{text-align:center;font-size:11px;color:var(--ink4);padding-top:2px}
+.muted{color:var(--ink3)}
+</style>
+</head>
+<body>
+<div class="nav"><div class="nav-in">
+  <div class="brand"><span class="logo">F</span> FuturePay 合规工作台</div>
+  <div class="seg">
+    <a href="compliance-l1.html">L1 分析员</a>
+    <a href="compliance-l2.html">L2 复核</a>
+    <a class="on" href="compliance-mlro.html">MLRO 报送</a>
+  </div>
+</div></div>
+
+<div class="wrap">
+  <div class="head">
+    <div><div class="h1">监管报送总览 · MLRO</div><div class="hsub">方案是否可辩护 · 是否按时申报</div></div>
+    <button class="btn">签字工作台</button>
+  </div>
+
+  <div class="card cpad">
+    <div class="hero">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div class="av" style="background:var(--blue)">MR</div>
+        <div><div style="font-size:15px;font-weight:600">Mike Reyes · 合规报告官 (MLRO)</div><div style="font-size:11.5px;color:var(--ink3)">对 FINTRAC 的按时申报负个人责任</div></div>
+      </div>
+      <div class="vsep"></div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px">
+        <span class="pill p-crit">待我签字 STR 3 · 最紧 D4</span>
+        <span class="pill p-ok">本月逾期申报 0</span>
+        <span class="pill p-warn">升级到 MLRO 5</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="kpis">
+    <div class="kpi"><div class="kpi-l">待我签字 STR</div><div class="kpi-v tab c-crit">3</div><div class="kpi-s">最紧 D4</div></div>
+    <div class="kpi"><div class="kpi-l">本月按时申报率</div><div class="kpi-v tab c-warn">97%</div><div class="kpi-s">STR 96 · LVCTR 99</div></div>
+    <div class="kpi"><div class="kpi-l">逾期申报</div><div class="kpi-v tab c-ok">0</div><div class="kpi-s">本年至今</div></div>
+    <div class="kpi"><div class="kpi-l">团队 SLA 达标率</div><div class="kpi-v tab">94%</div><div class="kpi-s">超时 6% · 见 L1/L2</div></div>
+  </div>
+
+  <div class="g3">
+    <div class="card">
+      <div class="chead"><div><div class="ctitle">STR 签字工作清单</div><div class="cdesc">按法定上限倒计时排序 · 先读 Field H 是否可辩护</div></div><a class="link" href="#">全部报送 →</a></div>
+      <div class="cpad">
+        <table>
+          <thead><tr><th>报告 / 商户</th><th style="text-align:center">评分</th><th>状态</th><th>截止</th><th style="text-align:right">操作</th></tr></thead>
+          <tbody>
+            <tr><td><div class="tname">NovaPay</div><div class="tid tab">STR-0238</div></td><td style="text-align:center"><span class="badge b-crit">92</span></td><td class="muted">待 MLRO 签字</td><td><span class="badge b-crit">D4</span></td><td style="text-align:right"><button class="tbtn primary">审阅签字</button></td></tr>
+            <tr><td><div class="tname">Skyline Pay</div><div class="tid tab">STR-0241</div></td><td style="text-align:center"><span class="badge b-warn">84</span></td><td class="muted">待 MLRO 签字</td><td><span class="badge b-warn">D9</span></td><td style="text-align:right"><button class="tbtn">审阅签字</button></td></tr>
+            <tr><td><div class="tname">Helios Crypto</div><div class="tid tab">STR-0236</div></td><td style="text-align:center"><span class="badge b-warn">88</span></td><td class="muted">待 MLRO 签字</td><td><span class="badge b-muted">D14</span></td><td style="text-align:right"><button class="tbtn">审阅签字</button></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="chead"><div><div class="ctitle">稽核就绪度</div><div class="cdesc">监管来访前要清的项</div></div></div>
+      <div class="cpad col">
+        <div class="ready ok"><svg class="r-ic" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg><div style="flex:1;min-width:0"><div class="r-t">审计链完整性</div><div class="r-s">通过 · 今日 09:14</div></div></div>
+        <div class="ready warn"><svg class="r-ic" viewBox="0 0 24 24" fill="none" stroke="#b45309" stroke-width="2"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg><div style="flex:1;min-width:0"><div class="r-t">逾期周期复审</div><div class="r-s">2 个高风险商户</div></div></div>
+        <div class="ready ok"><svg class="r-ic" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg><div style="flex:1;min-width:0"><div class="r-t">方案有效性复审</div><div class="r-s">PCMLTFA · 距下次 5 个月</div></div></div>
+        <div class="ready warn"><svg class="r-ic" viewBox="0 0 24 24" fill="none" stroke="#b45309" stroke-width="2"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg><div style="flex:1;min-width:0"><div class="r-t">零命中规则</div><div class="r-s">R-303 · 30 天 0 次</div></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="chead"><div><div class="ctitle">报送管线 · 事件驱动</div><div class="cdesc">按笔/按怀疑触发 · 各自倒计时（已修正：LVCTR 非月度批量）</div></div></div>
+    <div class="cpad">
+      <div class="filing">
+        <div class="fcard">
+          <div style="display:flex;align-items:center;justify-content:space-between"><span style="font-weight:600">可疑交易报告</span><span class="badge b-info">STR</span></div>
+          <div style="font-size:11px;color:var(--ink3);margin-top:2px">RGS 后尽快 · 上限 30 天</div>
+          <div style="margin-top:12px"><div style="display:flex;justify-content:space-between;font-size:12px"><span class="muted">按时申报率</span><span class="tab" style="font-weight:600;color:var(--am)">96%</span></div><div class="prog"><i style="width:96%;background:var(--am)"></i></div></div>
+          <div style="margin-top:8px;font-size:11px;color:var(--em)">逾期 0 笔</div>
+        </div>
+        <div class="fcard">
+          <div style="display:flex;align-items:center;justify-content:space-between"><span style="font-weight:600">大额虚拟货币</span><span class="badge b-info">LVCTR</span></div>
+          <div style="font-size:11px;color:var(--ink3);margin-top:2px">按笔 · 5 个工作日内</div>
+          <div style="margin-top:12px"><div style="display:flex;justify-content:space-between;font-size:12px"><span class="muted">按时申报率</span><span class="tab" style="font-weight:600;color:var(--am)">99%</span></div><div class="prog"><i style="width:99%;background:var(--am)"></i></div></div>
+          <div style="margin-top:8px;font-size:11px;color:var(--em)">逾期 0 笔</div>
+        </div>
+        <div class="fcard">
+          <div style="display:flex;align-items:center;justify-content:space-between"><span style="font-weight:600">电子资金转移</span><span class="badge b-info">EFTR</span></div>
+          <div style="font-size:11px;color:var(--ink3);margin-top:2px">≥$1万 · 5 个工作日内</div>
+          <div style="margin-top:12px"><div style="display:flex;justify-content:space-between;font-size:12px"><span class="muted">按时申报率</span><span class="tab" style="font-weight:600;color:var(--em)">100%</span></div><div class="prog"><i style="width:100%;background:var(--em)"></i></div></div>
+          <div style="margin-top:8px;font-size:11px;color:var(--em)">逾期 0 笔</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot">FuturePay 合规工作台 · MLRO 视角 · 以「按时申报 + 方案可辩护」为中心，非个人队列</div>
+</div>
+</body>
+</html>

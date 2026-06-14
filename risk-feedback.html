@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>规则效果与调优 · FuturePayCA 风控</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="risk-design-system.css">
+<style>
+  .chart{display:flex;align-items:flex-end;gap:12px;height:180px;padding-top:10px}
+  .bar-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:7px;height:100%}
+  .bar-stack{width:100%;max-width:34px;margin-top:auto;display:flex;flex-direction:column;border-radius:5px 5px 0 0;overflow:hidden}
+  .bar-x{font-size:10px;color:var(--text-3)}
+  .legend{display:flex;gap:16px;font-size:11.5px;color:var(--text-2)}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .legend i{width:10px;height:10px;border-radius:3px;display:inline-block}
+  .rec{display:flex;gap:12px;padding:14px 0;border-bottom:1px solid var(--line-soft)}
+  .rec:last-child{border-bottom:none}
+  .rec-ico{width:32px;height:32px;border-radius:9px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:15px}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="sb-logo"><div class="sb-logo-mark">F</div><div class="sb-logo-text">Future<span>Pay</span>CA</div></div>
+    <nav class="sb-nav">
+      <a class="sb-item" href="risk-control.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 12l9-9 9 9M5 10v10h14V10"/></svg>风控总览</a>
+      <div class="sb-group">事前 · 配置</div>
+      <a class="sb-item" href="risk-pre.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-2.82 1.17V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 8 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 3.6 15H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 5 8.6a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 3.6V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 2 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 21 9h.6a2 2 0 0 1 0 4H21z"/></svg>风险策略与规则</a>
+      <div class="sb-group">事中 · 执行</div>
+      <a class="sb-item" href="risk-monitoring.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>事中监控<span class="sb-tag">10</span></a>
+      <a class="sb-item" href="risk-review.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 11l3 3 8-8"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>审核决策</a>
+      <div class="sb-group">事后 · 处置</div>
+      <a class="sb-item" href="risk-post.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 13h6M9 17h6"/></svg>案件处置与上报</a>
+      <div class="sb-group">反馈 · 优化</div>
+      <a class="sb-item active" href="risk-feedback.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>规则效果与调优</a>
+    </nav>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div class="crumb"><span>风控</span><span class="sep">/</span><span>反馈优化</span><span class="sep">/</span><span class="cur">规则效果与调优</span></div>
+      <div class="topbar-right"><button class="icon-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></button><div class="avatar">JS</div></div>
+    </header>
+
+    <div class="content">
+      <div class="content-wrap">
+        <div class="pg-head">
+          <div>
+            <h1 class="pg-title">规则效果与调优</h1>
+            <p class="pg-sub">用事后处置结果回溯规则准确率，识别高误报规则并反哺事前配置，形成闭环优化。</p>
+          </div>
+          <div class="row"><select class="sel" style="height:36px"><option>近 30 日</option><option>近 90 日</option><option>本年度</option></select><button class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/></svg>导出报表</button></div>
+        </div>
+
+        <div class="grid-4 mb-md">
+          <div class="kpi"><div class="kpi-lbl"><span class="kpi-ico" style="background:var(--blue-bg);color:var(--blue)">🎯</span>规则准确率</div><div class="kpi-num tnum">76.3%</div><div class="kpi-delta d-down">↑ 4.1% vs 上期</div></div>
+          <div class="kpi"><div class="kpi-lbl"><span class="kpi-ico" style="background:var(--amber-bg);color:var(--amber)">⚠</span>误报率</div><div class="kpi-num tnum">23.7%</div><div class="kpi-delta d-down">↓ 4.1%</div></div>
+          <div class="kpi"><div class="kpi-lbl"><span class="kpi-ico" style="background:var(--red-bg);color:var(--red)">🕳</span>漏报（事后发现）</div><div class="kpi-num tnum">2</div><div class="kpi-delta d-up">↑ 1 笔</div></div>
+          <div class="kpi"><div class="kpi-lbl"><span class="kpi-ico" style="background:var(--green-bg);color:var(--green)">⏱</span>平均处置时长</div><div class="kpi-num tnum">6.2h</div><div class="kpi-delta d-down">↓ 1.4h</div></div>
+        </div>
+
+        <div class="grid-2 mb-md" style="grid-template-columns:1.3fr 1fr">
+          <!-- chart -->
+          <div class="card">
+            <div class="card-head"><div><div class="card-title">命中处置结果分布</div><div class="card-desc">按月统计 · 命中后的最终处置</div></div>
+              <div class="legend"><span><i style="background:var(--green)"></i>放行</span><span><i style="background:var(--amber)"></i>补材料</span><span><i style="background:var(--red)"></i>驳回/冻结</span></div>
+            </div>
+            <div class="card-body">
+              <div class="chart" id="chart"></div>
+            </div>
+          </div>
+
+          <!-- rule effectiveness -->
+          <div class="table-card" style="align-self:start">
+            <div class="card-head"><div class="card-title">规则准确率排名</div><div class="card-desc">放行率高 = 误报高</div></div>
+            <table class="tbl">
+              <thead><tr><th>规则</th><th>命中</th><th>误报率</th><th>评级</th></tr></thead>
+              <tbody>
+                <tr><td class="cell-strong">混币器关联</td><td class="tnum">47</td><td class="tnum">4%</td><td><span class="pill p-green">优秀</span></td></tr>
+                <tr><td class="cell-strong">大额充值监控</td><td class="tnum">312</td><td class="tnum">38%</td><td><span class="pill p-amber">偏高</span></td></tr>
+                <tr><td class="cell-strong">高频拆分入金</td><td class="tnum">73</td><td class="tnum">21%</td><td><span class="pill p-blue">良好</span></td></tr>
+                <tr><td class="cell-strong">新商户首充</td><td class="tnum">158</td><td class="tnum">52%</td><td><span class="pill p-red">需调优</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- optimization recommendations -->
+        <div class="card">
+          <div class="card-head"><div><div class="card-title">优化建议</div><div class="card-desc">基于事后结果自动生成 · 一键回写事前配置</div></div><span class="pill p-violet">AI 生成</span></div>
+          <div class="card-body">
+            <div class="rec">
+              <div class="rec-ico" style="background:var(--red-bg)">🔧</div>
+              <div style="flex:1"><div class="cell-strong">「新商户首充」误报率 52%，建议下调权重 +20 → +12</div><div class="small muted mt-sm">该规则 52% 命中最终被放行，过度拦截新商户正常入金，拖累 SLA。</div></div>
+              <button class="btn btn-sm btn-primary" onclick="this.textContent='已采纳'">采纳</button>
+            </div>
+            <div class="rec">
+              <div class="rec-ico" style="background:var(--amber-bg)">📈</div>
+              <div style="flex:1"><div class="cell-strong">「大额充值监控」建议引入商户历史均值动态阈值</div><div class="small muted mt-sm">固定 CAD 5,000 阈值对大额商户误报偏高，建议改为「均值 × 3」。</div></div>
+              <button class="btn btn-sm btn-primary" onclick="this.textContent='已采纳'">采纳</button>
+            </div>
+            <div class="rec">
+              <div class="rec-ico" style="background:var(--red-bg)">🕳</div>
+              <div style="flex:1"><div class="cell-strong">新增规则：监测「快进快出」钱包行为（漏报补强）</div><div class="small muted mt-sm">本期 2 笔漏报均为入金后 1 小时内转出，现有规则未覆盖。</div></div>
+              <button class="btn btn-sm" onclick="window.location='risk-pre.html'">去创建</button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+  // stacked bar chart (放行/补材料/驳回冻结) per month
+  const data=[
+    {m:'1月',ok:42,mat:18,rej:14},{m:'2月',ok:50,mat:20,rej:18},
+    {m:'3月',ok:58,mat:16,rej:22},{m:'4月',ok:61,mat:14,rej:19},
+    {m:'5月',ok:66,mat:12,rej:17},{m:'6月',ok:71,mat:11,rej:15}
+  ];
+  const max=Math.max(...data.map(d=>d.ok+d.mat+d.rej));
+  document.getElementById('chart').innerHTML=data.map(d=>{
+    const h=v=>`${v/max*100}%`;
+    return `<div class="bar-col">
+      <div class="bar-stack" style="height:${(d.ok+d.mat+d.rej)/max*100}%" title="${d.m}">
+        <div style="background:var(--red);height:${d.rej/(d.ok+d.mat+d.rej)*100}%"></div>
+        <div style="background:var(--amber);height:${d.mat/(d.ok+d.mat+d.rej)*100}%"></div>
+        <div style="background:var(--green);height:${d.ok/(d.ok+d.mat+d.rej)*100}%"></div>
+      </div>
+      <div class="bar-x">${d.m}</div>
+    </div>`;
+  }).join('');
+</script>
+</body>
+</html>

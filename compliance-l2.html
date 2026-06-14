@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>L2 复核 · 合规工作台</title>
+<style>
+:root{--bg:#f8fafc;--card:#fff;--ink:#0f172a;--ink2:#475569;--ink3:#64748b;--ink4:#94a3b8;--line:#e5e7eb;--soft:#f1f5f9;--muted:#f8fafc;--violet:#7c3aed;--vbg:#f5f3ff;--vbd:#ddd6fe;--em:#059669;--embg:#ecfdf5;--embd:#a7f3d0;--am:#b45309;--ambg:#fffbeb;--ambd:#fde68a;--red:#dc2626;--rbg:#fef2f2;--rbd:#fecaca;--blue:#2563eb;--bbg:#eff6ff;--bbd:#bfdbfe}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI",sans-serif;background:var(--bg);color:var(--ink);font-size:13px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.tab{font-variant-numeric:tabular-nums}
+.nav{position:sticky;top:0;z-index:20;border-bottom:1px solid var(--line);background:rgba(255,255,255,.85);backdrop-filter:blur(8px)}
+.nav-in{max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;padding:10px 20px}
+.brand{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600}
+.logo{width:24px;height:24px;border-radius:6px;background:var(--violet);color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.seg{display:flex;gap:2px;border:1px solid var(--line);background:var(--soft);border-radius:9px;padding:3px}
+.seg a{padding:6px 12px;border-radius:6px;font-size:13px;font-weight:500;color:var(--ink3);text-decoration:none}
+.seg a.on{background:#fff;color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.seg a:hover:not(.on){color:var(--ink)}
+.wrap{max-width:1200px;margin:0 auto;padding:22px 20px;display:flex;flex-direction:column;gap:18px}
+.head{display:flex;align-items:flex-end;justify-content:space-between}
+.h1{font-size:22px;font-weight:800;letter-spacing:-.01em}.hsub{font-size:13px;color:var(--ink3);margin-top:3px}
+.btn{height:32px;padding:0 14px;border-radius:8px;border:none;background:var(--ink);color:#fff;font-size:13px;font-weight:500;display:inline-flex;align-items:center;gap:6px;cursor:pointer}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:0 1px 2px rgba(15,23,42,.04)}
+.cpad{padding:16px 18px}
+.chead{padding:15px 18px 0;display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.ctitle{font-size:15px;font-weight:600;display:flex;align-items:center;gap:7px}
+.cdesc{font-size:12px;color:var(--ink3);margin-top:2px}.cmeta{font-size:11.5px;color:var(--ink3)}
+.link{font-size:12px;color:var(--violet);cursor:pointer;text-decoration:none}
+.pill{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:999px;font-size:11.5px;font-weight:500;border:1px solid transparent}
+.p-ok{background:var(--embg);color:var(--em);border-color:var(--embd)}.p-warn{background:var(--ambg);color:var(--am);border-color:var(--ambd)}.p-crit{background:var(--rbg);color:var(--red);border-color:var(--rbd)}.p-info{background:var(--bbg);color:var(--blue);border-color:var(--bbd)}.p-violet{background:var(--vbg);color:var(--violet);border-color:var(--vbd)}.p-muted{background:var(--muted);color:var(--ink3);border-color:var(--line)}
+.hero{display:flex;flex-wrap:wrap;align-items:center;gap:14px 24px}
+.av{width:44px;height:44px;border-radius:50%;color:#fff;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.vsep{width:1px;align-self:stretch;min-height:30px;background:var(--line)}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}@media(max-width:760px){.kpis{grid-template-columns:repeat(2,1fr)}}
+.kpi{border:1px solid var(--line);border-radius:14px;background:var(--card);padding:16px 18px;box-shadow:0 1px 2px rgba(15,23,42,.04)}
+.kpi-l{font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.4px;color:var(--ink3)}
+.kpi-v{font-size:26px;font-weight:800;margin-top:6px}.kpi-s{font-size:11px;color:var(--ink3);margin-top:4px}
+.c-crit{color:var(--red)}.c-warn{color:var(--am)}.c-ok{color:var(--em)}
+.g3{display:grid;grid-template-columns:2fr 1fr;gap:18px}@media(max-width:920px){.g3{grid-template-columns:1fr}}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{text-align:left;font-weight:500;color:var(--ink3);font-size:11.5px;padding:8px 10px;border-bottom:1px solid var(--line)}
+td{padding:9px 10px;border-bottom:1px solid var(--soft)}tr:last-child td{border-bottom:none}
+.tname{font-weight:500}.tid{font-size:11px;color:var(--ink3)}
+.badge{display:inline-flex;align-items:center;justify-content:center;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:600;border:1px solid transparent}
+.b-ok{background:var(--embg);color:var(--em);border-color:var(--embd)}.b-warn{background:var(--ambg);color:var(--am);border-color:var(--ambd)}.b-crit{background:var(--rbg);color:var(--red);border-color:var(--rbd)}.b-info{background:var(--bbg);color:var(--blue);border-color:var(--bbd)}.b-violet{background:var(--vbg);color:var(--violet);border-color:var(--vbd)}.b-muted{background:var(--muted);color:var(--ink3);border-color:var(--line)}
+.tbtn{height:28px;padding:0 10px;border-radius:7px;border:1px solid var(--line);background:#fff;font-size:12px;color:var(--ink2);cursor:pointer}
+.chart{display:flex;align-items:flex-end;gap:14px;height:190px;padding-top:8px}
+.bcol{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;height:100%}
+.bar{width:100%;max-width:34px;margin-top:auto;background:var(--vbg);border:1px solid var(--vbd);border-radius:5px 5px 0 0}
+.bx{font-size:10px;color:var(--ink3)}
+.note{margin-top:12px;border:1px solid var(--line);background:var(--muted);border-radius:10px;padding:12px;font-size:11.5px;line-height:1.6;color:var(--ink3)}
+.foot{text-align:center;font-size:11px;color:var(--ink4);padding-top:2px}
+.muted{color:var(--ink3)}
+</style>
+</head>
+<body>
+<div class="nav"><div class="nav-in">
+  <div class="brand"><span class="logo">F</span> FuturePay 合规工作台</div>
+  <div class="seg">
+    <a href="compliance-l1.html">L1 分析员</a>
+    <a class="on" href="compliance-l2.html">L2 复核</a>
+    <a href="compliance-mlro.html">MLRO 报送</a>
+  </div>
+</div></div>
+
+<div class="wrap">
+  <div class="head">
+    <div><div class="h1">复核工作台 · L2</div><div class="hsub">深入调查 · 做出可辩护的决定 · 该升级就升级</div></div>
+    <button class="btn">调查工具</button>
+  </div>
+
+  <div class="card cpad">
+    <div class="hero">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div class="av" style="background:var(--am)">AL</div>
+        <div><div style="font-size:15px;font-weight:600">Andrea Lopez · L2 复核专员</div><div style="font-size:11.5px;color:var(--ink3)">先看证据 · 再看 AI 建议</div></div>
+      </div>
+      <div class="vsep"></div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px">
+        <span class="pill p-crit">待我决策 7 · 最紧 D2</span>
+        <span class="pill p-warn">升级待接 3</span>
+        <span class="pill p-info">EDD 进行中 9</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="kpis">
+    <div class="kpi"><div class="kpi-l">待决策案件</div><div class="kpi-v tab c-crit">7</div><div class="kpi-s">3 个 ≤ D3</div></div>
+    <div class="kpi"><div class="kpi-l">EDD 名单</div><div class="kpi-v tab">9</div><div class="kpi-s">加强尽调中</div></div>
+    <div class="kpi"><div class="kpi-l">本周已决</div><div class="kpi-v tab c-ok">22</div><div class="kpi-s">批 9 / 拒 4 / 升 3</div></div>
+    <div class="kpi"><div class="kpi-l">推翻 L1 率</div><div class="kpi-v tab">14%</div><div class="kpi-s">本月 · 含理由</div></div>
+  </div>
+
+  <div class="g3">
+    <div class="card">
+      <div class="chead"><div><div class="ctitle">升级 / 高风险案件</div><div class="cdesc">按决策期限排序 · 每个出口都需书面理由</div></div><a class="link" href="#">EDD 名单 →</a></div>
+      <div class="cpad">
+        <table>
+          <thead><tr><th>案件 / 商户</th><th>风险信号</th><th>类型</th><th>来源</th><th style="text-align:right">决策期限</th></tr></thead>
+          <tbody>
+            <tr><td><div class="tname">NovaPay</div><div class="tid tab">C-2026-4039</div></td><td class="muted">评分 92 · KYT 78</td><td><span class="badge b-crit">结构化交易</span></td><td class="muted">L1 升级</td><td style="text-align:right"><span class="badge b-crit">D2</span></td></tr>
+            <tr><td><div class="tname">NovaPay</div><div class="tid tab">KYW-2026-4071</div></td><td class="muted">2 条 OFAC 路径</td><td><span class="badge b-violet">链上溯源</span></td><td class="muted">L1 升级</td><td style="text-align:right"><span class="badge b-crit">D3</span></td></tr>
+            <tr><td><div class="tname">Skyline Pay</div><div class="tid tab">KYC-2026-0312</div></td><td class="muted">评分 84 · 开曼壳</td><td><span class="badge b-info">PEP / 复杂股权</span></td><td class="muted">L1 升级</td><td style="text-align:right"><span class="badge b-warn">D4</span></td></tr>
+            <tr><td><div class="tname">Helios Crypto</div><div class="tid tab">MON-2026-4051</div></td><td class="muted">高频 · $9.8K×7</td><td><span class="badge b-crit">结构化交易</span></td><td class="muted">规则触发</td><td style="text-align:right"><span class="badge b-warn">D5</span></td></tr>
+            <tr><td><div class="tname">Bright FX</div><div class="tid tab">KYW-2026-4088</div></td><td class="muted">自托管钱包</td><td><span class="badge b-info">Travel Rule</span></td><td class="muted">L1 升级</td><td style="text-align:right"><span class="badge b-muted">D6</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="chead"><div><div class="ctitle">本周决策构成</div><div class="cdesc">22 项 · 出口分布</div></div></div>
+      <div class="cpad">
+        <div class="chart">
+          <div class="bcol"><div class="bar" style="height:100%"></div><div class="bx">批准</div></div>
+          <div class="bcol"><div class="bar" style="height:45%"></div><div class="bx">拒绝</div></div>
+          <div class="bcol"><div class="bar" style="height:34%"></div><div class="bx">升级</div></div>
+          <div class="bcol"><div class="bar" style="height:67%"></div><div class="bx">STR</div></div>
+        </div>
+        <div class="note">每个 ≥90 监控案件须落到一个记录在案的出口：生成 STR / 标记可疑→EDD / 要求说明 / 判定非可疑。</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot">FuturePay 合规工作台 · L2 视角 · 以「调查 + 可辩护决定」为中心</div>
+</div>
+</body>
+</html>

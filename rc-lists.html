@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>名单管理 · FuturePayCA 风控</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="risk-design-system.css">
+<style>
+  .seg{display:inline-flex;background:var(--surface-2);border-radius:9px;padding:3px;gap:2px}
+  .seg button{border:none;background:none;padding:5px 12px;border-radius:7px;font-size:12.5px;font-weight:500;color:var(--text-2);cursor:pointer;font-family:inherit}
+  .seg button.active{background:var(--surface);color:var(--text);box-shadow:var(--shadow-sm);font-weight:600}
+</style>
+</head>
+<body data-page="lists" data-crumb="风控·治理与合规·名单管理">
+<div class="app">
+  <aside class="sidebar" id="rcSidebar"></aside>
+  <div class="main">
+    <header class="topbar" id="rcTopbar"></header>
+    <div class="content"><div class="content-wrap">
+
+      <div class="pg-head">
+        <div>
+          <h1 class="pg-title">名单管理</h1>
+          <p class="pg-sub">事中引擎实时比对发送方/接收方地址、商户与受益人。制裁名单自动同步，黑白名单与关注名单人工维护。</p>
+        </div>
+        <button class="btn btn-primary" id="addEntryBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 5v14M5 12h14"/></svg>添加条目</button>
+      </div>
+
+      <div class="grid-3 mb-md">
+        <div class="kpi"><div class="kpi-lbl"><span class="kpi-ico" style="background:var(--red-bg);color:var(--red)">⛔</span>黑名单 / 制裁</div><div class="kpi-num tnum">1,284</div><div class="small muted mt-sm">OFAC · UN · 自定义</div></div>
+        <div class="kpi"><div class="kpi-lbl"><span class="kpi-ico" style="background:var(--green-bg);color:var(--green)">✓</span>白名单（免审）</div><div class="kpi-num tnum">96</div><div class="small muted mt-sm">可信商户 / 钱包</div></div>
+        <div class="kpi"><div class="kpi-lbl"><span class="kpi-ico" style="background:var(--amber-bg);color:var(--amber)">👁</span>关注名单</div><div class="kpi-num tnum">213</div><div class="small muted mt-sm">加强监控对象</div></div>
+      </div>
+
+      <div class="table-card mb-md">
+        <div class="card-head">
+          <div><div class="card-title">名单条目</div><div class="card-desc">命中即触发对应处置动作</div></div>
+          <div class="seg" data-scope="tr[data-row]"><button class="active" data-filter="all">全部</button><button data-filter="black">黑名单</button><button data-filter="white">白名单</button><button data-filter="watch">关注</button></div>
+        </div>
+        <table class="tbl">
+          <thead><tr><th>对象</th><th>类型</th><th>名单</th><th>来源</th><th>命中动作</th><th>添加时间</th><th style="text-align:right">操作</th></tr></thead>
+          <tbody>
+            <tr data-row="black"><td class="mono cell-strong">0x7F4a…9c21</td><td><span class="chip">钱包地址</span></td><td><span class="pill p-red">黑名单</span></td><td>OFAC SDN</td><td><span class="pill p-red">拒绝交易</span></td><td class="muted tnum">2026-01-12</td><td style="text-align:right"><button class="btn btn-sm">移除</button></td></tr>
+            <tr data-row="black"><td class="cell-strong">Tornado Cash Router</td><td><span class="chip">混币器</span></td><td><span class="pill p-red">黑名单</span></td><td>OFAC</td><td><span class="pill p-red">冻结+升级</span></td><td class="muted tnum">2026-01-12</td><td style="text-align:right"><button class="btn btn-sm">移除</button></td></tr>
+            <tr data-row="watch"><td class="cell-strong">Eastwind Exchange Ltd.</td><td><span class="chip">商户</span></td><td><span class="pill p-amber">关注名单</span></td><td>内部风控</td><td><span class="pill p-amber">加强审核</span></td><td class="muted tnum">2026-03-04</td><td style="text-align:right"><button class="btn btn-sm">移除</button></td></tr>
+            <tr data-row="white"><td class="cell-strong">NovaPay Treasury</td><td><span class="chip">商户</span></td><td><span class="pill p-green">白名单</span></td><td>合规审批</td><td><span class="pill p-green">免审放行</span></td><td class="muted tnum">2025-11-20</td><td style="text-align:right"><button class="btn btn-sm">移除</button></td></tr>
+            <tr data-row="white"><td class="mono cell-strong">0x91Ad…77F2</td><td><span class="chip">钱包地址</span></td><td><span class="pill p-green">白名单</span></td><td>合规审批</td><td><span class="pill p-green">免审放行</span></td><td class="muted tnum">2025-11-20</td><td style="text-align:right"><button class="btn btn-sm">移除</button></td></tr>
+            <tr data-row="watch"><td class="cell-strong">高频拆分关联群组 #A7</td><td><span class="chip">群组</span></td><td><span class="pill p-amber">关注名单</span></td><td>模型识别</td><td><span class="pill p-amber">加强审核</span></td><td class="muted tnum">2026-05-19</td><td style="text-align:right"><button class="btn btn-sm">移除</button></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><div><div class="card-title">名单同步源</div><div class="card-desc">外部制裁名单自动同步</div></div></div>
+        <div class="card-body col" style="gap:0">
+          <div class="row" style="justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--line-soft)"><span class="row" style="gap:10px"><span class="kpi-ico" style="background:var(--red-bg);color:var(--red)">🌐</span><span><div class="cell-strong">OFAC SDN List</div><div class="small muted">美国财政部 · 每日同步</div></span></span><span class="pill p-green"><span class="pdot"></span>已同步 · 今日 06:00</span></div>
+          <div class="row" style="justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--line-soft)"><span class="row" style="gap:10px"><span class="kpi-ico" style="background:var(--blue-bg);color:var(--blue)">🌐</span><span><div class="cell-strong">UN Consolidated List</div><div class="small muted">联合国安理会 · 每周同步</div></span></span><span class="pill p-green"><span class="pdot"></span>已同步 · 06-02</span></div>
+          <div class="row" style="justify-content:space-between;padding:11px 0"><span class="row" style="gap:10px"><span class="kpi-ico" style="background:var(--violet-bg);color:var(--violet)">⛓</span><span><div class="cell-strong">Chainalysis 链上标签库</div><div class="small muted">实时 API</div></span></span><span class="pill p-blue"><span class="pdot"></span>实时</span></div>
+        </div>
+      </div>
+
+    </div></div>
+  </div>
+</div>
+<script src="rc-shell.js"></script>
+<script>
+(function(){
+  const tbody=document.querySelector('.tbl tbody'), tbl=document.querySelector('.tbl');
+  const listMap={'黑名单':['black','p-red'],'白名单':['white','p-green'],'关注名单':['watch','p-amber']};
+  const actCls=a=>/拒绝|冻结/.test(a)?'p-red':/免审|放行/.test(a)?'p-green':'p-amber';
+  const today=()=>{const d=new Date(),p=n=>('0'+n).slice(-2);return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());};
+  document.getElementById('addEntryBtn').addEventListener('click',()=>RCModal.form({
+    title:'添加名单条目', desc:'命中后即触发对应处置动作', submitLabel:'添加条目',
+    fields:[
+      {name:'obj',label:'对象',placeholder:'钱包地址 / 商户名 / 群组',required:true,full:true},
+      {name:'type',label:'类型',type:'select',options:['钱包地址','混币器','商户','群组','受益人']},
+      {name:'list',label:'名单',type:'select',options:['黑名单','白名单','关注名单']},
+      {name:'source',label:'来源',placeholder:'OFAC / 内部风控 / 合规审批',value:'内部风控'},
+      {name:'action',label:'命中动作',type:'select',options:['拒绝交易','冻结+升级','加强审核','免审放行']},
+    ],
+    onSubmit:v=>{
+      const m=listMap[v.list]||['watch','p-amber'], acls=actCls(v.action);
+      const objCell=v.type==='钱包地址'?`<td class="mono cell-strong">${v.obj}</td>`:`<td class="cell-strong">${v.obj}</td>`;
+      const tr=document.createElement('tr'); tr.setAttribute('data-row',m[0]);
+      tr.innerHTML=`${objCell}<td><span class="chip">${v.type}</span></td><td><span class="pill ${m[1]}">${v.list}</span></td><td>${v.source||'—'}</td><td><span class="pill ${acls}">${v.action}</span></td><td class="muted tnum">${today()}</td><td style="text-align:right"><button class="btn btn-sm">移除</button></td>`;
+      tbody.insertBefore(tr,tbody.firstChild);
+      RC_AUDIT.log({action:'添加名单条目',object:v.obj,detail:`${v.list} · ${v.type} · 命中动作 ${v.action} · 来源 ${v.source||'内部风控'}`,cat:'config'});
+      RCModal.toast('已添加名单条目：'+v.obj);
+    }
+  }));
+  // 移除（含新增行）
+  tbl.addEventListener('click',e=>{const b=e.target.closest('button');if(b&&b.textContent.trim()==='移除'){const tr=b.closest('tr');const obj=tr.children[0].textContent.trim();const lst=tr.querySelector('.pill')?tr.querySelector('.pill').textContent.trim():'名单';tr.remove();RC_AUDIT.log({action:'移除名单条目',object:obj,detail:lst+' · 人工移除',cat:'config'});RCModal.toast('已移除该条目');}});
+})();
+</script>
+</body>
+</html>

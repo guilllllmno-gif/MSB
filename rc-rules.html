@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>规则列表 · FuturePayCA 风控</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="risk-design-system.css">
+<style>
+  .switch{position:relative;width:38px;height:22px;border-radius:999px;background:var(--brand);cursor:pointer;flex-shrink:0}
+  .switch.off{background:var(--surface-2);border:1px solid var(--line)}
+  .switch::after{content:"";position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:left .15s}
+  .switch.off::after{left:2px;top:1px} .switch:not(.off)::after{left:18px}
+  .tbl tbody tr.clickable{cursor:pointer}
+</style>
+</head>
+<body data-page="rules" data-crumb="风控·检测策略·规则列表">
+<div class="app">
+  <aside class="sidebar" id="rcSidebar"></aside>
+  <div class="main">
+    <header class="topbar" id="rcTopbar"></header>
+    <div class="content"><div class="content-wrap">
+
+      <div class="pg-head">
+        <div>
+          <h1 class="pg-title">规则列表</h1>
+          <p class="pg-sub">充提全生命周期的检测规则库 · 命中后按权重累加生成风险评分并触发处置动作</p>
+        </div>
+        <a class="btn btn-primary" href="rc-rule-editor.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 5v14M5 12h14"/></svg>新建规则</a>
+      </div>
+
+      <div class="grid-4 mb-md">
+        <div class="kpi"><div class="kpi-lbl"><span class="kpi-ico" style="background:var(--blue-bg);color:var(--blue)">⚙</span>规则总数</div><div class="kpi-num tnum" id="kpiTotal">0</div><div class="small muted mt-sm" id="kpiTotalSub">—</div></div>
+        <div class="kpi"><div class="kpi-lbl"><span class="kpi-ico" style="background:var(--red-bg);color:var(--red)">🚫</span>拦截类</div><div class="kpi-num tnum" id="kpiBlock">0</div><div class="small muted mt-sm">冻结 / 拒绝</div></div>
+        <div class="kpi"><div class="kpi-lbl"><span class="kpi-ico" style="background:var(--amber-bg);color:var(--amber)">⏸</span>暂缓类</div><div class="kpi-num tnum" id="kpiHold">0</div><div class="small muted mt-sm">暂缓 / 人工审核</div></div>
+        <div class="kpi"><div class="kpi-lbl"><span class="kpi-ico" style="background:var(--grey-bg);color:var(--grey)">📝</span>仅记录</div><div class="kpi-num tnum" id="kpiLog">0</div><div class="small muted mt-sm">观察期</div></div>
+      </div>
+
+      <div class="toolbar">
+        <div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg><input placeholder="搜索规则名称…"></div>
+        <div class="seg" data-scope="tr[data-row]"><button class="active" data-filter="all">全部</button><button data-filter="deposit">充值</button><button data-filter="withdraw">提现</button><button data-filter="chain">链上</button><button data-filter="composite">复合</button></div>
+        <button class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 6h18M7 12h10M11 18h2"/></svg>类别</button>
+      </div>
+
+      <div class="table-card">
+        <table class="tbl">
+          <thead><tr><th>规则名称</th><th>适用</th><th>类别</th><th>触发条件</th><th>命中动作</th><th>权重</th><th>近30日命中</th><th>误报率</th><th>状态</th><th style="text-align:right">操作</th></tr></thead>
+          <tbody id="rb"></tbody>
+        </table>
+        <div class="pager"><div class="row"><span id="pagerCount">共 0 条规则</span></div><div class="pager-nav"><button class="pg-btn active">1</button></div></div>
+      </div>
+
+    </div></div>
+  </div>
+</div>
+<script src="rc-rules-data.js"></script>
+<script src="rc-rules-overlay.js"></script>
+<script src="rc-shell.js"></script>
+<script>
+  const A={deposit:'<span class="chip">充值</span>',withdraw:'<span class="chip">提现</span>',both:'<span class="chip">充提</span>',chain:'<span class="chip chip-net">链上</span>'};
+  const wcls=w=>(w.startsWith('+1')|| +w.slice(1)>=35)?'p-red':'p-amber';
+  document.getElementById('rb').innerHTML=RC_RULES.map(r=>{
+    const row=(r.applic==='both'?'all':r.applic)+(r.category==='复合策略'?' composite':'');
+    return `<tr class="clickable" data-row="${row}" ${r.enabled?'':'style="opacity:.55"'} onclick="if(!event.target.closest('.no-nav'))location.href='rc-rule.html?id=${r.id}'">
+      <td class="cell-strong">${r.name}</td><td>${A[r.applic]}</td><td><span class="chip">${r.category}</span></td><td>${r.cond}</td>
+      <td><span class="pill ${r.action[1]}">${r.action[0]}</span></td><td><span class="pill ${wcls(r.weight)}">${r.weight}</span></td>
+      <td class="tnum">${r.hits30d||'—'}</td><td class="tnum">${r.fp}</td>
+      <td class="no-nav"><span class="switch ${r.enabled?'':'off'}"></span></td>
+      <td class="no-nav" style="text-align:right"><a class="btn btn-sm" href="rc-rule.html?id=${r.id}">详情</a> <a class="btn btn-sm" href="rc-rule-editor.html?id=${r.id}">编辑</a></td></tr>`;
+  }).join('');
+  // KPIs + pager from real data
+  const total=RC_RULES.length, enabled=RC_RULES.filter(r=>r.enabled).length;
+  const by=cls=>RC_RULES.filter(r=>r.action[1]===cls).length;
+  document.getElementById('kpiTotal').textContent=total;
+  document.getElementById('kpiTotalSub').textContent=`${enabled} 启用 · ${total-enabled} 停用`;
+  document.getElementById('kpiBlock').textContent=by('p-red');
+  document.getElementById('kpiHold').textContent=by('p-amber');
+  document.getElementById('kpiLog').textContent=by('p-grey');
+  document.getElementById('pagerCount').textContent=`共 ${total} 条规则`;
+</script>
+</body>
+</html>

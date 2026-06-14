@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>审核决策 · DEP-20260315-001 · FuturePayCA 风控</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="risk-design-system.css">
+<style>
+  .detail-grid { display: grid; grid-template-columns: 1fr 360px; gap: 18px; align-items: start; }
+  @media(max-width:1080px){ .detail-grid{grid-template-columns:1fr} }
+  .back { display:inline-flex; align-items:center; gap:6px; color:var(--text-2); font-size:13px; font-weight:500; margin-bottom:14px; cursor:pointer; }
+  .back:hover{color:var(--text)}
+  .back svg{width:15px;height:15px}
+  .gauge { --p:92; width:104px;height:104px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    background:conic-gradient(var(--red) calc(var(--p)*1%), var(--surface-2) 0); position:relative; }
+  .gauge::before{content:"";position:absolute;inset:11px;border-radius:50%;background:var(--surface)}
+  .gauge .g-val{position:relative;text-align:center}
+  .gauge .g-num{font-size:24px;font-weight:800;color:var(--red);line-height:1}
+  .gauge .g-lbl{font-size:10px;color:var(--text-2);margin-top:2px}
+  .decision-btns{display:flex;flex-direction:column;gap:9px}
+  .decision-btns .btn{height:40px;justify-content:center;font-weight:600}
+  .factor{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--line-soft)}
+  .factor:last-child{border-bottom:none}
+  .factor-ico{width:24px;height:24px;border-radius:7px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:12px}
+  .factor-t{font-size:12.5px;font-weight:600}
+  .factor-d{font-size:11.5px;color:var(--text-2);margin-top:1px}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="sb-logo"><div class="sb-logo-mark">F</div><div class="sb-logo-text">Future<span>Pay</span>CA</div></div>
+    <nav class="sb-nav">
+      <a class="sb-item" href="risk-control.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 12l9-9 9 9M5 10v10h14V10"/></svg>风控总览</a>
+      <div class="sb-group">事前 · 配置</div>
+      <a class="sb-item" href="risk-pre.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-2.82 1.17V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 8 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 3.6 15H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 5 8.6a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 3.6V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 2 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 21 9h.6a2 2 0 0 1 0 4H21z"/></svg>风险策略与规则</a>
+      <div class="sb-group">事中 · 执行</div>
+      <a class="sb-item" href="risk-monitoring.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>事中监控<span class="sb-tag">10</span></a>
+      <a class="sb-item active" href="risk-review.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 11l3 3 8-8"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>审核决策</a>
+      <div class="sb-group">事后 · 处置</div>
+      <a class="sb-item" href="risk-post.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 13h6M9 17h6"/></svg>案件处置与上报</a>
+      <div class="sb-group">反馈 · 优化</div>
+      <a class="sb-item" href="risk-feedback.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>规则效果与调优</a>
+    </nav>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div class="crumb"><span>交易</span><span class="sep">/</span><span>交易监控</span><span class="sep">/</span><a href="risk-monitoring.html">事中监控</a><span class="sep">/</span><span class="cur">DEP-20260315-001</span></div>
+      <div class="topbar-right">
+        <button class="icon-btn"><span class="dot"></span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></button>
+        <div class="avatar">JS</div>
+      </div>
+    </header>
+
+    <div class="content">
+      <div class="content-wrap">
+        <a class="back" href="risk-monitoring.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>返回事中监控</a>
+
+        <div class="pg-head">
+          <div>
+            <div class="row" style="gap:10px">
+              <h1 class="pg-title">DEP-20260315-001</h1>
+              <span class="pill p-amber"><span class="pdot"></span>审核中</span>
+              <span class="risk"><span class="risk-badge risk-hi">高风险</span><span class="risk-score tnum">命中评分 95</span></span>
+            </div>
+            <p class="pg-sub">充值订单 · NovaPay Technologies Ltd. · 提交于 2026-03-02 09:30:15 · SLA 剩余 <b>1d 02h</b></p>
+          </div>
+          <div class="row">
+            <button class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M16 6l-4-4-4 4M12 2v14"/></svg>分享</button>
+            <button class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 6 9 17l-5-5"/></svg>认领工单</button>
+          </div>
+        </div>
+
+        <div class="detail-grid">
+          <!-- LEFT column -->
+          <div class="col" style="gap:18px">
+
+            <!-- transaction facts -->
+            <div class="card">
+              <div class="card-head"><div><div class="card-title">交易信息</div><div class="card-desc">链上充值明细</div></div><span class="chip chip-net">◈ ERC-20</span></div>
+              <div class="card-body">
+                <dl class="kv" style="grid-template-columns:130px 1fr 130px 1fr">
+                  <dt>充值金额</dt><dd class="cell-strong tnum">CAD 8,200.00</dd>
+                  <dt>到账资产</dt><dd>8,180 USDT</dd>
+                  <dt>发送方地址</dt><dd class="mono cell-addr">0x5078...Ec8c</dd>
+                  <dt>接收钱包</dt><dd class="mono">0x91Ad...77F2 (商户托管)</dd>
+                  <dt>交易哈希</dt><dd class="mono cell-addr">0x9b3c...a01f</dd>
+                  <dt>区块确认</dt><dd>32 / 32 ✓</dd>
+                  <dt>商户</dt><dd>NovaPay Technologies Ltd. <span class="muted">· 美国</span></dd>
+                  <dt>商户分级</dt><dd><span class="pill p-amber"><span class="pdot"></span>中风险 · 新商户</span></dd>
+                </dl>
+              </div>
+            </div>
+
+            <!-- triggered rules -->
+            <div class="card">
+              <div class="card-head"><div class="card-title">命中规则 · 2 条</div><a class="btn-link" href="risk-pre.html">查看规则配置 →</a></div>
+              <table class="tbl">
+                <thead><tr><th>规则</th><th>类别</th><th>阈值 / 条件</th><th>命中值</th><th>权重</th></tr></thead>
+                <tbody>
+                  <tr><td class="cell-strong">大额充值监控</td><td>金额阈值</td><td>单笔 ≥ CAD 5,000</td><td class="cell-strong" style="color:var(--red)">CAD 8,200</td><td><span class="pill p-red">+60</span></td></tr>
+                  <tr><td class="cell-strong">混币器关联</td><td>链上溯源</td><td>资金 ≤ 2 跳触及制裁地址</td><td class="cell-strong" style="color:var(--red)">Tornado Cash</td><td><span class="pill p-red">+35</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- on-chain trace -->
+            <div class="card">
+              <div class="card-head"><div class="card-title">链上资金溯源</div><div class="card-desc">来源路径分析 · 数据源 Chainalysis</div></div>
+              <div class="card-body">
+                <div class="row" style="gap:0;flex-wrap:wrap">
+                  <span class="pill p-red">Tornado Cash <b>92%</b></span>
+                  <span class="muted" style="margin:0 8px">→</span>
+                  <span class="pill p-amber">中转地址 ×3</span>
+                  <span class="muted" style="margin:0 8px">→</span>
+                  <span class="pill p-grey">发送方 0x5078…Ec8c</span>
+                  <span class="muted" style="margin:0 8px">→</span>
+                  <span class="pill p-blue">商户托管钱包</span>
+                </div>
+                <p class="small muted mt-sm">92% 的入金资产可溯源至 Tornado Cash 混币器（OFAC 制裁实体），经 3 个中转地址在 36 小时内归集至发送方地址。</p>
+              </div>
+            </div>
+
+            <!-- timeline -->
+            <div class="card">
+              <div class="card-head"><div class="card-title">处理时间线</div></div>
+              <div class="card-body">
+                <div class="timeline">
+                  <div class="tl-item done"><div class="tl-time">2026-03-02 09:30:15</div><div class="tl-title">订单提交 · 规则引擎命中 2 条</div><div class="tl-desc">系统自动暂缓入账，进入事中监控队列</div></div>
+                  <div class="tl-item done"><div class="tl-time">2026-03-02 09:30:16</div><div class="tl-title">AI 风险预判完成 · 评分 95（高风险）</div><div class="tl-desc">链上溯源命中混币器，建议人工复核</div></div>
+                  <div class="tl-item done"><div class="tl-time">2026-03-02 10:12:40</div><div class="tl-title">Sarah Chen (L1) 认领工单</div></div>
+                  <div class="tl-item"><div class="tl-time">待处理</div><div class="tl-title">等待审核决策</div><div class="tl-desc">放行 / 驳回 / 补充材料 / 冻结 / 升级 MLRO</div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- RIGHT column: AI + decision -->
+          <div class="col" style="gap:18px;position:sticky;top:0">
+            <div class="panel">
+              <div class="panel-head"><div class="panel-title">审核决定</div><span class="pill p-red"><span class="pdot"></span>高风险</span></div>
+              <div class="panel-body">
+                <div class="ai-box">
+                  <div class="ai-head"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 2l2.4 7.4H22l-6 4.4 2.3 7.2-6.3-4.6L5.7 21l2.3-7.2-6-4.4h7.6z"/></svg>AI 风险预判</div>
+                  <div class="row" style="gap:14px;align-items:center">
+                    <div class="gauge"><div class="g-val"><div class="g-num tnum">95</div><div class="g-lbl">/ 100</div></div></div>
+                    <div class="col" style="gap:7px;flex:1">
+                      <div class="factor" style="padding:0;border:none">
+                        <div class="factor-ico" style="background:var(--red-bg);color:var(--red)">⛓</div>
+                        <div><div class="factor-t">链上溯源 92% 来自 Tornado Cash</div></div>
+                      </div>
+                      <div class="factor" style="padding:0;border:none">
+                        <div class="factor-ico" style="background:var(--amber-bg);color:var(--amber)">🏷</div>
+                        <div><div class="factor-t">商户首充未提交资料</div></div>
+                      </div>
+                      <div class="factor" style="padding:0;border:none">
+                        <div class="factor-ico" style="background:var(--amber-bg);color:var(--amber)">⚠</div>
+                        <div><div class="factor-t">关联 3 笔历史违规订单</div></div>
+                      </div>
+                    </div>
+                  </div>
+                  <p class="small muted mt-sm" style="border-top:1px solid var(--violet-bd);padding-top:10px;margin-top:12px">
+                    <b>模型建议：</b>驳回并冻结资金，升级至 MLRO 评估是否触发 STR 上报。
+                  </p>
+                </div>
+
+                <div class="mt-md"><div class="small muted mb-md" style="font-weight:700;text-transform:uppercase;letter-spacing:.5px">审核操作</div></div>
+                <div class="decision-btns">
+                  <button class="btn btn-primary" onclick="alert('已放行 · 资金入账')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 6 9 17l-5-5"/></svg>放行入账</button>
+                  <button class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>要求补充材料</button>
+                  <button class="btn btn-danger" onclick="document.getElementById('rejectNote').style.display='block'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/></svg>驳回订单</button>
+                  <button class="btn btn-danger"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>冻结资金</button>
+                  <button class="btn" style="border-color:var(--violet-bd);color:var(--violet)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 19V5M5 12l7-7 7 7"/></svg>升级至 MLRO</button>
+                </div>
+                <div id="rejectNote" style="display:none" class="mt-md">
+                  <textarea placeholder="填写驳回理由（将记入审计日志）…" style="width:100%;min-height:70px;border:1px solid var(--line);border-radius:10px;padding:10px;font-family:inherit;font-size:12.5px;resize:vertical"></textarea>
+                  <button class="btn btn-danger btn-sm mt-sm" style="width:100%;justify-content:center" onclick="alert('已驳回并记入审计日志')">确认驳回</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="panel">
+              <div class="panel-head"><div class="panel-title">SLA</div></div>
+              <div class="panel-body">
+                <div class="row" style="justify-content:space-between"><span class="muted">剩余处理时长</span><span class="cell-strong tnum">1d 02h</span></div>
+                <div class="bar-track mt-sm"><div class="bar-fill" style="width:62%;background:var(--amber)"></div></div>
+                <p class="small muted mt-sm">高风险工单 SLA 为 48 小时，超时将自动升级。</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>规则效果 · FuturePayCA 风控</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="risk-design-system.css">
+<style>
+  .chart{display:flex;align-items:flex-end;gap:12px;height:180px;padding-top:10px}
+  .bar-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:7px;height:100%}
+  .bar-stack{width:100%;max-width:34px;margin-top:auto;display:flex;flex-direction:column;border-radius:5px 5px 0 0;overflow:hidden}
+  .bar-x{font-size:10px;color:var(--text-3)}
+  .legend{display:flex;gap:16px;font-size:11.5px;color:var(--text-2)}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .legend i{width:10px;height:10px;border-radius:3px;display:inline-block}
+  .rec{display:flex;gap:12px;padding:14px 0;border-bottom:1px solid var(--line-soft)}
+  .rec:last-child{border:none}
+  .rec-ico{width:32px;height:32px;border-radius:9px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:15px}
+  .tab-count{margin-left:7px;font-size:10.5px;font-weight:700;background:var(--red-bg);color:var(--red);border-radius:999px;padding:1px 7px;vertical-align:middle}
+  .panel-actions{display:flex;justify-content:flex-end;margin-bottom:14px}
+  #perfWrap{position:relative}
+  #perfTip{position:absolute;top:-4px;transform:translateX(-50%);background:var(--text);color:#fff;font-size:11px;font-weight:600;padding:5px 9px;border-radius:7px;white-space:nowrap;pointer-events:none;z-index:5;box-shadow:var(--shadow-pop);display:none}
+  .pbar{transition:opacity .12s}
+  .tbl tbody tr.clickable{cursor:pointer}
+</style>
+</head>
+<body data-page="rule-perf" data-crumb="风控·检测策略·规则效果">
+<div class="app">
+  <aside class="sidebar" id="rcSidebar"></aside>
+  <div class="main">
+    <header class="topbar" id="rcTopbar"></header>
+    <div class="content"><div class="content-wrap">
+
+      <div class="pg-head">
+        <div>
+          <h1 class="pg-title">规则效果</h1>
+          <p class="pg-sub">用事后处置结果回溯规则准确率，识别高误报规则；分析师标记的误报由策略团队复核后转为调优工单，形成闭环。</p>
+        </div>
+      </div>
+
+      <div class="tabs">
+        <div class="tab active" data-tab="perf">效果分析</div>
+        <div class="tab" data-tab="feedback">误报反馈<span class="tab-count">8</span></div>
+      </div>
+
+      <!-- ───────────── 效果分析 ───────────── -->
+      <div class="tab-panel" data-panel="perf">
+        <div class="panel-actions" style="justify-content:space-between;align-items:center">
+          <select class="sel" id="perfRuleSel" style="height:36px;min-width:220px;font-weight:600"></select>
+          <div class="row"><select class="sel" style="height:36px"><option>近 30 日</option><option>近 90 日</option></select><button class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/></svg>导出报表</button></div>
+        </div>
+
+        <div id="perfHeader"></div>
+        <div class="grid-4 mb-md" id="perfKpis"></div>
+
+        <div class="grid-2 mb-md" style="grid-template-columns:1.3fr 1fr;align-items:stretch">
+          <div class="card">
+            <div class="card-head"><div><div class="card-title">命中处置结果分布</div><div class="card-desc">按月统计 · 命中后的最终处置</div></div>
+              <div class="legend"><span><i style="background:var(--green)"></i>放行</span><span><i style="background:var(--amber)"></i>补材料</span><span><i style="background:var(--red)"></i>驳回/冻结</span></div>
+            </div>
+            <div class="card-body"><div id="perfWrap"><svg id="perfChart" viewBox="0 0 560 210" style="width:100%;height:210px;display:block"></svg><div id="perfTip"></div></div></div>
+          </div>
+          <div id="perfSide"></div>
+        </div>
+
+        <div id="perfRankWrap" class="mb-md"></div>
+
+        <div class="card">
+          <div class="card-head"><div><div class="card-title">优化建议</div><div class="card-desc">基于各规则误报率自动生成 · 一键带入规则编辑器</div></div><span class="pill p-violet">AI 生成</span></div>
+          <div class="card-body" id="recBody"></div>
+        </div>
+      </div>
+
+      <!-- ───────────── 误报反馈 ───────────── -->
+      <div class="tab-panel" data-panel="feedback" hidden>
+        <div class="panel-actions">
+          <button class="btn btn-primary" id="submitFpBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 5v14M5 12h14"/></svg>提交误报</button>
+        </div>
+
+        <div class="grid-4 mb-md">
+          <div class="kpi"><div class="kpi-lbl"><span class="kpi-ico" style="background:var(--amber-bg);color:var(--amber)">📥</span>待复核</div><div class="kpi-num tnum">8</div><div class="small muted mt-sm">本周新增 5</div></div>
+          <div class="kpi"><div class="kpi-lbl"><span class="kpi-ico" style="background:var(--green-bg);color:var(--green)">✓</span>已确认误报</div><div class="kpi-num tnum">34</div><div class="small muted mt-sm">近 30 日</div></div>
+          <div class="kpi"><div class="kpi-lbl"><span class="kpi-ico" style="background:var(--blue-bg);color:var(--blue)">🔧</span>已转调优</div><div class="kpi-num tnum">12</div><div class="small muted mt-sm">规则编辑器</div></div>
+          <div class="kpi"><div class="kpi-lbl"><span class="kpi-ico" style="background:var(--red-bg);color:var(--red)">↩</span>驳回反馈</div><div class="kpi-num tnum">6</div><div class="small muted mt-sm">实为真风险</div></div>
+        </div>
+
+        <div class="toolbar">
+          <div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg><input placeholder="搜索订单号、规则或提交人…"></div>
+          <div class="seg" data-scope="tr[data-row]"><button class="active" data-filter="all">全部</button><button data-filter="pending">待复核</button><button data-filter="done">已处理</button></div>
+        </div>
+
+        <div class="table-card">
+          <table class="tbl">
+            <thead><tr><th>反馈ID</th><th>关联告警/订单</th><th>命中规则</th><th>误报理由</th><th>提交人</th><th>状态</th><th style="text-align:right">操作</th></tr></thead>
+            <tbody>
+              <tr data-row="pending"><td class="mono cell-strong">FB-2041</td><td class="mono cell-addr">DEP-…0288</td><td>大额充值监控</td><td>老客户常规备货付款，金额符合历史均值</td><td>Sarah Chen</td><td><span class="pill p-amber"><span class="pdot"></span>待复核</span></td><td style="text-align:right"><button class="btn btn-sm" onclick="fbAction(this)">确认误报</button></td></tr>
+              <tr data-row="pending"><td class="mono cell-strong">FB-2040</td><td class="mono cell-addr">DEP-…0265</td><td>大额充值监控</td><td>同上客户拆分订单，非结构化交易</td><td>Sarah Chen</td><td><span class="pill p-amber"><span class="pdot"></span>待复核</span></td><td style="text-align:right"><button class="btn btn-sm" onclick="fbAction(this)">确认误报</button></td></tr>
+              <tr data-row="pending"><td class="mono cell-strong">FB-2038</td><td class="mono cell-addr">DEP-…0233</td><td>新商户首充</td><td>商户已补齐 KYB，资料审核通过</td><td>Mike Lin</td><td><span class="pill p-amber"><span class="pdot"></span>待复核</span></td><td style="text-align:right"><button class="btn btn-sm" onclick="fbAction(this)">确认误报</button></td></tr>
+              <tr data-row="pending"><td class="mono cell-strong">FB-2036</td><td class="mono cell-addr">DEP-…0210</td><td>高风险地址检测</td><td>命中标签为「交易所热钱包」，属低风险</td><td>Mike Lin</td><td><span class="pill p-amber"><span class="pdot"></span>待复核</span></td><td style="text-align:right"><button class="btn btn-sm" onclick="fbAction(this)">确认误报</button></td></tr>
+              <tr data-row="done"><td class="mono cell-strong">FB-2031</td><td class="mono cell-addr">DEP-…0188</td><td>新商户首充</td><td>新商户但已完成增强尽调</td><td>Sarah Chen</td><td><span class="pill p-blue"><span class="pdot"></span>已转调优</span></td><td style="text-align:right"><button class="btn btn-sm" onclick="fbAction(this)">查看工单</button></td></tr>
+              <tr data-row="done"><td class="mono cell-strong">FB-2028</td><td class="mono cell-addr">WD-…0142</td><td>大额提现监控</td><td>实为可疑结构化提现，维持拦截</td><td>David Wu</td><td><span class="pill p-grey"><span class="pdot"></span>驳回（真风险）</span></td><td style="text-align:right"><button class="btn btn-sm" onclick="fbAction(this)">详情</button></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="card mt-md">
+          <div class="card-head"><div><div class="card-title">误报来源 Top 规则</div><div class="card-desc">误报反馈最集中的规则，优先调优</div></div></div>
+          <div class="card-body col" style="gap:12px">
+            <div class="row" style="justify-content:space-between"><span class="cell-strong">新商户首充</span><div class="row" style="gap:12px;flex:1;max-width:340px"><div class="bar-track" style="flex:1"><div class="bar-fill" style="width:80%;background:var(--red)"></div></div><span class="tnum muted">14 起</span></div></div>
+            <div class="row" style="justify-content:space-between"><span class="cell-strong">大额充值监控</span><div class="row" style="gap:12px;flex:1;max-width:340px"><div class="bar-track" style="flex:1"><div class="bar-fill" style="width:62%;background:var(--amber)"></div></div><span class="tnum muted">11 起</span></div></div>
+            <div class="row" style="justify-content:space-between"><span class="cell-strong">高风险地址检测</span><div class="row" style="gap:12px;flex:1;max-width:340px"><div class="bar-track" style="flex:1"><div class="bar-fill" style="width:34%;background:var(--blue)"></div></div><span class="tnum muted">6 起</span></div></div>
+          </div>
+        </div>
+      </div>
+
+    </div></div>
+  </div>
+</div>
+<script src="rc-rules-data.js"></script>
+<script src="rc-rules-overlay.js"></script>
+<script src="rc-shell.js"></script>
+<script>
+  const $=id=>document.getElementById(id);
+  const pInt=v=>(v==='—'||v==null)?0:(parseInt(v)||0);
+  const rated=fp=> fp<10?['优秀','p-green'] : fp<20?['良好','p-blue'] : fp<35?['偏高','p-amber'] : ['需调优','p-red'];
+
+  // ── 接真实 RC_RULES：只看有误报数据(非观察期)的规则 ──
+  const scored=RC_RULES.filter(r=>r.fp!=='—').sort((a,b)=>pInt(b.fp)-pInt(a.fp));
+  const kpiCard=(ico,bg,col,label,num,sub)=>`<div class="kpi"><div class="kpi-lbl"><span class="kpi-ico" style="background:${bg};color:${col}">${ico}</span>${label}</div><div class="kpi-num tnum">${num}</div><div class="small muted mt-sm">${sub}</div></div>`;
+  const recRow=(ico,bg,title,desc,btn,href)=>`<div class="rec"><div class="rec-ico" style="background:${bg}">${ico}</div><div style="flex:1"><div class="cell-strong">${title}</div><div class="small muted mt-sm">${desc}</div></div><a class="btn btn-sm ${btn==='去调优'?'btn-primary':''}" href="${href}">${btn}</a></div>`;
+
+  // 规则准确率排名（整宽通栏；点击 = 在本页查看该规则效果）
+  const APP={chain:'链上',deposit:'充值',withdraw:'提现',both:'充提'};
+  const rankCard=()=>`<div class="table-card"><div class="card-head"><div><div class="card-title">规则准确率排名</div><div class="card-desc">误报率从高到低 · 点击任一行查看该规则效果</div></div></div>
+    <table class="tbl"><thead><tr><th>规则</th><th>类别</th><th>适用</th><th>近30日命中</th><th>误报率</th><th>评级</th><th style="text-align:right">操作</th></tr></thead><tbody>${
+      scored.map(r=>{const fp=pInt(r.fp),rt=rated(fp);return `<tr class="clickable" onclick="selectPerfRule('${r.id}')"><td class="cell-strong">${r.name}</td><td><span class="chip">${r.category}</span></td><td>${APP[r.applic]||'—'}</td><td class="tnum">${r.hits30d}</td><td class="tnum">${r.fp}</td><td><span class="pill ${rt[1]}">${rt[0]}</span></td><td style="text-align:right"><button class="btn btn-sm" onclick="event.stopPropagation();selectPerfRule('${r.id}')">查看效果</button></td></tr>`;}).join('')
+    }</tbody></table></div>`;
+
+  // 规则下拉
+  $('perfRuleSel').innerHTML=`<option value="">全部规则 · 总览</option>`+RC_RULES.map(r=>`<option value="${r.id}">${r.name}${r.fp==='—'?'（观察期）':''}</option>`).join('');
+  $('perfRuleSel').addEventListener('change',()=>renderPerf($('perfRuleSel').value));
+  window.selectPerfRule=id=>{$('perfRuleSel').value=id;renderPerf(id);};
+
+  // 处置结果分布数据：总览(按月趋势) / 单规则(按其 fp 与命中动作推导)
+  const OVERVIEW=[{m:'1月',ok:42,mat:18,rej:14},{m:'2月',ok:50,mat:20,rej:18},{m:'3月',ok:58,mat:16,rej:22},{m:'4月',ok:61,mat:14,rej:19},{m:'5月',ok:66,mat:12,rej:17},{m:'6月',ok:71,mat:11,rej:15}];
+  function ruleChartData(r){
+    const release=pInt(r.fp)/100, rejOfRest=r.action[1]==='p-red'?0.7:0.4, base=r.hits30d||1;
+    return ['1月','2月','3月','4月','5月','6月'].map((m,i)=>{const t=Math.max(1,Math.round(base*[0.72,0.8,0.86,0.9,0.95,1][i]));const ok=Math.round(t*release);const rej=Math.round((t-ok)*rejOfRest);return {m,ok,mat:Math.max(0,t-ok-rej),rej};});
+  }
+  function drawChart(data){
+    const x0=40,x1=540,y0=14,y1=176, maxT=Math.max(1,...data.map(d=>d.ok+d.mat+d.rej));
+    const Y=v=>y1-(v/maxT)*(y1-y0), bw=(x1-x0)/data.length, barW=Math.min(30,bw*0.5);
+    const ticks=[0,.25,.5,.75,1].map(p=>`<line x1="${x0}" y1="${Y(maxT*p)}" x2="${x1}" y2="${Y(maxT*p)}" stroke="var(--line-soft)"/><text x="${x0-7}" y="${Y(maxT*p)+3}" font-size="9" fill="var(--text-3)" text-anchor="end">${Math.round(maxT*p)}</text>`).join('');
+    const bars=data.map((d,i)=>{const cx=x0+bw*(i+0.5), x=cx-barW/2;const gT=Y(d.ok), aT=Y(d.ok+d.mat), rT=Y(d.ok+d.mat+d.rej);
+      return `<rect x="${x}" y="${gT}" width="${barW}" height="${y1-gT}" fill="var(--green)"/><rect x="${x}" y="${aT}" width="${barW}" height="${gT-aT}" fill="var(--amber)"/><rect x="${x}" y="${rT}" width="${barW}" height="${aT-rT}" rx="3" fill="var(--red)"/><text x="${cx}" y="${y1+17}" font-size="10" fill="var(--text-3)" text-anchor="middle">${d.m}</text><rect x="${x0+bw*i}" y="${y0}" width="${bw}" height="${y1-y0}" fill="transparent" data-i="${i}" style="cursor:pointer"/>`;
+    }).join('');
+    $('perfChart').innerHTML=`<line x1="${x0}" y1="${y1}" x2="${x1}" y2="${y1}" stroke="var(--line)"/>${ticks}${bars}`;
+    const svg=$('perfChart'), tip=$('perfTip');
+    svg.onpointermove=e=>{const r=e.target.closest('[data-i]'); if(!r){tip.style.display='none';return;} const d=data[+r.dataset.i], t=d.ok+d.mat+d.rej, box=svg.getBoundingClientRect(); tip.style.display='block'; tip.style.left=(e.clientX-box.left)+'px'; tip.innerHTML=`${d.m} · 命中 ${t}（驳回 ${d.rej} / 补料 ${d.mat} / 放行 ${d.ok}）· 误报率 ${(t?d.ok/t*100:0).toFixed(0)}%`;};
+    svg.onpointerleave=()=>tip.style.display='none';
+  }
+
+  // 总览 / 单规则 统一渲染
+  function renderPerf(sel){
+    const r=sel?RC_RULES.find(x=>x.id===sel):null;
+    // 头部
+    if(r){const rt=rated(pInt(r.fp));
+      $('perfHeader').innerHTML=`<div class="card mb-md"><div style="display:flex;align-items:center;gap:14px;padding:15px 18px;flex-wrap:wrap">
+        <div style="width:42px;height:42px;border-radius:12px;background:var(--brand-soft);color:var(--brand);display:flex;align-items:center;justify-content:center;flex-shrink:0"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:20px;height:20px"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg></div>
+        <div style="flex:1;min-width:160px"><div class="row" style="gap:9px;flex-wrap:wrap"><span style="font-size:16px;font-weight:800;letter-spacing:-.01em">${r.name}</span><span class="pill ${rt[1]}">${rt[0]}</span></div><div class="small muted" style="margin-top:3px">${r.category} · 适用 ${APP[r.applic]||'—'} · 权重 ${r.weight} · <span class="mono">${r.id}</span></div></div>
+        <div class="row" style="gap:8px;flex-shrink:0"><button class="btn btn-sm btn-ghost" onclick="selectPerfRule('')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>返回总览</button><a class="btn btn-sm" href="rc-rule.html?id=${r.id}">规则详情</a><a class="btn btn-sm btn-primary" href="rc-backtest.html?id=${r.id}">去回测</a></div>
+      </div></div>`;
+    } else $('perfHeader').innerHTML='';
+    // KPI
+    if(r){const fp=pInt(r.fp),high=fp>=30;
+      $('perfKpis').innerHTML=
+        kpiCard('🎯','var(--blue-bg)','var(--blue)','规则准确率',r.precision==='—'?'—':r.precision,'命中判定有效占比')
+       +kpiCard('⚠','var(--amber-bg)','var(--amber)','误报率',r.fp,high?'<span style="color:var(--red)">偏高 · 建议调优</span>':'处于健康区间')
+       +kpiCard('📊','var(--green-bg)','var(--green)','近 30 日命中',(r.hits30d||0).toLocaleString(),'该规则命中量')
+       +kpiCard('⚖','var(--violet-bg)','var(--violet)','风险权重',r.weight,'命中动作 · '+r.action[0]);
+    } else {
+      const withPrec=RC_RULES.filter(x=>x.precision&&x.precision!=='—');
+      const acc=withPrec.length?Math.round(withPrec.reduce((s,x)=>s+pInt(x.precision),0)/withPrec.length*10)/10:0;
+      const totHits=scored.reduce((s,x)=>s+(x.hits30d||0),0);
+      const wFp=totHits?scored.reduce((s,x)=>s+pInt(x.fp)*(x.hits30d||0),0)/totHits:0;
+      $('perfKpis').innerHTML=
+        kpiCard('🎯','var(--blue-bg)','var(--blue)','规则准确率',acc+'%','全部规则平均精确率')
+       +kpiCard('⚠','var(--amber-bg)','var(--amber)','整体误报率',wFp.toFixed(1)+'%','命中加权平均')
+       +kpiCard('🕳','var(--red-bg)','var(--red)','漏报（事后发现）','2','近 30 日 ↑ 1 笔')
+       +kpiCard('⏱','var(--green-bg)','var(--green)','平均处置时长','6.2h','环比 ↓ 1.4h');
+    }
+    // 图表
+    drawChart(r?ruleChartData(r):OVERVIEW);
+    if(r){
+      // 单规则：右侧=近期命中样例；通栏排名隐藏
+      const sr=(r.samples&&r.samples.length)
+        ? r.samples.map(s=>`<tr><td class="mono cell-strong">${s[0]}</td><td>${s[1]}</td><td class="tnum">${s[2]}</td><td>${s[3]}</td><td><span class="chip">${s[5]}</span></td></tr>`).join('')
+        : `<tr><td colspan="5" class="muted" style="text-align:center;padding:18px 0">观察期 / 暂无命中样例</td></tr>`;
+      $('perfSide').innerHTML=`<div class="table-card"><div class="card-head"><div><div class="card-title">近期命中样例</div><div class="card-desc">${r.name} · 对照历史人工结论</div></div><a class="btn-link" href="rc-alerts.html">全部命中 →</a></div><table class="tbl"><thead><tr><th>关联告警</th><th>商户</th><th>金额</th><th>命中值</th><th>结果</th></tr></thead><tbody>${sr}</tbody></table></div>`;
+      $('perfRankWrap').innerHTML='';
+    } else {
+      // 总览：右侧=规则评级分布；通栏=完整排名
+      const order=[['需调优','p-red','var(--red)'],['偏高','p-amber','var(--amber)'],['良好','p-blue','var(--brand)'],['优秀','p-green','var(--green)']];
+      const cnt={需调优:0,偏高:0,良好:0,优秀:0}; scored.forEach(x=>cnt[rated(pInt(x.fp))[0]]++);
+      const obs=RC_RULES.filter(x=>x.fp==='—').length, mx=Math.max(1,...Object.values(cnt));
+      const bars=order.map(([lab,cls,col])=>`<div class="row" style="gap:12px"><span class="pill ${cls}" style="min-width:52px;justify-content:center">${lab}</span><div class="bar-track" style="flex:1"><div class="bar-fill" style="width:${cnt[lab]/mx*100}%;background:${col}"></div></div><span class="tnum muted" style="min-width:34px;text-align:right">${cnt[lab]} 条</span></div>`).join('');
+      $('perfSide').innerHTML=`<div class="card"><div class="card-head"><div><div class="card-title">规则评级分布</div><div class="card-desc">按误报率评级 · 共 ${scored.length} 条在用${obs?`（另 ${obs} 条观察期）`:''}</div></div></div><div class="card-body col" style="gap:13px">${bars}</div></div>`;
+      $('perfRankWrap').innerHTML=rankCard();
+    }
+    // 优化建议
+    if(r){const fp=pInt(r.fp);
+      if(fp>=40){const w=pInt(r.weight),nw=Math.max(5,Math.round(w*0.6));$('recBody').innerHTML=recRow('🔧','var(--red-bg)',`误报率 ${r.fp} 偏高，建议下调权重 +${w} → +${nw}`,'多数命中最终被放行，过度拦截正常交易、拖累 SLA。','去调优',`rc-rule-editor.html?id=${r.id}`);}
+      else if(fp>=20){$('recBody').innerHTML=recRow('📈','var(--amber-bg)',`误报率 ${r.fp} 偏高`,'建议结合商户分层 / 历史均值动态阈值，回测验证后再调阈值。','去回测',`rc-backtest.html?id=${r.id}`);}
+      else{$('recBody').innerHTML=`<p class="muted" style="padding:4px 2px">误报率 ${r.fp}，质量良好，暂无调优建议。&nbsp;<a class="btn-link" href="rc-backtest.html?id=${r.id}">去回测验证 →</a></p>`;}
+    } else {
+      const recs=[];
+      scored.filter(x=>pInt(x.fp)>=40).slice(0,2).forEach(x=>{const w=pInt(x.weight),nw=Math.max(5,Math.round(w*0.6));recs.push(recRow('🔧','var(--red-bg)',`「${x.name}」误报率 ${x.fp}，建议下调权重 +${w} → +${nw}`,'多数命中最终被放行，过度拦截正常交易、拖累 SLA。','去调优',`rc-rule-editor.html?id=${x.id}`));});
+      const amt=scored.find(x=>x.category==='金额阈值'&&pInt(x.fp)>=20);
+      if(amt) recs.push(recRow('📈','var(--amber-bg)',`「${amt.name}」建议引入商户历史均值动态阈值`,'固定金额阈值对大额商户误报偏高，建议改为「历史均值 × 3」。','去调优',`rc-rule-editor.html?id=${amt.id}`));
+      recs.push(recRow('🕳','var(--red-bg)','新增规则：监测「快进快出」钱包行为（漏报补强）','本期 2 笔漏报均为入金后 1 小时内转出，现有规则未覆盖。','去创建','rc-rule-editor.html'));
+      $('recBody').innerHTML=recs.join('');
+    }
+  }
+  // 深链 ?id=RULE-xxx：从详情/列表进来直接看该规则效果；否则总览
+  const perfQid=new URLSearchParams(location.search).get('id');
+  const initSel=(perfQid&&RC_RULES.some(r=>r.id===perfQid))?perfQid:'';
+  if(initSel) $('perfRuleSel').value=initSel;
+  renderPerf(initSel);
+
+  // 误报反馈 — 提交误报
+  (function(){
+    const fbody=document.querySelector('[data-panel="feedback"] .tbl tbody');
+    const kpi=document.querySelector('[data-panel="feedback"] .kpi .kpi-num');
+    const tabCount=document.querySelector('.tab-count');
+    const nextFb=()=>{let mx=2041;fbody.querySelectorAll('td.cell-strong').forEach(td=>{const m=td.textContent.match(/(\d+)/);if(m)mx=Math.max(mx,+m[1]);});return 'FB-'+(mx+1);};
+    document.getElementById('submitFpBtn').addEventListener('click',()=>RCModal.form({
+      title:'提交误报反馈', desc:'标记一条命中为误报，交策略团队复核', submitLabel:'提交误报',
+      fields:[
+        {name:'order',label:'关联告警 / 订单',placeholder:'DEP-…0288',required:true},
+        {name:'rule',label:'命中规则',type:'select',options:RC_RULES.map(r=>r.name)},
+        {name:'reason',label:'误报理由',type:'textarea',placeholder:'说明为何判定为误报…',required:true,full:true},
+        {name:'by',label:'提交人',value:'Sarah Chen'},
+      ],
+      onSubmit:v=>{
+        const fb=nextFb(), tr=document.createElement('tr'); tr.setAttribute('data-row','pending');
+        tr.innerHTML=`<td class="mono cell-strong">${fb}</td><td class="mono cell-addr">${v.order}</td><td>${v.rule}</td><td>${v.reason}</td><td>${v.by||'—'}</td><td><span class="pill p-amber"><span class="pdot"></span>待复核</span></td><td style="text-align:right"><button class="btn btn-sm" onclick="fbAction(this)">确认误报</button></td>`;
+        fbody.insertBefore(tr,fbody.firstChild);
+        if(kpi) kpi.textContent=(parseInt(kpi.textContent)||0)+1;
+        if(tabCount) tabCount.textContent=(parseInt(tabCount.textContent)||0)+1;
+        RCModal.toast('已提交误报反馈：'+fb);
+      }
+    }));
+  })();
+
+  // 误报反馈 — 详情 / 处理（统一详情弹窗，按状态给出动作）
+  const fbKpis=document.querySelectorAll('[data-panel="feedback"] .kpi .kpi-num'); // [待复核, 已确认误报, 已转调优, 驳回反馈]
+  const fbTab=document.querySelector('.tab-count');
+  const bump=(el,d)=>{ if(el) el.textContent=Math.max(0,(parseInt(el.textContent)||0)+d); };
+  const PILL={
+    pending:'<span class="pill p-amber"><span class="pdot"></span>待复核</span>',
+    tuned:'<span class="pill p-blue"><span class="pdot"></span>已转调优</span>',
+    rejected:'<span class="pill p-grey"><span class="pdot"></span>驳回（真风险）</span>'};
+  const statusOf=tr=>{const t=tr.children[5].textContent;return t.includes('待复核')?'pending':t.includes('已转调优')?'tuned':'rejected';};
+
+  window.fbAction=function(btn){
+    const tr=btn.closest('tr'), c=tr.children;
+    const fb=c[0].textContent.trim(), order=c[1].textContent.trim(), rule=c[2].textContent.trim(), reason=c[3].textContent.trim(), by=c[4].textContent.trim();
+    const st=statusOf(tr), tuneNo='TUNE-'+fb.replace('FB-','');
+    let html=`<dl class="kv" style="grid-template-columns:96px 1fr;gap:10px 14px">
+      <dt>反馈 ID</dt><dd class="mono cell-strong">${fb}</dd>
+      <dt>状态</dt><dd>${PILL[st]}</dd>
+      <dt>关联订单</dt><dd><a class="cell-addr mono" href="rc-review.html?id=${order}">${order}</a></dd>
+      <dt>命中规则</dt><dd>${rule}</dd>
+      <dt>提交人</dt><dd>${by}</dd></dl>
+      <div style="margin-top:14px"><div class="small muted" style="font-weight:600;margin-bottom:5px">误报理由</div><div style="background:var(--surface-3);border:1px solid var(--line);border-radius:10px;padding:11px 13px;font-size:12.5px;line-height:1.55">${reason}</div></div>`;
+    if(st==='tuned') html+=`<div style="margin-top:14px;border:1px solid var(--blue-bd);background:var(--brand-softer);border-radius:11px;padding:12px 14px"><div class="row" style="justify-content:space-between"><span class="cell-strong">调优工单 ${tuneNo}</span><span class="pill p-blue">待调优</span></div><div class="small muted mt-sm">已为规则「${rule}」生成调优工单，待策略团队在规则编辑器中调整阈值 / 权重。</div></div>`;
+    if(st==='rejected') html+=`<div class="small muted" style="margin-top:14px">经复核维持拦截，认定为真实风险，该反馈已驳回。</div>`;
+
+    const actions=[];
+    if(st==='pending'){
+      actions.push({label:'驳回 · 真风险',kind:'ghost',onClick:()=>{c[5].innerHTML=PILL.rejected;btn.outerHTML='<button class="btn btn-sm" onclick="fbAction(this)">详情</button>';tr.setAttribute('data-row','done');bump(fbKpis[0],-1);bump(fbKpis[3],1);bump(fbTab,-1);RCModal.toast(fb+' 已驳回（真风险）');}});
+      actions.push({label:'确认误报 · 转调优',kind:'primary',onClick:()=>{c[5].innerHTML=PILL.tuned;btn.outerHTML='<button class="btn btn-sm" onclick="fbAction(this)">查看工单</button>';tr.setAttribute('data-row','done');bump(fbKpis[0],-1);bump(fbKpis[1],1);bump(fbKpis[2],1);bump(fbTab,-1);RCModal.toast(fb+' 已确认误报，已转调优工单 '+tuneNo);}});
+    } else if(st==='tuned'){
+      const rid=(RC_RULES.find(x=>x.name===rule)||{}).id||'';
+      actions.push({label:'去规则编辑器调优',kind:'primary',onClick:()=>{location.href='rc-rule-editor.html'+(rid?'?id='+rid:'');return false;}});
+    }
+    RCModal.dialog({title:'误报详情 · '+fb, desc:rule, html, actions});
+  };
+
+  // 深链：?tab=feedback 直接打开误报反馈页签（标签点击由 rc-shell wire() 接管）
+  document.addEventListener('DOMContentLoaded',()=>{
+    if(new URLSearchParams(location.search).get('tab')==='feedback'){
+      const t=document.querySelector('.tab[data-tab="feedback"]'); if(t) t.click();
+    }
+  });
+</script>
+</body>
+</html>

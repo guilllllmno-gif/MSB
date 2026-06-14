@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>风险策略与规则 · FuturePayCA 风控</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="risk-design-system.css">
+<style>
+  .switch{position:relative;width:38px;height:22px;border-radius:999px;background:var(--brand);cursor:pointer;flex-shrink:0}
+  .switch.off{background:var(--surface-2);border:1px solid var(--line)}
+  .switch::after{content:"";position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:left .15s}
+  .switch.off::after{left:2px;top:1px} .switch:not(.off)::after{left:18px}
+  .seg{display:inline-flex;background:var(--surface-2);border-radius:9px;padding:3px;gap:2px}
+  .seg button{border:none;background:none;padding:5px 12px;border-radius:7px;font-size:12.5px;font-weight:500;color:var(--text-2);cursor:pointer;font-family:inherit}
+  .seg button.active{background:var(--surface);color:var(--text);box-shadow:var(--shadow-sm);font-weight:600}
+  .thr-input{width:120px;height:32px;border:1px solid var(--line);border-radius:8px;padding:0 10px;font-family:inherit;font-size:13px}
+  .tab-panel[hidden]{display:none}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="sb-logo"><div class="sb-logo-mark">F</div><div class="sb-logo-text">Future<span>Pay</span>CA</div></div>
+    <nav class="sb-nav">
+      <a class="sb-item" href="risk-control.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 12l9-9 9 9M5 10v10h14V10"/></svg>风控总览</a>
+      <div class="sb-group">事前 · 配置</div>
+      <a class="sb-item active" href="risk-pre.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-2.82 1.17V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 8 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 3.6 15H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 5 8.6a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 3.6V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 2 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 21 9h.6a2 2 0 0 1 0 4H21z"/></svg>风险策略与规则</a>
+      <div class="sb-group">事中 · 执行</div>
+      <a class="sb-item" href="risk-monitoring.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>事中监控<span class="sb-tag">10</span></a>
+      <a class="sb-item" href="risk-review.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 11l3 3 8-8"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>审核决策</a>
+      <div class="sb-group">事后 · 处置</div>
+      <a class="sb-item" href="risk-post.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 13h6M9 17h6"/></svg>案件处置与上报</a>
+      <div class="sb-group">反馈 · 优化</div>
+      <a class="sb-item" href="risk-feedback.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>规则效果与调优</a>
+    </nav>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div class="crumb"><span>风控</span><span class="sep">/</span><span>事前配置</span><span class="sep">/</span><span class="cur">风险策略与规则</span></div>
+      <div class="topbar-right"><button class="icon-btn"><span class="dot"></span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></button><div class="avatar">JS</div></div>
+    </header>
+
+    <div class="content">
+      <div class="content-wrap">
+        <div class="pg-head">
+          <div>
+            <h1 class="pg-title">风险策略与规则</h1>
+            <p class="pg-sub">事前定义风控规则、阈值与名单，作为事中监控引擎的判定依据。变更需复核生效。</p>
+          </div>
+          <div class="row"><button class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 8v8M8 12h8"/><circle cx="12" cy="12" r="10"/></svg>新建规则</button><button class="btn btn-primary"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 6 9 17l-5-5"/></svg>发布变更</button></div>
+        </div>
+
+        <!-- summary tiles -->
+        <div class="grid-4 mb-md">
+          <div class="kpi"><div class="kpi-lbl"><span class="kpi-ico" style="background:var(--blue-bg);color:var(--blue)">⚙</span>启用规则</div><div class="kpi-num tnum">42</div><div class="small muted mt-sm">共 58 条 · 16 条停用</div></div>
+          <div class="kpi"><div class="kpi-lbl"><span class="kpi-ico" style="background:var(--amber-bg);color:var(--amber)">⏱</span>待复核变更</div><div class="kpi-num tnum">3</div><div class="kpi-delta d-up">需 MLRO 审批</div></div>
+          <div class="kpi"><div class="kpi-lbl"><span class="kpi-ico" style="background:var(--red-bg);color:var(--red)">⛔</span>制裁名单</div><div class="kpi-num tnum">1,284</div><div class="small muted mt-sm">OFAC / UN / 自定义</div></div>
+          <div class="kpi"><div class="kpi-lbl"><span class="kpi-ico" style="background:var(--green-bg);color:var(--green)">🎯</span>策略命中率</div><div class="kpi-num tnum">8.4%</div><div class="kpi-delta d-down">近30日 ↓1.2%</div></div>
+        </div>
+
+        <div class="tabs">
+          <div class="tab active" data-tab="rules">监控规则</div>
+          <div class="tab" data-tab="thr">阈值矩阵</div>
+          <div class="tab" data-tab="lists">名单管理</div>
+          <div class="tab" data-tab="score">评分模型</div>
+        </div>
+
+        <!-- ════════ TAB: 监控规则 ════════ -->
+        <section class="tab-panel" data-panel="rules">
+        <!-- rules table -->
+        <div class="table-card mb-md">
+          <div class="card-head"><div><div class="card-title">交易监控规则</div><div class="card-desc">命中后订单进入「事中监控」队列，按权重累加生成风险评分</div></div>
+            <div class="search" style="max-width:260px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg><input placeholder="搜索规则名称…"></div>
+          </div>
+          <table class="tbl">
+            <thead><tr><th>规则名称</th><th>类别</th><th>触发条件</th><th>命中动作</th><th>风险权重</th><th>近30日命中</th><th>状态</th><th style="text-align:right">操作</th></tr></thead>
+            <tbody>
+              <tr><td class="cell-strong">大额充值监控</td><td><span class="chip">金额阈值</span></td><td>单笔充值 ≥ CAD 5,000</td><td><span class="pill p-amber">暂缓入账</span></td><td><span class="pill p-red">+60</span></td><td class="tnum">312</td><td><span class="row"><span class="switch"></span></span></td><td style="text-align:right"><button class="btn btn-sm">编辑</button></td></tr>
+              <tr><td class="cell-strong">混币器关联</td><td><span class="chip">链上溯源</span></td><td>资金 ≤ 2 跳触及制裁地址</td><td><span class="pill p-red">冻结+升级</span></td><td><span class="pill p-red">+35</span></td><td class="tnum">47</td><td><span class="row"><span class="switch"></span></span></td><td style="text-align:right"><button class="btn btn-sm">编辑</button></td></tr>
+              <tr><td class="cell-strong">高风险地址检测</td><td><span class="chip">链上溯源</span></td><td>发送方命中暗网/赌博标签</td><td><span class="pill p-amber">待补充材料</span></td><td><span class="pill p-amber">+25</span></td><td class="tnum">96</td><td><span class="row"><span class="switch"></span></span></td><td style="text-align:right"><button class="btn btn-sm">编辑</button></td></tr>
+              <tr><td class="cell-strong">新商户首充</td><td><span class="chip">行为</span></td><td>商户首笔 & KYB 未完成</td><td><span class="pill p-amber">人工审核</span></td><td><span class="pill p-amber">+20</span></td><td class="tnum">158</td><td><span class="row"><span class="switch"></span></span></td><td style="text-align:right"><button class="btn btn-sm">编辑</button></td></tr>
+              <tr><td class="cell-strong">高频拆分入金</td><td><span class="chip">行为</span></td><td>24h 内 ≥ 5 笔且金额相近</td><td><span class="pill p-amber">暂缓入账</span></td><td><span class="pill p-amber">+30</span></td><td class="tnum">73</td><td><span class="row"><span class="switch"></span></span></td><td style="text-align:right"><button class="btn btn-sm">编辑</button></td></tr>
+              <tr style="opacity:.6"><td class="cell-strong">跨境结构化交易</td><td><span class="chip">行为</span></td><td>多账户向同一钱包归集</td><td><span class="pill p-grey">仅记录</span></td><td><span class="pill p-grey">+15</span></td><td class="tnum">—</td><td><span class="row"><span class="switch off"></span></span></td><td style="text-align:right"><button class="btn btn-sm">编辑</button></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        </section><!-- /rules -->
+
+        <!-- ════════ TAB: 阈值矩阵 ════════ -->
+        <section class="tab-panel" data-panel="thr" hidden>
+          <div class="card mb-md">
+            <div class="card-head">
+              <div><div class="card-title">金额阈值矩阵</div><div class="card-desc">按「商户风险分级 × 交易类型」设定暂缓门槛，引擎取就低原则触发</div></div>
+              <span class="pill p-blue"><span class="pdot"></span>就低原则</span>
+            </div>
+            <table class="tbl">
+              <thead><tr><th>商户风险分级</th><th>充值 · 暂缓阈值</th><th>提现 · 暂缓阈值</th><th>单日累计上限</th><th>自动放行上限</th><th style="text-align:right">操作</th></tr></thead>
+              <tbody>
+                <tr><td><span class="risk"><span class="risk-badge risk-lo">低</span>低风险商户</span></td>
+                  <td><span class="row"><input class="thr-input tnum" value="10,000"><span class="muted">CAD</span></span></td>
+                  <td><span class="row"><input class="thr-input tnum" value="8,000"><span class="muted">CAD</span></span></td>
+                  <td><span class="row"><input class="thr-input tnum" value="50,000"><span class="muted">CAD</span></span></td>
+                  <td><span class="row"><input class="thr-input tnum" value="1,000"><span class="muted">CAD</span></span></td>
+                  <td style="text-align:right"><button class="btn btn-sm">重置</button></td></tr>
+                <tr><td><span class="risk"><span class="risk-badge risk-md">中</span>中风险商户</span></td>
+                  <td><span class="row"><input class="thr-input tnum" value="5,000"><span class="muted">CAD</span></span></td>
+                  <td><span class="row"><input class="thr-input tnum" value="3,000"><span class="muted">CAD</span></span></td>
+                  <td><span class="row"><input class="thr-input tnum" value="20,000"><span class="muted">CAD</span></span></td>
+                  <td><span class="row"><input class="thr-input tnum" value="500"><span class="muted">CAD</span></span></td>
+                  <td style="text-align:right"><button class="btn btn-sm">重置</button></td></tr>
+                <tr><td><span class="risk"><span class="risk-badge risk-hi">高</span>高风险商户</span></td>
+                  <td><span class="row"><input class="thr-input tnum" value="1,000"><span class="muted">CAD</span></span></td>
+                  <td><span class="row"><input class="thr-input tnum" value="500"><span class="muted">CAD</span></span></td>
+                  <td><span class="row"><input class="thr-input tnum" value="5,000"><span class="muted">CAD</span></span></td>
+                  <td><span class="row"><input class="thr-input tnum" value="0"><span class="muted">CAD</span></span></td>
+                  <td style="text-align:right"><button class="btn btn-sm">重置</button></td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="grid-2">
+            <div class="card">
+              <div class="card-head"><div><div class="card-title">KYW 钱包级阈值</div><div class="card-desc">针对单一钱包地址的提现限额</div></div></div>
+              <div class="card-body col" style="gap:14px">
+                <div class="row" style="justify-content:space-between"><span>单笔提现暂缓阈值</span><div class="row"><input class="thr-input tnum" value="3,000"><span class="muted">CAD</span></div></div>
+                <div class="row" style="justify-content:space-between"><span>24h 累计暂缓阈值</span><div class="row"><input class="thr-input tnum" value="10,000"><span class="muted">CAD</span></div></div>
+                <div class="row" style="justify-content:space-between"><span>30d 累计预警阈值</span><div class="row"><input class="thr-input tnum" value="100,000"><span class="muted">CAD</span></div></div>
+                <p class="small muted" style="border-top:1px solid var(--line-soft);padding-top:12px">钱包阈值与商户阈值取就低值生效。</p>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-head"><div><div class="card-title">生效与复核</div><div class="card-desc">阈值变更的发布控制</div></div></div>
+              <div class="card-body col" style="gap:14px">
+                <div class="row" style="justify-content:space-between"><span>变更需双人复核</span><span class="switch"></span></div>
+                <div class="row" style="justify-content:space-between"><span>高风险阈值下调即时生效</span><span class="switch"></span></div>
+                <div class="row" style="justify-content:space-between"><span>阈值上调需 MLRO 审批</span><span class="switch"></span></div>
+                <div class="row" style="justify-content:space-between;border-top:1px solid var(--line-soft);padding-top:14px"><span class="muted small">上次发布：2026-05-28 · David Wu (MLRO)</span></div>
+              </div>
+            </div>
+          </div>
+        </section><!-- /thr -->
+
+        <!-- ════════ TAB: 名单管理 ════════ -->
+        <section class="tab-panel" data-panel="lists" hidden>
+          <div class="grid-3 mb-md">
+            <div class="kpi"><div class="kpi-lbl"><span class="kpi-ico" style="background:var(--red-bg);color:var(--red)">⛔</span>黑名单 / 制裁</div><div class="kpi-num tnum">1,284</div><div class="small muted mt-sm">OFAC · UN · 自定义</div></div>
+            <div class="kpi"><div class="kpi-lbl"><span class="kpi-ico" style="background:var(--green-bg);color:var(--green)">✓</span>白名单（免审）</div><div class="kpi-num tnum">96</div><div class="small muted mt-sm">可信商户 / 钱包</div></div>
+            <div class="kpi"><div class="kpi-lbl"><span class="kpi-ico" style="background:var(--amber-bg);color:var(--amber)">👁</span>关注名单</div><div class="kpi-num tnum">213</div><div class="small muted mt-sm">加强监控对象</div></div>
+          </div>
+
+          <div class="table-card mb-md">
+            <div class="card-head">
+              <div><div class="card-title">名单条目</div><div class="card-desc">事中引擎实时比对发送方地址、商户与受益人</div></div>
+              <div class="row">
+                <div class="seg"><button class="active" data-list="all">全部</button><button data-list="black">黑名单</button><button data-list="white">白名单</button><button data-list="watch">关注</button></div>
+                <button class="btn btn-sm btn-primary"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 5v14M5 12h14"/></svg>添加</button>
+              </div>
+            </div>
+            <table class="tbl">
+              <thead><tr><th>对象</th><th>类型</th><th>名单</th><th>来源</th><th>命中动作</th><th>添加时间</th><th style="text-align:right">操作</th></tr></thead>
+              <tbody>
+                <tr data-row="black"><td class="mono cell-strong">0x7F4a…9c21</td><td><span class="chip">钱包地址</span></td><td><span class="pill p-red">黑名单</span></td><td>OFAC SDN</td><td><span class="pill p-red">拒绝交易</span></td><td class="muted tnum">2026-01-12</td><td style="text-align:right"><button class="btn btn-sm">移除</button></td></tr>
+                <tr data-row="black"><td class="mono cell-strong">Tornado Cash Router</td><td><span class="chip">混币器</span></td><td><span class="pill p-red">黑名单</span></td><td>OFAC</td><td><span class="pill p-red">冻结+升级</span></td><td class="muted tnum">2026-01-12</td><td style="text-align:right"><button class="btn btn-sm">移除</button></td></tr>
+                <tr data-row="watch"><td class="cell-strong">Eastwind Exchange Ltd.</td><td><span class="chip">商户</span></td><td><span class="pill p-amber">关注名单</span></td><td>内部风控</td><td><span class="pill p-amber">加强审核</span></td><td class="muted tnum">2026-03-04</td><td style="text-align:right"><button class="btn btn-sm">移除</button></td></tr>
+                <tr data-row="white"><td class="cell-strong">NovaPay Treasury</td><td><span class="chip">商户</span></td><td><span class="pill p-green">白名单</span></td><td>合规审批</td><td><span class="pill p-green">免审放行</span></td><td class="muted tnum">2025-11-20</td><td style="text-align:right"><button class="btn btn-sm">移除</button></td></tr>
+                <tr data-row="white"><td class="mono cell-strong">0x91Ad…77F2</td><td><span class="chip">钱包地址</span></td><td><span class="pill p-green">白名单</span></td><td>合规审批</td><td><span class="pill p-green">免审放行</span></td><td class="muted tnum">2025-11-20</td><td style="text-align:right"><button class="btn btn-sm">移除</button></td></tr>
+                <tr data-row="watch"><td class="cell-strong">高频拆分关联群组 #A7</td><td><span class="chip">群组</span></td><td><span class="pill p-amber">关注名单</span></td><td>模型识别</td><td><span class="pill p-amber">加强审核</span></td><td class="muted tnum">2026-05-19</td><td style="text-align:right"><button class="btn btn-sm">移除</button></td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="card">
+            <div class="card-head"><div><div class="card-title">名单同步源</div><div class="card-desc">外部制裁名单自动同步</div></div></div>
+            <div class="card-body col" style="gap:0">
+              <div class="row" style="justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--line-soft)"><span class="row" style="gap:10px"><span class="kpi-ico" style="background:var(--red-bg);color:var(--red)">🌐</span><span><div class="cell-strong">OFAC SDN List</div><div class="small muted">美国财政部 · 每日同步</div></span></span><span class="pill p-green"><span class="pdot"></span>已同步 · 今日 06:00</span></div>
+              <div class="row" style="justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--line-soft)"><span class="row" style="gap:10px"><span class="kpi-ico" style="background:var(--blue-bg);color:var(--blue)">🌐</span><span><div class="cell-strong">UN Consolidated List</div><div class="small muted">联合国安理会 · 每周同步</div></span></span><span class="pill p-green"><span class="pdot"></span>已同步 · 06-02</span></div>
+              <div class="row" style="justify-content:space-between;padding:11px 0"><span class="row" style="gap:10px"><span class="kpi-ico" style="background:var(--violet-bg);color:var(--violet)">⛓</span><span><div class="cell-strong">Chainalysis 链上标签库</div><div class="small muted">实时 API</div></span></span><span class="pill p-blue"><span class="pdot"></span>实时</span></div>
+            </div>
+          </div>
+        </section><!-- /lists -->
+
+        <!-- ════════ TAB: 评分模型 ════════ -->
+        <section class="tab-panel" data-panel="score" hidden>
+          <div class="grid-2 mb-md">
+            <div class="card">
+              <div class="card-head"><div><div class="card-title">风险评分阈值</div><div class="card-desc">累加权重后映射到处置动作</div></div>
+                <div class="seg"><button class="active">充值</button><button>提现</button></div>
+              </div>
+              <div class="card-body col" style="gap:14px">
+                <div class="row" style="justify-content:space-between"><span class="row"><span class="risk-badge risk-lo">低</span> 0 – 39</span><span class="pill p-green">自动放行</span></div>
+                <div class="row" style="justify-content:space-between"><span class="row"><span class="risk-badge risk-md">中</span> 40 – 69</span><span class="pill p-amber">人工审核 (L1)</span></div>
+                <div class="row" style="justify-content:space-between"><span class="row"><span class="risk-badge risk-hi">高</span> 70 – 89</span><span class="pill p-amber">复核 (L2) + 暂缓</span></div>
+                <div class="row" style="justify-content:space-between"><span class="row"><span class="risk-badge risk-hi">极高</span> 90 – 100</span><span class="pill p-red">冻结 + 升级 MLRO</span></div>
+                <p class="small muted" style="border-top:1px solid var(--line-soft);padding-top:12px">示例命中评分 95 → 落入「极高」区间 → 冻结并升级 MLRO。</p>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-head"><div><div class="card-title">评分区间分布</div><div class="card-desc">近30日命中订单评分落点</div></div></div>
+              <div class="card-body">
+                <div style="display:flex;align-items:flex-end;gap:14px;height:150px;padding-top:8px">
+                  <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:7px;height:100%"><div style="width:100%;max-width:42px;margin-top:auto;height:35%;background:var(--green-bg);border:1px solid var(--green-bd);border-radius:5px 5px 0 0"></div><span class="small muted">低</span></div>
+                  <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:7px;height:100%"><div style="width:100%;max-width:42px;margin-top:auto;height:70%;background:var(--amber-bg);border:1px solid var(--amber-bd);border-radius:5px 5px 0 0"></div><span class="small muted">中</span></div>
+                  <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:7px;height:100%"><div style="width:100%;max-width:42px;margin-top:auto;height:50%;background:var(--amber-bg);border:1px solid var(--amber-bd);border-radius:5px 5px 0 0"></div><span class="small muted">高</span></div>
+                  <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:7px;height:100%"><div style="width:100%;max-width:42px;margin-top:auto;height:90%;background:var(--red-bg);border:1px solid var(--red-bd);border-radius:5px 5px 0 0"></div><span class="small muted">极高</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="table-card">
+            <div class="card-head"><div><div class="card-title">评分因子权重</div><div class="card-desc">各规则命中后对总评分的贡献，可拖动调整</div></div><span class="pill p-violet">总权重 100%</span></div>
+            <table class="tbl">
+              <thead><tr><th>评分因子</th><th>类别</th><th style="width:280px">权重</th><th>当前值</th><th>状态</th></tr></thead>
+              <tbody>
+                <tr><td class="cell-strong">链上溯源风险</td><td><span class="chip">链上</span></td><td><div class="bar-track"><div class="bar-fill" style="width:35%"></div></div></td><td class="cell-strong tnum">35%</td><td><span class="switch"></span></td></tr>
+                <tr><td class="cell-strong">金额阈值偏离</td><td><span class="chip">金额</span></td><td><div class="bar-track"><div class="bar-fill" style="width:25%"></div></div></td><td class="cell-strong tnum">25%</td><td><span class="switch"></span></td></tr>
+                <tr><td class="cell-strong">商户/客户分级</td><td><span class="chip">主体</span></td><td><div class="bar-track"><div class="bar-fill" style="width:20%"></div></div></td><td class="cell-strong tnum">20%</td><td><span class="switch"></span></td></tr>
+                <tr><td class="cell-strong">行为模式异常</td><td><span class="chip">行为</span></td><td><div class="bar-track"><div class="bar-fill" style="width:15%"></div></div></td><td class="cell-strong tnum">15%</td><td><span class="switch"></span></td></tr>
+                <tr><td class="cell-strong">名单命中</td><td><span class="chip">名单</span></td><td><div class="bar-track"><div class="bar-fill" style="width:5%"></div></div></td><td class="cell-strong tnum">5%</td><td><span class="switch"></span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section><!-- /score -->
+
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+  document.querySelectorAll('.switch').forEach(s=>s.addEventListener('click',()=>s.classList.toggle('off')));
+
+  // top tabs ↔ panels
+  document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+    t.classList.add('active');
+    const id=t.dataset.tab;
+    document.querySelectorAll('.tab-panel').forEach(p=>p.hidden = p.dataset.panel!==id);
+  }));
+
+  // segmented controls (score period / list filter)
+  document.querySelectorAll('.seg button').forEach(b=>b.addEventListener('click',()=>{
+    b.parentNode.querySelectorAll('button').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active');
+    // list filter
+    if(b.dataset.list){
+      const f=b.dataset.list;
+      document.querySelectorAll('tr[data-row]').forEach(r=>{
+        r.style.display = (f==='all'||r.dataset.row===f)?'':'none';
+      });
+    }
+  }));
+</script>
+</body>
+</html>

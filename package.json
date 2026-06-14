@@ -1,0 +1,13 @@
+{
+  "name": "futurepayca-backtest",
+  "version": "1.0.0",
+  "private": true,
+  "description": "FuturePayCA 风控 · 回测后端（零依赖 Node）",
+  "scripts": {
+    "start": "node server/server.js",
+    "dev": "node --watch server/server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

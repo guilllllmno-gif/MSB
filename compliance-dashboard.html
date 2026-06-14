@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>合规总览 · FuturePay</title>
+<style>
+:root{
+  --bg:#f8fafc; --card:#fff; --ink:#0f172a; --ink-2:#475569; --ink-3:#64748b; --ink-4:#94a3b8;
+  --line:#e5e7eb; --line-soft:#f1f5f9; --muted:#f8fafc;
+  --violet:#7c3aed; --violet-bg:#f5f3ff; --violet-bd:#ddd6fe;
+  --emerald:#059669; --emerald-bg:#ecfdf5; --emerald-bd:#a7f3d0;
+  --amber:#b45309; --amber-bg:#fffbeb; --amber-bd:#fde68a;
+  --red:#dc2626; --red-bg:#fef2f2; --red-bd:#fecaca;
+  --blue:#2563eb; --blue-bg:#eff6ff; --blue-bd:#bfdbfe;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI",sans-serif;background:var(--bg);color:var(--ink);font-size:13px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1200px;margin:0 auto;padding:24px 20px;display:flex;flex-direction:column;gap:18px}
+.tab-num{font-variant-numeric:tabular-nums}
+
+/* header */
+.pg-head{display:flex;align-items:flex-end;justify-content:space-between}
+.pg-title{font-size:22px;font-weight:800;letter-spacing:-.01em}
+.pg-sub{font-size:13px;color:var(--ink-3);margin-top:3px}
+.btn{height:32px;padding:0 14px;border-radius:8px;border:none;background:var(--ink);color:#fff;font-size:13px;font-weight:500;display:inline-flex;align-items:center;gap:6px;cursor:pointer}
+.btn:hover{background:#1e293b}
+.btn svg{width:15px;height:15px}
+
+/* card */
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:0 1px 2px rgba(15,23,42,.04)}
+.card-pad{padding:16px 18px}
+.card-head{padding:15px 18px 0;display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.card-title{font-size:15px;font-weight:600}
+.card-desc{font-size:12px;color:var(--ink-3);margin-top:2px}
+.card-meta{font-size:11.5px;color:var(--ink-3);white-space:nowrap}
+
+/* pill */
+.pill{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:999px;font-size:11.5px;font-weight:500;border:1px solid transparent}
+.pill svg{width:13px;height:13px}
+.p-ok{background:var(--emerald-bg);color:var(--emerald);border-color:var(--emerald-bd)}
+.p-warn{background:var(--amber-bg);color:var(--amber);border-color:var(--amber-bd)}
+.p-crit{background:var(--red-bg);color:var(--red);border-color:var(--red-bd)}
+.p-info{background:var(--blue-bg);color:var(--blue);border-color:var(--blue-bd)}
+.p-muted{background:var(--muted);color:var(--ink-3);border-color:var(--line)}
+
+/* hero */
+.hero{display:flex;flex-wrap:wrap;align-items:center;gap:18px 28px}
+.avatar{width:44px;height:44px;border-radius:50%;background:var(--violet);color:#fff;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.hero-name{font-size:15px;font-weight:600}
+.hero-sub{font-size:11.5px;color:var(--ink-3);margin-top:2px}
+.clock-group{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.clock-lbl{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-3)}
+.clock-lbl svg{width:13px;height:13px}
+.clock-lbl.reg{color:var(--red)}
+.vsep{width:1px;align-self:stretch;min-height:30px;background:var(--line)}
+
+/* pipeline */
+.stages{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+@media(max-width:900px){.stages{grid-template-columns:repeat(2,1fr)}}
+.stage{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:12px;padding:14px;background:var(--card);box-shadow:0 1px 2px rgba(15,23,42,.03)}
+.stage-head{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.stage-badge{width:24px;height:24px;border-radius:50%;background:var(--violet-bg);border:1px solid var(--violet-bd);color:var(--violet);font-size:12.5px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.stage-t{font-size:14px;font-weight:600;line-height:1}
+.stage-s{font-size:10.5px;color:var(--ink-3);margin-top:4px}
+.stage-main{border-bottom:1px solid var(--line-soft);padding-bottom:10px}
+.stage-num{font-size:30px;font-weight:700;letter-spacing:-.02em;line-height:1}
+.stage-lbl{font-size:11.5px;color:var(--ink-3);margin-top:6px;display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.delta{display:inline-flex;align-items:center;gap:2px;font-weight:600}
+.delta svg{width:12px;height:12px}
+.d-up{color:var(--amber)} .d-down{color:var(--emerald)}
+.flows{display:flex;flex-direction:column;gap:6px;padding:10px 0;flex:1}
+.flow{display:grid;grid-template-columns:16px 1fr auto 34px;align-items:center;gap:8px;font-size:11.5px}
+.flow .fdot{width:8px;height:8px;border-radius:50%;justify-self:center}
+.flow .flbl{color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.flow .fval{text-align:right;font-weight:600}
+.flow .fpct{text-align:right;font-size:10.5px;color:var(--ink-3)}
+.f-ok .fdot{background:var(--emerald)} .f-warn .fdot{background:var(--amber)} .f-crit .fdot{background:var(--red)} .f-crit .fval{color:var(--red)} .f-muted .fdot{background:var(--ink-4)}
+.stage-link{margin-top:8px;border-top:1px solid var(--line-soft);padding-top:8px;display:flex;align-items:center;justify-content:center;gap:4px;font-size:11.5px;font-weight:500;color:var(--violet);cursor:pointer}
+.stage-link svg{width:13px;height:13px}
+
+/* bottom grid */
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:18px}
+@media(max-width:980px){.grid3{grid-template-columns:1fr}}
+
+/* chart */
+.chart{display:flex;align-items:flex-end;gap:10px;height:170px;padding-top:8px}
+.bar-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;height:100%}
+.bar{width:100%;max-width:30px;background:var(--violet-bg);border:1px solid var(--violet-bd);border-radius:5px 5px 0 0;margin-top:auto;transition:height .3s}
+.bar-x{font-size:9.5px;color:var(--ink-3)}
+
+/* policy */
+.stat-row{display:grid;grid-template-columns:1fr 1fr 1fr;border:1px solid var(--line);border-radius:10px;background:var(--muted);text-align:center;overflow:hidden}
+.stat{padding:12px 6px}
+.stat+ .stat{border-left:1px solid var(--line)}
+.stat-n{font-size:20px;font-weight:700}
+.stat-l{font-size:10.5px;color:var(--ink-3);margin-top:3px}
+.alert{display:flex;align-items:center;gap:9px;border:1px solid var(--line);border-radius:8px;padding:8px 10px;cursor:pointer}
+.alert.crit{background:#fef4f4} .alert.warn{background:#fffcf3}
+.adot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.alert.crit .adot{background:var(--red)} .alert.warn .adot{background:var(--amber)}
+.a-name{font-size:12px;font-weight:500;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.a-tag{font-size:9.5px;color:var(--ink-3);background:var(--card);border:1px solid var(--line);border-radius:999px;padding:1px 7px}
+.a-sub{font-size:10.5px;color:var(--ink-3);margin-top:2px}
+.arrow{width:14px;height:14px;color:var(--ink-4);flex-shrink:0}
+
+/* reg rhythm */
+.reg-lbl{display:flex;align-items:center;gap:5px;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
+.reg-lbl svg{width:13px;height:13px}
+.reg-lbl.evt{color:var(--red)} .reg-lbl.per{color:var(--ink-3)}
+.reg-item{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+.reg-item.crit{background:var(--red-bg);border-color:var(--red-bd)} .reg-item.warn{background:var(--amber-bg);border-color:var(--amber-bd)}
+.reg-t{font-size:12px;font-weight:500}
+.reg-s{font-size:10.5px;color:var(--ink-3);margin-top:1px}
+.tag{font-size:11px;font-weight:600;border-radius:6px;padding:2px 8px;border:1px solid var(--line);color:var(--ink-3)}
+.tag.crit{background:var(--red-bg);border-color:var(--red-bd);color:var(--red)} .tag.warn{background:var(--amber-bg);border-color:var(--amber-bd);color:var(--amber)}
+.col-gap{display:flex;flex-direction:column;gap:6px}
+.foot{text-align:center;font-size:11px;color:var(--ink-4);padding-top:2px}
+.section-gap{display:flex;flex-direction:column;gap:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- header -->
+  <div class="pg-head">
+    <div>
+      <div class="pg-title">合规总览</div>
+      <div class="pg-sub">自动检测异常交易模式 · 触发风险预警和合规申报</div>
+    </div>
+    <button class="btn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+      新增规则
+    </button>
+  </div>
+
+  <!-- two-clock hero -->
+  <div class="card card-pad">
+    <div class="hero">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div class="avatar">SC</div>
+        <div><div class="hero-name">早安，Sarah</div><div class="hero-sub">星期六 · 2026-05-30 · 09:14 EDT</div></div>
+      </div>
+      <div class="clock-group">
+        <span class="clock-lbl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6l3 1m0 0l-3 9a5 5 0 0 0 6 0l-3-9zm0 0l3-1m6-2l3 1m0 0l-3 9a5 5 0 0 0 6 0l-3-9zm0 0l3-1M12 3v18"/></svg>运营时钟</span>
+        <span class="pill p-crit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2C8 6 6 9 6 13a6 6 0 0 0 12 0c0-2-1-4-3-6-1 2-2 2-3 1z"/></svg>2 个 SLA 临期 · 最紧 2h 12m</span>
+        <span class="pill p-muted">3 个待我签字</span>
+      </div>
+      <div class="vsep"></div>
+      <div class="clock-group">
+        <span class="clock-lbl reg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M5 21V10l7-4 7 4v11M9 21v-6h6v6"/></svg>监管时钟</span>
+        <span class="pill p-crit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>STR-0238 · 尽快 · 上限 4 天</span>
+        <span class="pill p-warn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>LVCTR 待报 3 笔 · 最早 D2</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- pipeline -->
+  <div class="card">
+    <div class="card-head">
+      <div><div class="card-title">今日合规链路</div><div class="card-desc">商户接入 → 主体审核 → 钱包审核 → 持续监控 · 实时更新</div></div>
+      <div class="card-meta">截至 09:14 · 5h 14m 内累计</div>
+    </div>
+    <div class="card-pad">
+      <div class="stages" id="stages"></div>
+    </div>
+  </div>
+
+  <!-- bottom grid -->
+  <div class="grid3">
+    <!-- chart -->
+    <div class="card">
+      <div class="card-head"><div><div class="card-title">监控触发 · 今日</div><div class="card-desc">规则触发量 · 按小时</div></div></div>
+      <div class="card-pad"><div class="chart" id="chart"></div></div>
+    </div>
+
+    <!-- policy health -->
+    <div class="card">
+      <div class="card-head"><div class="card-title">策略健康度</div><div class="card-meta" style="color:var(--violet);cursor:pointer">规则库 →</div></div>
+      <div class="card-pad section-gap">
+        <div class="stat-row">
+          <div class="stat"><div class="stat-n tab-num">21</div><div class="stat-l">活跃规则</div></div>
+          <div class="stat"><div class="stat-n tab-num" style="color:var(--red)">3</div><div class="stat-l">需要关注</div></div>
+          <div class="stat"><div class="stat-n tab-num">3,587</div><div class="stat-l" style="color:var(--amber)">▲ +12%</div></div>
+        </div>
+        <div class="col-gap" id="alerts"></div>
+      </div>
+    </div>
+
+    <!-- reg rhythm (split) -->
+    <div class="card">
+      <div class="card-head"><div><div class="card-title">监管节奏</div><div class="card-desc">事件驱动按笔倒计时 · 周期性按日历</div></div></div>
+      <div class="card-pad section-gap">
+        <div>
+          <div class="reg-lbl evt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>事件驱动报送</div>
+          <div class="col-gap" id="reg-evt"></div>
+        </div>
+        <div>
+          <div class="reg-lbl per"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 3v3M16 3v3"/></svg>周期性申报</div>
+          <div class="col-gap" id="reg-per"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot">FuturePay 合规工作台 · 单文件原型 · LVCTR 已修正为「按笔 · 5 个工作日内」申报</div>
+</div>
+
+<script>
+const ico = {
+  up:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M3 17l6-6 4 4 8-8"/><path d="M21 7v6h-6"/></svg>',
+  arrow:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>',
+};
+const STAGES = [
+  {n:1,t:'预审',s:'商户预审 · Pre-screening',main:'1,247',lbl:'商户预审',delta:'+4%',up:1,link:'查看预审规则',flows:[
+    {c:'ok',l:'标准通道',v:'1,072',p:'86%'},{c:'warn',l:'EDD 通道',v:'162',p:'13%'},{c:'crit',l:'直接拒绝',v:'13',p:'1%'}]},
+  {n:2,t:'KYC 准入',s:'主体审核 · Onboarding',main:'34',lbl:'待审工单',delta:'+9%',up:1,link:'进入 KYC 队列',flows:[
+    {c:'crit',l:'SLA 临期',v:'1',p:'3%'},{c:'warn',l:'新商户',v:'6',p:'18%'},{c:'muted',l:'周期复审',v:'12',p:'35%'},{c:'muted',l:'补料/重审',v:'15',p:'44%'}]},
+  {n:3,t:'KYW 监控',s:'钱包审核 · Travel Rule',main:'12',lbl:'待审地址',delta:'-8%',up:0,link:'进入 KYW 队列',flows:[
+    {c:'crit',l:'SLA 临期',v:'2',p:'17%'},{c:'warn',l:'单地址',v:'8',p:'67%'},{c:'muted',l:'批量提交',v:'4',p:'33%'}]},
+  {n:4,t:'持续监控',s:'持续监控 · Ongoing',main:'89',lbl:'今日规则触发',delta:'+2%',up:1,link:'进入监控队列',flows:[
+    {c:'crit',l:'阻断',v:'4',p:'5%'},{c:'warn',l:'标记审核',v:'16',p:'18%'},{c:'ok',l:'自动通过',v:'69',p:'77%'}]},
+];
+document.getElementById('stages').innerHTML = STAGES.map(s=>`
+  <div class="stage">
+    <div class="stage-head"><span class="stage-badge">${s.n}</span>
+      <div><div class="stage-t">${s.t}</div><div class="stage-s">${s.s}</div></div></div>
+    <div class="stage-main"><div class="stage-num tab-num">${s.main}</div>
+      <div class="stage-lbl">${s.lbl} · 较昨日 <span class="delta ${s.up?'d-up':'d-down'}">${ico.up}${s.delta}</span></div></div>
+    <div class="flows">${s.flows.map(f=>`
+      <div class="flow f-${f.c}"><span class="fdot"></span><span class="flbl">${f.l}</span>
+        <span class="fval tab-num">${f.v}</span><span class="fpct tab-num">${f.p}</span></div>`).join('')}</div>
+    <div class="stage-link">${s.link} ${ico.arrow}</div>
+  </div>`).join('');
+
+const MON=[8,14,11,19,22,13,6], HRS=['08:00','10:00','12:00','14:00','16:00','18:00','20:00'], MAX=24;
+document.getElementById('chart').innerHTML = MON.map((v,i)=>`
+  <div class="bar-col"><div class="bar" style="height:${Math.round(v/MAX*100)}%"></div><div class="bar-x">${HRS[i].slice(0,2)}</div></div>`).join('');
+
+const ALERTS=[
+  {c:'crit',n:'R-303 交易模式骤变',tag:'持续监控',sub:'30 天命中 0 次 · 规则可能失效'},
+  {c:'crit',n:'R-005 即时制裁筛查',tag:'预审',sub:'申诉率 12.5% · 误报偏高'},
+  {c:'warn',n:'R-002 国家灰名单',tag:'预审',sub:'本月命中 +12% · 申诉率持平'},
+];
+document.getElementById('alerts').innerHTML = ALERTS.map(a=>`
+  <div class="alert ${a.c}"><span class="adot"></span>
+    <div style="flex:1;min-width:0"><div class="a-name">${a.n}<span class="a-tag">${a.tag}</span></div><div class="a-sub">${a.sub}</div></div>
+    <svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>`).join('');
+
+const EVT=[
+  {c:'crit',t:'STR-0238',s:'NovaPay · 尽快提交 · 法定上限 D4',r:'D4'},
+  {c:'warn',t:'LVCTR 待报 · 3 笔',s:'按笔申报 · 5 个工作日内 · 最早到期',r:'D2'},
+];
+const PER=[
+  {t:'Q2 风险评估',s:'团队会议',r:'D26'},
+  {t:'OSFI 季度报',s:'监管申报',r:'D31'},
+  {t:'合规方案有效性复审',s:'PCMLTFA · 每 2 年',r:'5 月'},
+];
+document.getElementById('reg-evt').innerHTML = EVT.map(e=>`
+  <div class="reg-item ${e.c}"><span class="adot" style="background:var(--${e.c=='crit'?'red':'amber'})"></span>
+    <div style="flex:1;min-width:0"><div class="reg-t">${e.t}</div><div class="reg-s">${e.s}</div></div>
+    <span class="tag ${e.c}">${e.r}</span></div>`).join('');
+document.getElementById('reg-per').innerHTML = PER.map(p=>`
+  <div class="reg-item"><div style="flex:1;min-width:0"><div class="reg-t">${p.t}</div><div class="reg-s">${p.s}</div></div>
+    <span class="tag">${p.r}</span></div>`).join('');
+</script>
+</body>
+</html>

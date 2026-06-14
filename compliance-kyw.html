@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KYW 钱包审核 · 按商户 · 合规工作台</title>
+<style>
+:root{--bg:#f8fafc;--card:#fff;--ink:#0f172a;--ink2:#475569;--ink3:#64748b;--ink4:#94a3b8;--line:#e5e7eb;--soft:#f1f5f9;--muted:#f8fafc;--violet:#7c3aed;--vbg:#f5f3ff;--vbd:#ddd6fe;--em:#059669;--embg:#ecfdf5;--embd:#a7f3d0;--am:#b45309;--ambg:#fffbeb;--ambd:#fde68a;--red:#dc2626;--rbg:#fef2f2;--rbd:#fecaca;--blue:#2563eb;--bbg:#eff6ff;--bbd:#bfdbfe}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI",sans-serif;background:var(--bg);color:var(--ink);font-size:13px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.tab{font-variant-numeric:tabular-nums}.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+.nav{position:sticky;top:0;z-index:20;border-bottom:1px solid var(--line);background:rgba(255,255,255,.85);backdrop-filter:blur(8px)}
+.nav-in{max-width:1320px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;padding:10px 20px}
+.brand{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600}
+.logo{width:24px;height:24px;border-radius:6px;background:var(--violet);color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.seg{display:flex;gap:2px;border:1px solid var(--line);background:var(--soft);border-radius:9px;padding:3px}
+.seg a{padding:6px 12px;border-radius:6px;font-size:13px;font-weight:500;color:var(--ink3);text-decoration:none}
+.seg a.on{background:#fff;color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.seg a:hover:not(.on){color:var(--ink)}
+.wrap{max-width:1320px;margin:0 auto;padding:22px 20px;display:flex;flex-direction:column;gap:16px}
+.head{display:flex;align-items:flex-end;justify-content:space-between}
+.h1{font-size:22px;font-weight:800;letter-spacing:-.01em}.hsub{font-size:13px;color:var(--ink3);margin-top:3px}
+.btn{height:32px;padding:0 14px;border-radius:8px;border:none;background:var(--ink);color:#fff;font-size:13px;font-weight:500;display:inline-flex;align-items:center;gap:6px;cursor:pointer}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}@media(max-width:760px){.kpis{grid-template-columns:repeat(2,1fr)}}
+.kpi{border:1px solid var(--line);border-radius:14px;background:var(--card);padding:16px 18px;box-shadow:0 1px 2px rgba(15,23,42,.04)}
+.kpi-l{font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.4px;color:var(--ink3)}
+.kpi-v{font-size:26px;font-weight:800;margin-top:6px}.kpi-s{font-size:11px;color:var(--ink3);margin-top:4px}
+.c-crit{color:var(--red)}.c-warn{color:var(--am)}.c-ok{color:var(--em)}
+.filter{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+.search{position:relative}.search input{height:36px;width:260px;padding:0 10px 0 30px;border:1px solid var(--line);border-radius:8px;font-size:13px;background:#fff}
+.search svg{position:absolute;left:9px;top:50%;transform:translateY(-50%);width:14px;height:14px;color:var(--ink4)}
+.sel{height:36px;padding:0 10px;border:1px solid var(--line);border-radius:8px;background:#fff;font-size:13px;color:var(--ink2)}
+.fmeta{margin-left:auto;font-size:12px;color:var(--ink3)}
+/* merchant group card */
+.mcard{border:1px solid var(--line);border-radius:14px;background:var(--card);box-shadow:0 1px 2px rgba(15,23,42,.04);overflow:hidden}
+.mcard.crit{border-color:var(--rbd)}.mcard.warn{border-color:var(--ambd)}
+.mhead{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 16px;border-bottom:1px solid var(--line);background:var(--muted)}
+.mcard.crit .mhead{background:rgba(254,242,242,.55)}.mcard.warn .mhead{background:rgba(255,251,235,.5)}
+.mleft{display:flex;align-items:center;gap:11px}
+.mav{width:34px;height:34px;border-radius:9px;color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.mname{font-size:14px;font-weight:600;display:flex;align-items:center;gap:8px}
+.msub{font-size:11.5px;color:var(--ink3);margin-top:2px;display:flex;flex-wrap:wrap;gap:4px 10px}
+.msub b{color:var(--ink2);font-weight:600}
+.mrisk{font-size:10.5px;font-weight:600;border-radius:999px;padding:1px 8px;border:1px solid}
+.mrisk.crit{background:var(--rbg);color:var(--red);border-color:var(--rbd)}.mrisk.warn{background:var(--ambg);color:var(--am);border-color:var(--ambd)}.mrisk.ok{background:var(--embg);color:var(--em);border-color:var(--embd)}
+.mlink{font-size:12.5px;color:var(--violet);text-decoration:none;white-space:nowrap;font-weight:500}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{text-align:left;font-weight:500;color:var(--ink3);font-size:11px;padding:7px 12px;border-bottom:1px solid var(--soft)}
+td{padding:9px 12px;border-bottom:1px solid var(--soft);vertical-align:middle}tr:last-child td{border-bottom:none}
+.sub{font-size:11px;color:var(--ink3);margin-top:2px}
+.badge{display:inline-flex;align-items:center;justify-content:center;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;border:1px solid transparent}
+.badge.sm{font-size:10px;padding:1px 7px}
+.b-ok{background:var(--embg);color:var(--em);border-color:var(--embd)}.b-warn{background:var(--ambg);color:var(--am);border-color:var(--ambd)}.b-crit{background:var(--rbg);color:var(--red);border-color:var(--rbd)}.b-info{background:var(--bbg);color:var(--blue);border-color:var(--bbd)}.b-violet{background:var(--vbg);color:var(--violet);border-color:var(--vbd)}.b-muted{background:var(--muted);color:var(--ink3);border-color:var(--line)}
+.tbtn{height:27px;padding:0 10px;border-radius:7px;border:1px solid var(--line);background:#fff;font-size:12px;color:var(--ink2);cursor:pointer;display:inline-flex;align-items:center;gap:4px}
+.tbtn.danger{background:var(--red);color:#fff;border-color:var(--red)}
+.muted{color:var(--ink3)}
+.note{font-size:11.5px;color:var(--ink3);text-align:center;padding-top:2px}
+</style>
+</head>
+<body>
+<div class="nav"><div class="nav-in">
+  <div class="brand"><span class="logo">F</span> FuturePay 合规工作台</div>
+  <div class="seg">
+    <a class="on" href="compliance-l1.html">L1 分析员</a>
+    <a href="compliance-l2.html">L2 复核</a>
+    <a href="compliance-mlro.html">MLRO 报送</a>
+  </div>
+</div></div>
+
+<div class="wrap">
+  <div class="head">
+    <div><div class="h1">KYW 钱包审核 · 按商户分组</div><div class="hsub">每个商户的提币地址聚合在一起 · 含商户级风险汇总</div></div>
+    <button class="btn">名单管理</button>
+  </div>
+
+  <div class="kpis">
+    <div class="kpi"><div class="kpi-l">待审商户</div><div class="kpi-v tab">5</div><div class="kpi-s">共 13 个地址</div></div>
+    <div class="kpi"><div class="kpi-l">高风险商户</div><div class="kpi-v tab c-crit">2</div><div class="kpi-s">NovaPay · Orient FX</div></div>
+    <div class="kpi"><div class="kpi-l">制裁命中</div><div class="kpi-v tab c-crit">2</div><div class="kpi-s">无门槛 · 已冻结 1</div></div>
+    <div class="kpi"><div class="kpi-l">旅行规则缺口</div><div class="kpi-v tab c-warn">5</div><div class="kpi-s">≥CAD$1,000 待补字段</div></div>
+  </div>
+
+  <div class="filter">
+    <span class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg><input placeholder="搜索商户 / 地址"></span>
+    <select class="sel"><option>全部风险等级</option><option>仅高风险</option><option>中风险</option><option>低风险</option></select>
+    <select class="sel"><option>全部公链</option><option>BTC</option><option>ETH</option><option>USDT</option></select>
+    <span class="fmeta tab">5 个商户 · 13 个地址 · 按风险排序</span>
+  </div>
+
+  <!-- NovaPay -->
+  <div class="mcard crit">
+    <div class="mhead">
+      <div class="mleft"><div class="mav" style="background:var(--red)">NP</div>
+        <div><div class="mname">NovaPay <span class="mrisk crit">高风险</span></div>
+        <div class="msub"><span><b>4</b> 个钱包</span><span>制裁命中 <b style="color:var(--red)">1</b></span><span>混币器 <b style="color:var(--red)">1</b></span><span>旅行规则缺口 <b>2</b></span><span>最高 KYT <b style="color:var(--red)">95</b></span></div></div>
+      </div>
+      <a class="mlink" href="#">进入商户档案 →</a>
+    </div>
+    <table>
+      <thead><tr><th>地址</th><th>类型</th><th style="text-align:center">KYT</th><th>链上敞口</th><th>旅行规则</th><th style="text-align:right">金额(CAD)</th><th>SLA</th><th>状态</th><th style="text-align:right">操作</th></tr></thead>
+      <tbody>
+        <tr><td><span class="mono" style="font-weight:600">0x71C…9F2a</span> <span class="badge sm b-violet">ETH</span> · 提币</td><td><span class="badge b-warn">自托管</span></td><td style="text-align:center"><span class="badge b-crit">78</span></td><td><span class="badge b-crit">直接制裁·2路径</span> <span class="mono" style="font-size:10.5px;color:var(--red)">SDN-2022-0801</span></td><td><span style="color:var(--red);font-weight:500">缺 2/9 字段</span></td><td style="text-align:right" class="tab">$26,600</td><td><span class="tab" style="font-weight:600;color:var(--red)">3h 48m</span></td><td><span class="badge b-warn">待审</span></td><td style="text-align:right"><button class="tbtn danger">⊘ 拦截</button></td></tr>
+        <tr><td><span class="mono" style="font-weight:600">T9yD…Lm3</span> <span class="badge sm b-ok">USDT·TRC20</span> · 提币</td><td><span class="badge b-warn">自托管</span></td><td style="text-align:center"><span class="badge b-warn">65</span></td><td><span class="badge b-crit">混币器 Tornado</span> <span style="font-size:11px;color:var(--red)">38%</span></td><td><span style="color:var(--am)">自托管·需留存</span></td><td style="text-align:right" class="tab">$9,800</td><td><span class="tab" style="font-weight:600;color:var(--red)">5h 20m</span></td><td><span class="badge b-warn">待审</span></td><td style="text-align:right"><button class="tbtn danger">⊘ 拦截</button></td></tr>
+        <tr><td><span class="mono" style="font-weight:600">bc1q…k4x</span> <span class="badge sm b-warn">BTC</span> · 提币</td><td><span class="badge b-warn">自托管</span></td><td style="text-align:center"><span class="badge b-crit">95</span></td><td><span class="badge b-crit">直接制裁命中</span> <span style="font-size:11px;color:var(--red)">100%</span></td><td><span style="color:var(--red);font-weight:500">已冻结</span></td><td style="text-align:right" class="tab">$4,200</td><td><span class="muted">—</span></td><td><span class="badge b-crit">已拦截·冻结</span></td><td style="text-align:right"><button class="tbtn">查看</button></td></tr>
+        <tr><td><span class="mono" style="font-weight:600">0x3Aa…7d11</span> <span class="badge sm b-violet">ETH</span> · 入金</td><td><span class="badge b-muted">托管(VASP)</span></td><td style="text-align:center"><span class="badge b-ok">24</span></td><td><span class="muted">干净</span></td><td><span style="color:var(--em)">完整</span></td><td style="text-align:right" class="tab">$5,300</td><td><span class="muted">—</span></td><td><span class="badge b-ok">白名单</span></td><td style="text-align:right"><button class="tbtn">查看</button></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Orient FX -->
+  <div class="mcard crit">
+    <div class="mhead">
+      <div class="mleft"><div class="mav" style="background:var(--red)">OF</div>
+        <div><div class="mname">Orient FX <span class="mrisk crit">高风险</span></div>
+        <div class="msub"><span><b>2</b> 个钱包</span><span>暗网敞口 <b style="color:var(--red)">1</b></span><span>旅行规则缺口 <b>1</b></span><span>最高 KYT <b style="color:var(--red)">88</b></span></div></div>
+      </div>
+      <a class="mlink" href="#">进入商户档案 →</a>
+    </div>
+    <table>
+      <thead><tr><th>地址</th><th>类型</th><th style="text-align:center">KYT</th><th>链上敞口</th><th>旅行规则</th><th style="text-align:right">金额(CAD)</th><th>SLA</th><th>状态</th><th style="text-align:right">操作</th></tr></thead>
+      <tbody>
+        <tr><td><span class="mono" style="font-weight:600">0xA3e…41bD</span> <span class="badge sm b-violet">ETH</span> · 提币</td><td><span class="badge b-warn">自托管</span></td><td style="text-align:center"><span class="badge b-crit">88</span></td><td><span class="badge b-crit">暗网 Hydra</span> <span style="font-size:11px;color:var(--red)">15%</span></td><td><span style="color:var(--red);font-weight:500">缺 3/9 字段</span></td><td style="text-align:right" class="tab">$7,100</td><td><span class="tab" style="font-weight:600;color:var(--red)">2h 02m</span></td><td><span class="badge b-warn">待审</span></td><td style="text-align:right"><button class="tbtn danger">⊘ 拦截</button></td></tr>
+        <tr><td><span class="mono" style="font-weight:600">T6pL…Xk2</span> <span class="badge sm b-ok">USDT·TRC20</span> · 提币</td><td><span class="badge b-muted">第三方VASP</span></td><td style="text-align:center"><span class="badge b-warn">37</span></td><td><span class="muted">干净</span></td><td><span style="color:var(--em)">完整</span></td><td style="text-align:right" class="tab">$1,900</td><td><span class="tab muted">1d 04h</span></td><td><span class="badge b-warn">待审</span></td><td style="text-align:right"><button class="tbtn">审查 →</button></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Meridian -->
+  <div class="mcard warn">
+    <div class="mhead">
+      <div class="mleft"><div class="mav" style="background:var(--am)">ME</div>
+        <div><div class="mname">Meridian <span class="mrisk warn">中风险</span></div>
+        <div class="msub"><span><b>2</b> 个钱包</span><span>被盗资金敞口 <b>1</b></span><span>旅行规则缺口 <b>1</b></span><span>最高 KYT <b style="color:var(--am)">71</b></span></div></div>
+      </div>
+      <a class="mlink" href="#">进入商户档案 →</a>
+    </div>
+    <table>
+      <thead><tr><th>地址</th><th>类型</th><th style="text-align:center">KYT</th><th>链上敞口</th><th>旅行规则</th><th style="text-align:right">金额(CAD)</th><th>SLA</th><th>状态</th><th style="text-align:right">操作</th></tr></thead>
+      <tbody>
+        <tr><td><span class="mono" style="font-weight:600">0x5Fd…7c19</span> <span class="badge sm b-ok">USDT·ERC20</span> · 提币</td><td><span class="badge b-warn">自托管</span></td><td style="text-align:center"><span class="badge b-crit">71</span></td><td><span class="badge b-warn">被盗资金</span> <span style="font-size:11px;color:var(--am)">9%</span></td><td><span style="color:var(--red);font-weight:500">缺 2/9 字段</span></td><td style="text-align:right" class="tab">$11,500</td><td><span class="tab" style="color:var(--am)">9h 02m</span></td><td><span class="badge b-warn">观察</span></td><td style="text-align:right"><button class="tbtn">审查 →</button></td></tr>
+        <tr><td><span class="mono" style="font-weight:600">0x8Bd…1aF0</span> <span class="badge sm b-violet">ETH</span> · 入金</td><td><span class="badge b-muted">托管(VASP)</span></td><td style="text-align:center"><span class="badge b-ok">29</span></td><td><span class="muted">干净</span></td><td><span style="color:var(--em)">完整</span></td><td style="text-align:right" class="tab">$2,400</td><td><span class="tab muted">1d</span></td><td><span class="badge b-warn">待审</span></td><td style="text-align:right"><button class="tbtn">审查 →</button></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Skyline Pay -->
+  <div class="mcard warn">
+    <div class="mhead">
+      <div class="mleft"><div class="mav" style="background:var(--am)">SP</div>
+        <div><div class="mname">Skyline Pay <span class="mrisk warn">中风险</span></div>
+        <div class="msub"><span><b>3</b> 个钱包</span><span>大额 LVCTR <b>1</b></span><span>自托管 <b>1</b></span><span>最高 KYT <b>31</b></span></div></div>
+      </div>
+      <a class="mlink" href="#">进入商户档案 →</a>
+    </div>
+    <table>
+      <thead><tr><th>地址</th><th>类型</th><th style="text-align:center">KYT</th><th>链上敞口</th><th>旅行规则</th><th style="text-align:right">金额(CAD)</th><th>SLA</th><th>状态</th><th style="text-align:right">操作</th></tr></thead>
+      <tbody>
+        <tr><td><span class="mono" style="font-weight:600">bc1q…m7p</span> <span class="badge sm b-warn">BTC</span> · 提币</td><td><span class="badge b-muted">托管(VASP)</span></td><td style="text-align:center"><span class="badge b-ok">31</span></td><td><span class="muted">干净</span></td><td><span style="color:var(--em)">完整</span></td><td style="text-align:right" class="tab">$52,000</td><td><span class="tab muted">1d 06h</span></td><td><span class="badge b-warn">待审·LVCTR</span></td><td style="text-align:right"><button class="tbtn">审查 →</button></td></tr>
+        <tr><td><span class="mono" style="font-weight:600">bc1q…h2v</span> <span class="badge sm b-warn">BTC</span> · 提币</td><td><span class="badge b-muted">托管(VASP)</span></td><td style="text-align:center"><span class="badge b-ok">22</span></td><td><span class="muted">干净</span></td><td><span style="color:var(--em)">完整</span></td><td style="text-align:right" class="tab">$14,200</td><td><span class="tab" style="color:var(--am)">14h 30m</span></td><td><span class="badge b-warn">待审</span></td><td style="text-align:right"><button class="tbtn">审查 →</button></td></tr>
+        <tr><td><span class="mono" style="font-weight:600">0x9Fe…44c2</span> <span class="badge sm b-violet">ETH</span> · 提币</td><td><span class="badge b-warn">自托管</span></td><td style="text-align:center"><span class="badge b-ok">26</span></td><td><span class="muted">干净</span></td><td><span style="color:var(--am)">自托管·需留存</span></td><td style="text-align:right" class="tab">$3,800</td><td><span class="tab muted">1d</span></td><td><span class="badge b-warn">待审</span></td><td style="text-align:right"><button class="tbtn">审查 →</button></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Bright FX -->
+  <div class="mcard">
+    <div class="mhead">
+      <div class="mleft"><div class="mav" style="background:var(--em)">BF</div>
+        <div><div class="mname">Bright FX <span class="mrisk ok">低风险</span></div>
+        <div class="msub"><span><b>2</b> 个钱包</span><span>全部干净</span><span>最高 KYT <b>27</b></span></div></div>
+      </div>
+      <a class="mlink" href="#">进入商户档案 →</a>
+    </div>
+    <table>
+      <thead><tr><th>地址</th><th>类型</th><th style="text-align:center">KYT</th><th>链上敞口</th><th>旅行规则</th><th style="text-align:right">金额(CAD)</th><th>SLA</th><th>状态</th><th style="text-align:right">操作</th></tr></thead>
+      <tbody>
+        <tr><td><span class="mono" style="font-weight:600">T8mN…Vd5</span> <span class="badge sm b-ok">USDT·TRC20</span> · 入金</td><td><span class="badge b-muted">第三方VASP</span></td><td style="text-align:center"><span class="badge b-ok">12</span></td><td><span class="muted">干净</span></td><td><span style="color:var(--em)">完整</span></td><td style="text-align:right" class="tab">$3,400</td><td><span class="muted">—</span></td><td><span class="badge b-ok">白名单</span></td><td style="text-align:right"><button class="tbtn">查看</button></td></tr>
+        <tr><td><span class="mono" style="font-weight:600">0xD7a…9b04</span> <span class="badge sm b-violet">ETH</span> · 提币</td><td><span class="badge b-muted">托管(VASP)</span></td><td style="text-align:center"><span class="badge b-ok">27</span></td><td><span class="muted">干净</span></td><td><span style="color:var(--em)">完整</span></td><td style="text-align:right" class="tab">$1,050</td><td><span class="muted">—</span></td><td><span class="badge b-ok">白名单</span></td><td style="text-align:right"><button class="tbtn">查看</button></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note">按商户聚合 · 商户级风险汇总取其名下钱包的最差信号 · 制裁筛查无金额门槛 · 旅行规则适用于 ≥CAD$1,000 转账(含自托管)</div>
+</div>
+</body>
+</html>

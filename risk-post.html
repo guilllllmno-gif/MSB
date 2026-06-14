@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>案件处置与上报 · FuturePayCA 风控</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="risk-design-system.css">
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="sb-logo"><div class="sb-logo-mark">F</div><div class="sb-logo-text">Future<span>Pay</span>CA</div></div>
+    <nav class="sb-nav">
+      <a class="sb-item" href="risk-control.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 12l9-9 9 9M5 10v10h14V10"/></svg>风控总览</a>
+      <div class="sb-group">事前 · 配置</div>
+      <a class="sb-item" href="risk-pre.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-2.82 1.17V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 8 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 3.6 15H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 5 8.6a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 3.6V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 2 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 21 9h.6a2 2 0 0 1 0 4H21z"/></svg>风险策略与规则</a>
+      <div class="sb-group">事中 · 执行</div>
+      <a class="sb-item" href="risk-monitoring.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>事中监控<span class="sb-tag">10</span></a>
+      <a class="sb-item" href="risk-review.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 11l3 3 8-8"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>审核决策</a>
+      <div class="sb-group">事后 · 处置</div>
+      <a class="sb-item active" href="risk-post.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 13h6M9 17h6"/></svg>案件处置与上报</a>
+      <div class="sb-group">反馈 · 优化</div>
+      <a class="sb-item" href="risk-feedback.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>规则效果与调优</a>
+    </nav>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div class="crumb"><span>风控</span><span class="sep">/</span><span>事后处置</span><span class="sep">/</span><span class="cur">案件处置与上报</span></div>
+      <div class="topbar-right"><button class="icon-btn"><span class="dot"></span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></button><div class="avatar">JS</div></div>
+    </header>
+
+    <div class="content">
+      <div class="content-wrap">
+        <div class="pg-head">
+          <div>
+            <h1 class="pg-title">案件处置与上报</h1>
+            <p class="pg-sub">对已驳回 / 冻结的订单进行案件归档、可疑交易报告（STR）上报 FINTRAC，并留存完整审计追溯。</p>
+          </div>
+          <button class="btn btn-primary"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>新建 STR 报告</button>
+        </div>
+
+        <div class="grid-4 mb-md">
+          <div class="kpi"><div class="kpi-lbl"><span class="kpi-ico" style="background:var(--red-bg);color:var(--red)">🧊</span>冻结待处置</div><div class="kpi-num tnum">6</div><div class="kpi-delta d-up">2 笔超 72h</div></div>
+          <div class="kpi"><div class="kpi-lbl"><span class="kpi-ico" style="background:var(--amber-bg);color:var(--amber)">📤</span>STR 待上报</div><div class="kpi-num tnum">3</div><div class="small muted mt-sm">FINTRAC 30 日时限</div></div>
+          <div class="kpi"><div class="kpi-lbl"><span class="kpi-ico" style="background:var(--green-bg);color:var(--green)">✓</span>本月已上报</div><div class="kpi-num tnum">11</div><div class="kpi-delta d-down">100% 按时</div></div>
+          <div class="kpi"><div class="kpi-lbl"><span class="kpi-ico" style="background:var(--blue-bg);color:var(--blue)">📁</span>结案归档</div><div class="kpi-num tnum">128</div><div class="small muted mt-sm">近 90 日</div></div>
+        </div>
+
+        <div class="tabs">
+          <div class="tab active">案件队列</div>
+          <div class="tab">STR 上报记录</div>
+          <div class="tab">审计追溯</div>
+        </div>
+
+        <div class="grid-2" style="grid-template-columns:1.4fr 1fr">
+          <!-- case queue -->
+          <div class="table-card" style="align-self:start">
+            <div class="card-head"><div class="card-title">事后案件队列</div><div class="card-desc">来源：事中驳回 / 冻结决策</div></div>
+            <table class="tbl">
+              <thead><tr><th>案件号</th><th>关联订单</th><th>处置类型</th><th>金额</th><th>STR</th><th>状态</th></tr></thead>
+              <tbody>
+                <tr><td class="cell-strong cell-addr">CASE-2026-0312</td><td class="mono">DEP-20260315-001</td><td><span class="pill p-red">冻结</span></td><td class="tnum">CAD 8,200</td><td><span class="pill p-amber">待上报</span></td><td><span class="pill p-amber"><span class="pdot"></span>MLRO 评估中</span></td></tr>
+                <tr><td class="cell-strong cell-addr">CASE-2026-0311</td><td class="mono">WD-20260314-058</td><td><span class="pill p-red">冻结</span></td><td class="tnum">CAD 21,400</td><td><span class="pill p-green">已上报</span></td><td><span class="pill p-blue"><span class="pdot"></span>待结案</span></td></tr>
+                <tr><td class="cell-strong cell-addr">CASE-2026-0309</td><td class="mono">DEP-20260313-204</td><td><span class="pill p-grey">驳回</span></td><td class="tnum">CAD 3,150</td><td><span class="pill p-grey">不适用</span></td><td><span class="pill p-green"><span class="pdot"></span>已结案</span></td></tr>
+                <tr><td class="cell-strong cell-addr">CASE-2026-0307</td><td class="mono">WD-20260312-077</td><td><span class="pill p-red">冻结</span></td><td class="tnum">CAD 56,000</td><td><span class="pill p-green">已上报</span></td><td><span class="pill p-green"><span class="pdot"></span>已结案</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- STR draft -->
+          <div class="card">
+            <div class="card-head"><div><div class="card-title">STR 报告 · CASE-2026-0312</div><div class="card-desc">可疑交易报告草稿 · 上报 FINTRAC</div></div><span class="pill p-amber"><span class="pdot"></span>草稿</span></div>
+            <div class="card-body col" style="gap:14px">
+              <dl class="kv">
+                <dt>报告类型</dt><dd>STR — 可疑交易报告</dd>
+                <dt>主体</dt><dd>NovaPay Technologies Ltd.</dd>
+                <dt>关联订单</dt><dd class="mono cell-addr">DEP-20260315-001</dd>
+                <dt>涉及金额</dt><dd class="cell-strong tnum">CAD 8,200.00</dd>
+                <dt>可疑指标</dt><dd>混币器关联 · 制裁地址溯源</dd>
+                <dt>FINTRAC 时限</dt><dd><span class="pill p-amber">剩余 27 天</span></dd>
+              </dl>
+              <div>
+                <div class="small muted" style="font-weight:600;margin-bottom:6px">叙述理由 (Grounds for Suspicion)</div>
+                <textarea style="width:100%;min-height:90px;border:1px solid var(--line);border-radius:10px;padding:10px;font-family:inherit;font-size:12.5px;resize:vertical">入金资产 92% 经链上溯源指向 Tornado Cash 混币器（OFAC 制裁实体），商户为新注册主体且 KYB 资料未完成，关联 3 笔历史违规订单，存在洗钱嫌疑。</textarea>
+              </div>
+              <div class="row" style="gap:8px">
+                <button class="btn" style="flex:1;justify-content:center">保存草稿</button>
+                <button class="btn btn-primary" style="flex:1;justify-content:center" onclick="alert('STR 已提交 FINTRAC，回执编号 FT-2026-9921')">提交 FINTRAC</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- audit trail -->
+        <div class="card mt-md">
+          <div class="card-head"><div class="card-title">审计追溯 · CASE-2026-0312</div><div class="card-desc">不可篡改的全链路操作日志</div></div>
+          <div class="card-body">
+            <div class="timeline">
+              <div class="tl-item done"><div class="tl-time">2026-03-02 09:30 · 系统</div><div class="tl-title">规则引擎命中 → 暂缓入账</div></div>
+              <div class="tl-item done"><div class="tl-time">2026-03-02 11:05 · Sarah Chen (L1)</div><div class="tl-title">驳回订单并冻结资金</div><div class="tl-desc">理由：链上溯源命中混币器</div></div>
+              <div class="tl-item done"><div class="tl-time">2026-03-02 11:06 · 系统</div><div class="tl-title">自动升级至 MLRO · 生成案件 CASE-2026-0312</div></div>
+              <div class="tl-item done"><div class="tl-time">2026-03-02 14:20 · David Wu (MLRO)</div><div class="tl-title">确认可疑 · 启动 STR 上报流程</div></div>
+              <div class="tl-item"><div class="tl-time">待处理</div><div class="tl-title">提交 FINTRAC 并结案</div></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+  document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));t.classList.add('active')}));
+</script>
+</body>
+</html>

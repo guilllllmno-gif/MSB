@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>案件管理 · FuturePayCA 风控</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="risk-design-system.css">
+<style>
+  /* ── KPI summary band ── */
+  .kpi-band{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px}
+  @media(max-width:1080px){.kpi-band{grid-template-columns:repeat(2,1fr)}}
+  .kpi-band .kpi{display:flex;flex-direction:column;gap:0}
+  .kpi .kpi-top{display:flex;align-items:center;justify-content:space-between}
+  .kpi-ico svg{width:16px;height:16px;stroke-width:2}
+  .kpi-foot{font-size:11.5px;color:var(--text-3);margin-top:5px}
+  .kpi-foot b{color:var(--text-2);font-weight:600}
+
+  /* ── status filter pills ── */
+  .fbar{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:14px}
+  .fchip{display:inline-flex;align-items:center;gap:7px;height:32px;padding:0 12px;border:1px solid var(--line);border-radius:999px;background:var(--surface);
+         font-size:12.5px;font-weight:600;color:var(--text-2);cursor:pointer;transition:all .12s;user-select:none}
+  .fchip:hover{background:var(--surface-3);border-color:var(--line)}
+  .fchip .fdot{width:7px;height:7px;border-radius:50%}
+  .fchip .fct{font-size:11px;font-weight:700;color:var(--text-3);background:var(--surface-2);border-radius:999px;padding:1px 7px;min-width:20px;text-align:center}
+  .fchip.on{background:var(--brand);border-color:var(--brand);color:#fff}
+  .fchip.on .fct{background:rgba(255,255,255,.22);color:#fff}
+  .fsep{width:1px;height:20px;background:var(--line);margin:0 3px}
+
+  /* ── case table polish ── */
+  .row-check{width:15px;height:15px;accent-color:var(--brand);cursor:pointer}
+  .tbl tbody tr.clickable{cursor:pointer}
+  .tbl tbody td{padding:12px 14px}
+  .m-cell{display:flex;align-items:center;gap:11px;min-width:0}
+  .m-av{width:34px;height:34px;border-radius:10px;flex-shrink:0;display:flex;align-items:center;justify-content:center;
+        font-size:11.5px;font-weight:800;color:#fff;background:linear-gradient(135deg,var(--brand),#4f8ef7)}
+  .m-txt{min-width:0}
+  .m-no{display:flex;align-items:center;gap:6px;font-family:'SF Mono',ui-monospace,Menlo,monospace;font-size:12px;font-weight:600;color:var(--brand)}
+  .m-name{font-size:13px;font-weight:600;color:var(--text);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px}
+  .st-cell{display:flex;flex-direction:column;gap:4px;align-items:flex-start}
+  .st-sub{font-size:10.5px;color:var(--text-3)}
+  .own-cell{display:inline-flex;align-items:center;gap:7px;white-space:nowrap}
+  .badge-new{background:var(--green-bg);color:var(--green);border:1px solid var(--green-bd);border-radius:5px;font-size:9.5px;font-weight:700;padding:1px 5px}
+  .tbl-empty{text-align:center;color:var(--text-3);padding:34px 0;font-size:13px}
+</style>
+</head>
+<body data-page="cases" data-crumb="风控·治理与合规·案件管理">
+<div class="app">
+  <aside class="sidebar" id="rcSidebar"></aside>
+  <div class="main">
+    <header class="topbar" id="rcTopbar"></header>
+    <div class="content"><div class="content-wrap">
+
+      <div class="pg-head">
+        <div>
+          <h1 class="pg-title">案件管理</h1>
+          <p class="pg-sub">事中冻结 / 驳回 / 升级形成的合规案件，指派调查、合并关联案件、推进至报告报送与结案。</p>
+        </div>
+        <div class="row">
+          <button class="btn" onclick="RCMerge.open()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M7 8h10M7 12h6M9 20l-4-2V6a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v8"/></svg>合并案件</button>
+          <a class="btn btn-primary" href="rc-case-new.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 5v14M5 12h14"/></svg>新建案件</a>
+        </div>
+      </div>
+
+      <!-- KPI summary band -->
+      <div class="kpi-band" id="kpiBand"></div>
+
+      <!-- status filter pills -->
+      <div class="fbar" id="fbar"></div>
+
+      <div class="table-card">
+        <div class="card-head">
+          <div class="row" style="gap:8px"><div class="card-title">案件队列</div><span id="csNote" class="muted small"></span></div>
+          <div class="search" style="max-width:240px;min-width:200px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg><input id="csSearch" placeholder="搜索案件号 / 主体…"></div>
+        </div>
+        <table class="tbl">
+          <thead><tr>
+            <th style="width:30px"><input type="checkbox" class="row-check" id="checkAll"></th>
+            <th>案件 / 主体</th><th>类型</th><th>优先级</th><th style="text-align:right">金额</th><th>关联</th><th>状态 · 处理方</th><th>报送时限</th><th>负责人</th>
+          </tr></thead>
+          <tbody id="cb"></tbody>
+        </table>
+        <div id="csEmpty" class="tbl-empty" style="display:none">没有符合条件的案件。</div>
+      </div>
+
+    </div></div>
+  </div>
+</div>
+<script src="rc-shell.js"></script>
+<script>
+  const STRCLS={investigating:'p-grey',l2_review:'p-blue',str_draft:'p-amber',mlro_review:'p-violet',pending_file:'p-blue',filed:'p-green'};
+  const myRole=RC_ROLE.get(), myTeam=RC_ROLE.team();
+  const teamBg=t=>t==='rc'?'amber':'violet';
+  const prCls={'高':'p-red','中':'p-amber','低':'p-grey'};
+
+  // lifecycle filter buckets (parity with CASE_STATES buckets) + colored dots
+  const FILTERS=[
+    {f:'all',           lbl:'全部',      dot:''},
+    {f:'investigating', lbl:'调查中',    dot:'var(--amber)'},
+    {f:'l2',            lbl:'L2 复核',   dot:'var(--blue)'},
+    {f:'str',           lbl:'STR 草稿',  dot:'var(--blue)'},
+    {f:'mlro',          lbl:'MLRO 评估', dot:'var(--violet)'},
+    {f:'pending',       lbl:'待报送',    dot:'var(--blue)'},
+    {f:'filed',         lbl:'已报送',    dot:'var(--green)'},
+    {f:'closed',        lbl:'已结案',    dot:'var(--green)'},
+    {f:'merged',        lbl:'已合并',    dot:'var(--grey)'},
+  ];
+  const ini=m=>((m.match(/[A-Za-z]+/g)||[]).slice(0,2).map(w=>w[0]).join('')||m.slice(0,2)).toUpperCase();
+
+  // KPI tiles — role-aware "ball in my court"
+  function renderKPIs(cases){
+    const active=cases.filter(c=>RC_CASES.def(c).active);
+    const mine=active.filter(c=>RC_CASES.ballTeam(c)===myTeam);
+    const cnt={}; cases.forEach(c=>{const b=RC_CASES.def(c).bucket;cnt[b]=(cnt[b]||0)+1;});
+    const teamLbl=myTeam==='compliance'?'合规 · MLRO':'风控';
+    const tiles=[
+      {lbl:'在办案件',     num:active.length, ico:'<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>', tone:'var(--brand)',  bg:'var(--brand-soft)',  foot:`共 <b>${cases.length}</b> 个案件`},
+      {lbl:`待${teamLbl}处理`, num:mine.length,  ico:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>', tone:'var(--amber)',  bg:'var(--amber-bg)',    foot:'本方处理中 / 待处置'},
+      {lbl:'待报送 FINTRAC', num:cnt.pending||0, ico:'<path d="M22 2 11 13M22 2l-7 20-4-9-9-4z"/>', tone:'var(--blue)',  bg:'var(--blue-bg)',     foot:`已报送 <b>${cnt.filed||0}</b>`},
+      {lbl:'已结案',       num:cnt.closed||0, ico:'<path d="M20 6 9 17l-5-5"/>', tone:'var(--green)', bg:'var(--green-bg)',    foot:`已合并 <b>${cnt.merged||0}</b>`},
+    ];
+    document.getElementById('kpiBand').innerHTML=tiles.map(t=>`
+      <div class="kpi">
+        <div class="kpi-top">
+          <span class="kpi-lbl">${t.lbl}</span>
+          <span class="kpi-ico" style="background:${t.bg};color:${t.tone}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor">${t.ico}</svg></span>
+        </div>
+        <div class="kpi-num tnum">${t.num}</div>
+        <div class="kpi-foot">${t.foot}</div>
+      </div>`).join('');
+  }
+
+  let curF='all', curQ='';
+  function renderFilters(cases){
+    const cnt={}; cases.forEach(c=>{const b=RC_CASES.def(c).bucket;cnt[b]=(cnt[b]||0)+1;});
+    document.getElementById('fbar').innerHTML=FILTERS.map((x,i)=>{
+      const n=x.f==='all'?cases.length:(cnt[x.f]||0);
+      const dot=x.dot?`<span class="fdot" style="background:${x.dot}"></span>`:'';
+      const sep=i===1?'<span class="fsep"></span>':'';
+      return `${sep}<div class="fchip${x.f===curF?' on':''}" data-f="${x.f}">${dot}${x.lbl}<span class="fct">${n}</span></div>`;
+    }).join('');
+    document.querySelectorAll('#fbar .fchip').forEach(ch=>ch.addEventListener('click',()=>{
+      curF=ch.dataset.f;
+      document.querySelectorAll('#fbar .fchip').forEach(x=>x.classList.toggle('on',x.dataset.f===curF));
+      applyFilter();
+    }));
+  }
+
+  function renderList(){
+    const cases=RC_CASES.all(), extra=RC_CASES.createdCount();
+    renderKPIs(cases);
+    renderFilters(cases);
+    document.getElementById('cb').innerHTML=cases.map((c,i)=>{
+      const links=c.alerts.length+c.orders.length, d=RC_CASES.def(c), ball=RC_CASES.ballTeam(c), sla=RC_CASES.sla(c);
+      const strTxt=d.str||'—', strCls=STRCLS[c.state]||'p-grey';
+      const ballChip=(d.active&&ball)?`<span class="chip" style="background:var(--${teamBg(ball)}-bg);color:var(--${teamBg(ball)});border-color:var(--${teamBg(ball)}-bd)">待${CASE_TEAMS[ball]}</span>`:'';
+      const strSub=d.str?`<span class="st-sub">STR · ${strTxt}</span>`:'';
+      return `
+      <tr class="clickable" data-no="${c.no}" data-bucket="${d.bucket}" data-q="${(c.no+' '+c.merchant).toLowerCase()}"
+          onclick="if(!event.target.closest('.no-nav'))location.href='rc-case.html?no=${c.no}'">
+        <td class="no-nav"><input type="checkbox" class="row-check"></td>
+        <td>
+          <div class="m-cell">
+            <span class="m-av" style="background:${c.owner.c}">${ini(c.merchant)}</span>
+            <span class="m-txt">
+              <span class="m-no">${c.no}${i<extra?'<span class="badge-new">新建</span>':''}</span>
+              <span class="m-name">${c.merchant}</span>
+            </span>
+          </div>
+        </td>
+        <td><span class="chip">${c.type}</span></td>
+        <td>${c.priority?`<span class="pill ${prCls[c.priority]||'p-grey'}"><span class="pdot"></span>${c.priority}</span>`:'<span class="muted">—</span>'}</td>
+        <td class="tnum" style="text-align:right;font-weight:600">${c.amount}</td>
+        <td>${links?`<span class="chip">${links} 项</span>`:'<span class="muted">—</span>'}</td>
+        <td>
+          <div class="st-cell">
+            <span class="row" style="gap:6px;flex-wrap:wrap"><span class="pill ${d.cls}"><span class="pdot"></span>${d.label}</span>${ballChip}</span>
+            ${strSub}
+          </div>
+        </td>
+        <td>${RC_slaChip(sla)}</td>
+        <td><span class="own-cell"><span class="avatar" style="width:22px;height:22px;font-size:9px;background:${c.owner.c}">${c.owner.i}</span>${c.owner.n}</span></td>
+      </tr>`;}).join('');
+    document.getElementById('csNote').textContent = myRole==='compliance' ? '· 合规 · MLRO 视图' : (myRole==='l2' ? '· 风控 · L2 视图' : '· 风控 · L1 视图');
+    applyFilter();
+  }
+  function applyFilter(){
+    let shown=0;
+    document.querySelectorAll('#cb tr').forEach(r=>{
+      const okF = curF==='all' ? true : r.dataset.bucket===curF;
+      const okQ = !curQ || r.dataset.q.includes(curQ);
+      const vis=okF&&okQ; r.style.display=vis?'':'none'; if(vis)shown++;
+    });
+    document.getElementById('csEmpty').style.display = shown?'none':'';
+  }
+  document.getElementById('csSearch').addEventListener('input',e=>{ curQ=e.target.value.trim().toLowerCase(); applyFilter(); });
+  document.getElementById('checkAll').addEventListener('change',e=>document.querySelectorAll('#cb .row-check').forEach(c=>c.checked=e.target.checked));
+  renderList();
+</script>
+</body>
+</html>
