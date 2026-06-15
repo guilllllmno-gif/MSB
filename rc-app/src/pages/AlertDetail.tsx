@@ -63,11 +63,11 @@ export default function AlertDetail() {
             <div key={i} className="flex items-center">
               <div className="flex items-center gap-2">
                 <span className="flex h-[22px] w-[22px] items-center justify-center rounded-full border-2 text-[10.5px] font-extrabold"
-                  style={i < ci ? { background: "var(--success)", borderColor: "var(--success)", color: "#fff" } : i === ci ? { background: "var(--brand)", borderColor: "var(--brand)", color: "#fff" } : { borderColor: "#e8eaed", color: "#8a92a3" }}>
+                  style={i < ci ? { background: "var(--success)", borderColor: "var(--success)", color: "#fff" } : i === ci ? { background: "var(--brand)", borderColor: "var(--brand)", color: "#fff" } : { borderColor: "var(--line)", color: "var(--text-3)" }}>
                   {i < ci ? <Check className="h-3 w-3" /> : i + 1}</span>
-                <span className="text-[12px]" style={i === ci ? { color: "var(--brand)", fontWeight: 700 } : i < ci ? { color: "var(--text-2)" } : { color: "#8a92a3" }}>{label}</span>
+                <span className="text-[12px]" style={i === ci ? { color: "var(--brand)", fontWeight: 700 } : i < ci ? { color: "var(--text-2)" } : { color: "var(--text-3)" }}>{label}</span>
               </div>
-              {i < PIPE.length - 1 && <span className="mx-2 h-0.5 w-8" style={{ background: i < ci ? "var(--success)" : "#e8eaed" }} />}
+              {i < PIPE.length - 1 && <span className="mx-2 h-0.5 w-8" style={{ background: i < ci ? "var(--success)" : "var(--line)" }} />}
             </div>
           ))}
         </div>
@@ -119,7 +119,7 @@ export default function AlertDetail() {
 
           <Card shadow="sm" className="border border-divider"><CardHeader><div className="text-[15px] font-bold">处理时间线</div></CardHeader><CardBody className="pt-0">
             <ol className="relative ml-2 border-l border-default-200 pl-6">
-              {tl.map((t, i) => (<li key={i} className="relative pb-4 last:pb-0"><span className="absolute -left-[27px] top-1 h-3 w-3 rounded-full border-2 border-[var(--brand)]" style={{ background: t[2] === "done" ? "var(--brand)" : "#fff" }} /><div className="text-[11px] text-default-400 tnum">{t[0]}</div><div className="mt-0.5 text-[12.5px] font-semibold">{t[1]}</div></li>))}
+              {tl.map((t, i) => (<li key={i} className="relative pb-4 last:pb-0"><span className="absolute -left-[27px] top-1 h-3 w-3 rounded-full border-2 border-[var(--brand)]" style={{ background: t[2] === "done" ? "var(--brand)" : "var(--surface)" }} /><div className="text-[11px] text-default-400 tnum">{t[0]}</div><div className="mt-0.5 text-[12.5px] font-semibold">{t[1]}</div></li>))}
             </ol>
           </CardBody></Card>
         </div>
@@ -128,10 +128,10 @@ export default function AlertDetail() {
         <div className="flex flex-col gap-[18px]">
           <Card shadow="sm" className="border border-divider"><CardHeader className="flex items-center justify-between"><div className="text-[15px] font-bold">审核决定</div><Pill tone={sev.tone}>{sevLabel} · {a.level}</Pill></CardHeader>
             <CardBody className="pt-0">
-              <div className="rounded-xl border p-3.5" style={{ borderColor: "var(--violet-bd)", background: "linear-gradient(180deg,var(--violet-bg),#fff)" }}>
+              <div className="rounded-xl border p-3.5" style={{ borderColor: "var(--violet-bd)", background: "linear-gradient(180deg,var(--violet-bg),var(--surface))" }}>
                 <div className="flex items-center gap-2 text-[13px] font-bold" style={{ color: "var(--violet)" }}><Sparkles className="h-4 w-4" />AI 风险预判</div>
                 <div className="mt-3 flex items-center gap-3.5">
-                  <div className="relative flex h-[88px] w-[88px] shrink-0 items-center justify-center rounded-full" style={{ background: `conic-gradient(${gaugeCol} ${a.score}%, #eef0f3 0)` }}>
+                  <div className="relative flex h-[88px] w-[88px] shrink-0 items-center justify-center rounded-full" style={{ background: `conic-gradient(${gaugeCol} ${a.score}%, var(--track) 0)` }}>
                     <div className="absolute rounded-full bg-content1" style={{ inset: 9 }} />
                     <div className="relative text-center"><div className="text-[22px] font-extrabold tnum" style={{ color: gaugeCol }}>{a.score}</div><div className="text-[10px] text-default-400">/ 100</div></div>
                   </div>
@@ -146,7 +146,7 @@ export default function AlertDetail() {
               </div>
 
               <div className="mt-4 text-[11px] font-bold uppercase tracking-wider text-default-400">审核清单</div>
-              {a.checklist.map(([txt, done], i) => (<div key={i} className="flex items-start gap-2.5 py-1.5"><span className="flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-md text-[11px]" style={done ? { background: "var(--success)", color: "#fff" } : { border: "1.5px solid #e8eaed" }}>{done ? "✓" : ""}</span><span className="text-[12px]" style={done ? undefined : { color: "var(--text-2)" }}>{txt}</span></div>))}
+              {a.checklist.map(([txt, done], i) => (<div key={i} className="flex items-start gap-2.5 py-1.5"><span className="flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-md text-[11px]" style={done ? { background: "var(--success)", color: "#fff" } : { border: "1.5px solid var(--line)" }}>{done ? "✓" : ""}</span><span className="text-[12px]" style={done ? undefined : { color: "var(--text-2)" }}>{txt}</span></div>))}
 
               <div className="mb-2.5 mt-4 text-[11px] font-bold uppercase tracking-wider text-default-400">处置</div>
               <div className="flex flex-col gap-2.5">
@@ -159,7 +159,7 @@ export default function AlertDetail() {
                 ) : (
                   <>
                     {state === "new" && <Button color="primary" onPress={claim}>认领工单</Button>}
-                    {state === "pending_l2" && <div className="rounded-lg border p-2.5 text-center text-[12.5px]" style={{ background: "var(--brand-soft)", color: "var(--brand)", borderColor: "#bcd4ff" }}>⏳ L1 已提交建议 · 待 L2 复核</div>}
+                    {state === "pending_l2" && <div className="rounded-lg border p-2.5 text-center text-[12.5px]" style={{ background: "var(--brand-soft)", color: "var(--brand)", borderColor: "var(--brand-bd)" }}>⏳ L1 已提交建议 · 待 L2 复核</div>}
                     <Button color="primary" startContent={<ClipboardCheck className="h-4 w-4" />} onPress={() => setOpen(true)}>做出审核决定</Button>
                   </>
                 )}

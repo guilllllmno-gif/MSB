@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { NavLink } from "react-router-dom";
 import { Button } from "@heroui/react";
 import { LayoutDashboard, Bell, Search, ListChecks, SlidersHorizontal, Shield, FolderOpen, FileText, Clock, Settings, ChevronDown } from "lucide-react";
-import { Initials } from "./bits";
+import { Initials, ThemeToggle } from "./bits";
 
 type Item = { to: string; label: string; icon: typeof Bell; tag?: string };
 const NAV: ({ group: string } | Item)[] = [
@@ -57,6 +57,7 @@ export function Shell({ crumb, wide, children }: { crumb: string[]; wide?: boole
           </div>
           <div className="ml-auto flex items-center gap-2.5">
             <Button size="sm" variant="bordered" endContent={<ChevronDown className="h-3.5 w-3.5" />}>风控 · L1</Button>
+            <ThemeToggle />
             <Button isIconOnly size="sm" variant="light" className="relative"><Bell className="h-[18px] w-[18px] text-default-500" strokeWidth={1.9} /><span className="absolute right-1.5 top-1.5 h-[7px] w-[7px] rounded-full border-[1.5px] border-content1" style={{ background: "var(--danger)" }} /></Button>
             <Button isIconOnly size="sm" variant="light"><Settings className="h-[18px] w-[18px] text-default-500" strokeWidth={1.9} /></Button>
             <Initials p={{ i: "JL", c: "var(--brand)" }} size={32} />

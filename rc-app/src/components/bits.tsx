@@ -1,13 +1,17 @@
 import type { ReactNode } from "react";
+import { useEffect, useState } from "react";
+import { useTheme } from "next-themes";
+import { Button } from "@heroui/react";
+import { Moon, Sun } from "lucide-react";
 import type { Tone } from "@/lib/data";
 
 const TONE: Record<Tone, [string, string, string]> = {
   green: ["var(--success-bg)", "var(--success)", "var(--success-bd)"],
   amber: ["var(--warning-bg)", "var(--warning)", "var(--warning-bd)"],
   red: ["var(--danger-bg)", "var(--danger)", "var(--danger-bd)"],
-  blue: ["var(--brand-soft)", "var(--brand)", "#bcd4ff"],
+  blue: ["var(--brand-soft)", "var(--brand)", "var(--brand-bd)"],
   violet: ["var(--violet-bg)", "var(--violet)", "var(--violet-bd)"],
-  grey: ["#f0f1f3", "#636c7b", "#e2e4e8"],
+  grey: ["var(--chip-bg)", "var(--chip-fg)", "var(--chip-bd)"],
 };
 export const toneVar = (t: Tone) => TONE[t][1];
 
@@ -25,7 +29,7 @@ export function Pill({ tone = "grey", dot = true, icon, children }: { tone?: Ton
 export function SoftChip({ children, net }: { children: ReactNode; net?: boolean }) {
   return (
     <span className="inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-semibold"
-      style={net ? { background: "var(--brand-softer)", color: "var(--brand)", borderColor: "#bcd4ff" } : { background: "#f3f4f6", color: "#636c7b", borderColor: "#e8eaed" }}>
+      style={net ? { background: "var(--brand-softer)", color: "var(--brand)", borderColor: "var(--brand-bd)" } : { background: "var(--chip-bg)", color: "var(--chip-fg)", borderColor: "var(--chip-bd)" }}>
       {children}
     </span>
   );
@@ -38,6 +42,22 @@ export function RiskBadge({ tone, children }: { tone: Tone; children: ReactNode 
 
 export function Initials({ p, size = 24 }: { p: { i: string; c: string }; size?: number }) {
   return <span className="inline-flex shrink-0 items-center justify-center rounded-full font-bold text-white" style={{ width: size, height: size, fontSize: size * 0.42, background: p.c }}>{p.i}</span>;
+}
+
+// theme switch for the app header — guards against pre-mount theme mismatch
+export function ThemeToggle() {
+  const { resolvedTheme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const dark = resolvedTheme === "dark";
+  return (
+    <Button isIconOnly size="sm" variant="light" aria-label="切换深色模式"
+      onPress={() => setTheme(dark ? "light" : "dark")}>
+      {mounted && dark
+        ? <Sun className="h-[18px] w-[18px] text-default-500" strokeWidth={1.9} />
+        : <Moon className="h-[18px] w-[18px] text-default-500" strokeWidth={1.9} />}
+    </Button>
+  );
 }
 
 export function SectionLabel({ children }: { children: ReactNode }) {

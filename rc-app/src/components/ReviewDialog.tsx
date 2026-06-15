@@ -60,7 +60,7 @@ export function ReviewDialog({ alertId, open, onOpenChange, onDone }: { alertId:
         <ModalHeader>告警研判 · 处置结论</ModalHeader>
         <ModalBody className="pb-2">
           {/* AI 研判 */}
-          <div className="rounded-xl border p-3.5" style={{ borderColor: "var(--violet-bd)", background: "linear-gradient(180deg,var(--violet-bg),#fff)" }}>
+          <div className="rounded-xl border p-3.5" style={{ borderColor: "var(--violet-bd)", background: "linear-gradient(180deg,var(--violet-bg),var(--surface))" }}>
             <div className="flex items-center gap-2 text-[13px] font-bold" style={{ color: "var(--violet)" }}><Sparkles className="h-4 w-4" />AI 风险研判<span className="ml-auto"><Pill tone={sev.tone}>{sev.label === "高危" ? "高风险" : sev.label === "中危" ? "中风险" : "低风险"}</Pill></span></div>
             <p className="mt-2 text-[12px] leading-relaxed text-default-500">{a.factors.map((x) => x.title).join(" · ")}</p>
             <p className="mt-2.5 border-t pt-2.5 text-[12.5px]" style={{ borderColor: "var(--violet-bd)" }}><b>建议结论：</b><span style={{ color: "var(--brand)", fontWeight: 700 }}>{recLabel}</span> <span className="text-default-400">（置信度 {rec.conf}%）</span></p>
@@ -83,7 +83,7 @@ export function ReviewDialog({ alertId, open, onOpenChange, onDone }: { alertId:
                 <div className="grid grid-cols-3 gap-2">
                   {DISP.map((d) => { const Icon = DISP_ICON[d.k]; const on = disp === d.k; return (
                     <button key={d.k} onClick={() => { setDisp(on ? null : d.k); setProc(null); }} className="flex flex-col items-center gap-1.5 rounded-xl border-[1.5px] px-1.5 py-3 text-[12.5px] font-semibold transition-all"
-                      style={on ? { borderColor: "var(--brand)", background: "var(--brand-soft)", color: "var(--brand)", boxShadow: "0 0 0 3px var(--brand-soft)" } : { color: "var(--text-2)", borderColor: "#e8eaed" }}>
+                      style={on ? { borderColor: "var(--brand)", background: "var(--brand-soft)", color: "var(--brand)", boxShadow: "0 0 0 3px var(--brand-soft)" } : { color: "var(--text-2)", borderColor: "var(--line)" }}>
                       <Icon className="h-[18px] w-[18px]" />{d.label}</button>
                   ); })}
                 </div>
@@ -92,7 +92,7 @@ export function ReviewDialog({ alertId, open, onOpenChange, onDone }: { alertId:
                 <div className="grid grid-cols-2 gap-2">
                   {PROC.map((p) => { const Icon = PROC_ICON[p.k]; const on = proc === p.k; return (
                     <button key={p.k} onClick={() => { setProc(on ? null : p.k); setDisp(null); }} className="flex flex-col items-center gap-1.5 rounded-lg border px-1.5 py-2.5 text-[12px] font-medium transition-all"
-                      style={on ? { borderColor: "var(--violet)", background: "var(--violet-bg)", color: "var(--violet)" } : { color: "var(--text-2)", borderColor: "#e8eaed" }}>
+                      style={on ? { borderColor: "var(--violet)", background: "var(--violet-bg)", color: "var(--violet)" } : { color: "var(--text-2)", borderColor: "var(--line)" }}>
                       <Icon className="h-4 w-4" />{p.label}</button>
                   ); })}
                 </div>
@@ -124,7 +124,7 @@ export function ReviewDialog({ alertId, open, onOpenChange, onDone }: { alertId:
                   <div className={`flex flex-wrap gap-1.5 ${errs.has(fd.k) ? "rounded-lg p-1 ring-2 ring-[var(--danger-bg)]" : ""}`}>
                     {fd.options.map((o) => { const on = (fieldVals[fd.k] || []).includes(o); return (
                       <button key={o} onClick={() => toggleField(fd.k, o, true)} className="inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[12px] font-semibold transition-all"
-                        style={on ? { borderColor: "var(--brand)", background: "var(--brand-soft)", color: "var(--brand)" } : { color: "var(--text-2)", borderColor: "#e8eaed" }}>
+                        style={on ? { borderColor: "var(--brand)", background: "var(--brand-soft)", color: "var(--brand)" } : { color: "var(--text-2)", borderColor: "var(--line)" }}>
                         <span>{on ? "✓" : "+"}</span>{o}</button>
                     ); })}
                   </div>

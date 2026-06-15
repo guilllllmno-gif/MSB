@@ -1,5 +1,6 @@
 import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
 import { HeroUIProvider } from "@heroui/react";
+import { ThemeProvider } from "next-themes";
 import { Toaster } from "@/components/ui/sonner";
 import AlertList from "@/pages/AlertList";
 import AlertDetail from "@/pages/AlertDetail";
@@ -10,6 +11,7 @@ const STUBS = ["/dashboard", "/monitoring", "/rules", "/strategy", "/lists", "/c
 export default function App() {
   return (
     <HashRouter>
+      <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false} disableTransitionOnChange>
       <HeroUIProvider>
         <Routes>
           <Route path="/" element={<Navigate to="/alerts" replace />} />
@@ -20,6 +22,7 @@ export default function App() {
         </Routes>
         <Toaster position="bottom-center" richColors />
       </HeroUIProvider>
+      </ThemeProvider>
     </HashRouter>
   );
 }
