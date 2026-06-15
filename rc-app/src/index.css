@@ -16,15 +16,18 @@
   --text-2: #636c7b; --text-3: #8a92a3;
   --page: #f7f8fa; --surface: #ffffff; --line: #e8eaed; --track: #eef0f3;
 }
+/* dark values harmonize with HeroUI's native dark theme
+   (background #000, content1 #18181b, divider rgba(255,255,255,.15)).
+   Borders use the same translucent white as HeroUI's divider — no hard lines. */
 .dark {
   --brand: #5b9bff; --brand-soft: #16294a; --brand-softer: #131f33; --brand-bd: #2a4673;
   --success: #4ade80; --success-bg: #122a1e; --success-bd: #1d4533;
   --warning: #fbbf24; --warning-bg: #2f2510; --warning-bd: #4d3b15;
   --danger: #f87171; --danger-bg: #2f1717; --danger-bd: #4d2424;
   --violet: #a78bfa; --violet-bg: #221b3d; --violet-bd: #382c5c;
-  --chip-bg: #1d222b; --chip-fg: #9aa3b2; --chip-bd: #272d38;
-  --text-2: #9aa3b2; --text-3: #7b8494;
-  --page: #0c0e13; --surface: #161a21; --line: #272d38; --track: #20252e;
+  --chip-bg: #27272a; --chip-fg: #a1a1aa; --chip-bd: rgba(255,255,255,0.15);
+  --text-2: #a1a1aa; --text-3: #71717a;
+  --page: #000000; --surface: #18181b; --line: rgba(255,255,255,0.15); --track: #27272a;
 }
 body { background: var(--page); -webkit-font-smoothing: antialiased; font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
 .tnum { font-variant-numeric: tabular-nums; }
