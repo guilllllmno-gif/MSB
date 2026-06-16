@@ -1,17 +1,24 @@
 import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
-import { Card, CardHeader, CardBody, Button, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Progress } from "@heroui/react";
-import { ArrowLeft, ClipboardCheck, Sparkles, Clock } from "lucide-react";
+import { Card, CardHeader, CardBody, Button, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell } from "@heroui/react";
+import { ArrowLeft, ClipboardCheck, Clock, Info } from "lucide-react";
 import { Shell } from "@/components/Shell";
-import { Pill, SoftChip, Initials, RiskBadge, toneVar } from "@/components/bits";
+import { Pill, SoftChip, Initials, RiskBadge } from "@/components/bits";
 import { ReviewDialog } from "@/components/ReviewDialog";
 import { alerts, RC_STATES, sevMeta, type Tone } from "@/lib/data";
 import { alertStore, useAlertVersion } from "@/lib/store";
 
-const PIPE: [string, string][] = [["new", "待认领"], ["progress", "处理中"], ["escalated", "已升级"], ["done", "已结"]];
 const ME = { i: "JL", n: "你 (JL)", c: "var(--brand)" };
-const slaColor: Record<Tone, "default" | "primary" | "success" | "warning" | "danger"> = { amber: "warning", blue: "primary", red: "danger", green: "success", grey: "default", violet: "primary" };
+
+function Stat({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="card px-5 py-4">
+      <div className="text-[12.5px] text-default-500">{label}</div>
+      <div className="mt-2 text-[19px] font-extrabold tnum leading-none">{children}</div>
+    </div>
+  );
+}
 
 function Kv({ label, children }: { label: string; children: React.ReactNode }) {
   return <div className="flex items-baseline justify-between gap-3 border-b border-dashed border-default-200 py-2 text-[12.5px]"><span className="text-default-500">{label}</span><span className="text-right font-semibold">{children}</span></div>;
@@ -23,6 +30,7 @@ export default function AlertDetail() {
   useAlertVersion();
   const a = alerts.find((x) => x.id === sp.get("id")) || alerts[0];
   const [open, setOpen] = useState(false);
+  const [tab, setTab] = useState<"info" | "log">("info");
 
   const state = alertStore.stateOf(a.id, a.state);
   const sd = RC_STATES[state];
@@ -33,8 +41,7 @@ export default function AlertDetail() {
   const sancTone: Tone = a.sanctions.status === "直接命中" ? "red" : a.sanctions.status === "间接命中" ? "amber" : "green";
   const events = alertStore.eventsOf(a.id);
   const tl = a.timeline.concat(events.map((e) => [e.t, e.text + (e.reason ? "：" + e.reason : ""), "done"] as [string, string, string]));
-  const stage = state === "new" ? "new" : ["progress", "pending", "pending_l2"].includes(state) ? "progress" : state === "escalated" ? "escalated" : "done";
-  const ci = ["new", "progress", "escalated", "done"].indexOf(stage);
+  const crr = a.rules.reduce((s, r) => s + (parseInt(r.weight.replace(/[^0-9-]/g, ""), 10) || 0), 0);
 
   const claim = () => { alertStore.set(a.id, "progress", { assignee: ME, event: "认领工单" }); toast.success("已认领工单"); };
   const reopen = () => { alertStore.set(a.id, "progress", { assignee: assignee || ME, event: "重新打开告警" }); toast.success("已重新打开"); };
@@ -67,41 +74,43 @@ export default function AlertDetail() {
         </div>
       </CardBody></Card>
 
-      <div className="grid grid-cols-1 gap-[18px] lg:grid-cols-[1fr_372px]">
-        {/* left */}
-        <div className="flex flex-col gap-[18px]">
-          <Card shadow="none" className="card"><CardHeader className="flex items-center justify-between"><div><div className="text-[15px] font-bold">交易信息</div><div className="text-[12px] text-default-400">{a.type}订单明细</div></div><SoftChip net>◈ {a.network}</SoftChip></CardHeader>
-            <CardBody className="pt-0"><div className="grid grid-cols-2 gap-x-8">
-              <Kv label="金额"><span className="tnum">{a.amount}</span></Kv><Kv label="资产">{a.asset}</Kv>
-              <Kv label="发送方"><span className="font-mono" style={{ color: "var(--brand)" }}>{a.sender}</span></Kv><Kv label="收款方"><span className="font-mono">{a.receiver}</span></Kv>
-              <Kv label="交易哈希"><span className="font-mono" style={{ color: "var(--brand)" }}>{a.txHash}</span></Kv><Kv label="区块确认">{a.confirmations}</Kv>
-              <Kv label="提交时间"><span className="tnum">{a.submitted}</span></Kv><Kv label="告警ID"><span className="font-mono">{a.id}</span></Kv>
-            </div></CardBody>
-          </Card>
+      {/* tabs */}
+      <div className="mb-5 flex items-center gap-6 border-b border-divider">
+        {([["info", "基本信息"], ["log", "活动日志"]] as const).map(([k, label]) => (
+          <button key={k} onClick={() => setTab(k)} className={`relative -mb-px pb-3 text-[14px] font-semibold transition-colors ${tab === k ? "text-foreground" : "text-default-400 hover:text-default-600"}`}>
+            {label}
+            {tab === k && <span className="absolute inset-x-0 bottom-0 h-0.5 rounded-full bg-primary" />}
+          </button>
+        ))}
+      </div>
 
-          <Card shadow="none" className="card"><CardHeader><div className="text-[15px] font-bold">命中规则 · {a.rules.length} 条</div></CardHeader>
-            <CardBody className="pt-0"><Table aria-label="命中规则" removeWrapper classNames={{ th: "bg-default-50 text-default-500 text-[11.5px]" }}>
-              <TableHeader><TableColumn>规则</TableColumn><TableColumn>类别</TableColumn><TableColumn>阈值 / 条件</TableColumn><TableColumn>命中值</TableColumn><TableColumn>权重</TableColumn></TableHeader>
-              <TableBody>{a.rules.map((r, i) => (
-                <TableRow key={i}><TableCell className="font-semibold">{r.name}</TableCell><TableCell className="text-[12px]">{r.cat}</TableCell><TableCell className="text-[12px]">{r.cond}</TableCell><TableCell className="font-semibold" style={{ color: "var(--danger)" }}>{r.hit}</TableCell><TableCell><Pill tone="red" dot={false}>{r.weight}</Pill></TableCell></TableRow>
-              ))}</TableBody>
-            </Table></CardBody>
-          </Card>
+      {tab === "info" ? (
+        <div className="flex flex-col gap-5">
+          {/* stat cards */}
+          <div className="grid grid-cols-2 gap-3.5 md:grid-cols-4">
+            <Stat label="风险评分"><span style={{ color: gaugeCol }}>{a.score}</span><span className="text-[13px] font-bold text-default-400">/100</span></Stat>
+            <Stat label="交易金额">{a.amount}</Stat>
+            <Stat label="同一客户（近30天）"><span className="text-[16px]">{a.custHistory.orders} 笔 · 合计 {a.custHistory.vol30}</span></Stat>
+            <Stat label="制裁筛查"><span className="text-[16px]" style={{ color: `var(--${sancTone === "red" ? "danger" : sancTone === "amber" ? "warning" : "success"})` }}>{a.sanctions.status}</span><span className="ml-2 text-[12px] font-normal text-default-400">{a.sanctions.list}</span></Stat>
+          </div>
 
-          <Card shadow="none" className="card"><CardHeader><div><div className="text-[15px] font-bold">链上资金溯源</div><div className="text-[12px] text-default-400">来源/去向路径 · Chainalysis</div></div></CardHeader>
-            <CardBody className="pt-0">
-              <div className="flex flex-wrap items-center gap-1.5">{a.trace.map((t, i) => (<span key={i} className="flex items-center gap-1.5"><Pill tone={t[1]} dot={false}>{t[0]}</Pill>{i < a.trace.length - 1 && <span className="text-[11px] text-default-400">→</span>}</span>))}</div>
-              <p className="mt-3 text-[12px] leading-relaxed text-default-500">{a.traceNote}</p>
-            </CardBody>
-          </Card>
+          {/* related-order banner */}
+          <div className="flex items-center gap-3 rounded-2xl px-4 py-3 text-[12.5px]" style={{ background: "var(--brand-softer)" }}>
+            <Info className="h-4 w-4 shrink-0" style={{ color: "var(--brand)" }} />
+            <span className="flex-1 text-default-600">关联在途订单 <b className="text-foreground">{a.order}</b> 资金暂缓中 · 实际放行 / 拒绝由「事中监控」闸口执行。本警报现需做出研判结论。</span>
+            <button onClick={() => nav("/monitoring")} className="shrink-0 font-semibold text-primary">查看订单 →</button>
+          </div>
 
-          <div className="grid grid-cols-1 gap-[18px] md:grid-cols-2">
-            <Card shadow="none" className="card"><CardHeader><div className="text-[15px] font-bold">对手地址情报</div></CardHeader><CardBody className="flex flex-col gap-2 pt-0 text-[12.5px]">
-              <div className="flex items-baseline justify-between gap-3 border-b border-dashed border-default-200 py-2"><span className="text-default-500">地址链龄</span><span className="font-semibold">{a.addrIntel.age}</span></div>
-              <div className="flex items-baseline justify-between gap-3 border-b border-dashed border-default-200 py-2"><span className="text-default-500">链上标签</span><span className="flex flex-wrap justify-end gap-1">{a.addrIntel.labels.map((l) => <SoftChip key={l}>{l}</SoftChip>)}</span></div>
-              <div className="flex items-baseline justify-between gap-3 border-b border-dashed border-default-200 py-2"><span className="text-default-500">网络共享</span><span className="font-semibold">{a.addrIntel.networkSeen}</span></div>
-              <div className="flex items-baseline justify-between gap-3 py-2"><span className="text-default-500">历史拦截</span><span className="font-semibold">{a.addrIntel.priorBlocks}</span></div>
-            </CardBody></Card>
+          {/* 交易信息 | 商户画像 */}
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.45fr_1fr]">
+            <Card shadow="none" className="card"><CardHeader className="flex items-center justify-between"><div><div className="text-[15px] font-bold">交易信息</div><div className="text-[12px] text-default-400">{a.type}订单明细</div></div><SoftChip net>◈ {a.network}</SoftChip></CardHeader>
+              <CardBody className="pt-0"><div className="grid grid-cols-2 gap-x-8">
+                <Kv label="金额"><span className="tnum">{a.amount}</span></Kv><Kv label="资产">{a.asset}</Kv>
+                <Kv label="发送方"><span className="font-mono" style={{ color: "var(--brand)" }}>{a.sender}</span></Kv><Kv label="收款方"><span className="font-mono">{a.receiver}</span></Kv>
+                <Kv label="交易哈希"><span className="font-mono" style={{ color: "var(--brand)" }}>{a.txHash}</span></Kv><Kv label="区块确认">{a.confirmations}</Kv>
+                <Kv label="提交时间"><span className="tnum">{a.submitted}</span></Kv><Kv label="告警ID"><span className="font-mono">{a.id}</span></Kv>
+              </div></CardBody>
+            </Card>
             <Card shadow="none" className="card"><CardHeader><div className="text-[15px] font-bold">商户 / 客户画像</div></CardHeader><CardBody className="flex flex-col gap-2 pt-0 text-[12.5px]">
               <div className="flex items-baseline justify-between gap-3 border-b border-dashed border-default-200 py-2"><span className="text-default-500">商户</span><span className="font-semibold">{a.merchant} <span className="font-normal text-default-400">· {a.country}</span></span></div>
               <div className="flex items-baseline justify-between gap-3 border-b border-dashed border-default-200 py-2"><span className="text-default-500">分级</span><Pill tone={a.merchantTier[1]}>{a.merchantTier[0]}</Pill></div>
@@ -111,49 +120,39 @@ export default function AlertDetail() {
             </CardBody></Card>
           </div>
 
-          <Card shadow="none" className="card"><CardHeader><div className="text-[15px] font-bold">处理时间线</div></CardHeader><CardBody className="pt-0">
-            <ol className="relative ml-2 border-l border-default-200 pl-6">
-              {tl.map((t, i) => (<li key={i} className="relative pb-4 last:pb-0"><span className="absolute -left-[27px] top-1 h-3 w-3 rounded-full border-2 border-[var(--brand)]" style={{ background: t[2] === "done" ? "var(--brand)" : "var(--surface)" }} /><div className="text-[11px] text-default-400 tnum">{t[0]}</div><div className="mt-0.5 text-[12.5px] font-semibold">{t[1]}</div></li>))}
-            </ol>
-          </CardBody></Card>
-        </div>
-
-        {/* right */}
-        <div className="flex flex-col gap-[18px]">
-          <Card shadow="none" className="card"><CardHeader className="flex items-center justify-between"><div className="text-[15px] font-bold">AI 风险研判</div><Pill tone={sev.tone}>{sevLabel} · {a.level}</Pill></CardHeader>
-            <CardBody className="pt-0">
-              <div className="rounded-xl border p-3.5" style={{ borderColor: "var(--violet-bd)", background: "linear-gradient(180deg,var(--violet-bg),var(--surface))" }}>
-                <div className="flex items-center gap-2 text-[13px] font-bold" style={{ color: "var(--violet)" }}><Sparkles className="h-4 w-4" />AI 风险预判</div>
-                <div className="mt-3 flex items-center gap-3.5">
-                  <div className="relative flex h-[88px] w-[88px] shrink-0 items-center justify-center rounded-full" style={{ background: `conic-gradient(${gaugeCol} ${a.score}%, var(--track) 0)` }}>
-                    <div className="absolute rounded-full bg-content1" style={{ inset: 9 }} />
-                    <div className="relative text-center"><div className="text-[22px] font-extrabold tnum" style={{ color: gaugeCol }}>{a.score}</div><div className="text-[10px] text-default-400">/ 100</div></div>
-                  </div>
-                  <div className="flex flex-1 flex-col gap-2">{a.factors.map((fc, i) => (<div key={i} className="flex items-start gap-2"><span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-[12px]" style={{ background: fc.bg, color: fc.fg }}>{fc.emoji}</span><div><div className="text-[12px] font-semibold leading-tight">{fc.title}</div><div className="text-[11px] text-default-400">{fc.desc}</div></div></div>))}</div>
-                </div>
-                <p className="mt-3 border-t pt-2.5 text-[12px] text-default-500" style={{ borderColor: "var(--violet-bd)" }}><b className="text-foreground">模型建议：</b>{a.recommendation}</p>
-              </div>
-
-              <div className="mt-3.5 flex items-center justify-between rounded-lg border border-divider bg-default-50 px-3 py-2.5">
-                <span className="flex items-center gap-2"><span className="text-[12px] text-default-500">制裁筛查</span><Pill tone={sancTone}>{a.sanctions.status}</Pill></span>
-                <span className="text-[12px] text-default-400">{a.sanctions.list}</span>
-              </div>
-
-              <div className="mt-4 text-[11px] font-bold uppercase tracking-wider text-default-400">审核清单</div>
-              {a.checklist.map(([txt, done], i) => (<div key={i} className="flex items-start gap-2.5 py-1.5"><span className="flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-md text-[11px]" style={done ? { background: "var(--success)", color: "#fff" } : { border: "1.5px solid var(--line)" }}>{done ? "✓" : ""}</span><span className="text-[12px]" style={done ? undefined : { color: "var(--text-2)" }}>{txt}</span></div>))}
-
-              {!sd.active && <div className="mt-4 rounded-lg border border-divider bg-default-50 p-3 text-center text-[12.5px] text-default-500">✓ 本告警已关闭 · <b>{sd.label.replace("已结 · ", "")}</b></div>}
-              {state === "pending_l2" && <div className="mt-4 rounded-lg border p-2.5 text-center text-[12.5px]" style={{ background: "var(--brand-soft)", color: "var(--brand)", borderColor: "var(--brand-bd)" }}>⏳ L1 已提交建议 · 待 L2 复核</div>}
-            </CardBody>
+          {/* 规则引擎触发明细 */}
+          <Card shadow="none" className="card"><CardHeader className="flex items-center justify-between"><div className="text-[15px] font-bold">规则引擎触发明细 · {a.rules.length} 条</div><Pill tone="red" dot={false}>总CRR加分 +{crr}</Pill></CardHeader>
+            <CardBody className="pt-0"><Table aria-label="命中规则" removeWrapper classNames={{ th: "bg-default-50 text-default-500 text-[11.5px]" }}>
+              <TableHeader><TableColumn>规则</TableColumn><TableColumn>类别</TableColumn><TableColumn>阈值 / 条件</TableColumn><TableColumn>命中值</TableColumn><TableColumn align="end">权重</TableColumn></TableHeader>
+              <TableBody>{a.rules.map((r, i) => (
+                <TableRow key={i}><TableCell className="font-semibold">{r.name}</TableCell><TableCell className="text-[12px]">{r.cat}</TableCell><TableCell className="text-[12px]">{r.cond}</TableCell><TableCell className="font-semibold" style={{ color: "var(--danger)" }}>{r.hit}</TableCell><TableCell><div className="flex justify-end"><Pill tone="red" dot={false}>{r.weight}</Pill></div></TableCell></TableRow>
+              ))}</TableBody>
+            </Table></CardBody>
           </Card>
 
-          <Card shadow="none" className="card"><CardHeader><div className="text-[15px] font-bold">SLA</div></CardHeader><CardBody className="pt-0">
-            <div className="flex items-center justify-between text-[13px]"><span className="text-default-500">处理时限</span><span className="font-semibold tnum">{a.sla.text}</span></div>
-            <Progress aria-label="SLA" value={a.sla.pct} color={slaColor[a.sla.color]} size="sm" className="mt-2" />
-            <p className="mt-2 text-[11.5px] text-default-400">高风险工单 SLA 为 48 小时，超时自动升级。</p>
-          </CardBody></Card>
+          {/* 链上溯源 | 对手地址情报 */}
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+            <Card shadow="none" className="card"><CardHeader><div><div className="text-[15px] font-bold">链上资金溯源</div><div className="text-[12px] text-default-400">来源/去向路径 · Chainalysis</div></div></CardHeader>
+              <CardBody className="pt-0">
+                <div className="flex flex-wrap items-center gap-1.5">{a.trace.map((t, i) => (<span key={i} className="flex items-center gap-1.5"><Pill tone={t[1]} dot={false}>{t[0]}</Pill>{i < a.trace.length - 1 && <span className="text-[11px] text-default-400">→</span>}</span>))}</div>
+                <p className="mt-3 text-[12px] leading-relaxed text-default-500">{a.traceNote}</p>
+              </CardBody>
+            </Card>
+            <Card shadow="none" className="card"><CardHeader><div className="text-[15px] font-bold">对手地址情报</div></CardHeader><CardBody className="flex flex-col gap-2 pt-0 text-[12.5px]">
+              <div className="flex items-baseline justify-between gap-3 border-b border-dashed border-default-200 py-2"><span className="text-default-500">地址链龄</span><span className="font-semibold">{a.addrIntel.age}</span></div>
+              <div className="flex items-baseline justify-between gap-3 border-b border-dashed border-default-200 py-2"><span className="text-default-500">链上标签</span><span className="flex flex-wrap justify-end gap-1">{a.addrIntel.labels.map((l) => <SoftChip key={l}>{l}</SoftChip>)}</span></div>
+              <div className="flex items-baseline justify-between gap-3 border-b border-dashed border-default-200 py-2"><span className="text-default-500">网络共享</span><span className="font-semibold">{a.addrIntel.networkSeen}</span></div>
+              <div className="flex items-baseline justify-between gap-3 py-2"><span className="text-default-500">历史拦截</span><span className="font-semibold">{a.addrIntel.priorBlocks}</span></div>
+            </CardBody></Card>
+          </div>
         </div>
-      </div>
+      ) : (
+        <Card shadow="none" className="card"><CardHeader><div className="text-[15px] font-bold">活动日志 · 处理时间线</div></CardHeader><CardBody className="pt-0">
+          <ol className="relative ml-2 border-l border-default-200 pl-6">
+            {tl.map((t, i) => (<li key={i} className="relative pb-4 last:pb-0"><span className="absolute -left-[27px] top-1 h-3 w-3 rounded-full border-2 border-[var(--brand)]" style={{ background: t[2] === "done" ? "var(--brand)" : "var(--surface)" }} /><div className="text-[11px] text-default-400 tnum">{t[0]}</div><div className="mt-0.5 text-[12.5px] font-semibold">{t[1]}</div></li>))}
+          </ol>
+        </CardBody></Card>
+      )}
 
       <ReviewDialog alertId={a.id} open={open} onOpenChange={setOpen} />
     </Shell>
