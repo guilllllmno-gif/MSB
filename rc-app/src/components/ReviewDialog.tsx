@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Drawer, DrawerContent, DrawerHeader, DrawerBody, DrawerFooter, Button, Select, SelectItem, Textarea, Checkbox } from "@heroui/react";
-import { Sparkles, Check, FolderOpen, Shield, FileQuestion, ArrowUpCircle, DoorOpen } from "lucide-react";
-import { Pill, Initials, SectionLabel } from "./bits";
-import { alerts, RC_STATES, sevMeta, DISP, PROC, REASONS, IMPACT, FIELDS, SUBMIT, aiRec } from "@/lib/data";
+import { Check, FolderOpen, Shield, FileQuestion, ArrowUpCircle } from "lucide-react";
+import { Initials, SectionLabel } from "./bits";
+import { alerts, RC_STATES, DISP, PROC, REASONS, IMPACT, FIELDS, SUBMIT, aiRec } from "@/lib/data";
 import { alertStore } from "@/lib/store";
 
 const L1 = { i: "JL", n: "James Liu", c: "var(--brand)" };
@@ -32,10 +32,6 @@ export function ReviewDialog({ alertId, open, onOpenChange, onDone }: { alertId:
   }, [open, alertId]); // eslint-disable-line
 
   if (!a) return null;
-  const sev = sevMeta[a.sev];
-  const rec = aiRec(a);
-  const recLabel = DISP.find((d) => d.k === rec.k)?.label;
-
   const toggleField = (k: string, val: string, multi: boolean) => setFieldVals((p) => {
     const cur = p[k] || [];
     if (multi) return { ...p, [k]: cur.includes(val) ? cur.filter((x) => x !== val) : [...cur, val] };
@@ -65,23 +61,6 @@ export function ReviewDialog({ alertId, open, onOpenChange, onDone }: { alertId:
           <span className="font-mono text-[11.5px] font-normal text-default-400">{a.id} · {a.merchant}</span>
         </DrawerHeader>
         <DrawerBody className="gap-4 py-4">
-          {/* AI 研判 — neutral card, severity is the only accent */}
-          <div className="rounded-xl border border-divider bg-default-50 p-3.5">
-            <div className="flex items-center gap-2 text-[13px] font-semibold text-default-700">
-              <Sparkles className="h-4 w-4 text-default-400" />AI 风险研判
-              <span className="ml-auto"><Pill tone={sev.tone}>{sev.label === "高危" ? "高风险" : sev.label === "中危" ? "中风险" : "低风险"}</Pill></span>
-            </div>
-            <p className="mt-2 text-[12px] leading-relaxed text-default-500">{a.factors.map((x) => x.title).join(" · ")}</p>
-            <p className="mt-2.5 border-t border-divider pt-2.5 text-[12.5px] text-default-600"><b>建议结论：</b><span className="font-bold text-primary">{recLabel}</span> <span className="text-default-400">（置信度 {rec.conf}%）</span></p>
-          </div>
-
-          {/* related order — neutral */}
-          <div className="flex items-center gap-3 rounded-xl border border-divider bg-default-50 p-3">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-divider bg-content1 text-default-500"><DoorOpen className="h-4 w-4" /></span>
-            <div className="flex-1 text-[12.5px]"><b>关联在途订单 {a.order}</b><div className="text-[11px] text-default-500">资金暂缓中 · 实际放行/拒绝在事中监控闸口执行</div></div>
-            <button className="text-[12px] font-semibold text-primary">前往闸口 →</button>
-          </div>
-
           <div className="flex items-center gap-2.5 text-[13px] font-semibold"><Initials p={L1} size={26} />{L1.n} 研判操作<span className="ml-auto rounded-full bg-default-100 px-2 py-0.5 text-[11px] font-semibold text-default-500">L1 调查</span></div>
 
           {!active ? (

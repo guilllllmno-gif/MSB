@@ -137,8 +137,8 @@ export default function AlertList() {
       </div>
 
       {/* table — clean component per design (checkbox select, grey header, hover rows, icon actions) */}
-      <Table aria-label="交易警报" radius="lg" selectionMode="multiple" color="default"
-        selectedKeys={selected} onSelectionChange={setSelected}
+      <Table aria-label="交易警报" radius="lg" selectionMode="multiple" color="primary"
+        selectedKeys={selected} onSelectionChange={setSelected} checkboxesProps={{ color: "primary" }}
         classNames={{ wrapper: "card no-scrollbar p-0 rounded-2xl overflow-x-auto", th: "bg-default-50 text-default-500 text-[12px] font-medium h-12 border-b border-divider whitespace-nowrap", td: "py-4 text-[13px] whitespace-nowrap group-data-[selected=true]:before:!bg-default-100", tr: "border-b border-default-100 last:border-0 transition-colors data-[hover=true]:bg-default-50 hover:bg-default-50" }}>
         <TableHeader>
           <TableColumn>警报ID</TableColumn><TableColumn>商户名称/交易ID</TableColumn><TableColumn>类型</TableColumn>
