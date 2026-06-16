@@ -64,7 +64,7 @@ export function ReviewDialog({ alertId, open, onOpenChange, onDone }: { alertId:
           <div className="flex items-center gap-2.5 text-[13px] font-semibold"><Initials p={L1} size={26} />{L1.n} 研判操作<span className="ml-auto rounded-full bg-default-100 px-2 py-0.5 text-[11px] font-semibold text-default-500">L1 调查</span></div>
 
           {!active ? (
-            <div className="rounded-lg border border-divider bg-default-50 p-3 text-[12.5px] text-default-500">本告警已关闭 · <b>{RC_STATES[state].label.replace("已结 · ", "")}</b>。如需变更请重新打开。</div>
+            <div className="rounded-xl border border-divider bg-default-50 p-3 text-[12.5px] text-default-500">本告警已关闭 · <b>{RC_STATES[state].label.replace("已结 · ", "")}</b>。如需变更请重新打开。</div>
           ) : (
             <>
               <div><SectionLabel>处置结论</SectionLabel>
@@ -79,7 +79,7 @@ export function ReviewDialog({ alertId, open, onOpenChange, onDone }: { alertId:
               <div><SectionLabel>流程操作</SectionLabel>
                 <div className="grid grid-cols-2 gap-2">
                   {PROC.map((p) => { const Icon = PROC_ICON[p.k]; const on = proc === p.k; return (
-                    <button key={p.k} onClick={() => { setProc(on ? null : p.k); setDisp(null); }} className="flex flex-col items-center gap-1.5 rounded-lg border px-1.5 py-2.5 text-[12px] font-medium transition-colors"
+                    <button key={p.k} onClick={() => { setProc(on ? null : p.k); setDisp(null); }} className="flex flex-col items-center gap-1.5 rounded-xl border px-1.5 py-2.5 text-[12px] font-medium transition-colors"
                       style={on ? onStyle : offStyle}>
                       <Icon className="h-4 w-4" />{p.label}</button>
                   ); })}
@@ -87,7 +87,7 @@ export function ReviewDialog({ alertId, open, onOpenChange, onDone }: { alertId:
               </div>
 
               {choice && (
-                <div className="rounded-lg border border-divider bg-default-100 p-3 text-[12px] leading-relaxed text-default-600">
+                <div className="rounded-xl border border-divider bg-default-100 p-3 text-[12px] leading-relaxed text-default-600">
                   <span dangerouslySetInnerHTML={{ __html: IMPACT[choice](a) }} />
                 </div>
               )}
@@ -109,7 +109,7 @@ export function ReviewDialog({ alertId, open, onOpenChange, onDone }: { alertId:
               ) : (
                 <div key={fd.k}>
                   <label className="mb-1.5 block text-[12.5px] font-semibold">{fd.label} {fd.required ? <span className="text-danger">*</span> : <span className="font-normal text-default-400">· 选填</span>}</label>
-                  <div className={`flex flex-wrap gap-1.5 ${errs.has(fd.k) ? "rounded-lg p-1 ring-2 ring-danger/40" : ""}`}>
+                  <div className={`flex flex-wrap gap-1.5 ${errs.has(fd.k) ? "rounded-xl p-1 ring-2 ring-danger/40" : ""}`}>
                     {fd.options.map((o) => { const on = (fieldVals[fd.k] || []).includes(o); return (
                       <button key={o} onClick={() => toggleField(fd.k, o, true)} className="inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[12px] font-semibold transition-colors"
                         style={on ? onStyle : offStyle}>
@@ -123,10 +123,10 @@ export function ReviewDialog({ alertId, open, onOpenChange, onDone }: { alertId:
 
               <div><SectionLabel>关联证据材料 · L2 复核重点</SectionLabel>
                 <div className="flex flex-col gap-2">
-                  <Checkbox defaultSelected={a.kyb === "完成"} classNames={{ base: "max-w-full m-0 inline-flex w-full items-start rounded-lg border border-divider p-2.5", label: "text-[12.5px]" }}>
+                  <Checkbox defaultSelected={a.kyb === "完成"} classNames={{ base: "max-w-full m-0 inline-flex w-full items-start rounded-xl border border-divider p-2.5", label: "text-[12.5px]" }}>
                     <span className="font-semibold">商户补充材料</span><span className="block text-[11px] text-default-400">{a.merchant} · KYB {a.kyb}</span>
                   </Checkbox>
-                  <Checkbox defaultSelected classNames={{ base: "max-w-full m-0 inline-flex w-full items-start rounded-lg border border-divider p-2.5", label: "text-[12.5px]" }}>
+                  <Checkbox defaultSelected classNames={{ base: "max-w-full m-0 inline-flex w-full items-start rounded-xl border border-divider p-2.5", label: "text-[12.5px]" }}>
                     <span className="font-semibold">历史订单参考</span><span className="block text-[11px] text-default-400">类似订单放行率 68% · 历史违规 {a.custHistory.violations}</span>
                   </Checkbox>
                 </div>

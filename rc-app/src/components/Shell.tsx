@@ -50,7 +50,7 @@ export function Shell({ crumb, wide, children }: { crumb: string[]; wide?: boole
                 : <div key={i} className="px-2.5 pb-1 pt-4 text-[10.5px] font-bold uppercase tracking-wider text-default-400">{n.group}</div>
             ) : (
               <NavLink key={n.to} to={n.to} title={collapsed ? n.label : undefined}
-                className={({ isActive }) => `group flex items-center rounded-2xl text-[13.5px] transition-colors ${collapsed ? "mx-auto h-10 w-10 justify-center" : "gap-2.5 px-2.5 py-2.5"} ${isActive ? "bg-content1 font-semibold text-foreground" : "font-medium text-default-500 hover:bg-content1/60 hover:text-default-700"}`}>
+                className={({ isActive }) => `group flex items-center rounded-xl text-[13.5px] transition-colors ${collapsed ? "mx-auto h-10 w-10 justify-center" : "gap-2.5 px-2.5 py-2.5"} ${isActive ? "bg-content1 font-semibold text-foreground" : "font-medium text-default-500 hover:bg-content1/60 hover:text-default-700"}`}>
                 <n.icon className="h-[18px] w-[18px] shrink-0" strokeWidth={1.9} />
                 {!collapsed && <>{n.label}<span className="ml-auto" />{n.tag && <span className="rounded-full bg-default-100 px-[7px] py-px text-[10.5px] font-bold text-default-500">{n.tag}</span>}</>}
               </NavLink>
@@ -59,8 +59,8 @@ export function Shell({ crumb, wide, children }: { crumb: string[]; wide?: boole
         </nav>
 
         <div className="mt-2 flex flex-col gap-0.5 border-t border-divider pt-3">
-          <button title={collapsed ? "帮助与信息" : undefined} className={`flex items-center rounded-2xl text-[13.5px] font-medium text-default-500 transition-colors hover:bg-content1/60 hover:text-default-700 ${collapsed ? "mx-auto h-10 w-10 justify-center" : "gap-2.5 px-2.5 py-2.5"}`}><HelpCircle className="h-[18px] w-[18px] shrink-0" strokeWidth={1.9} />{!collapsed && "帮助与信息"}</button>
-          <button title={collapsed ? "退出登录" : undefined} className={`flex items-center rounded-2xl text-[13.5px] font-medium text-default-500 transition-colors hover:bg-content1/60 hover:text-default-700 ${collapsed ? "mx-auto h-10 w-10 justify-center" : "gap-2.5 px-2.5 py-2.5"}`}><LogOut className="h-[18px] w-[18px] shrink-0" strokeWidth={1.9} />{!collapsed && "退出登录"}</button>
+          <button title={collapsed ? "帮助与信息" : undefined} className={`flex items-center rounded-xl text-[13.5px] font-medium text-default-500 transition-colors hover:bg-content1/60 hover:text-default-700 ${collapsed ? "mx-auto h-10 w-10 justify-center" : "gap-2.5 px-2.5 py-2.5"}`}><HelpCircle className="h-[18px] w-[18px] shrink-0" strokeWidth={1.9} />{!collapsed && "帮助与信息"}</button>
+          <button title={collapsed ? "退出登录" : undefined} className={`flex items-center rounded-xl text-[13.5px] font-medium text-default-500 transition-colors hover:bg-content1/60 hover:text-default-700 ${collapsed ? "mx-auto h-10 w-10 justify-center" : "gap-2.5 px-2.5 py-2.5"}`}><LogOut className="h-[18px] w-[18px] shrink-0" strokeWidth={1.9} />{!collapsed && "退出登录"}</button>
         </div>
       </aside>
 
