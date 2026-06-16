@@ -1,12 +1,15 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Button, Input, Pagination, Tooltip } from "@heroui/react";
+import { toast } from "sonner";
+import { Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Button, Input, Pagination, Tooltip, type Selection } from "@heroui/react";
 import { Search, SlidersHorizontal, Tag, Clock, CheckCircle2, AlertTriangle, CircleArrowUp, CircleDot, UserRound, FolderOpen, XCircle, Check, Users, Eye, ClipboardCheck } from "lucide-react";
 import { Shell, PageHead } from "@/components/Shell";
 import { Pill, Initials } from "@/components/bits";
 import { ReviewDialog } from "@/components/ReviewDialog";
 import { alerts, RC_STATES, sevMeta } from "@/lib/data";
 import { alertStore, useAlertVersion } from "@/lib/store";
+
+const ME = { i: "JL", n: "James Liu", c: "var(--brand)" };
 
 const TILES: { f: string; label: string }[] = [
   { f: "all", label: "全部警报" },
@@ -44,6 +47,7 @@ export default function AlertList() {
   const [q, setQ] = useState("");
   const [reviewId, setReviewId] = useState<string | null>(null);
   const [reviewOpen, setReviewOpen] = useState(false);
+  const [selected, setSelected] = useState<Selection>(new Set());
 
   const count = (f: string) => alerts.filter((a) => matchTile(f, alertStore.stateOf(a.id, a.state))).length;
   const rows = alerts.filter((a) => {
@@ -53,14 +57,25 @@ export default function AlertList() {
   });
   const openReview = (id: string) => { setReviewId(id); setReviewOpen(true); };
 
+  const selectedIds = selected === "all" ? rows.map((r) => r.id) : Array.from(selected as Set<React.Key>).map(String);
+  const selCount = selectedIds.length;
+  const clearSel = () => setSelected(new Set());
+  const batchClaim = () => {
+    const n = selectedIds.filter((id) => { const al = alerts.find((x) => x.id === id); if (al && alertStore.stateOf(al.id, al.state) === "new") { alertStore.set(al.id, "progress", { assignee: ME, event: "批量认领" }); return true; } return false; }).length;
+    toast.success(n ? `已批量认领 ${n} 个告警` : "所选告警无需认领");
+    clearSel();
+  };
+  const batchAssign = () => { toast.success(`已将 ${selCount} 个告警分配给 ${ME.n}`); clearSel(); };
+
   return (
     <Shell crumb={["交易", "交易监控", "交易警报"]} wide>
       <PageHead
         title="交易警报"
         sub="规则引擎与链上监控产生的实时告警，点击任意告警查看详情与处置。"
         actions={<>
-          <Button size="sm" radius="full" variant="flat" className="bg-default-100" startContent={<Check className="h-3.5 w-3.5" />}>批量认领</Button>
-          <Button size="sm" radius="full" color="primary" startContent={<Users className="h-3.5 w-3.5" />}>分配</Button>
+          {selCount > 0 && <span className="mr-1 text-[12.5px] text-default-500">已选 <b className="text-foreground">{selCount}</b> 项</span>}
+          <Button size="sm" radius="full" variant="flat" className="bg-default-100" isDisabled={selCount === 0} startContent={<Check className="h-3.5 w-3.5" />} onPress={batchClaim}>批量认领</Button>
+          <Button size="sm" radius="full" color="primary" isDisabled={selCount === 0} startContent={<Users className="h-3.5 w-3.5" />} onPress={batchAssign}>分配</Button>
         </>}
       />
 
@@ -89,9 +104,10 @@ export default function AlertList() {
         </div>
       </div>
 
-      {/* table — clean component per design (grey header, hover rows, icon actions) */}
-      <Table aria-label="交易警报" radius="lg"
-        classNames={{ wrapper: "card no-scrollbar p-0 rounded-2xl overflow-x-auto", th: "bg-default-50 text-default-500 text-[12px] font-medium h-12 border-b border-divider whitespace-nowrap", td: "py-4 text-[13px] whitespace-nowrap", tr: "border-b border-default-100 last:border-0 transition-colors hover:bg-default-50" }}>
+      {/* table — clean component per design (checkbox select, grey header, hover rows, icon actions) */}
+      <Table aria-label="交易警报" radius="lg" selectionMode="multiple" color="primary"
+        selectedKeys={selected} onSelectionChange={setSelected}
+        classNames={{ wrapper: "card no-scrollbar p-0 rounded-2xl overflow-x-auto", th: "bg-default-50 text-default-500 text-[12px] font-medium h-12 border-b border-divider whitespace-nowrap", td: "py-4 text-[13px] whitespace-nowrap group-data-[selected=true]:before:bg-primary/5", tr: "border-b border-default-100 last:border-0 transition-colors data-[hover=true]:bg-default-50 hover:bg-default-50" }}>
         <TableHeader>
           <TableColumn>警报ID</TableColumn><TableColumn>商户名称/交易ID</TableColumn><TableColumn>类型</TableColumn>
           <TableColumn>风险评分</TableColumn><TableColumn>命中告警</TableColumn><TableColumn>交易金额</TableColumn>
