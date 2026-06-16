@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { Card, CardHeader, CardBody, Button, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Progress } from "@heroui/react";
-import { ArrowLeft, ClipboardCheck, Sparkles, Check } from "lucide-react";
+import { ArrowLeft, ClipboardCheck, Sparkles, Clock } from "lucide-react";
 import { Shell } from "@/components/Shell";
 import { Pill, SoftChip, Initials, RiskBadge, toneVar } from "@/components/bits";
 import { ReviewDialog } from "@/components/ReviewDialog";
@@ -43,33 +43,27 @@ export default function AlertDetail() {
     <Shell crumb={["风控", "监控运营", "交易警报", a.order]}>
       <button onClick={() => nav("/alerts")} className="mb-3.5 inline-flex items-center gap-1.5 text-[13px] font-medium text-default-500 hover:text-foreground"><ArrowLeft className="h-4 w-4" />返回告警工作台</button>
 
+      {/* fixed top action bar — single review action lives here */}
       <Card shadow="none" className="mb-5 card"><CardBody className="py-5">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
-            <h1 className="font-mono text-[23px] font-extrabold tracking-tight">{a.order}</h1>
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              <SoftChip>{a.type}</SoftChip><Pill tone={sd.cls}>{sd.label}</Pill><RiskBadge tone={sev.tone}>{sevLabel}</RiskBadge>
-              <span className="text-[12px] text-default-400 tnum">命中评分 {a.score} · {a.level}</span>
+            <h1 className="flex flex-wrap items-center gap-2.5 font-mono text-[23px] font-extrabold tracking-tight">
+              {a.order}
+              <Pill tone={sd.cls}>{sd.label}</Pill>
+              <RiskBadge tone={sev.tone}>{sevLabel}</RiskBadge>
+            </h1>
+            <div className="mt-2.5 text-[13px] text-default-500">
+              商户 <b className="text-foreground">{a.merchant}</b> · 审核人 {assignee ? <b className="text-foreground">{assignee.n}</b> : <span className="text-default-400">未认领</span>} · 触发时间 <span className="tnum">{a.submitted}</span>
             </div>
-            <div className="mt-2.5 text-[13px] text-default-500">{a.title} · <b className="text-foreground">{a.merchant}</b> · 提交于 {a.submitted} · 告警 <b className="text-foreground">{a.id}</b> · SLA <b className="text-foreground">{a.sla.text}</b></div>
           </div>
-          <div className="flex items-center gap-4">
-            {assignee ? <span className="flex items-center gap-2 text-[13px] font-semibold"><span className="text-[11px] font-normal text-default-400">处理人</span><Initials p={assignee} size={28} />{assignee.n}</span> : <Pill tone="grey">未认领</Pill>}
-            {sd.active && <Button color="primary" startContent={<ClipboardCheck className="h-4 w-4" />} onPress={() => setOpen(true)}>做出审核决定</Button>}
+          <div className="flex shrink-0 items-center gap-2.5">
+            <Pill tone={a.sla.color} icon={<Clock className="h-3.5 w-3.5" />}>SLA 截止 {a.sla.text}</Pill>
+            {state === "new" && <Button size="sm" variant="bordered" onPress={claim}>认领工单</Button>}
+            <Button size="sm" variant="bordered">请求扫描</Button>
+            {sd.active
+              ? <Button size="sm" color="primary" startContent={<ClipboardCheck className="h-4 w-4" />} onPress={() => setOpen(true)}>审核</Button>
+              : <Button size="sm" variant="bordered" onPress={reopen}>重新打开</Button>}
           </div>
-        </div>
-        <div className="mt-4 flex flex-wrap items-center border-t border-divider pt-4">
-          {PIPE.map(([, label], i) => (
-            <div key={i} className="flex items-center">
-              <div className="flex items-center gap-2">
-                <span className="flex h-[22px] w-[22px] items-center justify-center rounded-full border-2 text-[10.5px] font-extrabold"
-                  style={i < ci ? { background: "var(--success)", borderColor: "var(--success)", color: "#fff" } : i === ci ? { background: "var(--brand)", borderColor: "var(--brand)", color: "#fff" } : { borderColor: "var(--line)", color: "var(--text-3)" }}>
-                  {i < ci ? <Check className="h-3 w-3" /> : i + 1}</span>
-                <span className="text-[12px]" style={i === ci ? { color: "var(--brand)", fontWeight: 700 } : i < ci ? { color: "var(--text-2)" } : { color: "var(--text-3)" }}>{label}</span>
-              </div>
-              {i < PIPE.length - 1 && <span className="mx-2 h-0.5 w-8" style={{ background: i < ci ? "var(--success)" : "var(--line)" }} />}
-            </div>
-          ))}
         </div>
       </CardBody></Card>
 
@@ -126,7 +120,7 @@ export default function AlertDetail() {
 
         {/* right */}
         <div className="flex flex-col gap-[18px]">
-          <Card shadow="none" className="card"><CardHeader className="flex items-center justify-between"><div className="text-[15px] font-bold">审核决定</div><Pill tone={sev.tone}>{sevLabel} · {a.level}</Pill></CardHeader>
+          <Card shadow="none" className="card"><CardHeader className="flex items-center justify-between"><div className="text-[15px] font-bold">AI 风险研判</div><Pill tone={sev.tone}>{sevLabel} · {a.level}</Pill></CardHeader>
             <CardBody className="pt-0">
               <div className="rounded-xl border p-3.5" style={{ borderColor: "var(--violet-bd)", background: "linear-gradient(180deg,var(--violet-bg),var(--surface))" }}>
                 <div className="flex items-center gap-2 text-[13px] font-bold" style={{ color: "var(--violet)" }}><Sparkles className="h-4 w-4" />AI 风险预判</div>
@@ -148,22 +142,8 @@ export default function AlertDetail() {
               <div className="mt-4 text-[11px] font-bold uppercase tracking-wider text-default-400">审核清单</div>
               {a.checklist.map(([txt, done], i) => (<div key={i} className="flex items-start gap-2.5 py-1.5"><span className="flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-md text-[11px]" style={done ? { background: "var(--success)", color: "#fff" } : { border: "1.5px solid var(--line)" }}>{done ? "✓" : ""}</span><span className="text-[12px]" style={done ? undefined : { color: "var(--text-2)" }}>{txt}</span></div>))}
 
-              <div className="mb-2.5 mt-4 text-[11px] font-bold uppercase tracking-wider text-default-400">处置</div>
-              <div className="flex flex-col gap-2.5">
-                {!sd.active ? (
-                  <>
-                    <div className="rounded-lg border border-divider bg-default-50 p-3 text-center text-[12.5px] text-default-500">✓ 本告警已关闭 · <b>{sd.label.replace("已结 · ", "")}</b></div>
-                    {state === "closed_case" && <Button variant="bordered" onPress={() => nav("/cases")}>前往案件管理</Button>}
-                    <Button variant="bordered" onPress={reopen}>重新打开</Button>
-                  </>
-                ) : (
-                  <>
-                    {state === "new" && <Button color="primary" onPress={claim}>认领工单</Button>}
-                    {state === "pending_l2" && <div className="rounded-lg border p-2.5 text-center text-[12.5px]" style={{ background: "var(--brand-soft)", color: "var(--brand)", borderColor: "var(--brand-bd)" }}>⏳ L1 已提交建议 · 待 L2 复核</div>}
-                    <Button color="primary" startContent={<ClipboardCheck className="h-4 w-4" />} onPress={() => setOpen(true)}>做出审核决定</Button>
-                  </>
-                )}
-              </div>
+              {!sd.active && <div className="mt-4 rounded-lg border border-divider bg-default-50 p-3 text-center text-[12.5px] text-default-500">✓ 本告警已关闭 · <b>{sd.label.replace("已结 · ", "")}</b></div>}
+              {state === "pending_l2" && <div className="mt-4 rounded-lg border p-2.5 text-center text-[12.5px]" style={{ background: "var(--brand-soft)", color: "var(--brand)", borderColor: "var(--brand-bd)" }}>⏳ L1 已提交建议 · 待 L2 复核</div>}
             </CardBody>
           </Card>
 

@@ -58,7 +58,7 @@ export function ReviewDialog({ alertId, open, onOpenChange, onDone }: { alertId:
   };
 
   return (
-    <Drawer isOpen={open} onOpenChange={onOpenChange} placement="right" size="md" classNames={{ base: "max-w-[94vw]" }}>
+    <Drawer isOpen={open} onOpenChange={onOpenChange} placement="right" size="md" classNames={{ base: "!w-[50vw] !min-w-[460px] !max-w-[820px]" }}>
       <DrawerContent>
         <DrawerHeader className="flex-col items-start gap-0.5 border-b border-divider">
           <span className="text-[15px] font-bold">告警研判 · 处置结论</span>
