@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Button, Input, Pagination } from "@heroui/react";
-import { Search, SlidersHorizontal, Tag, Clock, CheckCircle2, AlertTriangle, CircleArrowUp, CircleDot, UserRound, FolderOpen, XCircle, Check, Users } from "lucide-react";
+import { Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Button, Input, Pagination, Tooltip } from "@heroui/react";
+import { Search, SlidersHorizontal, Tag, Clock, CheckCircle2, AlertTriangle, CircleArrowUp, CircleDot, UserRound, FolderOpen, XCircle, Check, Users, Eye, ClipboardCheck } from "lucide-react";
 import { Shell, PageHead } from "@/components/Shell";
 import { Pill, Initials } from "@/components/bits";
 import { ReviewDialog } from "@/components/ReviewDialog";
@@ -89,9 +89,9 @@ export default function AlertList() {
         </div>
       </div>
 
-      {/* table — soft floating card, borderless */}
+      {/* table — clean component per design (grey header, hover rows, icon actions) */}
       <Table aria-label="交易警报" radius="lg"
-        classNames={{ wrapper: "card p-0 rounded-[18px] overflow-x-auto", th: "bg-transparent text-default-400 text-[11.5px] font-medium border-b border-divider whitespace-nowrap first:rounded-tl-none", td: "py-4 text-[13px] whitespace-nowrap", tr: "border-b border-default-100/70 last:border-0" }}>
+        classNames={{ wrapper: "card no-scrollbar p-0 rounded-2xl overflow-x-auto", th: "bg-default-50 text-default-500 text-[12px] font-medium h-12 border-b border-divider whitespace-nowrap", td: "py-4 text-[13px] whitespace-nowrap", tr: "border-b border-default-100 last:border-0 transition-colors hover:bg-default-50" }}>
         <TableHeader>
           <TableColumn>警报ID</TableColumn><TableColumn>商户名称/交易ID</TableColumn><TableColumn>类型</TableColumn>
           <TableColumn>风险评分</TableColumn><TableColumn>命中告警</TableColumn><TableColumn>交易金额</TableColumn>
@@ -119,10 +119,14 @@ export default function AlertList() {
                 <TableCell><span className="text-default-500 tnum">{a.submitted}</span></TableCell>
                 <TableCell>
                   <div className="flex items-center justify-end gap-1.5">
-                    <Button size="sm" radius="full" variant="light" className="min-w-0 text-default-600" onPress={() => openReview(a.id)}>认领</Button>
-                    {st === "new"
-                      ? <Button size="sm" radius="full" color="primary" variant="flat" onPress={() => openReview(a.id)}>审核</Button>
-                      : <Button size="sm" radius="full" variant="flat" className="bg-default-100" onPress={() => nav(`/alert?id=${a.id}`)}>查看</Button>}
+                    <Tooltip content="查看详情" size="sm" delay={300}>
+                      <Button isIconOnly size="sm" radius="full" variant="flat" className="bg-default-100" onPress={() => nav(`/alert?id=${a.id}`)}><Eye className="h-4 w-4 text-default-500" strokeWidth={1.9} /></Button>
+                    </Tooltip>
+                    {sd.active && (
+                      <Tooltip content="审核研判" size="sm" delay={300}>
+                        <Button isIconOnly size="sm" radius="full" variant="flat" className="bg-primary/10 text-primary" onPress={() => openReview(a.id)}><ClipboardCheck className="h-4 w-4" strokeWidth={1.9} /></Button>
+                      </Tooltip>
+                    )}
                   </div>
                 </TableCell>
               </TableRow>

@@ -50,7 +50,7 @@ export function Shell({ crumb, wide, children }: { crumb: string[]; wide?: boole
                 : <div key={i} className="px-2.5 pb-1 pt-4 text-[10.5px] font-bold uppercase tracking-wider text-default-400">{n.group}</div>
             ) : (
               <NavLink key={n.to} to={n.to} title={collapsed ? n.label : undefined}
-                className={({ isActive }) => `group flex items-center rounded-2xl text-[13.5px] transition-colors ${collapsed ? "mx-auto h-10 w-10 justify-center" : "gap-2.5 px-2.5 py-2.5"} ${isActive ? "card font-semibold text-foreground" : "font-medium text-default-500 hover:bg-content1/60 hover:text-default-700"}`}>
+                className={({ isActive }) => `group flex items-center rounded-2xl text-[13.5px] transition-colors ${collapsed ? "mx-auto h-10 w-10 justify-center" : "gap-2.5 px-2.5 py-2.5"} ${isActive ? "bg-content1 font-semibold text-foreground" : "font-medium text-default-500 hover:bg-content1/60 hover:text-default-700"}`}>
                 <n.icon className="h-[18px] w-[18px] shrink-0" strokeWidth={1.9} />
                 {!collapsed && <>{n.label}<span className="ml-auto" />{n.tag && <span className="rounded-full bg-default-100 px-[7px] py-px text-[10.5px] font-bold text-default-500">{n.tag}</span>}</>}
               </NavLink>
@@ -64,28 +64,26 @@ export function Shell({ crumb, wide, children }: { crumb: string[]; wide?: boole
         </div>
       </aside>
 
-      {/* white content panel */}
-      <div className="flex min-w-0 flex-1 flex-col overflow-hidden py-3 pr-3">
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[20px] bg-content1 shadow-soft">
-          <header className="flex h-16 shrink-0 items-center gap-4 border-b border-divider px-7">
-            <div className="flex items-center gap-1.5 text-[13px] text-default-500">
-              {crumb.map((c, i) => (
-                <span key={i} className="flex items-center gap-1.5">
-                  {i > 0 && <span className="text-default-300">/</span>}
-                  <span className={i === crumb.length - 1 ? "font-semibold text-foreground" : ""}>{c}</span>
-                </span>
-              ))}
-            </div>
-            <div className="ml-auto flex items-center gap-2">
-              <Button isIconOnly size="sm" radius="full" variant="flat" className="bg-default-100"><Search className="h-[18px] w-[18px] text-default-500" strokeWidth={1.9} /></Button>
-              <Button isIconOnly size="sm" radius="full" variant="flat" className="relative bg-default-100"><Bell className="h-[18px] w-[18px] text-default-500" strokeWidth={1.9} /><span className="absolute right-1.5 top-1.5 h-[7px] w-[7px] rounded-full ring-2 ring-content1" style={{ background: "var(--danger)" }} /></Button>
-              <ThemeToggle />
-              <Button size="sm" radius="full" variant="flat" className="bg-default-100" endContent={<ChevronDown className="h-3.5 w-3.5" />}>风控 · L1</Button>
-              <Initials p={{ i: "JL", c: "var(--brand)" }} size={34} />
-            </div>
-          </header>
-          <main className="flex-1 overflow-y-auto px-7 pb-8 pt-5"><div className={`mx-auto ${wide ? "max-w-[1480px]" : "max-w-[1180px]"}`}>{children}</div></main>
-        </div>
+      {/* flat white content area — no rounded wrapper, no borders */}
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden bg-content1">
+        <header className="flex h-16 shrink-0 items-center gap-4 px-7">
+          <div className="flex items-center gap-1.5 text-[13px] text-default-500">
+            {crumb.map((c, i) => (
+              <span key={i} className="flex items-center gap-1.5">
+                {i > 0 && <span className="text-default-300">/</span>}
+                <span className={i === crumb.length - 1 ? "font-semibold text-foreground" : ""}>{c}</span>
+              </span>
+            ))}
+          </div>
+          <div className="ml-auto flex items-center gap-2">
+            <Button isIconOnly size="sm" radius="full" variant="flat" className="bg-default-100"><Search className="h-[18px] w-[18px] text-default-500" strokeWidth={1.9} /></Button>
+            <Button isIconOnly size="sm" radius="full" variant="flat" className="relative bg-default-100"><Bell className="h-[18px] w-[18px] text-default-500" strokeWidth={1.9} /><span className="absolute right-1.5 top-1.5 h-[7px] w-[7px] rounded-full ring-2 ring-content1" style={{ background: "var(--danger)" }} /></Button>
+            <ThemeToggle />
+            <Button size="sm" radius="full" variant="flat" className="bg-default-100" endContent={<ChevronDown className="h-3.5 w-3.5" />}>风控 · L1</Button>
+            <Initials p={{ i: "JL", c: "var(--brand)" }} size={34} />
+          </div>
+        </header>
+        <main className="no-scrollbar flex-1 overflow-y-auto px-7 pb-8 pt-2"><div className={`mx-auto ${wide ? "max-w-[1480px]" : "max-w-[1180px]"}`}>{children}</div></main>
       </div>
     </div>
   );
