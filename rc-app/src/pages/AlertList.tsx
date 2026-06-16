@@ -59,7 +59,7 @@ export default function AlertList() {
         title="交易警报"
         sub="规则引擎与链上监控产生的实时告警，点击任意告警查看详情与处置。"
         actions={<>
-          <Button size="sm" radius="full" variant="flat" className="bg-content1 shadow-soft" startContent={<Check className="h-3.5 w-3.5" />}>批量认领</Button>
+          <Button size="sm" radius="full" variant="flat" className="bg-default-100" startContent={<Check className="h-3.5 w-3.5" />}>批量认领</Button>
           <Button size="sm" radius="full" color="primary" startContent={<Users className="h-3.5 w-3.5" />}>分配</Button>
         </>}
       />
@@ -82,10 +82,10 @@ export default function AlertList() {
       <div className="mb-4 flex flex-wrap items-center gap-2.5">
         <Input size="sm" radius="full" value={q} onValueChange={setQ} placeholder="搜索告警ID、订单号或商户…"
           startContent={<Search className="h-4 w-4 text-default-400" />} className="max-w-[360px] flex-1"
-          classNames={{ inputWrapper: "bg-content1 shadow-soft data-[hover=true]:bg-content1 h-10" }} />
+          classNames={{ inputWrapper: "bg-default-100 shadow-none data-[hover=true]:bg-default-200 h-10" }} />
         <div className="ml-auto flex items-center gap-2">
-          <Button size="sm" radius="full" variant="flat" className="bg-content1 shadow-soft" startContent={<SlidersHorizontal className="h-3.5 w-3.5" />}>风险等级</Button>
-          <Button size="sm" radius="full" variant="flat" className="bg-content1 shadow-soft" startContent={<Tag className="h-3.5 w-3.5" />}>交易类型</Button>
+          <Button size="sm" radius="full" variant="flat" className="bg-default-100" startContent={<SlidersHorizontal className="h-3.5 w-3.5" />}>风险等级</Button>
+          <Button size="sm" radius="full" variant="flat" className="bg-default-100" startContent={<Tag className="h-3.5 w-3.5" />}>交易类型</Button>
         </div>
       </div>
 
