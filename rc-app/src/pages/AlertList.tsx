@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Button, Input, Pagination, Tooltip, type Selection } from "@heroui/react";
+import { Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Button, Input, Pagination, Tooltip, Dropdown, DropdownTrigger, DropdownMenu, DropdownItem, type Selection } from "@heroui/react";
 import { Search, SlidersHorizontal, Tag, Clock, CheckCircle2, AlertTriangle, CircleArrowUp, CircleDot, UserRound, FolderOpen, XCircle, Check, Users, Eye, ClipboardCheck } from "lucide-react";
 import { Shell, PageHead } from "@/components/Shell";
 import { Pill, Initials } from "@/components/bits";
@@ -10,6 +10,16 @@ import { alerts, RC_STATES, sevMeta } from "@/lib/data";
 import { alertStore, useAlertVersion } from "@/lib/store";
 
 const ME = { i: "JL", n: "James Liu", c: "var(--brand)" };
+// assignable team (analysts / reviewers)
+const TEAM = [
+  { i: "SC", n: "Sarah Chen", c: "var(--brand)", role: "L1 分析师" },
+  { i: "ML", n: "Mike Lin", c: "var(--success)", role: "L1 分析师" },
+  { i: "DW", n: "David Wu", c: "var(--violet)", role: "L2 审核员" },
+  { i: "EZ", n: "Emma Zhang", c: "#0ea5e9", role: "L2 审核员" },
+];
+// current operator's role drives the assign permission (only 主管 / L2 may assign)
+const CURRENT_ROLE = "主管";
+const CAN_ASSIGN = ["主管", "L2"].includes(CURRENT_ROLE);
 
 const TILES: { f: string; label: string }[] = [
   { f: "all", label: "全部警报" },
@@ -65,7 +75,14 @@ export default function AlertList() {
     toast.success(n ? `已批量认领 ${n} 个告警` : "所选告警无需认领");
     clearSel();
   };
-  const batchAssign = () => { toast.success(`已将 ${selCount} 个告警分配给 ${ME.n}`); clearSel(); };
+  const batchAssign = (personKey: string) => {
+    const p = TEAM.find((t) => t.i === personKey);
+    if (!p) return;
+    const person = { i: p.i, n: p.n, c: p.c };
+    selectedIds.forEach((id) => { const al = alerts.find((x) => x.id === id); if (al) alertStore.set(al.id, alertStore.stateOf(al.id, al.state), { assignee: person, event: `分配给 ${p.n}（${p.role}）` }); });
+    toast.success(`已将 ${selCount} 个告警分配给 ${p.n}`);
+    clearSel();
+  };
 
   return (
     <Shell crumb={["交易", "交易监控", "交易警报"]} wide>
@@ -75,7 +92,22 @@ export default function AlertList() {
         actions={<>
           {selCount > 0 && <span className="mr-1 text-[12.5px] text-default-500">已选 <b className="text-foreground">{selCount}</b> 项</span>}
           <Button size="sm" radius="full" variant="flat" className="bg-default-100" isDisabled={selCount === 0} startContent={<Check className="h-3.5 w-3.5" />} onPress={batchClaim}>批量认领</Button>
-          <Button size="sm" radius="full" color="primary" isDisabled={selCount === 0} startContent={<Users className="h-3.5 w-3.5" />} onPress={batchAssign}>分配</Button>
+          {CAN_ASSIGN ? (
+            <Dropdown placement="bottom-end">
+              <DropdownTrigger>
+                <Button size="sm" radius="full" color="primary" isDisabled={selCount === 0} startContent={<Users className="h-3.5 w-3.5" />}>分配</Button>
+              </DropdownTrigger>
+              <DropdownMenu aria-label="分配给" onAction={(key) => batchAssign(String(key))}>
+                {TEAM.map((p) => (
+                  <DropdownItem key={p.i} description={p.role} startContent={<Initials p={{ i: p.i, c: p.c }} size={24} />}>{p.n}</DropdownItem>
+                ))}
+              </DropdownMenu>
+            </Dropdown>
+          ) : (
+            <Tooltip content="无分配权限（仅主管 / L2 可分配）" size="sm">
+              <span><Button size="sm" radius="full" color="primary" isDisabled startContent={<Users className="h-3.5 w-3.5" />}>分配</Button></span>
+            </Tooltip>
+          )}
         </>}
       />
 
@@ -105,9 +137,9 @@ export default function AlertList() {
       </div>
 
       {/* table — clean component per design (checkbox select, grey header, hover rows, icon actions) */}
-      <Table aria-label="交易警报" radius="lg" selectionMode="multiple" color="primary"
+      <Table aria-label="交易警报" radius="lg" selectionMode="multiple" color="default"
         selectedKeys={selected} onSelectionChange={setSelected}
-        classNames={{ wrapper: "card no-scrollbar p-0 rounded-2xl overflow-x-auto", th: "bg-default-50 text-default-500 text-[12px] font-medium h-12 border-b border-divider whitespace-nowrap", td: "py-4 text-[13px] whitespace-nowrap group-data-[selected=true]:before:bg-primary/5", tr: "border-b border-default-100 last:border-0 transition-colors data-[hover=true]:bg-default-50 hover:bg-default-50" }}>
+        classNames={{ wrapper: "card no-scrollbar p-0 rounded-2xl overflow-x-auto", th: "bg-default-50 text-default-500 text-[12px] font-medium h-12 border-b border-divider whitespace-nowrap", td: "py-4 text-[13px] whitespace-nowrap group-data-[selected=true]:before:!bg-default-100", tr: "border-b border-default-100 last:border-0 transition-colors data-[hover=true]:bg-default-50 hover:bg-default-50" }}>
         <TableHeader>
           <TableColumn>警报ID</TableColumn><TableColumn>商户名称/交易ID</TableColumn><TableColumn>类型</TableColumn>
           <TableColumn>风险评分</TableColumn><TableColumn>命中告警</TableColumn><TableColumn>交易金额</TableColumn>
