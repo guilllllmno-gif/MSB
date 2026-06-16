@@ -24,5 +24,5 @@ export default heroui({
       },
     },
   },
-  layout: { radius: { small: "8px", medium: "10px", large: "14px" } },
+  layout: { radius: { small: "10px", medium: "12px", large: "16px" } },
 });

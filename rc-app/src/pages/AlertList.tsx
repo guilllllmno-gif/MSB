@@ -59,40 +59,39 @@ export default function AlertList() {
         title="交易警报"
         sub="规则引擎与链上监控产生的实时告警，点击任意告警查看详情与处置。"
         actions={<>
-          <Button size="sm" variant="bordered" startContent={<Check className="h-3.5 w-3.5" />}>批量认领</Button>
-          <Button size="sm" variant="bordered" startContent={<Users className="h-3.5 w-3.5" />}>分配</Button>
+          <Button size="sm" radius="full" variant="flat" className="bg-content1 shadow-soft" startContent={<Check className="h-3.5 w-3.5" />}>批量认领</Button>
+          <Button size="sm" radius="full" color="primary" startContent={<Users className="h-3.5 w-3.5" />}>分配</Button>
         </>}
       />
 
-      {/* lifecycle filter tiles — flat, bordered, active = blue */}
-      <div className="mb-[18px] grid grid-cols-3 gap-3 md:grid-cols-6">
+      {/* lifecycle filter tiles — soft floating cards, active = blue accent */}
+      <div className="mb-5 grid grid-cols-3 gap-3.5 md:grid-cols-6">
         {TILES.map((t) => {
           const on = filter === t.f;
           return (
             <button key={t.f} onClick={() => setFilter(t.f)}
-              className="rounded-xl border bg-content1 px-4 py-3 text-left transition-colors"
-              style={{ borderColor: on ? "var(--brand)" : "var(--heroui-default-200, #e8eaed)", borderWidth: on ? 2 : 1 }}>
+              className={`card card-hover px-4 py-3.5 text-left ${on ? "outline outline-2 -outline-offset-2 outline-[var(--brand)]" : ""}`}>
               <div className="text-[12.5px] text-default-500">{t.label}</div>
-              <div className="mt-1 text-2xl font-extrabold tnum" style={{ color: on ? "var(--brand)" : undefined }}>{count(t.f)}</div>
+              <div className="mt-1.5 text-[26px] font-extrabold leading-none tnum" style={{ color: on ? "var(--brand)" : undefined }}>{count(t.f)}</div>
             </button>
           );
         })}
       </div>
 
       {/* toolbar */}
-      <div className="mb-3.5 flex flex-wrap items-center gap-2.5">
-        <Input size="sm" radius="md" value={q} onValueChange={setQ} placeholder="搜索告警ID、订单号或商户…"
+      <div className="mb-4 flex flex-wrap items-center gap-2.5">
+        <Input size="sm" radius="full" value={q} onValueChange={setQ} placeholder="搜索告警ID、订单号或商户…"
           startContent={<Search className="h-4 w-4 text-default-400" />} className="max-w-[360px] flex-1"
-          classNames={{ inputWrapper: "bg-content1 border border-default-200 shadow-none data-[hover=true]:bg-content1" }} />
+          classNames={{ inputWrapper: "bg-content1 shadow-soft data-[hover=true]:bg-content1 h-10" }} />
         <div className="ml-auto flex items-center gap-2">
-          <Button size="sm" variant="bordered" startContent={<SlidersHorizontal className="h-3.5 w-3.5" />}>风险等级</Button>
-          <Button size="sm" variant="bordered" startContent={<Tag className="h-3.5 w-3.5" />}>交易类型</Button>
+          <Button size="sm" radius="full" variant="flat" className="bg-content1 shadow-soft" startContent={<SlidersHorizontal className="h-3.5 w-3.5" />}>风险等级</Button>
+          <Button size="sm" radius="full" variant="flat" className="bg-content1 shadow-soft" startContent={<Tag className="h-3.5 w-3.5" />}>交易类型</Button>
         </div>
       </div>
 
-      {/* table — flat, no shadow */}
+      {/* table — soft floating card, borderless */}
       <Table aria-label="交易警报" radius="lg"
-        classNames={{ wrapper: "border border-default-200 shadow-none p-0 rounded-xl overflow-x-auto", th: "bg-content1 text-default-500 text-[11.5px] font-medium border-b border-default-200 whitespace-nowrap", td: "py-3.5 text-[13px] whitespace-nowrap", tr: "border-b border-default-100 last:border-0" }}>
+        classNames={{ wrapper: "card p-0 rounded-[18px] overflow-x-auto", th: "bg-transparent text-default-400 text-[11.5px] font-medium border-b border-divider whitespace-nowrap first:rounded-tl-none", td: "py-4 text-[13px] whitespace-nowrap", tr: "border-b border-default-100/70 last:border-0" }}>
         <TableHeader>
           <TableColumn>警报ID</TableColumn><TableColumn>商户名称/交易ID</TableColumn><TableColumn>类型</TableColumn>
           <TableColumn>风险评分</TableColumn><TableColumn>命中告警</TableColumn><TableColumn>交易金额</TableColumn>
@@ -120,10 +119,10 @@ export default function AlertList() {
                 <TableCell><span className="text-default-500 tnum">{a.submitted}</span></TableCell>
                 <TableCell>
                   <div className="flex items-center justify-end gap-1.5">
-                    <Button size="sm" variant="light" className="min-w-0 text-default-600" onPress={() => openReview(a.id)}>认领</Button>
+                    <Button size="sm" radius="full" variant="light" className="min-w-0 text-default-600" onPress={() => openReview(a.id)}>认领</Button>
                     {st === "new"
-                      ? <Button size="sm" variant="bordered" onPress={() => openReview(a.id)}>审核</Button>
-                      : <Button size="sm" variant="bordered" onPress={() => nav(`/alert?id=${a.id}`)}>查看</Button>}
+                      ? <Button size="sm" radius="full" color="primary" variant="flat" onPress={() => openReview(a.id)}>审核</Button>
+                      : <Button size="sm" radius="full" variant="flat" className="bg-default-100" onPress={() => nav(`/alert?id=${a.id}`)}>查看</Button>}
                   </div>
                 </TableCell>
               </TableRow>
@@ -132,7 +131,7 @@ export default function AlertList() {
         </TableBody>
       </Table>
 
-      <div className="mt-3.5 flex items-center justify-between text-[12.5px] text-default-500">
+      <div className="mt-4 flex items-center justify-between text-[12.5px] text-default-500">
         <span>显示 1-10 · 全部 120 条</span>
         <Pagination size="sm" total={10} initialPage={1} showControls variant="light" />
       </div>

@@ -1,15 +1,15 @@
 import type { ReactNode } from "react";
 import { NavLink } from "react-router-dom";
 import { Button } from "@heroui/react";
-import { LayoutDashboard, Bell, Search, ListChecks, SlidersHorizontal, Shield, FolderOpen, FileText, Clock, Settings, ChevronDown } from "lucide-react";
+import { LayoutDashboard, Bell, Search, ListChecks, SlidersHorizontal, Shield, FolderOpen, FileText, Clock, Settings, ChevronDown, HelpCircle, LogOut } from "lucide-react";
 import { Initials, ThemeToggle } from "./bits";
 
-type Item = { to: string; label: string; icon: typeof Bell; tag?: string };
+type Item = { to: string; label: string; icon: typeof Bell; tag?: string; tagTone?: "new" | "count" };
 const NAV: ({ group: string } | Item)[] = [
   { to: "/dashboard", label: "风控仪表盘", icon: LayoutDashboard },
   { group: "监控运营" },
-  { to: "/alerts", label: "交易警报", icon: Bell, tag: "128" },
-  { to: "/monitoring", label: "事中监控", icon: Search, tag: "10" },
+  { to: "/alerts", label: "交易警报", icon: Bell, tag: "128", tagTone: "count" },
+  { to: "/monitoring", label: "事中监控", icon: Search, tag: "10", tagTone: "count" },
   { group: "检测策略" },
   { to: "/rules", label: "监控规则", icon: ListChecks },
   { to: "/strategy", label: "全局策略", icon: SlidersHorizontal },
@@ -23,30 +23,42 @@ const NAV: ({ group: string } | Item)[] = [
 export function Shell({ crumb, wide, children }: { crumb: string[]; wide?: boolean; children: ReactNode }) {
   return (
     <div className="flex h-screen overflow-hidden bg-[var(--page)]">
-      <aside className="flex w-[236px] shrink-0 flex-col overflow-y-auto border-r border-divider bg-content1">
-        <div className="flex h-14 items-center gap-2.5 border-b border-divider px-4">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg text-sm font-extrabold text-white" style={{ background: "linear-gradient(135deg,var(--brand),#4f8ef7)" }}>F</div>
-          <div className="text-[15px] font-bold tracking-tight">Future<span style={{ color: "var(--brand)" }}>Pay</span>CA</div>
+      <aside className="flex w-[252px] shrink-0 flex-col overflow-y-auto px-3.5 py-4">
+        {/* brand / workspace */}
+        <div className="flex items-center gap-2.5 rounded-2xl px-2.5 py-2">
+          <div className="flex h-8 w-8 items-center justify-center rounded-xl text-sm font-extrabold text-white" style={{ background: "linear-gradient(135deg,var(--brand),#7aa9ff)" }}>F</div>
+          <div className="min-w-0">
+            <div className="truncate text-[14px] font-bold tracking-tight leading-tight">Future<span style={{ color: "var(--brand)" }}>Pay</span>CA</div>
+            <div className="truncate text-[11px] text-default-400 leading-tight">风控控制台</div>
+          </div>
+          <ChevronDown className="ml-auto h-4 w-4 text-default-300" />
         </div>
-        <nav className="flex flex-col gap-0.5 p-3">
+
+        <nav className="mt-3 flex flex-1 flex-col gap-0.5">
           {NAV.map((n, i) =>
             "group" in n ? (
-              <div key={i} className="px-2.5 pb-1.5 pt-3 text-[10.5px] font-bold uppercase tracking-wider text-default-400">{n.group}</div>
+              <div key={i} className="px-2.5 pb-1 pt-4 text-[10.5px] font-bold uppercase tracking-wider text-default-400">{n.group}</div>
             ) : (
               <NavLink key={n.to} to={n.to}
-                className={({ isActive }) => `flex items-center gap-2.5 rounded-[10px] px-2.5 py-2 text-[13px] font-medium transition-colors ${isActive ? "font-semibold" : "text-default-600 hover:bg-default-100"}`}
-                style={({ isActive }) => (isActive ? { background: "var(--brand-soft)", color: "var(--brand)" } : undefined)}>
-                <n.icon className="h-[17px] w-[17px]" strokeWidth={1.9} />
+                className={({ isActive }) => `group flex items-center gap-2.5 rounded-2xl px-2.5 py-2.5 text-[13.5px] transition-colors ${isActive ? "bg-content1 font-semibold text-foreground card" : "font-medium text-default-500 hover:bg-content1/60 hover:text-default-700"}`}>
+                <n.icon className="h-[18px] w-[18px]" strokeWidth={1.9} />
                 {n.label}
-                {n.tag && <span className="ml-auto rounded-full bg-default-100 px-[7px] py-px text-[10.5px] font-bold text-default-500">{n.tag}</span>}
+                {n.tag && (n.tagTone === "new"
+                  ? <span className="ml-auto rounded-full bg-success/15 px-2 py-px text-[10.5px] font-bold text-success">{n.tag}</span>
+                  : <span className="ml-auto rounded-full bg-default-100 px-[7px] py-px text-[10.5px] font-bold text-default-500 group-aria-[current=page]:bg-default-200">{n.tag}</span>)}
               </NavLink>
             )
           )}
         </nav>
+
+        <div className="mt-2 flex flex-col gap-0.5 border-t border-divider pt-3">
+          <button className="flex items-center gap-2.5 rounded-2xl px-2.5 py-2.5 text-[13.5px] font-medium text-default-500 transition-colors hover:bg-content1/60 hover:text-default-700"><HelpCircle className="h-[18px] w-[18px]" strokeWidth={1.9} />帮助与信息</button>
+          <button className="flex items-center gap-2.5 rounded-2xl px-2.5 py-2.5 text-[13.5px] font-medium text-default-500 transition-colors hover:bg-content1/60 hover:text-default-700"><LogOut className="h-[18px] w-[18px]" strokeWidth={1.9} />退出登录</button>
+        </div>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <header className="flex h-14 shrink-0 items-center gap-4 border-b border-divider bg-content1 px-7">
+        <header className="flex h-16 shrink-0 items-center gap-4 px-7">
           <div className="flex items-center gap-1.5 text-[13px] text-default-500">
             {crumb.map((c, i) => (
               <span key={i} className="flex items-center gap-1.5">
@@ -55,15 +67,15 @@ export function Shell({ crumb, wide, children }: { crumb: string[]; wide?: boole
               </span>
             ))}
           </div>
-          <div className="ml-auto flex items-center gap-2.5">
-            <Button size="sm" variant="bordered" endContent={<ChevronDown className="h-3.5 w-3.5" />}>风控 · L1</Button>
+          <div className="ml-auto flex items-center gap-2">
+            <Button isIconOnly size="sm" radius="full" variant="flat" className="bg-content1"><Search className="h-[18px] w-[18px] text-default-500" strokeWidth={1.9} /></Button>
+            <Button isIconOnly size="sm" radius="full" variant="flat" className="relative bg-content1"><Bell className="h-[18px] w-[18px] text-default-500" strokeWidth={1.9} /><span className="absolute right-1.5 top-1.5 h-[7px] w-[7px] rounded-full ring-2 ring-content1" style={{ background: "var(--danger)" }} /></Button>
             <ThemeToggle />
-            <Button isIconOnly size="sm" variant="light" className="relative"><Bell className="h-[18px] w-[18px] text-default-500" strokeWidth={1.9} /><span className="absolute right-1.5 top-1.5 h-[7px] w-[7px] rounded-full border-[1.5px] border-content1" style={{ background: "var(--danger)" }} /></Button>
-            <Button isIconOnly size="sm" variant="light"><Settings className="h-[18px] w-[18px] text-default-500" strokeWidth={1.9} /></Button>
-            <Initials p={{ i: "JL", c: "var(--brand)" }} size={32} />
+            <Button size="sm" radius="full" variant="flat" className="bg-content1" endContent={<ChevronDown className="h-3.5 w-3.5" />}>风控 · L1</Button>
+            <Initials p={{ i: "JL", c: "var(--brand)" }} size={34} />
           </div>
         </header>
-        <main className="flex-1 overflow-y-auto px-7 py-6"><div className={`mx-auto ${wide ? "max-w-[1480px]" : "max-w-[1180px]"}`}>{children}</div></main>
+        <main className="flex-1 overflow-y-auto px-7 pb-8 pt-1"><div className={`mx-auto ${wide ? "max-w-[1480px]" : "max-w-[1180px]"}`}>{children}</div></main>
       </div>
     </div>
   );
@@ -71,10 +83,10 @@ export function Shell({ crumb, wide, children }: { crumb: string[]; wide?: boole
 
 export function PageHead({ title, sub, actions }: { title: string; sub?: string; actions?: ReactNode }) {
   return (
-    <div className="mb-[18px] flex items-start justify-between gap-4">
+    <div className="mb-5 flex items-start justify-between gap-4">
       <div>
-        <h1 className="text-[22px] font-extrabold tracking-tight">{title}</h1>
-        {sub && <p className="mt-1 max-w-[820px] text-[13px] leading-relaxed text-default-500">{sub}</p>}
+        <h1 className="text-[26px] font-extrabold tracking-tight">{title}</h1>
+        {sub && <p className="mt-1.5 max-w-[820px] text-[13px] leading-relaxed text-default-500">{sub}</p>}
       </div>
       {actions && <div className="flex items-center gap-2">{actions}</div>}
     </div>

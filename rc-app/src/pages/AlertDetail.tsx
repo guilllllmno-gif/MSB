@@ -43,7 +43,7 @@ export default function AlertDetail() {
     <Shell crumb={["风控", "监控运营", "交易警报", a.order]}>
       <button onClick={() => nav("/alerts")} className="mb-3.5 inline-flex items-center gap-1.5 text-[13px] font-medium text-default-500 hover:text-foreground"><ArrowLeft className="h-4 w-4" />返回告警工作台</button>
 
-      <Card shadow="sm" className="mb-[18px] border border-divider"><CardBody className="py-5">
+      <Card shadow="none" className="mb-5 card"><CardBody className="py-5">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
             <h1 className="font-mono text-[23px] font-extrabold tracking-tight">{a.order}</h1>
@@ -76,7 +76,7 @@ export default function AlertDetail() {
       <div className="grid grid-cols-1 gap-[18px] lg:grid-cols-[1fr_372px]">
         {/* left */}
         <div className="flex flex-col gap-[18px]">
-          <Card shadow="sm" className="border border-divider"><CardHeader className="flex items-center justify-between"><div><div className="text-[15px] font-bold">交易信息</div><div className="text-[12px] text-default-400">{a.type}订单明细</div></div><SoftChip net>◈ {a.network}</SoftChip></CardHeader>
+          <Card shadow="none" className="card"><CardHeader className="flex items-center justify-between"><div><div className="text-[15px] font-bold">交易信息</div><div className="text-[12px] text-default-400">{a.type}订单明细</div></div><SoftChip net>◈ {a.network}</SoftChip></CardHeader>
             <CardBody className="pt-0"><div className="grid grid-cols-2 gap-x-8">
               <Kv label="金额"><span className="tnum">{a.amount}</span></Kv><Kv label="资产">{a.asset}</Kv>
               <Kv label="发送方"><span className="font-mono" style={{ color: "var(--brand)" }}>{a.sender}</span></Kv><Kv label="收款方"><span className="font-mono">{a.receiver}</span></Kv>
@@ -85,7 +85,7 @@ export default function AlertDetail() {
             </div></CardBody>
           </Card>
 
-          <Card shadow="sm" className="border border-divider"><CardHeader><div className="text-[15px] font-bold">命中规则 · {a.rules.length} 条</div></CardHeader>
+          <Card shadow="none" className="card"><CardHeader><div className="text-[15px] font-bold">命中规则 · {a.rules.length} 条</div></CardHeader>
             <CardBody className="pt-0"><Table aria-label="命中规则" removeWrapper classNames={{ th: "bg-default-50 text-default-500 text-[11.5px]" }}>
               <TableHeader><TableColumn>规则</TableColumn><TableColumn>类别</TableColumn><TableColumn>阈值 / 条件</TableColumn><TableColumn>命中值</TableColumn><TableColumn>权重</TableColumn></TableHeader>
               <TableBody>{a.rules.map((r, i) => (
@@ -94,7 +94,7 @@ export default function AlertDetail() {
             </Table></CardBody>
           </Card>
 
-          <Card shadow="sm" className="border border-divider"><CardHeader><div><div className="text-[15px] font-bold">链上资金溯源</div><div className="text-[12px] text-default-400">来源/去向路径 · Chainalysis</div></div></CardHeader>
+          <Card shadow="none" className="card"><CardHeader><div><div className="text-[15px] font-bold">链上资金溯源</div><div className="text-[12px] text-default-400">来源/去向路径 · Chainalysis</div></div></CardHeader>
             <CardBody className="pt-0">
               <div className="flex flex-wrap items-center gap-1.5">{a.trace.map((t, i) => (<span key={i} className="flex items-center gap-1.5"><Pill tone={t[1]} dot={false}>{t[0]}</Pill>{i < a.trace.length - 1 && <span className="text-[11px] text-default-400">→</span>}</span>))}</div>
               <p className="mt-3 text-[12px] leading-relaxed text-default-500">{a.traceNote}</p>
@@ -102,13 +102,13 @@ export default function AlertDetail() {
           </Card>
 
           <div className="grid grid-cols-1 gap-[18px] md:grid-cols-2">
-            <Card shadow="sm" className="border border-divider"><CardHeader><div className="text-[15px] font-bold">对手地址情报</div></CardHeader><CardBody className="flex flex-col gap-2 pt-0 text-[12.5px]">
+            <Card shadow="none" className="card"><CardHeader><div className="text-[15px] font-bold">对手地址情报</div></CardHeader><CardBody className="flex flex-col gap-2 pt-0 text-[12.5px]">
               <div className="flex items-baseline justify-between gap-3 border-b border-dashed border-default-200 py-2"><span className="text-default-500">地址链龄</span><span className="font-semibold">{a.addrIntel.age}</span></div>
               <div className="flex items-baseline justify-between gap-3 border-b border-dashed border-default-200 py-2"><span className="text-default-500">链上标签</span><span className="flex flex-wrap justify-end gap-1">{a.addrIntel.labels.map((l) => <SoftChip key={l}>{l}</SoftChip>)}</span></div>
               <div className="flex items-baseline justify-between gap-3 border-b border-dashed border-default-200 py-2"><span className="text-default-500">网络共享</span><span className="font-semibold">{a.addrIntel.networkSeen}</span></div>
               <div className="flex items-baseline justify-between gap-3 py-2"><span className="text-default-500">历史拦截</span><span className="font-semibold">{a.addrIntel.priorBlocks}</span></div>
             </CardBody></Card>
-            <Card shadow="sm" className="border border-divider"><CardHeader><div className="text-[15px] font-bold">商户 / 客户画像</div></CardHeader><CardBody className="flex flex-col gap-2 pt-0 text-[12.5px]">
+            <Card shadow="none" className="card"><CardHeader><div className="text-[15px] font-bold">商户 / 客户画像</div></CardHeader><CardBody className="flex flex-col gap-2 pt-0 text-[12.5px]">
               <div className="flex items-baseline justify-between gap-3 border-b border-dashed border-default-200 py-2"><span className="text-default-500">商户</span><span className="font-semibold">{a.merchant} <span className="font-normal text-default-400">· {a.country}</span></span></div>
               <div className="flex items-baseline justify-between gap-3 border-b border-dashed border-default-200 py-2"><span className="text-default-500">分级</span><Pill tone={a.merchantTier[1]}>{a.merchantTier[0]}</Pill></div>
               <div className="flex items-baseline justify-between gap-3 border-b border-dashed border-default-200 py-2"><span className="text-default-500">KYB</span><span className="font-semibold">{a.kyb} · 账龄 {a.accountAge}</span></div>
@@ -117,7 +117,7 @@ export default function AlertDetail() {
             </CardBody></Card>
           </div>
 
-          <Card shadow="sm" className="border border-divider"><CardHeader><div className="text-[15px] font-bold">处理时间线</div></CardHeader><CardBody className="pt-0">
+          <Card shadow="none" className="card"><CardHeader><div className="text-[15px] font-bold">处理时间线</div></CardHeader><CardBody className="pt-0">
             <ol className="relative ml-2 border-l border-default-200 pl-6">
               {tl.map((t, i) => (<li key={i} className="relative pb-4 last:pb-0"><span className="absolute -left-[27px] top-1 h-3 w-3 rounded-full border-2 border-[var(--brand)]" style={{ background: t[2] === "done" ? "var(--brand)" : "var(--surface)" }} /><div className="text-[11px] text-default-400 tnum">{t[0]}</div><div className="mt-0.5 text-[12.5px] font-semibold">{t[1]}</div></li>))}
             </ol>
@@ -126,7 +126,7 @@ export default function AlertDetail() {
 
         {/* right */}
         <div className="flex flex-col gap-[18px]">
-          <Card shadow="sm" className="border border-divider"><CardHeader className="flex items-center justify-between"><div className="text-[15px] font-bold">审核决定</div><Pill tone={sev.tone}>{sevLabel} · {a.level}</Pill></CardHeader>
+          <Card shadow="none" className="card"><CardHeader className="flex items-center justify-between"><div className="text-[15px] font-bold">审核决定</div><Pill tone={sev.tone}>{sevLabel} · {a.level}</Pill></CardHeader>
             <CardBody className="pt-0">
               <div className="rounded-xl border p-3.5" style={{ borderColor: "var(--violet-bd)", background: "linear-gradient(180deg,var(--violet-bg),var(--surface))" }}>
                 <div className="flex items-center gap-2 text-[13px] font-bold" style={{ color: "var(--violet)" }}><Sparkles className="h-4 w-4" />AI 风险预判</div>
@@ -167,7 +167,7 @@ export default function AlertDetail() {
             </CardBody>
           </Card>
 
-          <Card shadow="sm" className="border border-divider"><CardHeader><div className="text-[15px] font-bold">SLA</div></CardHeader><CardBody className="pt-0">
+          <Card shadow="none" className="card"><CardHeader><div className="text-[15px] font-bold">SLA</div></CardHeader><CardBody className="pt-0">
             <div className="flex items-center justify-between text-[13px]"><span className="text-default-500">处理时限</span><span className="font-semibold tnum">{a.sla.text}</span></div>
             <Progress aria-label="SLA" value={a.sla.pct} color={slaColor[a.sla.color]} size="sm" className="mt-2" />
             <p className="mt-2 text-[11.5px] text-default-400">高风险工单 SLA 为 48 小时，超时自动升级。</p>
