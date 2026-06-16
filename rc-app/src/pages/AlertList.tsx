@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Button, Input, Pagination, Tooltip, Dropdown, DropdownTrigger, DropdownMenu, DropdownItem, type Selection } from "@heroui/react";
-import { Search, SlidersHorizontal, Tag, Clock, CheckCircle2, AlertTriangle, CircleArrowUp, CircleDot, UserRound, FolderOpen, XCircle, Check, Users, Eye, ClipboardCheck } from "lucide-react";
+import { Search, SlidersHorizontal, Tag, Clock, CheckCircle2, AlertTriangle, CircleArrowUp, CircleDot, UserRound, FolderOpen, XCircle, Check, Users, Eye, Pencil, Trash2, Copy } from "lucide-react";
 import { Shell, PageHead } from "@/components/Shell";
 import { Pill, Initials } from "@/components/bits";
 import { ReviewDialog } from "@/components/ReviewDialog";
@@ -75,6 +75,8 @@ export default function AlertList() {
     toast.success(n ? `已批量认领 ${n} 个告警` : "所选告警无需认领");
     clearSel();
   };
+  const copyId = (id: string) => { navigator.clipboard?.writeText(id); toast.success(`已复制 ${id}`); };
+  const dismiss = (id: string) => { const al = alerts.find((x) => x.id === id); if (al) { alertStore.set(al.id, "closed_fp", { assignee: ME, event: "标记误报并关闭" }); toast.success(`${id} 已标记为误报并关闭`); } };
   const batchAssign = (personKey: string) => {
     const p = TEAM.find((t) => t.i === personKey);
     if (!p) return;
@@ -139,7 +141,7 @@ export default function AlertList() {
       {/* table — clean component per design (checkbox select, grey header, hover rows, icon actions) */}
       <Table aria-label="交易警报" radius="lg" selectionMode="multiple" color="primary"
         selectedKeys={selected} onSelectionChange={setSelected} checkboxesProps={{ color: "primary" }}
-        classNames={{ wrapper: "card no-scrollbar p-0 rounded-2xl overflow-x-auto", th: "bg-default-50 text-default-500 text-[12px] font-medium h-12 border-b border-divider whitespace-nowrap", td: "py-4 text-[13px] whitespace-nowrap group-data-[selected=true]:before:!bg-default-100", tr: "border-b border-default-100 last:border-0 transition-colors data-[hover=true]:bg-default-50 hover:bg-default-50" }}>
+        classNames={{ wrapper: "card no-scrollbar p-0 rounded-2xl overflow-x-auto", th: "bg-default-50 text-default-500 text-[12px] font-medium h-12 border-b border-divider whitespace-nowrap", td: "py-5 text-[13px] whitespace-nowrap group-data-[selected=true]:before:!bg-default-100", tr: "border-b border-default-100 last:border-0 transition-colors data-[hover=true]:bg-default-50 hover:bg-default-50" }}>
         <TableHeader>
           <TableColumn>警报ID</TableColumn><TableColumn>商户名称/交易ID</TableColumn><TableColumn>类型</TableColumn>
           <TableColumn>风险评分</TableColumn><TableColumn>命中告警</TableColumn><TableColumn>交易金额</TableColumn>
@@ -154,7 +156,12 @@ export default function AlertList() {
             const Icon = STATUS_ICON[st] || Clock;
             return (
               <TableRow key={a.id}>
-                <TableCell><span className="font-mono text-[12.5px] font-medium">{a.id}</span></TableCell>
+                <TableCell>
+                  <span className="inline-flex items-center gap-2">
+                    <span className="font-mono text-[13px] font-semibold">{a.id}</span>
+                    <button onClick={() => copyId(a.id)} aria-label="复制告警ID" className="text-default-300 transition-colors hover:text-default-500"><Copy className="h-3.5 w-3.5" /></button>
+                  </span>
+                </TableCell>
                 <TableCell><div className="font-semibold">{a.merchant}</div><div className="font-mono text-[11px] text-default-400">{a.order}</div></TableCell>
                 <TableCell><span className="text-default-600">{a.type}</span></TableCell>
                 <TableCell><span className="rounded-md bg-default-100 px-2 py-0.5 text-[12px] font-semibold text-default-700">{sevShort(a.sev)} {a.score}</span></TableCell>
@@ -166,15 +173,16 @@ export default function AlertList() {
                 <TableCell><span className="inline-flex items-center gap-1 text-default-500"><Clock className="h-3.5 w-3.5" />{a.sla.text.replace("剩 ", "")}</span></TableCell>
                 <TableCell><span className="text-default-500 tnum">{a.submitted}</span></TableCell>
                 <TableCell>
-                  <div className="flex items-center justify-end gap-1.5">
+                  <div className="flex items-center justify-end gap-2">
                     <Tooltip content="查看详情" size="sm" delay={300}>
                       <Button isIconOnly size="sm" radius="full" variant="flat" className="bg-default-100" onPress={() => nav(`/alert?id=${a.id}`)}><Eye className="h-4 w-4 text-default-500" strokeWidth={1.9} /></Button>
                     </Tooltip>
-                    {sd.active && (
-                      <Tooltip content="审核研判" size="sm" delay={300}>
-                        <Button isIconOnly size="sm" radius="full" variant="flat" className="bg-primary/10 text-primary" onPress={() => openReview(a.id)}><ClipboardCheck className="h-4 w-4" strokeWidth={1.9} /></Button>
-                      </Tooltip>
-                    )}
+                    <Tooltip content="审核研判" size="sm" delay={300}>
+                      <Button isIconOnly size="sm" radius="full" variant="flat" className="bg-default-100" isDisabled={!sd.active} onPress={() => openReview(a.id)}><Pencil className="h-4 w-4 text-default-500" strokeWidth={1.9} /></Button>
+                    </Tooltip>
+                    <Tooltip content="忽略 · 标记误报" size="sm" delay={300}>
+                      <Button isIconOnly size="sm" radius="full" variant="flat" className="bg-danger/10 text-danger" isDisabled={!sd.active} onPress={() => dismiss(a.id)}><Trash2 className="h-4 w-4" strokeWidth={1.9} /></Button>
+                    </Tooltip>
                   </div>
                 </TableCell>
               </TableRow>
