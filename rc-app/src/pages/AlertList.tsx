@@ -6,7 +6,7 @@ import { Search, SlidersHorizontal, Tag, Clock, CheckCircle2, AlertTriangle, Cir
 import { Shell, PageHead } from "@/components/Shell";
 import { Pill, Initials } from "@/components/bits";
 import { ReviewDialog } from "@/components/ReviewDialog";
-import { alerts, RC_STATES, sevMeta } from "@/lib/data";
+import { alerts, RC_STATES } from "@/lib/data";
 import { alertStore, useAlertVersion } from "@/lib/store";
 
 const ME = { i: "JL", n: "James Liu", c: "var(--brand)" };

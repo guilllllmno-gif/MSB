@@ -30,12 +30,14 @@ export default function RingList() {
   const nav = useNavigate();
   useRingVersion();
   const [filter, setFilter] = useState("all");
+  const [q, setQ] = useState("");
   const [newOpen, setNewOpen] = useState(false);
 
   const all: Ring[] = [...ringStore.created(), ...rings];
   const stateOf = (r: Ring) => ringStore.stateOf(r.id, r.state) as RingStateKey;
-  const count = (f: string) => all.filter((r) => matchRingTile(f, stateOf(r))).length;
-  const rows = all.filter((r) => matchRingTile(filter, stateOf(r)));
+  const matchQ = (r: Ring) => !q.trim() || (r.id + r.name + r.typology + r.members.map((m) => m.name).join("")).toLowerCase().includes(q.toLowerCase());
+  const count = (f: string) => all.filter((r) => matchRingTile(f, stateOf(r)) && matchQ(r)).length;
+  const rows = all.filter((r) => matchRingTile(filter, stateOf(r)) && matchQ(r));
   const claim = (r: Ring) => { ringStore.set(r.id, "investigating", ME); toast.success(`${r.id} 已认领 · 进入调查中`); };
 
   return (
@@ -61,7 +63,7 @@ export default function RingList() {
       </div>
 
       <div className="mb-4 flex flex-wrap items-center gap-2.5">
-        <Input size="sm" radius="full" placeholder="搜索团伙ID、手法或主体…"
+        <Input size="sm" radius="full" value={q} onValueChange={setQ} placeholder="搜索团伙ID、手法或主体…"
           startContent={<Search className="h-4 w-4 text-default-400" />} className="max-w-[360px] flex-1"
           classNames={{ inputWrapper: "bg-default-100 shadow-none data-[hover=true]:bg-default-200 h-10" }} />
       </div>

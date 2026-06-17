@@ -1,12 +1,15 @@
+import { lazy, Suspense } from "react";
 import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
-import { HeroUIProvider } from "@heroui/react";
+import { HeroUIProvider, Spinner } from "@heroui/react";
 import { ThemeProvider } from "next-themes";
 import { Toaster } from "@/components/ui/sonner";
-import AlertList from "@/pages/AlertList";
-import AlertDetail from "@/pages/AlertDetail";
-import RingList from "@/pages/RingList";
-import RingDetail from "@/pages/RingDetail";
-import Placeholder from "@/pages/Placeholder";
+
+// route-level code splitting — each page is its own chunk
+const AlertList = lazy(() => import("@/pages/AlertList"));
+const AlertDetail = lazy(() => import("@/pages/AlertDetail"));
+const RingList = lazy(() => import("@/pages/RingList"));
+const RingDetail = lazy(() => import("@/pages/RingDetail"));
+const Placeholder = lazy(() => import("@/pages/Placeholder"));
 
 const STUBS = ["/dashboard", "/monitoring", "/rules", "/strategy", "/lists", "/cases", "/reports", "/audit"];
 
@@ -15,15 +18,17 @@ export default function App() {
     <HashRouter>
       <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false} disableTransitionOnChange>
       <HeroUIProvider>
-        <Routes>
-          <Route path="/" element={<Navigate to="/alerts" replace />} />
-          <Route path="/alerts" element={<AlertList />} />
-          <Route path="/alert" element={<AlertDetail />} />
-          <Route path="/rings" element={<RingList />} />
-          <Route path="/ring" element={<RingDetail />} />
-          {STUBS.map((p) => <Route key={p} path={p} element={<Placeholder />} />)}
-          <Route path="*" element={<Navigate to="/alerts" replace />} />
-        </Routes>
+        <Suspense fallback={<div className="flex h-screen items-center justify-center bg-[var(--page)]"><Spinner color="primary" /></div>}>
+          <Routes>
+            <Route path="/" element={<Navigate to="/alerts" replace />} />
+            <Route path="/alerts" element={<AlertList />} />
+            <Route path="/alert" element={<AlertDetail />} />
+            <Route path="/rings" element={<RingList />} />
+            <Route path="/ring" element={<RingDetail />} />
+            {STUBS.map((p) => <Route key={p} path={p} element={<Placeholder />} />)}
+            <Route path="*" element={<Navigate to="/alerts" replace />} />
+          </Routes>
+        </Suspense>
         <Toaster position="bottom-center" richColors />
       </HeroUIProvider>
       </ThemeProvider>
