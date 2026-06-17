@@ -33,9 +33,10 @@ function Graph({ ring }: { ring: Ring }) {
       {ring.edges.map((e, i) => {
         const mx = (pos[e.a].x + pos[e.b].x) / 2, my = (pos[e.a].y + pos[e.b].y) / 2;
         return (
-          <div key={i} className="absolute flex -translate-x-1/2 -translate-y-1/2 items-center gap-1 rounded-full border border-divider bg-content1 px-1.5 py-0.5 shadow-[0_1px_2px_rgba(17,24,39,.08)]" style={{ left: pc(mx, W), top: pc(my, H) }}>
+          <div key={i} title={`关联强度 ${e.strength} · 共享 ${e.dims.map((d) => DIM_META[d].label).join("、")}`} className="absolute flex -translate-x-1/2 -translate-y-1/2 items-center gap-1 rounded-full border border-divider bg-content1 px-1.5 py-0.5 shadow-[0_1px_2px_rgba(17,24,39,.08)]" style={{ left: pc(mx, W), top: pc(my, H) }}>
             {e.dims.map((d) => <span key={d} className="h-1.5 w-1.5 rounded-full" style={{ background: DIM_META[d].color }} />)}
-            <span className="tnum text-[10px] font-bold text-default-600">{e.strength}</span>
+            <span className="text-[9px] font-medium text-default-400">强度</span>
+            <span className="tnum text-[10.5px] font-bold text-default-700">{e.strength}</span>
           </div>
         );
       })}
@@ -114,7 +115,7 @@ export default function RingDetail() {
 
       <div className="flex flex-col gap-5">
         {/* graph + its evidence — the edges ARE the evidence, so they live together */}
-        <Card shadow="none" className="card"><CardHeader className="flex flex-wrap items-center justify-between gap-2"><div><div className="text-[15px] font-bold">关系图谱</div><div className="text-[12px] text-default-400">圆点 = 主体，连线 = 共享关系，粗细 = 强度，颜色 = 维度</div></div>
+        <Card shadow="none" className="card"><CardHeader className="flex flex-wrap items-center justify-between gap-2"><div><div className="text-[15px] font-bold">关系图谱</div><div className="text-[12px] text-default-400">节点 = 主体 · 连线 = 共享关系（颜色 / 圆点 = 维度）· 连线标签「强度」= 关联强度，越高越可靠</div></div>
             <div className="flex flex-wrap items-center gap-2.5">{DIM_ORDER.map((d) => <span key={d} className="flex items-center gap-1 text-[11px] text-default-500"><span className="h-2 w-2 rounded-full" style={{ background: DIM_META[d].color }} />{DIM_META[d].short}</span>)}</div>
           </CardHeader>
             <CardBody className="pt-0">
