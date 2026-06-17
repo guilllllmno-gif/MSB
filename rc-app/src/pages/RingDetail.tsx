@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { Card, CardHeader, CardBody, Button, Drawer, DrawerContent, DrawerHeader, DrawerBody, DrawerFooter, Textarea, Select, SelectItem } from "@heroui/react";
-import { ArrowLeft, FolderPlus, ListPlus, FileDown, Coins, Link2, Smartphone, Globe, Bell, Sparkles, Info, ArrowUpCircle, XCircle, ClipboardCheck, Clock, UserPlus, ChevronDown } from "lucide-react";
+import { ArrowLeft, FolderPlus, ListPlus, FileDown, Coins, Link2, Smartphone, Globe, Bell, Sparkles, Info, ArrowUpCircle, XCircle, ClipboardCheck, Clock, UserPlus, ChevronDown, FileQuestion } from "lucide-react";
 import { Shell } from "@/components/Shell";
 import { Pill, Initials, SectionLabel } from "@/components/bits";
 import { RingBasis } from "@/components/RingBasis";
@@ -63,12 +63,18 @@ function Graph({ ring }: { ring: Ring }) {
   );
 }
 
+// 处置结论 — terminal dispositions (each → a terminal state)
 const DISP = [
   { k: "case", label: "并入案件", icon: FolderPlus, msg: "已并入调查案件" },
   { k: "watch", label: "批量列名单", icon: ListPlus, msg: "已批量列入加强监控名单" },
   { k: "escalate", label: "升级 MLRO", icon: ArrowUpCircle, msg: "已升级 MLRO 评估 STR" },
   { k: "fp", label: "标记误报", icon: XCircle, msg: "已标记为误聚 / 误报" },
 ];
+// 流程操作 — non-terminal (ring stays in investigation)
+const PROC = [
+  { k: "reqinfo", label: "要求补充材料", icon: FileQuestion, msg: "已向商户发起补充材料请求 · 保持调查中" },
+];
+const ACTIONS = [...DISP, ...PROC];
 
 export default function RingDetail() {
   const nav = useNavigate();
@@ -82,7 +88,7 @@ export default function RingDetail() {
   const tone = confTone(ring.confidence);
   const claim = () => { ringStore.set(ring.id, "investigating", ME); toast.success(`${ring.id} 已认领 · 进入调查中`); };
   const [open, setOpen] = useState(false);
-  const [disp, setDisp] = useState<string>(ring.confidence >= 80 ? "case" : ring.confidence >= 60 ? "watch" : "fp");
+  const [disp, setDisp] = useState<string>(ring.confidence >= 80 ? "case" : ring.confidence >= 60 ? "reqinfo" : "fp");
   const [note, setNote] = useState("");
   const [fieldVals, setFieldVals] = useState<Record<string, string[]>>({});
   const [errs, setErrs] = useState<Set<string>>(new Set());
@@ -102,7 +108,7 @@ export default function RingDetail() {
     fields.forEach((f) => { if (f.required && !(fieldVals[f.k] || []).length) e.add(f.k); });
     setErrs(e);
     if (e.size) { toast.error("请补全所需信息"); return; }
-    const d = DISP.find((x) => x.k === disp);
+    const d = ACTIONS.find((x) => x.k === disp);
     ringStore.set(ring.id, DISP_STATE[disp]);
     toast.success(`${ring.id} · ${d?.msg ?? "已提交研判"}`);
     setOpen(false);
@@ -263,12 +269,22 @@ export default function RingDetail() {
             </div>
 
             <div>
-              <SectionLabel>处置动作</SectionLabel>
+              <SectionLabel>处置结论 · 终态</SectionLabel>
               <div className="grid grid-cols-2 gap-2">
                 {DISP.map((d) => { const on = disp === d.k; const Icon = d.icon; return (
                   <button key={d.k} onClick={() => pickDisp(d.k)} className="flex flex-col items-center gap-1.5 rounded-xl border-[1.5px] px-1.5 py-3 text-[12.5px] font-semibold transition-colors"
                     style={on ? { borderColor: "var(--brand)", background: "var(--brand-soft)", color: "var(--brand)" } : { borderColor: "var(--line)", color: "var(--text-2)" }}>
                     <Icon className="h-[18px] w-[18px]" />{d.label}</button>
+                ); })}
+              </div>
+            </div>
+            <div>
+              <SectionLabel>流程操作 · 不结案</SectionLabel>
+              <div className="grid grid-cols-1 gap-2">
+                {PROC.map((d) => { const on = disp === d.k; const Icon = d.icon; return (
+                  <button key={d.k} onClick={() => pickDisp(d.k)} className="flex items-center justify-center gap-2 rounded-xl border-[1.5px] px-1.5 py-2.5 text-[12.5px] font-semibold transition-colors"
+                    style={on ? { borderColor: "var(--brand)", background: "var(--brand-soft)", color: "var(--brand)" } : { borderColor: "var(--line)", color: "var(--text-2)" }}>
+                    <Icon className="h-[18px] w-[18px]" />{d.label}<span className="text-[11px] font-normal text-default-400">· 保持调查中</span></button>
                 ); })}
               </div>
             </div>

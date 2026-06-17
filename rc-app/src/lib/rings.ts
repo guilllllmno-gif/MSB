@@ -35,8 +35,8 @@ export const RING_TILES: { f: string; label: string }[] = [
   { f: "closed", label: "已关闭" },
 ];
 export const matchRingTile = (f: string, state: RingStateKey) => (f === "all" ? true : RING_STATES[state].bucket === f);
-// 研判处置 action key → resulting state
-export const DISP_STATE: Record<string, RingStateKey> = { case: "cased", watch: "listed", escalate: "escalated", fp: "closed_fp" };
+// 研判处置 action key → resulting state ("reqinfo" is non-terminal: stays investigating)
+export const DISP_STATE: Record<string, RingStateKey> = { case: "cased", watch: "listed", escalate: "escalated", fp: "closed_fp", reqinfo: "investigating" };
 
 export interface RingMember { id: string; name: string; sub: string; kind: "商户" | "地址" | "群组"; i: string; c: string; alerts: number; role: string }
 export interface RingEdge { a: number; b: number; dims: RingDim[]; strength: number; note: string } // a,b = member index
@@ -268,6 +268,10 @@ export const RING_FIELDS: Record<string, RField[]> = {
   fp: [
     { k: "fpreason", label: "误报原因", type: "select", required: true, options: ["共享公共网络 / NAT", "关联强度不足", "业务合理可解释", "规则误聚", "其他"] },
     { k: "adjust", label: "模型调整", type: "multi", required: false, options: ["降低该维度权重", "加入可信白名单", "规则调优复盘"] },
+  ],
+  reqinfo: [
+    { k: "materials", label: "需补充材料", type: "multi", required: true, options: ["资金用途说明", "KYB / 主体证明", "受益所有人 (UBO)", "对手方关系证明", "资金来源证明"] },
+    { k: "deadline", label: "回复时限", type: "select", required: true, options: ["24 小时", "48 小时", "72 小时"] },
   ],
 };
 
