@@ -4,6 +4,8 @@ import { ThemeProvider } from "next-themes";
 import { Toaster } from "@/components/ui/sonner";
 import AlertList from "@/pages/AlertList";
 import AlertDetail from "@/pages/AlertDetail";
+import RingList from "@/pages/RingList";
+import RingDetail from "@/pages/RingDetail";
 import Placeholder from "@/pages/Placeholder";
 
 const STUBS = ["/dashboard", "/monitoring", "/rules", "/strategy", "/lists", "/cases", "/reports", "/audit"];
@@ -17,6 +19,8 @@ export default function App() {
           <Route path="/" element={<Navigate to="/alerts" replace />} />
           <Route path="/alerts" element={<AlertList />} />
           <Route path="/alert" element={<AlertDetail />} />
+          <Route path="/rings" element={<RingList />} />
+          <Route path="/ring" element={<RingDetail />} />
           {STUBS.map((p) => <Route key={p} path={p} element={<Placeholder />} />)}
           <Route path="*" element={<Navigate to="/alerts" replace />} />
         </Routes>

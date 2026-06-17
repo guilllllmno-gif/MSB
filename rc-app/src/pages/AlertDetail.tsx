@@ -2,11 +2,12 @@ import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { Card, CardHeader, CardBody, Button, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell } from "@heroui/react";
-import { ArrowLeft, ClipboardCheck, Clock, Info } from "lucide-react";
+import { ArrowLeft, ClipboardCheck, Clock, Info, Network, ArrowRight } from "lucide-react";
 import { Shell } from "@/components/Shell";
 import { Pill, SoftChip, Initials, RiskBadge } from "@/components/bits";
 import { ReviewDialog } from "@/components/ReviewDialog";
 import { alerts, RC_STATES, sevMeta, type Tone } from "@/lib/data";
+import { ringsForMerchant, DIM_META, DIM_ORDER, confTone, confLabel } from "@/lib/rings";
 import { alertStore, useAlertVersion } from "@/lib/store";
 
 const ME = { i: "JL", n: "你 (JL)", c: "var(--brand)" };
@@ -42,6 +43,7 @@ export default function AlertDetail() {
   const events = alertStore.eventsOf(a.id);
   const tl = a.timeline.concat(events.map((e) => [e.t, e.text + (e.reason ? "：" + e.reason : ""), "done"] as [string, string, string]));
   const crr = a.rules.reduce((s, r) => s + (parseInt(r.weight.replace(/[^0-9-]/g, ""), 10) || 0), 0);
+  const ring = ringsForMerchant(a.merchant)[0];
 
   const claim = () => { alertStore.set(a.id, "progress", { assignee: ME, event: "认领工单" }); toast.success("已认领工单"); };
   const reopen = () => { alertStore.set(a.id, "progress", { assignee: assignee || ME, event: "重新打开告警" }); toast.success("已重新打开"); };
@@ -145,6 +147,32 @@ export default function AlertDetail() {
               <div className="flex items-baseline justify-between gap-3 py-2"><span className="text-default-500">历史拦截</span><span className="font-semibold">{a.addrIntel.priorBlocks}</span></div>
             </CardBody></Card>
           </div>
+
+          {/* 关联团伙 */}
+          <Card shadow="none" className="card"><CardHeader className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-[15px] font-bold"><Network className="h-4 w-4 text-default-400" />关联团伙</div>
+            {ring && <Pill tone={confTone(ring.confidence)}>{confLabel(ring.confidence)} {ring.confidence}%</Pill>}
+          </CardHeader>
+            <CardBody className="pt-0">
+              {ring ? (
+                <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2"><span className="font-semibold">{ring.name}</span><Pill tone={ring.risk} dot={false}>{ring.typology}</Pill></div>
+                    <div className="mt-0.5 text-[11.5px] text-default-400">{ring.id} · {ring.members.length} 个主体 · 关联告警 {ring.alertCount} 条</div>
+                  </div>
+                  <div className="flex items-center">
+                    {ring.members.slice(0, 4).map((m, i) => <span key={m.id} style={{ marginLeft: i ? -8 : 0, zIndex: 10 - i }} className="rounded-full ring-2 ring-content1"><Initials p={{ i: m.i, c: m.c }} size={26} /></span>)}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    {DIM_ORDER.filter((d) => ring.shared.some((s) => s.dim === d)).map((d) => <span key={d} className="rounded-md px-1.5 py-0.5 text-[10.5px] font-semibold" style={{ background: "color-mix(in srgb," + DIM_META[d].color + " 14%, transparent)", color: DIM_META[d].color }}>{DIM_META[d].short}</span>)}
+                  </div>
+                  <Button size="sm" variant="flat" className="ml-auto bg-default-100" endContent={<ArrowRight className="h-3.5 w-3.5" />} onPress={() => nav(`/ring?id=${ring.id}`)}>查看团伙图谱</Button>
+                </div>
+              ) : (
+                <div className="text-[12.5px] text-default-400">未发现关联团伙 · 该主体当前无超阈值多维关联。</div>
+              )}
+            </CardBody>
+          </Card>
         </div>
       ) : (
         <Card shadow="none" className="card"><CardHeader><div className="text-[15px] font-bold">活动日志 · 处理时间线</div></CardHeader><CardBody className="pt-0">
