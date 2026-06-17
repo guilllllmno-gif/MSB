@@ -113,14 +113,40 @@ export default function RingDetail() {
       </CardBody></Card>
 
       <div className="flex flex-col gap-5">
-        {/* graph + confidence */}
-        <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.5fr_1fr]">
-          <Card shadow="none" className="card"><CardHeader className="flex flex-wrap items-center justify-between gap-2"><div><div className="text-[15px] font-bold">关系图谱</div><div className="text-[12px] text-default-400">圆点 = 主体，连线 = 共享关系，粗细 = 强度，颜色 = 维度</div></div>
+        {/* graph + its evidence — the edges ARE the evidence, so they live together */}
+        <Card shadow="none" className="card"><CardHeader className="flex flex-wrap items-center justify-between gap-2"><div><div className="text-[15px] font-bold">关系图谱</div><div className="text-[12px] text-default-400">圆点 = 主体，连线 = 共享关系，粗细 = 强度，颜色 = 维度</div></div>
             <div className="flex flex-wrap items-center gap-2.5">{DIM_ORDER.map((d) => <span key={d} className="flex items-center gap-1 text-[11px] text-default-500"><span className="h-2 w-2 rounded-full" style={{ background: DIM_META[d].color }} />{DIM_META[d].short}</span>)}</div>
           </CardHeader>
-            <CardBody className="pt-0"><Graph ring={ring} /></CardBody>
+            <CardBody className="pt-0">
+              <Graph ring={ring} />
+              {/* evidence explains each edge above */}
+              <div className="mt-5 border-t border-divider pt-4">
+                <div className="mb-3 flex flex-wrap items-baseline justify-between gap-1"><div className="text-[14px] font-bold">共享证据明细 · {edges.length} 条关联边</div><div className="text-[12px] text-default-400">逐条解释上方每条连线 · 强度叠加形成置信度 · 可留痕</div></div>
+                <div className="grid grid-cols-1 gap-2.5 lg:grid-cols-2">
+                  {edges.map((e, i) => { const sc = confTone(Math.min(100, e.strength + 15)); return (
+                    <div key={i} className="rounded-xl border border-divider p-3.5">
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 text-[12.5px] font-semibold">
+                        <span className="inline-flex items-center gap-1.5"><Initials p={{ i: ring.members[e.a].i, c: ring.members[e.a].c }} size={22} />{ring.members[e.a].name}</span>
+                        <span className="text-default-300">↔</span>
+                        <span className="inline-flex items-center gap-1.5"><Initials p={{ i: ring.members[e.b].i, c: ring.members[e.b].c }} size={22} />{ring.members[e.b].name}</span>
+                        <span className="ml-auto flex items-center gap-2">
+                          <span className="h-1.5 w-20 overflow-hidden rounded-full bg-default-100"><span className="block h-full rounded-full" style={{ width: `${Math.min(100, e.strength)}%`, background: toneCol(sc) }} /></span>
+                          <span className="tnum text-[12px] font-bold" style={{ color: toneCol(sc) }}>{e.strength}</span>
+                        </span>
+                      </div>
+                      <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                        {e.dims.map((d) => { const Icon = DIM_ICON[d]; return <span key={d} className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10.5px] font-semibold" style={{ background: "color-mix(in srgb," + DIM_META[d].color + " 14%, transparent)", color: DIM_META[d].color }}><Icon className="h-3 w-3" />{DIM_META[d].label}</span>; })}
+                        <span className="text-[11.5px] text-default-500">· {e.note}</span>
+                      </div>
+                    </div>
+                  ); })}
+                </div>
+              </div>
+            </CardBody>
           </Card>
 
+          {/* confidence + members */}
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_1fr]">
           <Card shadow="none" className="card"><CardHeader><div><div className="text-[15px] font-bold">置信度构成</div><div className="text-[12px] text-default-400">各维度关联强度叠加 → 累计置信度</div></div></CardHeader>
             <CardBody className="pt-0">
               <div className="flex items-end gap-3">
@@ -156,10 +182,8 @@ export default function RingDetail() {
               <p className="mt-3.5 flex items-start gap-1.5 rounded-xl border border-divider bg-default-50 p-2.5 text-[11.5px] leading-relaxed text-default-500"><Info className="mt-px h-3.5 w-3.5 shrink-0" />区分度越高的维度权重越大：资金 / 地址难以伪造，IP / 设备可能因共享网络巧合，故权重递减。</p>
             </CardBody>
           </Card>
-        </div>
 
-        {/* members */}
-        <Card shadow="none" className="card"><CardHeader><div className="text-[15px] font-bold">团伙成员 · {ring.members.length}</div></CardHeader>
+          <Card shadow="none" className="card"><CardHeader><div className="text-[15px] font-bold">团伙成员 · {ring.members.length}</div></CardHeader>
           <CardBody className="pt-0">
             <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
               {ring.members.map((m, idx) => {
@@ -178,32 +202,7 @@ export default function RingDetail() {
             </div>
           </CardBody>
         </Card>
-
-        {/* evidence */}
-        <Card shadow="none" className="card"><CardHeader><div><div className="text-[15px] font-bold">共享证据明细 · {edges.length} 条关联边</div><div className="text-[12px] text-default-400">以下关联边累加形成团伙置信度，强度越高越可靠 · 可解释 / 可留痕</div></div></CardHeader>
-          <CardBody className="flex flex-col gap-2.5 pt-0">
-            {edges.map((e, i) => {
-              const sc = confTone(Math.min(100, e.strength + 15));
-              return (
-                <div key={i} className="rounded-xl border border-divider p-3.5">
-                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 text-[12.5px] font-semibold">
-                    <span className="inline-flex items-center gap-1.5"><Initials p={{ i: ring.members[e.a].i, c: ring.members[e.a].c }} size={22} />{ring.members[e.a].name}</span>
-                    <span className="text-default-300">↔</span>
-                    <span className="inline-flex items-center gap-1.5"><Initials p={{ i: ring.members[e.b].i, c: ring.members[e.b].c }} size={22} />{ring.members[e.b].name}</span>
-                    <span className="ml-auto flex items-center gap-2">
-                      <span className="h-1.5 w-24 overflow-hidden rounded-full bg-default-100"><span className="block h-full rounded-full" style={{ width: `${Math.min(100, e.strength)}%`, background: toneCol(sc) }} /></span>
-                      <span className="tnum text-[12px] font-bold" style={{ color: toneCol(sc) }}>强度 {e.strength}</span>
-                    </span>
-                  </div>
-                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                    {e.dims.map((d) => { const Icon = DIM_ICON[d]; return <span key={d} className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10.5px] font-semibold" style={{ background: "color-mix(in srgb," + DIM_META[d].color + " 14%, transparent)", color: DIM_META[d].color }}><Icon className="h-3 w-3" />{DIM_META[d].label}</span>; })}
-                    <span className="text-[11.5px] text-default-500">· {e.note}</span>
-                  </div>
-                </div>
-              );
-            })}
-          </CardBody>
-        </Card>
+        </div>
       </div>
 
       {/* 研判处置 — side drawer */}
