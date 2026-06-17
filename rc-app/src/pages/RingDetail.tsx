@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
-import { Card, CardHeader, CardBody, Button, Drawer, DrawerContent, DrawerHeader, DrawerBody, DrawerFooter, Textarea } from "@heroui/react";
+import { Card, CardHeader, CardBody, Button, Drawer, DrawerContent, DrawerHeader, DrawerBody, DrawerFooter, Textarea, Select, SelectItem } from "@heroui/react";
 import { ArrowLeft, FolderPlus, ListPlus, FileDown, Coins, Link2, Smartphone, Globe, Bell, Sparkles, Info, ArrowUpCircle, XCircle, ClipboardCheck } from "lucide-react";
 import { Shell } from "@/components/Shell";
-import { Pill, Initials } from "@/components/bits";
-import { ringOf, DIM_META, DIM_ORDER, confTone, confLabel, type RingDim, type Ring } from "@/lib/rings";
+import { Pill, Initials, SectionLabel } from "@/components/bits";
+import { ringOf, DIM_META, DIM_ORDER, confTone, confLabel, RING_FIELDS, type RingDim, type Ring } from "@/lib/rings";
 
 const DIM_ICON: Record<RingDim, typeof Coins> = { funds: Coins, address: Link2, device: Smartphone, ip: Globe };
 const THRESHOLD = 60;
@@ -64,11 +64,25 @@ export default function RingDetail() {
   const ring = ringOf(sp.get("id") || undefined);
   const tone = confTone(ring.confidence);
   const [open, setOpen] = useState(false);
-  const [disp, setDisp] = useState<string | null>(ring.confidence >= 80 ? "case" : ring.confidence >= 60 ? "watch" : "fp");
+  const [disp, setDisp] = useState<string>(ring.confidence >= 80 ? "case" : ring.confidence >= 60 ? "watch" : "fp");
   const [note, setNote] = useState("");
+  const [fieldVals, setFieldVals] = useState<Record<string, string[]>>({});
+  const [errs, setErrs] = useState<Set<string>>(new Set());
   const edges = [...ring.edges].sort((a, b) => b.strength - a.strength);
 
+  const pickDisp = (k: string) => { setDisp(k); setFieldVals({}); setErrs(new Set()); };
+  const toggleField = (k: string, val: string, multi: boolean) => setFieldVals((p) => {
+    const cur = p[k] || [];
+    if (multi) return { ...p, [k]: cur.includes(val) ? cur.filter((x) => x !== val) : [...cur, val] };
+    return { ...p, [k]: [val] };
+  });
+
   const submit = () => {
+    const fields = RING_FIELDS[disp] || [];
+    const e = new Set<string>();
+    fields.forEach((f) => { if (f.required && !(fieldVals[f.k] || []).length) e.add(f.k); });
+    setErrs(e);
+    if (e.size) { toast.error("请补全所需信息"); return; }
     const d = DISP.find((x) => x.k === disp);
     toast.success(`${ring.id} · ${d?.msg ?? "已提交研判"}`);
     setOpen(false);
@@ -212,15 +226,35 @@ export default function RingDetail() {
             </div>
 
             <div>
-              <div className="mb-2 text-[11px] font-bold uppercase tracking-wider text-default-400">处置动作</div>
+              <SectionLabel>处置动作</SectionLabel>
               <div className="grid grid-cols-2 gap-2">
                 {DISP.map((d) => { const on = disp === d.k; const Icon = d.icon; return (
-                  <button key={d.k} onClick={() => setDisp(d.k)} className="flex flex-col items-center gap-1.5 rounded-xl border-[1.5px] px-1.5 py-3 text-[12.5px] font-semibold transition-colors"
+                  <button key={d.k} onClick={() => pickDisp(d.k)} className="flex flex-col items-center gap-1.5 rounded-xl border-[1.5px] px-1.5 py-3 text-[12.5px] font-semibold transition-colors"
                     style={on ? { borderColor: "var(--brand)", background: "var(--brand-soft)", color: "var(--brand)" } : { borderColor: "var(--line)", color: "var(--text-2)" }}>
                     <Icon className="h-[18px] w-[18px]" />{d.label}</button>
                 ); })}
               </div>
             </div>
+
+            {/* per-action form */}
+            {(RING_FIELDS[disp] || []).map((fd) => fd.type === "select" ? (
+              <Select key={fd.k} size="sm" label={fd.label} labelPlacement="outside" placeholder="请选择…" isRequired={fd.required} aria-label={fd.label}
+                selectedKeys={(fieldVals[fd.k] || []).length ? [fieldVals[fd.k][0]] : []} isInvalid={errs.has(fd.k)}
+                onSelectionChange={(keys) => toggleField(fd.k, Array.from(keys as Set<string>)[0] ?? "", false)}>
+                {fd.options.map((o) => <SelectItem key={o}>{o}</SelectItem>)}
+              </Select>
+            ) : (
+              <div key={fd.k}>
+                <label className="mb-1.5 block text-[12.5px] font-semibold">{fd.label} {fd.required ? <span className="text-danger">*</span> : <span className="font-normal text-default-400">· 选填</span>}</label>
+                <div className={`flex flex-wrap gap-1.5 ${errs.has(fd.k) ? "rounded-xl p-1 ring-2 ring-danger/40" : ""}`}>
+                  {fd.options.map((o) => { const on = (fieldVals[fd.k] || []).includes(o); return (
+                    <button key={o} onClick={() => toggleField(fd.k, o, true)} className="inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[12px] font-semibold transition-colors"
+                      style={on ? { borderColor: "var(--brand)", background: "var(--brand-soft)", color: "var(--brand)" } : { borderColor: "var(--line)", color: "var(--text-2)" }}>
+                      <span>{on ? "✓" : "+"}</span>{o}</button>
+                  ); })}
+                </div>
+              </div>
+            ))}
 
             <Textarea label="研判备注" labelPlacement="outside" value={note} onValueChange={setNote} minRows={3} placeholder="说明聚类依据、对手范围与处置理由…（记入审计日志）" />
           </DrawerBody>

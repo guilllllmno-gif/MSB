@@ -46,7 +46,7 @@ export const rings: Ring[] = [
     members: [
       { id: "M1", name: "NovaPay Technologies", sub: "商户 · 美国", kind: "商户", i: "NP", c: "var(--brand)", alerts: 3, role: "入金商户" },
       { id: "M2", name: "0x5078…Ec8c", sub: "发送方地址", kind: "地址", i: "0x", c: "var(--violet)", alerts: 2, role: "归集源" },
-      { id: "M3", name: "中转地址簇 ×3", sub: "36h 内归集", kind: "群组", i: "⛓", c: "var(--warning)", alerts: 1, role: "中转层" },
+      { id: "M3", name: "中转钱包簇 ×3", sub: "3 个中转地址 · 36h 内归集", kind: "群组", i: "⛓", c: "var(--warning)", alerts: 1, role: "资金中转层" },
       { id: "M4", name: "BlockTrade Corp.", sub: "商户 · 美国", kind: "商户", i: "BT", c: "var(--success)", alerts: 1, role: "出金商户" },
     ],
     edges: [
@@ -124,6 +124,31 @@ export const rings: Ring[] = [
     hubNote: "提示：共享 IP 为公共出口段（高频公共节点），区分度低，已对其权重做衰减处理",
   },
 ];
+
+// per-disposition form fields for the 研判处置 drawer
+export interface RField { k: string; label: string; type: "select" | "multi"; required: boolean; options: string[] }
+export const RING_FIELDS: Record<string, RField[]> = {
+  case: [
+    { k: "casetype", label: "案件类型", type: "select", required: true, options: ["可疑洗钱（分层）", "制裁规避", "结构化拆分", "资金过账", "其他"] },
+    { k: "priority", label: "案件优先级", type: "select", required: true, options: ["高", "中", "低"] },
+    { k: "scope", label: "调查范围", type: "multi", required: true, options: ["本团伙全部成员", "对手地址簇", "关联群组", "下游地址"] },
+    { k: "investigator", label: "指派调查员", type: "select", required: false, options: ["自动分配", "David Wu (L2)", "Emma Zhang (L2)"] },
+  ],
+  watch: [
+    { k: "listtype", label: "名单类型", type: "select", required: true, options: ["黑名单", "加强监控名单", "关注名单", "观察名单"] },
+    { k: "entities", label: "列入对象", type: "multi", required: true, options: ["全部成员地址", "商户主体", "关联群组", "对手地址簇"] },
+    { k: "duration", label: "有效期", type: "select", required: true, options: ["永久", "1 年", "180 天", "90 天"] },
+  ],
+  escalate: [
+    { k: "reason", label: "升级理由", type: "select", required: true, options: ["资金链触及制裁实体", "风险超 L1 处置权限", "疑似分层洗钱", "需多笔关联调查", "其他"] },
+    { k: "urgency", label: "紧急度", type: "select", required: true, options: ["常规", "加急"] },
+    { k: "str", label: "STR 处理", type: "multi", required: false, options: ["起草 STR 草稿", "移交合规复核"] },
+  ],
+  fp: [
+    { k: "fpreason", label: "误报原因", type: "select", required: true, options: ["共享公共网络 / NAT", "关联强度不足", "业务合理可解释", "规则误聚", "其他"] },
+    { k: "adjust", label: "模型调整", type: "multi", required: false, options: ["降低该维度权重", "加入可信白名单", "规则调优复盘"] },
+  ],
+};
 
 export const ringOf = (id?: string) => rings.find((r) => r.id === id) || rings[0];
 // rings a given merchant participates in (for alert-detail integration)
