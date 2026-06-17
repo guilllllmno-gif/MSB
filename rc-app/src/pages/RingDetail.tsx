@@ -1,47 +1,78 @@
+import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
-import { Card, CardHeader, CardBody, Button } from "@heroui/react";
-import { ArrowLeft, FolderPlus, ListPlus, FileDown, Coins, Link2, Smartphone, Globe, Bell, Sparkles, Info } from "lucide-react";
+import { Card, CardHeader, CardBody, Button, Drawer, DrawerContent, DrawerHeader, DrawerBody, DrawerFooter, Textarea } from "@heroui/react";
+import { ArrowLeft, FolderPlus, ListPlus, FileDown, Coins, Link2, Smartphone, Globe, Bell, Sparkles, Info, ArrowUpCircle, XCircle, ClipboardCheck } from "lucide-react";
 import { Shell } from "@/components/Shell";
 import { Pill, Initials } from "@/components/bits";
 import { ringOf, DIM_META, DIM_ORDER, confTone, confLabel, type RingDim, type Ring } from "@/lib/rings";
 
 const DIM_ICON: Record<RingDim, typeof Coins> = { funds: Coins, address: Link2, device: Smartphone, ip: Globe };
 const THRESHOLD = 60;
+const toneCol = (t: string) => (t === "red" ? "var(--danger)" : t === "amber" ? "var(--warning)" : "var(--text-2)");
 
-// radial relationship graph
+// relationship graph — SVG edges + crisp HTML node labels (percentage-positioned, aligned)
 function Graph({ ring }: { ring: Ring }) {
-  const W = 460, H = 320, cx = W / 2, cy = H / 2, r = 112;
+  const W = 520, H = 360, cx = 260, cy = 172, r = 116;
   const n = ring.members.length;
   const pos = ring.members.map((_, i) => {
     const a = -Math.PI / 2 + (i * 2 * Math.PI) / n;
     return { x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) };
   });
+  const pc = (v: number, max: number) => `${(v / max) * 100}%`;
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ maxHeight: 340 }}>
+    <div className="relative mx-auto w-full" style={{ maxWidth: W, aspectRatio: `${W}/${H}` }}>
+      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet" className="absolute inset-0 h-full w-full">
+        {ring.edges.map((e, i) => {
+          const dim = DIM_ORDER.find((d) => e.dims.includes(d))!;
+          const p1 = pos[e.a], p2 = pos[e.b];
+          return <line key={i} x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y} stroke={DIM_META[dim].color} strokeWidth={Math.min(6, Math.max(2, e.strength / 13))} strokeOpacity={0.45} strokeLinecap="round" />;
+        })}
+      </svg>
+      {/* edge strength chips */}
       {ring.edges.map((e, i) => {
-        const dim = DIM_ORDER.find((d) => e.dims.includes(d))!; // highest-weight dim present
-        const p1 = pos[e.a], p2 = pos[e.b];
-        return <line key={i} x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y} stroke={DIM_META[dim].color} strokeWidth={Math.max(1.5, e.strength / 16)} strokeOpacity={0.5} strokeLinecap="round" />;
+        const mx = (pos[e.a].x + pos[e.b].x) / 2, my = (pos[e.a].y + pos[e.b].y) / 2;
+        return (
+          <div key={i} className="absolute flex -translate-x-1/2 -translate-y-1/2 items-center gap-1 rounded-full border border-divider bg-content1 px-1.5 py-0.5 shadow-[0_1px_2px_rgba(17,24,39,.08)]" style={{ left: pc(mx, W), top: pc(my, H) }}>
+            {e.dims.map((d) => <span key={d} className="h-1.5 w-1.5 rounded-full" style={{ background: DIM_META[d].color }} />)}
+            <span className="tnum text-[10px] font-bold text-default-600">{e.strength}</span>
+          </div>
+        );
       })}
+      {/* nodes */}
       {ring.members.map((m, i) => (
-        <g key={m.id}>
-          <circle cx={pos[i].x} cy={pos[i].y} r={24} fill={m.c} />
-          <text x={pos[i].x} y={pos[i].y} dy="0.35em" textAnchor="middle" fontSize="13" fontWeight="700" fill="#fff">{m.i}</text>
-          <text x={pos[i].x} y={pos[i].y + 38} textAnchor="middle" fontSize="11" fontWeight="600" fill="var(--foreground, #111)">{m.name.length > 12 ? m.name.slice(0, 11) + "…" : m.name}</text>
-          <text x={pos[i].x} y={pos[i].y + 52} textAnchor="middle" fontSize="9.5" fill="var(--text-3)">{m.role}</text>
-        </g>
+        <div key={m.id} className="absolute flex w-[120px] -translate-x-1/2 -translate-y-1/2 flex-col items-center" style={{ left: pc(pos[i].x, W), top: pc(pos[i].y, H) }}>
+          <Initials p={{ i: m.i, c: m.c }} size={50} />
+          <div className="mt-1 max-w-full truncate text-center text-[11.5px] font-semibold leading-tight">{m.name}</div>
+          <div className="text-[10px] leading-tight text-default-400">{m.role}</div>
+        </div>
       ))}
-    </svg>
+    </div>
   );
 }
+
+const DISP = [
+  { k: "case", label: "并入案件", icon: FolderPlus, msg: "已并入调查案件" },
+  { k: "watch", label: "批量列名单", icon: ListPlus, msg: "已批量列入加强监控名单" },
+  { k: "escalate", label: "升级 MLRO", icon: ArrowUpCircle, msg: "已升级 MLRO 评估 STR" },
+  { k: "fp", label: "标记误报", icon: XCircle, msg: "已标记为误聚 / 误报" },
+];
 
 export default function RingDetail() {
   const nav = useNavigate();
   const [sp] = useSearchParams();
   const ring = ringOf(sp.get("id") || undefined);
   const tone = confTone(ring.confidence);
-  const sharedCount = ring.shared.length;
+  const [open, setOpen] = useState(false);
+  const [disp, setDisp] = useState<string | null>(ring.confidence >= 80 ? "case" : ring.confidence >= 60 ? "watch" : "fp");
+  const [note, setNote] = useState("");
+  const edges = [...ring.edges].sort((a, b) => b.strength - a.strength);
+
+  const submit = () => {
+    const d = DISP.find((x) => x.k === disp);
+    toast.success(`${ring.id} · ${d?.msg ?? "已提交研判"}`);
+    setOpen(false);
+  };
 
   return (
     <Shell crumb={["风控", "检测策略", "团伙识别", ring.id]} wide>
@@ -61,45 +92,54 @@ export default function RingDetail() {
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2.5">
-            <Button size="sm" variant="bordered" startContent={<ListPlus className="h-4 w-4" />} onPress={() => toast.success("已批量列入加强监控名单")}>批量列名单</Button>
             <Button size="sm" variant="bordered" startContent={<FileDown className="h-4 w-4" />} onPress={() => toast.success("团伙研判报告已导出")}>导出报告</Button>
-            <Button size="sm" color="primary" startContent={<FolderPlus className="h-4 w-4" />} onPress={() => toast.success(`${ring.id} 已并入调查案件`)}>并入案件</Button>
+            <Button size="sm" color="primary" startContent={<ClipboardCheck className="h-4 w-4" />} onPress={() => setOpen(true)}>研判处置</Button>
           </div>
         </div>
       </CardBody></Card>
 
       <div className="flex flex-col gap-5">
-        {/* graph + confidence breakdown */}
+        {/* graph + confidence */}
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.5fr_1fr]">
-          <Card shadow="none" className="card"><CardHeader className="flex items-center justify-between"><div><div className="text-[15px] font-bold">关系图谱</div><div className="text-[12px] text-default-400">边 = 共享关系，粗细 = 关联强度，颜色 = 维度</div></div>
+          <Card shadow="none" className="card"><CardHeader className="flex flex-wrap items-center justify-between gap-2"><div><div className="text-[15px] font-bold">关系图谱</div><div className="text-[12px] text-default-400">圆点 = 主体，连线 = 共享关系，粗细 = 强度，颜色 = 维度</div></div>
             <div className="flex flex-wrap items-center gap-2.5">{DIM_ORDER.map((d) => <span key={d} className="flex items-center gap-1 text-[11px] text-default-500"><span className="h-2 w-2 rounded-full" style={{ background: DIM_META[d].color }} />{DIM_META[d].short}</span>)}</div>
           </CardHeader>
             <CardBody className="pt-0"><Graph ring={ring} /></CardBody>
           </Card>
 
-          <Card shadow="none" className="card"><CardHeader><div><div className="text-[15px] font-bold">置信度构成</div><div className="text-[12px] text-default-400">多维加权打分 · 共享 {sharedCount} 类维度</div></div></CardHeader>
+          <Card shadow="none" className="card"><CardHeader><div><div className="text-[15px] font-bold">置信度构成</div><div className="text-[12px] text-default-400">各维度关联强度叠加 → 累计置信度</div></div></CardHeader>
             <CardBody className="pt-0">
-              <div className="flex items-end gap-2"><div className="text-[40px] font-extrabold leading-none tnum" style={{ color: tone === "red" ? "var(--danger)" : tone === "amber" ? "var(--warning)" : "var(--text-2)" }}>{ring.confidence}<span className="text-[18px]">%</span></div><div className="mb-1 text-[12px] text-default-500">{confLabel(ring.confidence)}<br />阈值 {THRESHOLD}% {ring.confidence >= THRESHOLD ? "· 已成团" : "· 未达标"}</div></div>
+              <div className="flex items-end gap-3">
+                <div className="text-[42px] font-extrabold leading-none tnum" style={{ color: toneCol(tone) }}>{ring.confidence}<span className="text-[18px]">%</span></div>
+                <div className="mb-1 text-[12px]"><Pill tone={tone}>{confLabel(ring.confidence)}</Pill><div className="mt-1 text-default-400">阈值 {THRESHOLD}% · {ring.confidence >= THRESHOLD ? "已成团" : "未达标"}</div></div>
+              </div>
 
-              <div className="mt-4 flex flex-col gap-3">
+              {/* stacked contribution bar with threshold marker */}
+              <div className="relative mt-4 h-3.5 w-full overflow-hidden rounded-full bg-default-100">
+                <div className="flex h-full">
+                  {DIM_ORDER.map((d) => { const s = ring.shared.find((x) => x.dim === d); return s ? <div key={d} className="h-full" style={{ width: `${s.contrib}%`, background: DIM_META[d].color }} title={`${DIM_META[d].label} +${s.contrib}`} /> : null; })}
+                </div>
+              </div>
+              <div className="relative mt-1 h-3 w-full text-[10px] text-default-400">
+                <span className="absolute -translate-x-1/2" style={{ left: `${THRESHOLD}%` }}>▲ 阈值</span>
+              </div>
+
+              {/* legend */}
+              <div className="mt-3 flex flex-col gap-2">
                 {DIM_ORDER.map((d) => {
                   const s = ring.shared.find((x) => x.dim === d);
                   const Icon = DIM_ICON[d];
-                  const pct = s ? Math.round((s.contrib / DIM_META[d].weight) * 100) : 0;
                   return (
-                    <div key={d}>
-                      <div className="mb-1 flex items-center gap-1.5 text-[12px]">
-                        <Icon className="h-3.5 w-3.5" style={{ color: s ? DIM_META[d].color : "var(--text-3)" }} />
-                        <span className={s ? "font-semibold" : "text-default-400"}>{DIM_META[d].label}</span>
-                        <span className="rounded-full bg-default-100 px-1.5 text-[10px] font-semibold text-default-400">权重 {DIM_META[d].weight}</span>
-                        <span className="ml-auto tnum font-semibold" style={{ color: s ? DIM_META[d].color : "var(--text-3)" }}>{s ? `共享 ${s.count} 项 · +${s.contrib}` : "未共享"}</span>
-                      </div>
-                      <div className="h-2 overflow-hidden rounded-full bg-default-100"><div className="h-full rounded-full" style={{ width: `${pct}%`, background: DIM_META[d].color }} /></div>
+                    <div key={d} className="flex items-center gap-2 text-[12px]">
+                      <Icon className="h-3.5 w-3.5" style={{ color: s ? DIM_META[d].color : "var(--text-3)" }} />
+                      <span className={s ? "" : "text-default-400"}>{DIM_META[d].label}</span>
+                      <span className="rounded-full bg-default-100 px-1.5 text-[10px] font-semibold text-default-400">权重 {DIM_META[d].weight}</span>
+                      <span className="ml-auto tnum font-semibold" style={{ color: s ? DIM_META[d].color : "var(--text-3)" }}>{s ? `共享 ${s.count} 项 · +${s.contrib}` : "未共享"}</span>
                     </div>
                   );
                 })}
               </div>
-              <p className="mt-4 flex items-start gap-1.5 rounded-xl border border-divider bg-default-50 p-2.5 text-[11.5px] leading-relaxed text-default-500"><Info className="mt-px h-3.5 w-3.5 shrink-0" />区分度越高的维度权重越大：资金/地址难以伪造，IP/设备可能因共享网络巧合，故权重递减。</p>
+              <p className="mt-3.5 flex items-start gap-1.5 rounded-xl border border-divider bg-default-50 p-2.5 text-[11.5px] leading-relaxed text-default-500"><Info className="mt-px h-3.5 w-3.5 shrink-0" />区分度越高的维度权重越大：资金 / 地址难以伪造，IP / 设备可能因共享网络巧合，故权重递减。</p>
             </CardBody>
           </Card>
         </div>
@@ -108,8 +148,8 @@ export default function RingDetail() {
         <Card shadow="none" className="card"><CardHeader><div className="text-[15px] font-bold">团伙成员 · {ring.members.length}</div></CardHeader>
           <CardBody className="pt-0">
             <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-              {ring.members.map((m) => {
-                const dims = Array.from(new Set(ring.edges.filter((e) => e.a === ring.members.indexOf(m) || e.b === ring.members.indexOf(m)).flatMap((e) => e.dims)));
+              {ring.members.map((m, idx) => {
+                const dims = Array.from(new Set(ring.edges.filter((e) => e.a === idx || e.b === idx).flatMap((e) => e.dims)));
                 return (
                   <div key={m.id} className="flex items-center gap-3 rounded-xl border border-divider p-3">
                     <Initials p={{ i: m.i, c: m.c }} size={36} />
@@ -125,40 +165,71 @@ export default function RingDetail() {
           </CardBody>
         </Card>
 
-        {/* evidence + recommendation */}
-        <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_1fr]">
-          <Card shadow="none" className="card"><CardHeader><div><div className="text-[15px] font-bold">共享证据明细</div><div className="text-[12px] text-default-400">{ring.edges.length} 条关联边 · 可解释 / 可留痕</div></div></CardHeader>
-            <CardBody className="flex flex-col gap-2.5 pt-0">
-              {ring.edges.map((e, i) => (
-                <div key={i} className="rounded-xl border border-divider p-3">
-                  <div className="flex items-center gap-2 text-[12.5px] font-semibold">
-                    <Initials p={{ i: ring.members[e.a].i, c: ring.members[e.a].c }} size={20} />{ring.members[e.a].name}
+        {/* evidence */}
+        <Card shadow="none" className="card"><CardHeader><div><div className="text-[15px] font-bold">共享证据明细 · {edges.length} 条关联边</div><div className="text-[12px] text-default-400">以下关联边累加形成团伙置信度，强度越高越可靠 · 可解释 / 可留痕</div></div></CardHeader>
+          <CardBody className="flex flex-col gap-2.5 pt-0">
+            {edges.map((e, i) => {
+              const sc = confTone(Math.min(100, e.strength + 15));
+              return (
+                <div key={i} className="rounded-xl border border-divider p-3.5">
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 text-[12.5px] font-semibold">
+                    <span className="inline-flex items-center gap-1.5"><Initials p={{ i: ring.members[e.a].i, c: ring.members[e.a].c }} size={22} />{ring.members[e.a].name}</span>
                     <span className="text-default-300">↔</span>
-                    <Initials p={{ i: ring.members[e.b].i, c: ring.members[e.b].c }} size={20} />{ring.members[e.b].name}
-                    <span className="ml-auto tnum font-bold" style={{ color: "var(--danger)" }}>强度 {e.strength}</span>
+                    <span className="inline-flex items-center gap-1.5"><Initials p={{ i: ring.members[e.b].i, c: ring.members[e.b].c }} size={22} />{ring.members[e.b].name}</span>
+                    <span className="ml-auto flex items-center gap-2">
+                      <span className="h-1.5 w-24 overflow-hidden rounded-full bg-default-100"><span className="block h-full rounded-full" style={{ width: `${Math.min(100, e.strength)}%`, background: toneCol(sc) }} /></span>
+                      <span className="tnum text-[12px] font-bold" style={{ color: toneCol(sc) }}>强度 {e.strength}</span>
+                    </span>
                   </div>
-                  <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                    {e.dims.map((d) => <span key={d} className="rounded-md px-1.5 py-0.5 text-[10.5px] font-semibold" style={{ background: "color-mix(in srgb," + DIM_META[d].color + " 14%, transparent)", color: DIM_META[d].color }}>{DIM_META[d].label}</span>)}
+                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                    {e.dims.map((d) => { const Icon = DIM_ICON[d]; return <span key={d} className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10.5px] font-semibold" style={{ background: "color-mix(in srgb," + DIM_META[d].color + " 14%, transparent)", color: DIM_META[d].color }}><Icon className="h-3 w-3" />{DIM_META[d].label}</span>; })}
                     <span className="text-[11.5px] text-default-500">· {e.note}</span>
                   </div>
                 </div>
-              ))}
-            </CardBody>
-          </Card>
-
-          <Card shadow="none" className="card"><CardHeader className="flex items-center justify-between"><div className="flex items-center gap-2 text-[15px] font-bold"><Sparkles className="h-4 w-4 text-default-400" />研判建议</div><Pill tone={ring.statusTone}>{ring.status}</Pill></CardHeader>
-            <CardBody className="pt-0">
-              <p className="text-[13px] leading-relaxed text-default-600">{ring.recommendation}</p>
-              {ring.hubNote && <p className="mt-3 flex items-start gap-1.5 rounded-xl border border-divider bg-default-50 p-2.5 text-[11.5px] leading-relaxed text-default-500"><Info className="mt-px h-3.5 w-3.5 shrink-0" />{ring.hubNote}</p>}
-              <div className="mt-4 flex flex-wrap gap-2">
-                <Button size="sm" color="primary" startContent={<FolderPlus className="h-4 w-4" />} onPress={() => toast.success(`${ring.id} 已并入调查案件`)}>并入案件</Button>
-                <Button size="sm" variant="bordered" startContent={<ListPlus className="h-4 w-4" />} onPress={() => toast.success("已批量列入名单")}>批量列名单</Button>
-                <Button size="sm" variant="bordered" startContent={<Bell className="h-4 w-4" />} onPress={() => nav("/alerts")}>查看关联告警</Button>
-              </div>
-            </CardBody>
-          </Card>
-        </div>
+              );
+            })}
+          </CardBody>
+        </Card>
       </div>
+
+      {/* 研判处置 — side drawer */}
+      <Drawer isOpen={open} onOpenChange={setOpen} placement="right" size="md" classNames={{ base: "!w-[46vw] !min-w-[420px] !max-w-[720px]" }}>
+        <DrawerContent>
+          <DrawerHeader className="flex-col items-start gap-0.5 border-b border-divider">
+            <span className="text-[15px] font-bold">研判处置</span>
+            <span className="text-[11.5px] font-normal text-default-400">{ring.id} · {ring.name}</span>
+          </DrawerHeader>
+          <DrawerBody className="gap-4 py-4">
+            <div className="flex items-center gap-3 rounded-xl border border-divider bg-default-50 p-3.5">
+              <div className="text-[28px] font-extrabold leading-none tnum" style={{ color: toneCol(tone) }}>{ring.confidence}%</div>
+              <div className="text-[12px] text-default-500"><b className="text-foreground">{confLabel(ring.confidence)}</b> · {ring.typology}<br />{ring.members.length} 主体 · {ring.alertCount} 告警 · {ring.amount}</div>
+            </div>
+
+            <div className="rounded-xl border border-divider bg-default-50 p-3.5">
+              <div className="flex items-center gap-2 text-[13px] font-semibold text-default-700"><Sparkles className="h-4 w-4 text-default-400" />AI 研判建议</div>
+              <p className="mt-2 text-[12.5px] leading-relaxed text-default-600">{ring.recommendation}</p>
+              {ring.hubNote && <p className="mt-2.5 flex items-start gap-1.5 border-t border-divider pt-2.5 text-[11.5px] leading-relaxed text-default-500"><Info className="mt-px h-3.5 w-3.5 shrink-0" />{ring.hubNote}</p>}
+            </div>
+
+            <div>
+              <div className="mb-2 text-[11px] font-bold uppercase tracking-wider text-default-400">处置动作</div>
+              <div className="grid grid-cols-2 gap-2">
+                {DISP.map((d) => { const on = disp === d.k; const Icon = d.icon; return (
+                  <button key={d.k} onClick={() => setDisp(d.k)} className="flex flex-col items-center gap-1.5 rounded-xl border-[1.5px] px-1.5 py-3 text-[12.5px] font-semibold transition-colors"
+                    style={on ? { borderColor: "var(--brand)", background: "var(--brand-soft)", color: "var(--brand)" } : { borderColor: "var(--line)", color: "var(--text-2)" }}>
+                    <Icon className="h-[18px] w-[18px]" />{d.label}</button>
+                ); })}
+              </div>
+            </div>
+
+            <Textarea label="研判备注" labelPlacement="outside" value={note} onValueChange={setNote} minRows={3} placeholder="说明聚类依据、对手范围与处置理由…（记入审计日志）" />
+          </DrawerBody>
+          <DrawerFooter className="border-t border-divider">
+            <Button variant="bordered" onPress={() => setOpen(false)}>取消</Button>
+            <Button color="primary" startContent={<Bell className="h-4 w-4" />} onPress={submit}>提交研判</Button>
+          </DrawerFooter>
+        </DrawerContent>
+      </Drawer>
     </Shell>
   );
 }
