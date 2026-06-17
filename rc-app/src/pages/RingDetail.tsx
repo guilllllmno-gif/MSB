@@ -146,7 +146,7 @@ export default function RingDetail() {
               <Graph ring={ring} />
               {/* evidence explains each edge above */}
               <div className="mt-5 border-t border-divider pt-4">
-                <div className="mb-3 flex flex-wrap items-baseline justify-between gap-1"><div className="text-[14px] font-bold">共享证据明细 · {edges.length} 条关联边</div><div className="text-[12px] text-default-400">逐条解释上方每条连线 · 强度叠加形成置信度 · 可留痕</div></div>
+                <div className="mb-3 flex flex-wrap items-baseline justify-between gap-1"><div className="text-[14px] font-bold">共享证据明细 · {edges.length} 条连线</div><div className="text-[12px] text-default-400">逐条解释上方每条连线（主体对）· 强度叠加形成置信度 · 可留痕</div></div>
                 <div className="grid grid-cols-1 gap-2.5 lg:grid-cols-2">
                   {edges.map((e, i) => { const sc = confTone(Math.min(100, e.strength + 15)); return (
                     <div key={i} className="rounded-xl border border-divider p-3.5">
@@ -207,7 +207,7 @@ export default function RingDetail() {
                       </button>
                       {exp && s && (
                         <div className="mb-1.5 ml-[22px] mt-1 flex flex-col gap-1 border-l-2 pl-3" style={{ borderColor: "color-mix(in srgb," + DIM_META[d].color + " 40%, transparent)" }}>
-                          <div className="text-[11px] text-default-400">命中 {hits.length} 条关系 · 共 {s.count} 项 · 折算 +{s.contrib} 分</div>
+                          <div className="text-[11px] text-default-400">命中 {hits.length} 条连线（主体对）· 共 {s.count} 项证据 · 折算 +{s.contrib} 分</div>
                           {hits.map((e, i) => (
                             <div key={i} className="text-[11.5px] text-default-600">{ring.members[e.a].name} <span className="text-default-300">↔</span> {ring.members[e.b].name}<span className="text-default-400"> · {e.note}</span></div>
                           ))}
