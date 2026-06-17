@@ -28,3 +28,20 @@ export const alertStore = {
 export function useAlertVersion() {
   return useSyncExternalStore(alertStore.subscribe, alertStore.getVersion, alertStore.getVersion);
 }
+
+// ── ring (团伙) state store ──
+const ringData: Record<string, { state: string }> = {};
+let ringVersion = 0;
+const ringListeners = new Set<() => void>();
+const ringNotify = () => { ringVersion++; ringListeners.forEach((l) => l()); };
+
+export const ringStore = {
+  subscribe(cb: () => void) { ringListeners.add(cb); return () => { ringListeners.delete(cb); }; },
+  getVersion() { return ringVersion; },
+  stateOf(id: string, base: string) { return ringData[id]?.state || base; },
+  set(id: string, state: string) { ringData[id] = { state }; ringNotify(); },
+};
+
+export function useRingVersion() {
+  return useSyncExternalStore(ringStore.subscribe, ringStore.getVersion, ringStore.getVersion);
+}

@@ -14,6 +14,30 @@ export const DIM_META: Record<RingDim, { label: string; short: string; color: st
 };
 export const DIM_ORDER: RingDim[] = ["funds", "address", "device", "ip"];
 
+// ── ring lifecycle states ──
+export type RingStateKey = "pending" | "watching" | "investigating" | "cased" | "listed" | "escalated" | "closed_fp";
+export interface RingStateDef { label: string; tone: Tone; bucket: string; active: boolean }
+export const RING_STATES: Record<RingStateKey, RingStateDef> = {
+  pending: { label: "待研判", tone: "blue", bucket: "pending", active: true },
+  watching: { label: "观察中", tone: "grey", bucket: "watching", active: true },
+  investigating: { label: "调查中", tone: "amber", bucket: "investigating", active: true },
+  cased: { label: "已聚案", tone: "violet", bucket: "handled", active: false },
+  listed: { label: "已列名单", tone: "green", bucket: "handled", active: false },
+  escalated: { label: "已升级 MLRO", tone: "red", bucket: "handled", active: false },
+  closed_fp: { label: "已关闭 · 误报", tone: "grey", bucket: "closed", active: false },
+};
+export const RING_TILES: { f: string; label: string }[] = [
+  { f: "all", label: "全部团伙" },
+  { f: "pending", label: "待研判" },
+  { f: "watching", label: "观察中" },
+  { f: "investigating", label: "调查中" },
+  { f: "handled", label: "已处置" },
+  { f: "closed", label: "已关闭" },
+];
+export const matchRingTile = (f: string, state: RingStateKey) => (f === "all" ? true : RING_STATES[state].bucket === f);
+// 研判处置 action key → resulting state
+export const DISP_STATE: Record<string, RingStateKey> = { case: "cased", watch: "listed", escalate: "escalated", fp: "closed_fp" };
+
 export interface RingMember { id: string; name: string; sub: string; kind: "商户" | "地址" | "群组"; i: string; c: string; alerts: number; role: string }
 export interface RingEdge { a: number; b: number; dims: RingDim[]; strength: number; note: string } // a,b = member index
 export interface SharedDim { dim: RingDim; count: number; contrib: number } // contrib = points toward confidence
@@ -25,7 +49,7 @@ export interface Ring {
   members: RingMember[];
   edges: RingEdge[];
   amount: string; alertCount: number; span: string;
-  status: string; statusTone: Tone;
+  state: RingStateKey; caseRef?: string;
   recommendation: string;
   hubNote?: string; // excluded super-node (avoids cluster collapse)
 }
@@ -56,7 +80,7 @@ export const rings: Ring[] = [
       { a: 1, b: 3, dims: ["funds"], strength: 28, note: "同一资金来源" },
     ],
     amount: "CAD 38,400", alertCount: 5, span: "近 14 天",
-    status: "已聚案 · CASE-2026-014", statusTone: "violet",
+    state: "cased", caseRef: "CASE-2026-014",
     recommendation: "资金链路触及 OFAC 制裁混币器，4 主体经资金+地址强关联。建议升级 MLRO，起草 STR 上报 FINTRAC，对手地址簇批量列入黑名单。",
     hubNote: "已剔除超级节点：Tornado Cash 合约地址（网络内 7+ 商户共用，不计入聚类）",
   },
@@ -80,16 +104,16 @@ export const rings: Ring[] = [
       { a: 0, b: 2, dims: ["device"], strength: 22, note: "共享 1 设备指纹" },
     ],
     amount: "CAD 42,000", alertCount: 7, span: "近 7 天",
-    status: "调查中", statusTone: "amber",
+    state: "investigating",
     recommendation: "四维全命中（地址+设备+IP+资金），高置信结构化拆分。建议对群组 #A7 全部地址列入加强监控名单，对 Eastwind 入金加严阈值并人工复核。",
   },
   {
     id: "RING-2026-033", name: "快进快出过账链", typology: "资金过账", typologyEn: "Pass-through",
     confidence: 66, risk: "amber",
     shared: [
-      { dim: "funds", count: 4, contrib: 34 },
+      { dim: "funds", count: 4, contrib: 40 },
+      { dim: "device", count: 1, contrib: 16 },
       { dim: "ip", count: 6, contrib: 10 },
-      { dim: "device", count: 1, contrib: 8 },
     ],
     members: [
       { id: "M1", name: "BlockTrade Corp.", sub: "商户 · 美国", kind: "商户", i: "BT", c: "var(--success)", alerts: 2, role: "过账商户" },
@@ -101,15 +125,15 @@ export const rings: Ring[] = [
       { a: 1, b: 2, dims: ["funds"], strength: 30, note: "资金继续下游过账" },
     ],
     amount: "CAD 19,500", alertCount: 3, span: "近 10 天",
-    status: "待研判", statusTone: "blue",
+    state: "pending",
     recommendation: "资金过账特征明显，但设备维度仅 1 项、关联偏中等。建议要求商户说明资金用途，补充材料后再判定是否聚案。",
   },
   {
     id: "RING-2026-040", name: "新商户首充簇", typology: "疑似养号", typologyEn: "Account farming",
-    confidence: 43, risk: "grey",
+    confidence: 26, risk: "grey",
     shared: [
-      { dim: "ip", count: 3, contrib: 9 },
-      { dim: "device", count: 1, contrib: 8 },
+      { dim: "device", count: 2, contrib: 16 },
+      { dim: "ip", count: 3, contrib: 10 },
     ],
     members: [
       { id: "M1", name: "Acme Pay Ltd.", sub: "商户 · 加拿大", kind: "商户", i: "AP", c: "var(--brand)", alerts: 1, role: "新商户" },
@@ -119,9 +143,73 @@ export const rings: Ring[] = [
       { a: 0, b: 1, dims: ["ip", "device"], strength: 17, note: "仅共享出口 IP（疑似同一 NAT）+ 1 设备" },
     ],
     amount: "CAD 14,000", alertCount: 2, span: "近 5 天",
-    status: "观察中", statusTone: "grey",
+    state: "watching",
     recommendation: "仅 IP/设备弱关联，可能为共享网络环境导致的误聚。暂不处置，纳入观察名单，若后续出现资金/地址关联再升级。",
     hubNote: "提示：共享 IP 为公共出口段（高频公共节点），区分度低，已对其权重做衰减处理",
+  },
+  {
+    id: "RING-2026-050", name: "代付资金归集网络", typology: "资金归集", typologyEn: "Funneling",
+    confidence: 79, risk: "amber",
+    shared: [
+      { dim: "funds", count: 5, contrib: 40 },
+      { dim: "address", count: 3, contrib: 30 },
+      { dim: "ip", count: 4, contrib: 9 },
+    ],
+    members: [
+      { id: "M1", name: "PayBridge Inc.", sub: "商户 · 加拿大", kind: "商户", i: "PB", c: "var(--brand)", alerts: 2, role: "代付商户" },
+      { id: "M2", name: "0x4c9a…71Bd", sub: "归集地址", kind: "地址", i: "0x", c: "var(--violet)", alerts: 1, role: "归集源" },
+      { id: "M3", name: "收款地址 ×4", sub: "4 个收款钱包 · 多账户代付集中归集", kind: "群组", i: "✦", c: "var(--success)", alerts: 1, role: "代付出口" },
+    ],
+    edges: [
+      { a: 0, b: 1, dims: ["funds", "address"], strength: 60, note: "多笔代付资金集中归集 + 复用归集地址" },
+      { a: 1, b: 2, dims: ["funds", "ip"], strength: 38, note: "归集后分发至 4 个收款钱包 · 共享出口 IP" },
+    ],
+    amount: "CAD 27,600", alertCount: 4, span: "近 12 天",
+    state: "listed",
+    recommendation: "多账户代付集中归集特征明显。成员地址已批量列入加强监控名单，后续同类代付按名单规则自动加严。",
+  },
+  {
+    id: "RING-2026-055", name: "制裁实体关联网络", typology: "制裁规避", typologyEn: "Sanctions evasion",
+    confidence: 96, risk: "red",
+    shared: [
+      { dim: "funds", count: 4, contrib: 40 },
+      { dim: "address", count: 3, contrib: 30 },
+      { dim: "device", count: 2, contrib: 16 },
+      { dim: "ip", count: 2, contrib: 10 },
+    ],
+    members: [
+      { id: "M1", name: "OffshoreFX Ltd.", sub: "商户 · 离岸", kind: "商户", i: "OF", c: "var(--brand)", alerts: 3, role: "高风险商户" },
+      { id: "M2", name: "0x7F4a…9c21", sub: "OFAC SDN 制裁地址", kind: "地址", i: "0x", c: "var(--danger)", alerts: 2, role: "制裁实体" },
+      { id: "M3", name: "中转钱包 ×2", sub: "资金经 2 个钱包过账以规避制裁筛查", kind: "群组", i: "⛓", c: "var(--warning)", alerts: 1, role: "资金中转 · 规避" },
+    ],
+    edges: [
+      { a: 0, b: 1, dims: ["funds", "address"], strength: 78, note: "资金 2 跳触及 OFAC SDN 制裁地址" },
+      { a: 0, b: 2, dims: ["device", "ip"], strength: 30, note: "共享 2 设备指纹 + 出口 IP" },
+      { a: 1, b: 2, dims: ["funds"], strength: 28, note: "经中转钱包过账规避筛查" },
+    ],
+    amount: "CAD 56,000", alertCount: 6, span: "近 9 天",
+    state: "escalated",
+    recommendation: "资金链直接关联 OFAC SDN 制裁地址，构成制裁规避高风险。已升级 MLRO，STR 草稿移交合规报送 FINTRAC，相关地址全部冻结。",
+    hubNote: "已剔除超级节点：公共桥接合约（网络内多商户共用，不计入聚类）",
+  },
+  {
+    id: "RING-2026-060", name: "共用设备登录簇", typology: "疑似关联", typologyEn: "Shared-device",
+    confidence: 22, risk: "grey",
+    shared: [
+      { dim: "device", count: 1, contrib: 14 },
+      { dim: "ip", count: 2, contrib: 8 },
+    ],
+    members: [
+      { id: "M1", name: "Maple Pay Co.", sub: "商户 · 加拿大", kind: "商户", i: "MP", c: "var(--brand)", alerts: 1, role: "商户" },
+      { id: "M2", name: "Northwind Ltd.", sub: "商户 · 加拿大", kind: "商户", i: "NW", c: "var(--success)", alerts: 1, role: "商户" },
+    ],
+    edges: [
+      { a: 0, b: 1, dims: ["device", "ip"], strength: 16, note: "仅共享办公网络 IP 段 + 1 设备，疑似同园区办公" },
+    ],
+    amount: "CAD 9,800", alertCount: 2, span: "近 6 天",
+    state: "closed_fp",
+    recommendation: "仅设备/IP 弱关联，经核实两商户位于同一共享办公空间，属正常网络环境巧合。判定误聚，已关闭并将该 IP 段加入可信白名单。",
+    hubNote: "提示：共享 IP 为共享办公出口段（高频公共节点），区分度低，已降权处理",
   },
 ];
 

@@ -5,7 +5,8 @@ import { Card, CardHeader, CardBody, Button, Drawer, DrawerContent, DrawerHeader
 import { ArrowLeft, FolderPlus, ListPlus, FileDown, Coins, Link2, Smartphone, Globe, Bell, Sparkles, Info, ArrowUpCircle, XCircle, ClipboardCheck } from "lucide-react";
 import { Shell } from "@/components/Shell";
 import { Pill, Initials, SectionLabel } from "@/components/bits";
-import { ringOf, DIM_META, DIM_ORDER, confTone, confLabel, RING_FIELDS, type RingDim, type Ring } from "@/lib/rings";
+import { ringOf, DIM_META, DIM_ORDER, confTone, confLabel, RING_FIELDS, RING_STATES, DISP_STATE, type RingDim, type Ring, type RingStateKey } from "@/lib/rings";
+import { ringStore, useRingVersion } from "@/lib/store";
 
 const DIM_ICON: Record<RingDim, typeof Coins> = { funds: Coins, address: Link2, device: Smartphone, ip: Globe };
 const THRESHOLD = 60;
@@ -63,6 +64,9 @@ export default function RingDetail() {
   const nav = useNavigate();
   const [sp] = useSearchParams();
   const ring = ringOf(sp.get("id") || undefined);
+  useRingVersion();
+  const state = ringStore.stateOf(ring.id, ring.state) as RingStateKey;
+  const sd = RING_STATES[state];
   const tone = confTone(ring.confidence);
   const [open, setOpen] = useState(false);
   const [disp, setDisp] = useState<string>(ring.confidence >= 80 ? "case" : ring.confidence >= 60 ? "watch" : "fp");
@@ -85,6 +89,7 @@ export default function RingDetail() {
     setErrs(e);
     if (e.size) { toast.error("请补全所需信息"); return; }
     const d = DISP.find((x) => x.k === disp);
+    ringStore.set(ring.id, DISP_STATE[disp]);
     toast.success(`${ring.id} · ${d?.msg ?? "已提交研判"}`);
     setOpen(false);
   };
@@ -101,6 +106,7 @@ export default function RingDetail() {
               {ring.name}
               <Pill tone={ring.risk} dot={false}>{ring.typology}</Pill>
               <Pill tone={tone}>{confLabel(ring.confidence)} {ring.confidence}%</Pill>
+              <Pill tone={sd.tone}>{sd.label}{ring.caseRef ? ` · ${ring.caseRef}` : ""}</Pill>
             </h1>
             <div className="mt-2.5 text-[13px] text-default-500">
               {ring.id} · {ring.members.length} 个主体 · 关联告警 <b className="text-foreground">{ring.alertCount}</b> 条 · 涉及 <b className="text-foreground">{ring.amount}</b> · {ring.span}

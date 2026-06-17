@@ -1,19 +1,12 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Button, Input, Tooltip } from "@heroui/react";
-import { Search, Eye, FolderPlus, ShieldAlert, Network, Users2, Bell } from "lucide-react";
+import { Search, Eye, FolderPlus } from "lucide-react";
 import { Shell, PageHead } from "@/components/Shell";
 import { Pill, Initials } from "@/components/bits";
-import { rings, DIM_META, DIM_ORDER, confTone, confLabel } from "@/lib/rings";
-
-function Stat({ label, value, icon: Icon, tone }: { label: string; value: string; icon: typeof Bell; tone?: string }) {
-  return (
-    <div className="card px-5 py-4">
-      <div className="flex items-center gap-2 text-[12.5px] text-default-500"><Icon className="h-4 w-4 text-default-400" />{label}</div>
-      <div className="mt-2 text-[24px] font-extrabold leading-none tnum" style={tone ? { color: tone } : undefined}>{value}</div>
-    </div>
-  );
-}
+import { rings, DIM_META, DIM_ORDER, confTone, confLabel, RING_STATES, RING_TILES, matchRingTile, type RingStateKey } from "@/lib/rings";
+import { ringStore, useRingVersion } from "@/lib/store";
 
 // compact weighted-confidence bar
 function ConfBar({ value }: { value: number }) {
@@ -31,9 +24,12 @@ function ConfBar({ value }: { value: number }) {
 
 export default function RingList() {
   const nav = useNavigate();
-  const highConf = rings.filter((r) => r.confidence >= 80).length;
-  const subjects = rings.reduce((s, r) => s + r.members.length, 0);
-  const alertSum = rings.reduce((s, r) => s + r.alertCount, 0);
+  useRingVersion();
+  const [filter, setFilter] = useState("all");
+
+  const stateOf = (r: typeof rings[number]) => ringStore.stateOf(r.id, r.state) as RingStateKey;
+  const count = (f: string) => rings.filter((r) => matchRingTile(f, stateOf(r))).length;
+  const rows = rings.filter((r) => matchRingTile(filter, stateOf(r)));
 
   return (
     <Shell crumb={["风控", "检测策略", "团伙识别"]} wide>
@@ -42,11 +38,18 @@ export default function RingList() {
         sub="多维关系叠加 + 加权打分：地址 / 设备 / IP / 资金路径共享形成边，累积强度超阈值即聚类成团，并给出置信度。"
       />
 
-      <div className="mb-5 grid grid-cols-2 gap-3.5 md:grid-cols-4">
-        <Stat label="识别团伙" value={String(rings.length)} icon={Network} />
-        <Stat label="高置信团伙" value={String(highConf)} icon={ShieldAlert} tone="var(--danger)" />
-        <Stat label="涉及主体" value={String(subjects)} icon={Users2} />
-        <Stat label="关联告警" value={String(alertSum)} icon={Bell} />
+      {/* lifecycle status tiles */}
+      <div className="mb-5 grid grid-cols-3 gap-3.5 md:grid-cols-6">
+        {RING_TILES.map((t) => {
+          const on = filter === t.f;
+          return (
+            <button key={t.f} onClick={() => setFilter(t.f)}
+              className={`card card-hover px-4 py-3.5 text-left ${on ? "outline outline-2 -outline-offset-2 outline-[var(--brand)]" : ""}`}>
+              <div className="text-[12.5px] text-default-500">{t.label}</div>
+              <div className="mt-1.5 text-[26px] font-extrabold leading-none tnum" style={{ color: on ? "var(--brand)" : undefined }}>{count(t.f)}</div>
+            </button>
+          );
+        })}
       </div>
 
       <div className="mb-4 flex flex-wrap items-center gap-2.5">
@@ -62,38 +65,41 @@ export default function RingList() {
           <TableColumn>共享维度</TableColumn><TableColumn>成员</TableColumn><TableColumn>涉及金额</TableColumn>
           <TableColumn>关联告警</TableColumn><TableColumn>状态</TableColumn><TableColumn align="end">操作</TableColumn>
         </TableHeader>
-        <TableBody>
-          {rings.map((r) => (
-            <TableRow key={r.id} onClick={() => nav(`/ring?id=${r.id}`)}>
-              <TableCell><div className="font-semibold">{r.name}</div><div className="text-[11px] text-default-400">{r.id}</div></TableCell>
-              <TableCell><Pill tone={r.risk} dot={false}>{r.typology}</Pill></TableCell>
-              <TableCell><div className="flex items-center gap-2"><ConfBar value={r.confidence} /><span className="rounded-full bg-default-100 px-1.5 py-px text-[10.5px] font-semibold text-default-500">{confLabel(r.confidence)}</span></div></TableCell>
-              <TableCell>
-                <div className="flex items-center gap-1">
-                  {DIM_ORDER.map((d) => { const on = r.shared.some((s) => s.dim === d); return (
-                    <span key={d} className="rounded-md px-1.5 py-0.5 text-[10.5px] font-semibold" style={on ? { background: "color-mix(in srgb," + DIM_META[d].color + " 14%, transparent)", color: DIM_META[d].color } : { background: "var(--default-100, #f0f1f3)", color: "var(--text-3)", opacity: 0.5 }}>{DIM_META[d].short}</span>
-                  ); })}
-                </div>
-              </TableCell>
-              <TableCell>
-                <div className="flex items-center">
-                  {r.members.slice(0, 4).map((m, i) => (
-                    <span key={m.id} style={{ marginLeft: i ? -8 : 0, zIndex: 10 - i }} className="ring-2 ring-content1 rounded-full"><Initials p={{ i: m.i, c: m.c }} size={24} /></span>
-                  ))}
-                  <span className="ml-2 text-[12px] text-default-500">{r.members.length} 个主体</span>
-                </div>
-              </TableCell>
-              <TableCell><span className="font-semibold tnum">{r.amount}</span></TableCell>
-              <TableCell><span className="text-default-600 tnum">{r.alertCount} 条</span></TableCell>
-              <TableCell><Pill tone={r.statusTone}>{r.status}</Pill></TableCell>
-              <TableCell>
-                <div className="flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
-                  <Tooltip content="查看图谱" size="sm" delay={300}><Button isIconOnly size="sm" radius="full" variant="flat" className="bg-default-100" onPress={() => nav(`/ring?id=${r.id}`)}><Eye className="h-4 w-4 text-default-500" strokeWidth={1.9} /></Button></Tooltip>
-                  <Tooltip content="并入案件" size="sm" delay={300}><Button isIconOnly size="sm" radius="full" variant="flat" className="bg-primary/10 text-primary" onPress={() => toast.success(`${r.id} 已并入调查案件`)}><FolderPlus className="h-4 w-4" strokeWidth={1.9} /></Button></Tooltip>
-                </div>
-              </TableCell>
-            </TableRow>
-          ))}
+        <TableBody emptyContent="没有符合条件的团伙">
+          {rows.map((r) => {
+            const sd = RING_STATES[stateOf(r)];
+            return (
+              <TableRow key={r.id} onClick={() => nav(`/ring?id=${r.id}`)}>
+                <TableCell><div className="font-semibold">{r.name}</div><div className="text-[11px] text-default-400">{r.id}</div></TableCell>
+                <TableCell><Pill tone={r.risk} dot={false}>{r.typology}</Pill></TableCell>
+                <TableCell><div className="flex items-center gap-2"><ConfBar value={r.confidence} /><span className="rounded-full bg-default-100 px-1.5 py-px text-[10.5px] font-semibold text-default-500">{confLabel(r.confidence)}</span></div></TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-1">
+                    {DIM_ORDER.map((d) => { const on = r.shared.some((s) => s.dim === d); return (
+                      <span key={d} className="rounded-md px-1.5 py-0.5 text-[10.5px] font-semibold" style={on ? { background: "color-mix(in srgb," + DIM_META[d].color + " 14%, transparent)", color: DIM_META[d].color } : { background: "var(--default-100, #f0f1f3)", color: "var(--text-3)", opacity: 0.5 }}>{DIM_META[d].short}</span>
+                    ); })}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center">
+                    {r.members.slice(0, 4).map((m, i) => (
+                      <span key={m.id} style={{ marginLeft: i ? -8 : 0, zIndex: 10 - i }} className="rounded-full ring-2 ring-content1"><Initials p={{ i: m.i, c: m.c }} size={24} /></span>
+                    ))}
+                    <span className="ml-2 text-[12px] text-default-500">{r.members.length} 个主体</span>
+                  </div>
+                </TableCell>
+                <TableCell><span className="font-semibold tnum">{r.amount}</span></TableCell>
+                <TableCell><span className="text-default-600 tnum">{r.alertCount} 条</span></TableCell>
+                <TableCell><Pill tone={sd.tone}>{sd.label}{r.caseRef ? ` · ${r.caseRef}` : ""}</Pill></TableCell>
+                <TableCell>
+                  <div className="flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
+                    <Tooltip content="查看图谱" size="sm" delay={300}><Button isIconOnly size="sm" radius="full" variant="flat" className="bg-default-100" onPress={() => nav(`/ring?id=${r.id}`)}><Eye className="h-4 w-4 text-default-500" strokeWidth={1.9} /></Button></Tooltip>
+                    <Tooltip content="并入案件" size="sm" delay={300}><Button isIconOnly size="sm" radius="full" variant="flat" className="bg-primary/10 text-primary" onPress={() => { ringStore.set(r.id, "cased"); toast.success(`${r.id} 已并入调查案件`); }}><FolderPlus className="h-4 w-4" strokeWidth={1.9} /></Button></Tooltip>
+                  </div>
+                </TableCell>
+              </TableRow>
+            );
+          })}
         </TableBody>
       </Table>
     </Shell>
