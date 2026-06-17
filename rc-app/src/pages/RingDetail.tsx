@@ -5,6 +5,7 @@ import { Card, CardHeader, CardBody, Button, Drawer, DrawerContent, DrawerHeader
 import { ArrowLeft, FolderPlus, ListPlus, FileDown, Coins, Link2, Smartphone, Globe, Bell, Sparkles, Info, ArrowUpCircle, XCircle, ClipboardCheck } from "lucide-react";
 import { Shell } from "@/components/Shell";
 import { Pill, Initials, SectionLabel } from "@/components/bits";
+import { RingBasis } from "@/components/RingBasis";
 import { ringOf, DIM_META, DIM_ORDER, confTone, confLabel, RING_FIELDS, RING_STATES, DISP_STATE, type RingDim, type Ring, type RingStateKey } from "@/lib/rings";
 import { ringStore, useRingVersion } from "@/lib/store";
 
@@ -113,6 +114,7 @@ export default function RingDetail() {
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2.5">
+            <RingBasis ring={ring} />
             <Button size="sm" variant="bordered" startContent={<FileDown className="h-4 w-4" />} onPress={() => toast.success("团伙研判报告已导出")}>导出报告</Button>
             <Button size="sm" color="primary" startContent={<ClipboardCheck className="h-4 w-4" />} onPress={() => setOpen(true)}>研判处置</Button>
           </div>

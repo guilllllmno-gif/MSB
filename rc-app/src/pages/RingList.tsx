@@ -5,6 +5,7 @@ import { Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Button
 import { Search, Eye, FolderPlus } from "lucide-react";
 import { Shell, PageHead } from "@/components/Shell";
 import { Pill, Initials } from "@/components/bits";
+import { RingBasis } from "@/components/RingBasis";
 import { rings, DIM_META, DIM_ORDER, confTone, confLabel, RING_STATES, RING_TILES, matchRingTile, type RingStateKey } from "@/lib/rings";
 import { ringStore, useRingVersion } from "@/lib/store";
 
@@ -36,6 +37,7 @@ export default function RingList() {
       <PageHead
         title="关联团伙"
         sub="多维关系叠加 + 加权打分：地址 / 设备 / IP / 资金路径共享形成边，累积强度超阈值即聚类成团，并给出置信度。"
+        actions={<RingBasis />}
       />
 
       {/* lifecycle status tiles */}
