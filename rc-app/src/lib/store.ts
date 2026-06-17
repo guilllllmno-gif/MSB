@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from "react";
 import type { Person } from "./data";
+import type { Ring } from "./rings";
 
 interface Override { state?: string; assignee?: Person | null; events: { t: string; text: string; reason: string }[] }
 
@@ -30,7 +31,8 @@ export function useAlertVersion() {
 }
 
 // ── ring (团伙) state store ──
-const ringData: Record<string, { state: string }> = {};
+const ringData: Record<string, { state?: string; owner?: Person | null }> = {};
+let ringCreated: Ring[] = [];
 let ringVersion = 0;
 const ringListeners = new Set<() => void>();
 const ringNotify = () => { ringVersion++; ringListeners.forEach((l) => l()); };
@@ -38,8 +40,11 @@ const ringNotify = () => { ringVersion++; ringListeners.forEach((l) => l()); };
 export const ringStore = {
   subscribe(cb: () => void) { ringListeners.add(cb); return () => { ringListeners.delete(cb); }; },
   getVersion() { return ringVersion; },
+  created() { return ringCreated; },
   stateOf(id: string, base: string) { return ringData[id]?.state || base; },
-  set(id: string, state: string) { ringData[id] = { state }; ringNotify(); },
+  ownerOf(id: string, base: Person | null | undefined) { const o = ringData[id]; return o && o.owner !== undefined ? o.owner : base ?? null; },
+  set(id: string, state: string, owner?: Person | null) { const cur = ringData[id] || {}; cur.state = state; if (owner !== undefined) cur.owner = owner; ringData[id] = cur; ringNotify(); },
+  addRing(r: Ring) { ringCreated = [r, ...ringCreated]; ringNotify(); },
 };
 
 export function useRingVersion() {

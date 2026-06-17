@@ -2,7 +2,7 @@
 // Model: shared attributes become weighted edges between entities; accumulated
 // strength → confidence. Weights reflect 区分度 (discriminative power):
 // funds/address (hard to fake) ≫ device > ip (easily coincidental).
-import type { Tone } from "./data";
+import type { Tone, Person } from "./data";
 
 export type RingDim = "funds" | "address" | "device" | "ip";
 
@@ -50,6 +50,7 @@ export interface Ring {
   edges: RingEdge[];
   amount: string; alertCount: number; span: string;
   state: RingStateKey; caseRef?: string;
+  owner?: Person | null; sla?: { text: string; pct: number; tone: Tone };
   recommendation: string;
   hubNote?: string; // excluded super-node (avoids cluster collapse)
 }
@@ -80,7 +81,7 @@ export const rings: Ring[] = [
       { a: 1, b: 3, dims: ["funds"], strength: 28, note: "同一资金来源" },
     ],
     amount: "CAD 38,400", alertCount: 5, span: "近 14 天",
-    state: "cased", caseRef: "CASE-2026-014",
+    state: "cased", caseRef: "CASE-2026-014", owner: { i: "DW", n: "David Wu", c: "var(--violet)" },
     recommendation: "资金链路触及 OFAC 制裁混币器，4 主体经资金+地址强关联。建议升级 MLRO，起草 STR 上报 FINTRAC，对手地址簇批量列入黑名单。",
     hubNote: "已剔除超级节点：Tornado Cash 合约地址（网络内 7+ 商户共用，不计入聚类）",
   },
@@ -104,7 +105,7 @@ export const rings: Ring[] = [
       { a: 0, b: 2, dims: ["device"], strength: 22, note: "共享 1 设备指纹" },
     ],
     amount: "CAD 42,000", alertCount: 7, span: "近 7 天",
-    state: "investigating",
+    state: "investigating", owner: { i: "SC", n: "Sarah Chen", c: "var(--brand)" }, sla: { text: "剩 16h", pct: 70, tone: "amber" },
     recommendation: "四维全命中（地址+设备+IP+资金），高置信结构化拆分。建议对群组 #A7 全部地址列入加强监控名单，对 Eastwind 入金加严阈值并人工复核。",
   },
   {
@@ -125,7 +126,7 @@ export const rings: Ring[] = [
       { a: 1, b: 2, dims: ["funds"], strength: 30, note: "资金继续下游过账" },
     ],
     amount: "CAD 19,500", alertCount: 3, span: "近 10 天",
-    state: "pending",
+    state: "pending", sla: { text: "剩 1d 04h", pct: 38, tone: "blue" },
     recommendation: "资金过账特征明显，但设备维度仅 1 项、关联偏中等。建议要求商户说明资金用途，补充材料后再判定是否聚案。",
   },
   {
@@ -165,7 +166,7 @@ export const rings: Ring[] = [
       { a: 1, b: 2, dims: ["funds", "ip"], strength: 38, note: "归集后分发至 4 个收款钱包 · 共享出口 IP" },
     ],
     amount: "CAD 27,600", alertCount: 4, span: "近 12 天",
-    state: "listed",
+    state: "listed", owner: { i: "ML", n: "Mike Lin", c: "var(--success)" },
     recommendation: "多账户代付集中归集特征明显。成员地址已批量列入加强监控名单，后续同类代付按名单规则自动加严。",
   },
   {
@@ -188,7 +189,7 @@ export const rings: Ring[] = [
       { a: 1, b: 2, dims: ["funds"], strength: 28, note: "经中转钱包过账规避筛查" },
     ],
     amount: "CAD 56,000", alertCount: 6, span: "近 9 天",
-    state: "escalated",
+    state: "escalated", owner: { i: "DW", n: "David Wu", c: "var(--violet)" },
     recommendation: "资金链直接关联 OFAC SDN 制裁地址，构成制裁规避高风险。已升级 MLRO，STR 草稿移交合规报送 FINTRAC，相关地址全部冻结。",
     hubNote: "已剔除超级节点：公共桥接合约（网络内多商户共用，不计入聚类）",
   },
@@ -237,6 +238,34 @@ export const RING_FIELDS: Record<string, RField[]> = {
     { k: "adjust", label: "模型调整", type: "multi", required: false, options: ["降低该维度权重", "加入可信白名单", "规则调优复盘"] },
   ],
 };
+
+// ── manual ring creation ──
+export const RING_TYPOLOGIES = ["分层洗钱", "结构化拆分", "资金过账", "资金归集", "制裁规避", "疑似关联"];
+export const RING_CANDIDATES: RingMember[] = [
+  { id: "C1", name: "NovaPay Technologies", sub: "商户 · 美国", kind: "商户", i: "NP", c: "var(--brand)", alerts: 0, role: "商户" },
+  { id: "C2", name: "BlockTrade Corp.", sub: "商户 · 美国", kind: "商户", i: "BT", c: "var(--success)", alerts: 0, role: "商户" },
+  { id: "C3", name: "Eastwind Exchange", sub: "商户 · 新加坡", kind: "商户", i: "EE", c: "var(--brand)", alerts: 0, role: "商户" },
+  { id: "C4", name: "OffshoreFX Ltd.", sub: "商户 · 离岸", kind: "商户", i: "OF", c: "var(--danger)", alerts: 0, role: "商户" },
+  { id: "C5", name: "0x5078…Ec8c", sub: "链上地址", kind: "地址", i: "0x", c: "var(--violet)", alerts: 0, role: "地址" },
+  { id: "C6", name: "群组 #A7", sub: "关注名单", kind: "群组", i: "A7", c: "var(--warning)", alerts: 0, role: "群组" },
+];
+// build a ring from analyst input (confidence = sum of selected dimension weights)
+export function buildRing(input: { name: string; typology: string; members: RingMember[]; dims: RingDim[] }, seq: number): Ring {
+  const dims = DIM_ORDER.filter((d) => input.dims.includes(d));
+  const confidence = Math.min(100, dims.reduce((s, d) => s + DIM_META[d].weight, 0));
+  const shared: SharedDim[] = dims.map((d) => ({ dim: d, count: 1, contrib: DIM_META[d].weight }));
+  const edges: RingEdge[] = input.members.slice(1).map((_, idx) => ({ a: 0, b: idx + 1, dims, strength: confidence, note: "手动建立 · 关联待核实" }));
+  return {
+    id: "RING-NEW-" + String(seq).padStart(3, "0"),
+    name: input.name, typology: input.typology, typologyEn: "Manual",
+    confidence, risk: confidence >= 80 ? "red" : confidence >= 60 ? "amber" : "grey",
+    shared, members: input.members, edges,
+    amount: "—", alertCount: 0, span: "手动新增",
+    state: confidence >= 60 ? "pending" : "watching",
+    sla: confidence >= 60 ? { text: "剩 2d", pct: 15, tone: "blue" } : undefined,
+    recommendation: "分析师手动建立的关联团伙，关联依据待核实；建议补充资金 / 地址等强维度证据后再处置。",
+  };
+}
 
 export const ringOf = (id?: string) => rings.find((r) => r.id === id) || rings[0];
 // rings a given merchant participates in (for alert-detail integration)

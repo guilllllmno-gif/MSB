@@ -2,12 +2,15 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Button, Input, Tooltip } from "@heroui/react";
-import { Search, Eye, FolderPlus } from "lucide-react";
+import { Search, Eye, FolderPlus, UserPlus, UserRound, Clock, Plus } from "lucide-react";
 import { Shell, PageHead } from "@/components/Shell";
 import { Pill, Initials } from "@/components/bits";
 import { RingBasis } from "@/components/RingBasis";
-import { rings, DIM_META, DIM_ORDER, confTone, confLabel, RING_STATES, RING_TILES, matchRingTile, type RingStateKey } from "@/lib/rings";
+import { NewRingDrawer } from "@/components/NewRingDrawer";
+import { rings, DIM_META, DIM_ORDER, confTone, confLabel, RING_STATES, RING_TILES, matchRingTile, type RingStateKey, type Ring } from "@/lib/rings";
 import { ringStore, useRingVersion } from "@/lib/store";
+
+const ME = { i: "JL", n: "James Liu", c: "var(--brand)" };
 
 // compact weighted-confidence bar
 function ConfBar({ value }: { value: number }) {
@@ -27,17 +30,20 @@ export default function RingList() {
   const nav = useNavigate();
   useRingVersion();
   const [filter, setFilter] = useState("all");
+  const [newOpen, setNewOpen] = useState(false);
 
-  const stateOf = (r: typeof rings[number]) => ringStore.stateOf(r.id, r.state) as RingStateKey;
-  const count = (f: string) => rings.filter((r) => matchRingTile(f, stateOf(r))).length;
-  const rows = rings.filter((r) => matchRingTile(filter, stateOf(r)));
+  const all: Ring[] = [...ringStore.created(), ...rings];
+  const stateOf = (r: Ring) => ringStore.stateOf(r.id, r.state) as RingStateKey;
+  const count = (f: string) => all.filter((r) => matchRingTile(f, stateOf(r))).length;
+  const rows = all.filter((r) => matchRingTile(filter, stateOf(r)));
+  const claim = (r: Ring) => { ringStore.set(r.id, "investigating", ME); toast.success(`${r.id} 已认领 · 进入调查中`); };
 
   return (
     <Shell crumb={["风控", "检测策略", "团伙识别"]} wide>
       <PageHead
         title="关联团伙"
         sub="多维关系叠加 + 加权打分：地址 / 设备 / IP / 资金路径共享形成边，累积强度超阈值即聚类成团，并给出置信度。"
-        actions={<RingBasis />}
+        actions={<><Button size="sm" radius="full" color="primary" startContent={<Plus className="h-3.5 w-3.5" />} onPress={() => setNewOpen(true)}>新建团伙</Button><RingBasis /></>}
       />
 
       {/* lifecycle status tiles */}
@@ -65,11 +71,13 @@ export default function RingList() {
         <TableHeader>
           <TableColumn>团伙 / 名称</TableColumn><TableColumn>洗钱手法</TableColumn><TableColumn>置信度</TableColumn>
           <TableColumn>共享维度</TableColumn><TableColumn>成员</TableColumn><TableColumn>涉及金额</TableColumn>
-          <TableColumn>关联告警</TableColumn><TableColumn>状态</TableColumn><TableColumn align="end">操作</TableColumn>
+          <TableColumn>关联告警</TableColumn><TableColumn>状态</TableColumn><TableColumn>经手人</TableColumn><TableColumn>SLA</TableColumn><TableColumn align="end">操作</TableColumn>
         </TableHeader>
         <TableBody emptyContent="没有符合条件的团伙">
           {rows.map((r) => {
-            const sd = RING_STATES[stateOf(r)];
+            const st = stateOf(r);
+            const sd = RING_STATES[st];
+            const owner = ringStore.ownerOf(r.id, r.owner);
             return (
               <TableRow key={r.id} onClick={() => nav(`/ring?id=${r.id}`)}>
                 <TableCell><div className="font-semibold">{r.name}</div><div className="text-[11px] text-default-400">{r.id}</div></TableCell>
@@ -93,8 +101,11 @@ export default function RingList() {
                 <TableCell><span className="font-semibold tnum">{r.amount}</span></TableCell>
                 <TableCell><span className="text-default-600 tnum">{r.alertCount} 条</span></TableCell>
                 <TableCell><Pill tone={sd.tone}>{sd.label}{r.caseRef ? ` · ${r.caseRef}` : ""}</Pill></TableCell>
+                <TableCell>{owner ? <span className="inline-flex items-center gap-1.5"><Initials p={owner} size={22} />{owner.n}</span> : <span className="inline-flex items-center gap-1.5 text-default-400"><UserRound className="h-3.5 w-3.5" />未分配</span>}</TableCell>
+                <TableCell>{r.sla ? <span className="inline-flex items-center gap-1 text-default-500"><Clock className="h-3.5 w-3.5" />{r.sla.text}</span> : <span className="text-default-300">无时限</span>}</TableCell>
                 <TableCell>
                   <div className="flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
+                    {st === "pending" && <Tooltip content="认领 · 转调查中" size="sm" delay={300}><Button isIconOnly size="sm" radius="full" variant="flat" className="bg-default-100" onPress={() => claim(r)}><UserPlus className="h-4 w-4 text-default-500" strokeWidth={1.9} /></Button></Tooltip>}
                     <Tooltip content="查看图谱" size="sm" delay={300}><Button isIconOnly size="sm" radius="full" variant="flat" className="bg-default-100" onPress={() => nav(`/ring?id=${r.id}`)}><Eye className="h-4 w-4 text-default-500" strokeWidth={1.9} /></Button></Tooltip>
                     <Tooltip content="并入案件" size="sm" delay={300}><Button isIconOnly size="sm" radius="full" variant="flat" className="bg-primary/10 text-primary" onPress={() => { ringStore.set(r.id, "cased"); toast.success(`${r.id} 已并入调查案件`); }}><FolderPlus className="h-4 w-4" strokeWidth={1.9} /></Button></Tooltip>
                   </div>
@@ -104,6 +115,8 @@ export default function RingList() {
           })}
         </TableBody>
       </Table>
+
+      <NewRingDrawer open={newOpen} onOpenChange={setNewOpen} onCreated={(id) => nav(`/ring?id=${id}`)} />
     </Shell>
   );
 }

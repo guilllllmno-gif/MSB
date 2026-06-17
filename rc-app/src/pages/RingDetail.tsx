@@ -2,12 +2,14 @@ import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { Card, CardHeader, CardBody, Button, Drawer, DrawerContent, DrawerHeader, DrawerBody, DrawerFooter, Textarea, Select, SelectItem } from "@heroui/react";
-import { ArrowLeft, FolderPlus, ListPlus, FileDown, Coins, Link2, Smartphone, Globe, Bell, Sparkles, Info, ArrowUpCircle, XCircle, ClipboardCheck } from "lucide-react";
+import { ArrowLeft, FolderPlus, ListPlus, FileDown, Coins, Link2, Smartphone, Globe, Bell, Sparkles, Info, ArrowUpCircle, XCircle, ClipboardCheck, Clock, UserPlus } from "lucide-react";
 import { Shell } from "@/components/Shell";
 import { Pill, Initials, SectionLabel } from "@/components/bits";
 import { RingBasis } from "@/components/RingBasis";
 import { ringOf, DIM_META, DIM_ORDER, confTone, confLabel, RING_FIELDS, RING_STATES, DISP_STATE, type RingDim, type Ring, type RingStateKey } from "@/lib/rings";
 import { ringStore, useRingVersion } from "@/lib/store";
+
+const ME = { i: "JL", n: "James Liu", c: "var(--brand)" };
 
 const DIM_ICON: Record<RingDim, typeof Coins> = { funds: Coins, address: Link2, device: Smartphone, ip: Globe };
 const THRESHOLD = 60;
@@ -64,11 +66,14 @@ const DISP = [
 export default function RingDetail() {
   const nav = useNavigate();
   const [sp] = useSearchParams();
-  const ring = ringOf(sp.get("id") || undefined);
   useRingVersion();
+  const rid = sp.get("id") || undefined;
+  const ring = ringStore.created().find((r) => r.id === rid) || ringOf(rid);
   const state = ringStore.stateOf(ring.id, ring.state) as RingStateKey;
   const sd = RING_STATES[state];
+  const owner = ringStore.ownerOf(ring.id, ring.owner);
   const tone = confTone(ring.confidence);
+  const claim = () => { ringStore.set(ring.id, "investigating", ME); toast.success(`${ring.id} 已认领 · 进入调查中`); };
   const [open, setOpen] = useState(false);
   const [disp, setDisp] = useState<string>(ring.confidence >= 80 ? "case" : ring.confidence >= 60 ? "watch" : "fp");
   const [note, setNote] = useState("");
@@ -114,9 +119,12 @@ export default function RingDetail() {
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2.5">
+            {ring.sla && <Pill tone={ring.sla.tone} icon={<Clock className="h-3.5 w-3.5" />}>SLA {ring.sla.text}</Pill>}
+            {owner ? <span className="flex items-center gap-1.5 text-[13px] font-semibold"><Initials p={owner} size={26} />{owner.n}</span> : <Pill tone="grey">未分配</Pill>}
             <RingBasis ring={ring} />
+            {state === "pending" && <Button size="sm" variant="bordered" startContent={<UserPlus className="h-4 w-4" />} onPress={claim}>认领</Button>}
             <Button size="sm" variant="bordered" startContent={<FileDown className="h-4 w-4" />} onPress={() => toast.success("团伙研判报告已导出")}>导出报告</Button>
-            <Button size="sm" color="primary" startContent={<ClipboardCheck className="h-4 w-4" />} onPress={() => setOpen(true)}>研判处置</Button>
+            {sd.active && <Button size="sm" color="primary" startContent={<ClipboardCheck className="h-4 w-4" />} onPress={() => setOpen(true)}>研判处置</Button>}
           </div>
         </div>
       </CardBody></Card>
