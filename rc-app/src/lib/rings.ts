@@ -18,7 +18,7 @@ export const DIM_ORDER: RingDim[] = ["funds", "address", "device", "ip"];
 export type RingStateKey = "pending" | "watching" | "investigating" | "cased" | "listed" | "escalated" | "closed_fp";
 export interface RingStateDef { label: string; tone: Tone; bucket: string; active: boolean }
 export const RING_STATES: Record<RingStateKey, RingStateDef> = {
-  pending: { label: "待研判", tone: "blue", bucket: "pending", active: true },
+  pending: { label: "待认领", tone: "blue", bucket: "pending", active: true },
   watching: { label: "观察中", tone: "grey", bucket: "watching", active: true },
   investigating: { label: "调查中", tone: "amber", bucket: "investigating", active: true },
   cased: { label: "已聚案", tone: "violet", bucket: "handled", active: false },
@@ -28,7 +28,7 @@ export const RING_STATES: Record<RingStateKey, RingStateDef> = {
 };
 export const RING_TILES: { f: string; label: string }[] = [
   { f: "all", label: "全部团伙" },
-  { f: "pending", label: "待研判" },
+  { f: "pending", label: "待认领" },
   { f: "watching", label: "观察中" },
   { f: "investigating", label: "调查中" },
   { f: "handled", label: "已处置" },

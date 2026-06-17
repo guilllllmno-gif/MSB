@@ -69,7 +69,7 @@ export function NewRingDrawer({ open, onOpenChange, onCreated }: { open: boolean
 
           <div className="flex items-center gap-3 rounded-xl border border-divider bg-default-50 p-3.5">
             <div className="text-[30px] font-extrabold leading-none tnum" style={{ color: toneCol(tone) }}>{conf}<span className="text-[15px]">%</span></div>
-            <div className="text-[12px] text-default-500"><b className="text-foreground">{conf ? confLabel(conf) : "—"}</b> · 折算自所选维度权重之和<br />{conf >= 60 ? "≥ 阈值 60% → 进入「待研判」" : "< 阈值 60% → 进入「观察中」"}</div>
+            <div className="text-[12px] text-default-500"><b className="text-foreground">{conf ? confLabel(conf) : "—"}</b> · 折算自所选维度权重之和<br />{conf >= 60 ? "≥ 阈值 60% → 进入「待认领」" : "< 阈值 60% → 进入「观察中」"}</div>
           </div>
           <p className="flex items-start gap-1.5 text-[11.5px] leading-relaxed text-default-400"><Info className="mt-px h-3.5 w-3.5 shrink-0" />手动团伙关联依据待核实，建议补充资金 / 地址等强维度证据后再处置。</p>
         </DrawerBody>

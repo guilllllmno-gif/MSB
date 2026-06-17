@@ -192,7 +192,7 @@ export default function RingDetail() {
                 </div>
               </div>
               <div className="relative mt-1 h-3 w-full text-[10px] text-default-400">
-                <span className="absolute -translate-x-1/2 cursor-help" style={{ left: `${THRESHOLD}%` }} title={`判定门槛：累计置信度 ≥ ${THRESHOLD}% 才成团（进入待研判）；低于阈值仅进入观察中，避免弱关联误聚`}>▲ 阈值 {THRESHOLD}%</span>
+                <span className="absolute -translate-x-1/2 cursor-help" style={{ left: `${THRESHOLD}%` }} title={`判定门槛：累计置信度 ≥ ${THRESHOLD}% 才成团（进入待认领）；低于阈值仅进入观察中，避免弱关联误聚`}>▲ 阈值 {THRESHOLD}%</span>
               </div>
 
               {/* legend — click a shared dimension to expand its hit relationships */}
