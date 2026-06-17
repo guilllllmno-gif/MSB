@@ -15,10 +15,17 @@ const DIM_ICON: Record<RingDim, typeof Coins> = { funds: Coins, address: Link2, 
 const THRESHOLD = 60;
 const toneCol = (t: string) => (t === "red" ? "var(--danger)" : t === "amber" ? "var(--warning)" : "var(--text-2)");
 
-// relationship graph — SVG edges + crisp HTML node labels (percentage-positioned, aligned)
+// relationship graph — radial, adaptive to member count (scales node/radius/canvas)
 function Graph({ ring }: { ring: Ring }) {
-  const W = 520, H = 360, cx = 260, cy = 172, r = 116;
   const n = ring.members.length;
+  // adapt to member count so it stays legible as the ring grows
+  const size = n <= 5 ? 50 : n <= 8 ? 42 : 34;
+  const r = n <= 5 ? 112 : n <= 8 ? 134 : 152;
+  const W = 520;
+  const H = Math.max(340, Math.round(2 * r + size + 110));
+  const cx = W / 2, cy = H / 2;
+  const labelW = Math.round(size * 2.6);
+  const showChipText = n <= 8; // hide the "强度" word when dense, keep dots + number
   const pos = ring.members.map((_, i) => {
     const a = -Math.PI / 2 + (i * 2 * Math.PI) / n;
     return { x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) };
@@ -39,17 +46,17 @@ function Graph({ ring }: { ring: Ring }) {
         return (
           <div key={i} title={`关联强度 ${e.strength} · 共享 ${e.dims.map((d) => DIM_META[d].label).join("、")}`} className="absolute flex -translate-x-1/2 -translate-y-1/2 items-center gap-1 rounded-full border border-divider bg-content1 px-1.5 py-0.5 shadow-[0_1px_2px_rgba(17,24,39,.08)]" style={{ left: pc(mx, W), top: pc(my, H) }}>
             {e.dims.map((d) => <span key={d} className="h-1.5 w-1.5 rounded-full" style={{ background: DIM_META[d].color }} />)}
-            <span className="text-[9px] font-medium text-default-400">强度</span>
+            {showChipText && <span className="text-[9px] font-medium text-default-400">强度</span>}
             <span className="tnum text-[10.5px] font-bold text-default-700">{e.strength}</span>
           </div>
         );
       })}
       {/* nodes */}
       {ring.members.map((m, i) => (
-        <div key={m.id} className="absolute flex w-[120px] -translate-x-1/2 -translate-y-1/2 flex-col items-center" style={{ left: pc(pos[i].x, W), top: pc(pos[i].y, H) }}>
-          <Initials p={{ i: m.i, c: m.c }} size={50} />
-          <div className="mt-1 max-w-full truncate text-center text-[11.5px] font-semibold leading-tight">{m.name}</div>
-          <div className="text-[10px] leading-tight text-default-400">{m.role}</div>
+        <div key={m.id} className="absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center" style={{ left: pc(pos[i].x, W), top: pc(pos[i].y, H), width: labelW }}>
+          <Initials p={{ i: m.i, c: m.c }} size={size} />
+          <div className={`mt-1 max-w-full truncate text-center font-semibold leading-tight ${n <= 8 ? "text-[11.5px]" : "text-[10px]"}`}>{m.name}</div>
+          <div className="max-w-full truncate text-[10px] leading-tight text-default-400">{m.role}</div>
         </div>
       ))}
     </div>

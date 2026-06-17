@@ -212,6 +212,38 @@ export const rings: Ring[] = [
     recommendation: "仅设备/IP 弱关联，经核实两商户位于同一共享办公空间，属正常网络环境巧合。判定误聚，已关闭并将该 IP 段加入可信白名单。",
     hubNote: "提示：共享 IP 为共享办公出口段（高频公共节点），区分度低，已降权处理",
   },
+  {
+    id: "RING-2026-070", name: "众包养卡入金网络", typology: "结构化拆分", typologyEn: "Smurfing network",
+    confidence: 84, risk: "red",
+    shared: [
+      { dim: "funds", count: 9, contrib: 40 },
+      { dim: "address", count: 6, contrib: 28 },
+      { dim: "device", count: 4, contrib: 12 },
+      { dim: "ip", count: 5, contrib: 4 },
+    ],
+    members: [
+      { id: "M1", name: "RapidPay Ltd.", sub: "商户 · 美国", kind: "商户", i: "RP", c: "var(--brand)", alerts: 3, role: "入金商户" },
+      { id: "M2", name: "发送方群组 #C2", sub: "6 个拆分地址", kind: "群组", i: "C2", c: "var(--warning)", alerts: 2, role: "拆分源" },
+      { id: "M3", name: "0xAb3f…D2", sub: "归集地址", kind: "地址", i: "0x", c: "var(--violet)", alerts: 1, role: "归集源" },
+      { id: "M4", name: "中转钱包 ×2", sub: "2 个中转地址", kind: "群组", i: "⛓", c: "var(--success)", alerts: 1, role: "中转层" },
+      { id: "M5", name: "收款地址 ×4", sub: "4 个出口钱包", kind: "群组", i: "✦", c: "#0ea5e9", alerts: 1, role: "资金出口" },
+      { id: "M6", name: "QuickWallet Inc.", sub: "商户 · 加拿大", kind: "商户", i: "QW", c: "var(--danger)", alerts: 1, role: "关联商户" },
+      { id: "M7", name: "设备群 DV-7", sub: "4 个共享设备指纹", kind: "群组", i: "DV", c: "var(--text-2)", alerts: 1, role: "共享设备" },
+    ],
+    edges: [
+      { a: 0, b: 1, dims: ["funds", "device"], strength: 56, note: "群组 #C2 向 RapidPay 拆分入金 + 共享设备" },
+      { a: 1, b: 2, dims: ["funds", "address"], strength: 50, note: "拆分资金归集至 0xAb3f" },
+      { a: 2, b: 3, dims: ["funds"], strength: 40, note: "归集后经中转钱包过账" },
+      { a: 3, b: 4, dims: ["funds", "address"], strength: 44, note: "中转后分发至 4 个出口钱包" },
+      { a: 0, b: 6, dims: ["device", "ip"], strength: 30, note: "RapidPay 与设备群 DV-7 共享 4 个设备指纹" },
+      { a: 0, b: 5, dims: ["device", "ip"], strength: 26, note: "RapidPay 与 QuickWallet 共享设备 / IP" },
+      { a: 5, b: 6, dims: ["device"], strength: 24, note: "QuickWallet 复用设备群指纹" },
+    ],
+    amount: "CAD 61,200", alertCount: 9, span: "近 15 天",
+    state: "investigating", owner: { i: "SC", n: "Sarah Chen", c: "var(--brand)" }, sla: { text: "剩 12h", pct: 78, tone: "amber" },
+    recommendation: "6 地址群组向 RapidPay 拆分入金、经归集与中转后分发至 4 个出口钱包，且与 QuickWallet 共享设备群——典型众包养卡 / 结构化拆分网络。建议并入案件，对群组 #C2 全部地址批量列名单，对两商户加严入金阈值。",
+    hubNote: "已剔除超级节点：交易所充值热钱包（网络内高频公共节点，不计入聚类）",
+  },
 ];
 
 // per-disposition form fields for the 研判处置 drawer
