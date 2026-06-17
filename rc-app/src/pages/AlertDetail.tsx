@@ -54,7 +54,7 @@ export default function AlertDetail() {
       <Card shadow="none" className="mb-5 card"><CardBody className="py-5">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
-            <h1 className="flex flex-wrap items-center gap-2.5 font-mono text-[23px] font-extrabold tracking-tight">
+            <h1 className="flex flex-wrap items-center gap-2.5 text-[23px] font-bold tracking-tight">
               {a.order}
               <Pill tone={sd.cls}>{sd.label}</Pill>
               <RiskBadge tone={sev.tone}>{sevLabel}</RiskBadge>
@@ -108,7 +108,7 @@ export default function AlertDetail() {
                 <Kv label="金额"><span className="tnum">{a.amount}</span></Kv><Kv label="资产">{a.asset}</Kv>
                 <Kv label="发送方"><span className="font-mono" style={{ color: "var(--brand)" }}>{a.sender}</span></Kv><Kv label="收款方"><span className="font-mono">{a.receiver}</span></Kv>
                 <Kv label="交易哈希"><span className="font-mono" style={{ color: "var(--brand)" }}>{a.txHash}</span></Kv><Kv label="区块确认">{a.confirmations}</Kv>
-                <Kv label="提交时间"><span className="tnum">{a.submitted}</span></Kv><Kv label="告警ID"><span className="font-mono">{a.id}</span></Kv>
+                <Kv label="提交时间"><span className="tnum">{a.submitted}</span></Kv><Kv label="告警ID">{a.id}</Kv>
               </div></CardBody>
             </Card>
             <Card shadow="none" className="card"><CardHeader><div className="text-[15px] font-bold">商户 / 客户画像</div></CardHeader><CardBody className="flex flex-col gap-2 pt-0 text-[12.5px]">

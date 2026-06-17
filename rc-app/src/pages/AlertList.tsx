@@ -158,11 +158,11 @@ export default function AlertList() {
               <TableRow key={a.id}>
                 <TableCell>
                   <span className="inline-flex items-center gap-2">
-                    <span className="font-mono text-[13px] font-semibold">{a.id}</span>
+                    <span className="text-[13px] font-medium">{a.id}</span>
                     <button onClick={() => copyId(a.id)} aria-label="复制告警ID" className="text-default-300 transition-colors hover:text-default-500"><Copy className="h-3.5 w-3.5" /></button>
                   </span>
                 </TableCell>
-                <TableCell><div className="font-semibold">{a.merchant}</div><div className="font-mono text-[11px] text-default-400">{a.order}</div></TableCell>
+                <TableCell><div className="font-semibold">{a.merchant}</div><div className="text-[11px] text-default-400">{a.order}</div></TableCell>
                 <TableCell><span className="text-default-600">{a.type}</span></TableCell>
                 <TableCell><span className="rounded-md bg-default-100 px-2 py-0.5 text-[12px] font-semibold text-default-700">{sevShort(a.sev)} {a.score}</span></TableCell>
                 <TableCell><span className="text-default-700">{a.title}</span></TableCell>
