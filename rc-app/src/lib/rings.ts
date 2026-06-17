@@ -46,7 +46,7 @@ export const rings: Ring[] = [
     members: [
       { id: "M1", name: "NovaPay Technologies", sub: "商户 · 美国", kind: "商户", i: "NP", c: "var(--brand)", alerts: 3, role: "入金商户" },
       { id: "M2", name: "0x5078…Ec8c", sub: "发送方地址", kind: "地址", i: "0x", c: "var(--violet)", alerts: 2, role: "归集源" },
-      { id: "M3", name: "中转钱包簇 ×3", sub: "3 个中转地址 · 36h 内归集", kind: "群组", i: "⛓", c: "var(--warning)", alerts: 1, role: "资金中转层" },
+      { id: "M3", name: "中转钱包 ×3", sub: "资金在 3 个钱包间短暂过账后归集，用于打散、切断链上溯源", kind: "群组", i: "⛓", c: "var(--warning)", alerts: 1, role: "资金中转 · 分层" },
       { id: "M4", name: "BlockTrade Corp.", sub: "商户 · 美国", kind: "商户", i: "BT", c: "var(--success)", alerts: 1, role: "出金商户" },
     ],
     edges: [
