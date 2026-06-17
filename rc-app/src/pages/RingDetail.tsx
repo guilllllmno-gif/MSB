@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { Card, CardHeader, CardBody, Button, Drawer, DrawerContent, DrawerHeader, DrawerBody, DrawerFooter, Textarea, Select, SelectItem } from "@heroui/react";
-import { ArrowLeft, FolderPlus, ListPlus, FileDown, Coins, Link2, Smartphone, Globe, Bell, Sparkles, Info, ArrowUpCircle, XCircle, ClipboardCheck, Clock, UserPlus } from "lucide-react";
+import { ArrowLeft, FolderPlus, ListPlus, FileDown, Coins, Link2, Smartphone, Globe, Bell, Sparkles, Info, ArrowUpCircle, XCircle, ClipboardCheck, Clock, UserPlus, ChevronDown } from "lucide-react";
 import { Shell } from "@/components/Shell";
 import { Pill, Initials, SectionLabel } from "@/components/bits";
 import { RingBasis } from "@/components/RingBasis";
@@ -86,6 +86,7 @@ export default function RingDetail() {
   const [note, setNote] = useState("");
   const [fieldVals, setFieldVals] = useState<Record<string, string[]>>({});
   const [errs, setErrs] = useState<Set<string>>(new Set());
+  const [expDim, setExpDim] = useState<RingDim | null>(null);
   const edges = [...ring.edges].sort((a, b) => b.strength - a.strength);
 
   const pickDisp = (k: string) => { setDisp(k); setFieldVals({}); setErrs(new Set()); };
@@ -185,20 +186,33 @@ export default function RingDetail() {
                 </div>
               </div>
               <div className="relative mt-1 h-3 w-full text-[10px] text-default-400">
-                <span className="absolute -translate-x-1/2" style={{ left: `${THRESHOLD}%` }}>▲ 阈值</span>
+                <span className="absolute -translate-x-1/2 cursor-help" style={{ left: `${THRESHOLD}%` }} title={`判定门槛：累计置信度 ≥ ${THRESHOLD}% 才成团（进入待研判）；低于阈值仅进入观察中，避免弱关联误聚`}>▲ 阈值 {THRESHOLD}%</span>
               </div>
 
-              {/* legend */}
-              <div className="mt-3 flex flex-col gap-2">
+              {/* legend — click a shared dimension to expand its hit relationships */}
+              <div className="mt-3 flex flex-col gap-1">
                 {DIM_ORDER.map((d) => {
                   const s = ring.shared.find((x) => x.dim === d);
                   const Icon = DIM_ICON[d];
+                  const hits = ring.edges.filter((e) => e.dims.includes(d));
+                  const exp = expDim === d;
                   return (
-                    <div key={d} className="flex items-center gap-2 text-[12px]">
-                      <Icon className="h-3.5 w-3.5" style={{ color: s ? DIM_META[d].color : "var(--text-3)" }} />
-                      <span className={s ? "" : "text-default-400"}>{DIM_META[d].label}</span>
-                      <span className="rounded-full bg-default-100 px-1.5 text-[10px] font-semibold text-default-400">权重 {DIM_META[d].weight}</span>
-                      <span className="ml-auto tnum font-semibold" style={{ color: s ? DIM_META[d].color : "var(--text-3)" }}>{s ? `共享 ${s.count} 项 · +${s.contrib}` : "未共享"}</span>
+                    <div key={d}>
+                      <button disabled={!s} onClick={() => setExpDim(exp ? null : d)} className="flex w-full items-center gap-2 rounded-lg py-1 text-left text-[12px] disabled:opacity-100">
+                        {s ? <ChevronDown className={`h-3.5 w-3.5 shrink-0 text-default-400 transition-transform ${exp ? "rotate-180" : ""}`} /> : <span className="w-3.5 shrink-0" />}
+                        <Icon className="h-3.5 w-3.5 shrink-0" style={{ color: s ? DIM_META[d].color : "var(--text-3)" }} />
+                        <span className={s ? "" : "text-default-400"}>{DIM_META[d].label}</span>
+                        <span className="rounded-full bg-default-100 px-1.5 text-[10px] font-semibold text-default-400">权重 {DIM_META[d].weight}</span>
+                        <span className="ml-auto tnum font-semibold" style={{ color: s ? DIM_META[d].color : "var(--text-3)" }}>{s ? `共享 ${s.count} 项 · +${s.contrib}` : "未共享"}</span>
+                      </button>
+                      {exp && s && (
+                        <div className="mb-1.5 ml-[22px] mt-1 flex flex-col gap-1 border-l-2 pl-3" style={{ borderColor: "color-mix(in srgb," + DIM_META[d].color + " 40%, transparent)" }}>
+                          <div className="text-[11px] text-default-400">命中 {hits.length} 条关系 · 共 {s.count} 项 · 折算 +{s.contrib} 分</div>
+                          {hits.map((e, i) => (
+                            <div key={i} className="text-[11.5px] text-default-600">{ring.members[e.a].name} <span className="text-default-300">↔</span> {ring.members[e.b].name}<span className="text-default-400"> · {e.note}</span></div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   );
                 })}
