@@ -58,7 +58,7 @@ export function ReviewDialog({ alertId, open, onOpenChange, onDone }: { alertId:
       <DrawerContent>
         <DrawerHeader className="flex-col items-start gap-0.5 border-b border-divider">
           <span className="text-[15px] font-bold">告警研判 · 处置结论</span>
-          <span className="font-mono text-[11.5px] font-normal text-default-400">{a.id} · {a.merchant}</span>
+          <span className="text-[11.5px] font-normal text-default-400">{a.id} · {a.merchant}</span>
         </DrawerHeader>
         <DrawerBody className="gap-4 py-4">
           <div className="flex items-center gap-2.5 text-[13px] font-semibold"><Initials p={L1} size={26} />{L1.n} 研判操作<span className="ml-auto rounded-full bg-default-100 px-2 py-0.5 text-[11px] font-semibold text-default-500">L1 调查</span></div>

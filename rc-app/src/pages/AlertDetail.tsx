@@ -108,8 +108,8 @@ export default function AlertDetail() {
             <Card shadow="none" className="card"><CardHeader className="flex items-center justify-between"><div><div className="text-[15px] font-bold">交易信息</div><div className="text-[12px] text-default-400">{a.type}订单明细</div></div><SoftChip net>◈ {a.network}</SoftChip></CardHeader>
               <CardBody className="pt-0"><div className="grid grid-cols-2 gap-x-8">
                 <Kv label="金额"><span className="tnum">{a.amount}</span></Kv><Kv label="资产">{a.asset}</Kv>
-                <Kv label="发送方"><span className="font-mono" style={{ color: "var(--brand)" }}>{a.sender}</span></Kv><Kv label="收款方"><span className="font-mono">{a.receiver}</span></Kv>
-                <Kv label="交易哈希"><span className="font-mono" style={{ color: "var(--brand)" }}>{a.txHash}</span></Kv><Kv label="区块确认">{a.confirmations}</Kv>
+                <Kv label="发送方"><span style={{ color: "var(--brand)" }}>{a.sender}</span></Kv><Kv label="收款方"><span>{a.receiver}</span></Kv>
+                <Kv label="交易哈希"><span style={{ color: "var(--brand)" }}>{a.txHash}</span></Kv><Kv label="区块确认">{a.confirmations}</Kv>
                 <Kv label="提交时间"><span className="tnum">{a.submitted}</span></Kv><Kv label="告警ID">{a.id}</Kv>
               </div></CardBody>
             </Card>

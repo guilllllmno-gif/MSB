@@ -63,7 +63,7 @@ export function ThemeToggle() {
 export function SectionLabel({ children }: { children: ReactNode }) {
   return <div className="mb-2 text-[11px] font-bold uppercase tracking-wider text-default-400">{children}</div>;
 }
-export function Mono({ children }: { children: ReactNode }) { return <span className="font-mono text-[12px]">{children}</span>; }
+export function Mono({ children }: { children: ReactNode }) { return <span className="text-[12px]">{children}</span>; }
 export function KvRow({ label, children }: { label: string; children: ReactNode }) {
   return <div className="flex items-baseline justify-between gap-3 border-b border-dashed border-default-200 py-2 text-[12.5px]"><span className="text-default-500">{label}</span><span className="text-right font-semibold">{children}</span></div>;
 }
