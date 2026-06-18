@@ -76,6 +76,22 @@ const PROC = [
 ];
 const ACTIONS = [...DISP, ...PROC];
 
+// 操作后影响 — what submitting each disposition does (shown after a choice is made)
+const IMPACT: Record<string, (r: Ring) => string> = {
+  case: (r) => `将本团伙 <b>${r.members.length}</b> 个主体与 <b>${r.alertCount}</b> 条关联告警按所选调查范围并入调查案件${r.caseRef ? `（并入 <b>${r.caseRef}</b>）` : "（无在办案件则新建）"}。后续 STR 起草、多笔关联调查在「案件管理」中进行 · 团伙状态转 <b>已聚案</b>。`,
+  watch: (r) => `将所选对象（成员地址 / 商户主体 / 关联群组）批量写入风控名单，涉及 <b>${r.amount}</b> 资金敞口；后续同类交易将按名单规则自动加严或拦截 · 团伙状态转 <b>已列名单</b>。`,
+  escalate: (r) => `升级至 MLRO 评估是否构成可疑活动、是否向 FINTRAC 报送 STR；<b>${r.typology}</b> 高风险，相关主体可触发资金冻结 · 团伙状态转 <b>已升级 MLRO</b>。`,
+  fp: () => `判定为误聚 / 误报并关闭团伙；可同时降低误命中维度权重或将相关网络加入可信白名单，回流模型减少后续误聚 · 团伙状态转 <b>已关闭 · 误报</b>。`,
+  reqinfo: () => `向相关商户发起补充材料请求（按所选材料与回复时限）；团伙<b>保持调查中</b>、SLA 暂停计时，资料回补后重新进入研判，不立即结案。`,
+};
+const IMPACT_STYLE: Record<string, { bg: string; bd: string }> = {
+  case: { bg: "var(--violet-bg)", bd: "var(--violet-bd)" },
+  watch: { bg: "var(--success-bg)", bd: "var(--success-bd)" },
+  escalate: { bg: "var(--danger-bg)", bd: "var(--danger-bd)" },
+  fp: { bg: "var(--chip-bg)", bd: "var(--line)" },
+  reqinfo: { bg: "var(--brand-softer)", bd: "var(--brand-bd)" },
+};
+
 export default function RingDetail() {
   const nav = useNavigate();
   const [sp] = useSearchParams();
@@ -293,6 +309,14 @@ export default function RingDetail() {
                       <Icon className="h-[18px] w-[18px]" />{d.label}<span className="text-[11px] font-normal text-default-400">· 保持调查中</span></button>
                   ); })}
                 </div>
+              </div>
+            )}
+
+            {/* 操作后影响 — consistent with the alert review drawer */}
+            {disp && IMPACT[disp] && (
+              <div className="rounded-xl border p-3 text-[12px] leading-relaxed text-default-600" style={{ background: IMPACT_STYLE[disp]?.bg, borderColor: IMPACT_STYLE[disp]?.bd }}>
+                <div className="mb-1 flex items-center gap-1.5 text-[10.5px] font-bold uppercase tracking-wider text-default-400"><Info className="h-3 w-3" />操作后影响</div>
+                <span dangerouslySetInnerHTML={{ __html: IMPACT[disp](ring) }} />
               </div>
             )}
 
