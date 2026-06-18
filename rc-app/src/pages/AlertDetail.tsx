@@ -52,29 +52,27 @@ export default function AlertDetail() {
     <Shell crumb={["风控", "监控运营", "交易警报", a.order]}>
       <button onClick={() => nav("/alerts")} className="mb-3.5 inline-flex items-center gap-1.5 text-[13px] font-medium text-default-500 hover:text-foreground"><ArrowLeft className="h-4 w-4" />返回告警工作台</button>
 
-      {/* fixed top action bar — single review action lives here */}
-      <Card shadow="none" className="mb-5 card"><CardBody className="py-5">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="min-w-0">
-            <h1 className="flex flex-wrap items-center gap-2.5 text-[23px] font-bold tracking-tight">
-              {a.order}
-              <Pill tone={sd.cls}>{sd.label}</Pill>
-              <RiskBadge tone={sev.tone}>{sevLabel}</RiskBadge>
-            </h1>
-            <div className="mt-2.5 text-[13px] text-default-500">
-              商户 <b className="text-foreground">{a.merchant}</b> · 审核人 {assignee ? <b className="text-foreground">{assignee.n}</b> : <span className="text-default-400">未认领</span>} · 触发时间 <span className="tnum">{a.submitted}</span>
-            </div>
-          </div>
-          <div className="flex shrink-0 items-center gap-2.5">
-            <Pill tone={a.sla.color} icon={<Clock className="h-3.5 w-3.5" />}>SLA 截止 {a.sla.text}</Pill>
-            {state === "new" && <Button size="sm" variant="bordered" onPress={claim}>认领工单</Button>}
-            <Button size="sm" variant="bordered">请求扫描</Button>
-            {sd.active
-              ? <Button size="sm" color="primary" startContent={<ClipboardCheck className="h-4 w-4" />} onPress={() => setOpen(true)}>审核</Button>
-              : <Button size="sm" variant="bordered" onPress={reopen}>重新打开</Button>}
+      {/* top action bar — flat, no box */}
+      <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0">
+          <h1 className="flex flex-wrap items-center gap-2.5 text-[23px] font-bold tracking-tight">
+            {a.order}
+            <Pill tone={sd.cls}>{sd.label}</Pill>
+            <RiskBadge tone={sev.tone}>{sevLabel}</RiskBadge>
+          </h1>
+          <div className="mt-2.5 text-[13px] text-default-500">
+            商户 <b className="text-foreground">{a.merchant}</b> · 审核人 {assignee ? <b className="text-foreground">{assignee.n}</b> : <span className="text-default-400">未认领</span>} · 触发时间 <span className="tnum">{a.submitted}</span>
           </div>
         </div>
-      </CardBody></Card>
+        <div className="flex shrink-0 items-center gap-2.5">
+          <Pill tone={a.sla.color} icon={<Clock className="h-3.5 w-3.5" />}>SLA 截止 {a.sla.text}</Pill>
+          {state === "new" && <Button size="sm" variant="bordered" onPress={claim}>认领工单</Button>}
+          <Button size="sm" variant="bordered">请求扫描</Button>
+          {sd.active
+            ? <Button size="sm" color="primary" startContent={<ClipboardCheck className="h-4 w-4" />} onPress={() => setOpen(true)}>审核</Button>
+            : <Button size="sm" variant="bordered" onPress={reopen}>重新打开</Button>}
+        </div>
+      </div>
 
       {/* tabs */}
       <div className="mb-5 flex items-center gap-6 border-b border-divider">
@@ -176,8 +174,24 @@ export default function AlertDetail() {
         </div>
       ) : (
         <Card shadow="none" className="card"><CardHeader><div className="text-[15px] font-bold">活动日志 · 处理时间线</div></CardHeader><CardBody className="pt-0">
-          <ol className="relative ml-2 border-l border-default-200 pl-6">
-            {tl.map((t, i) => (<li key={i} className="relative pb-4 last:pb-0"><span className="absolute -left-[27px] top-1 h-3 w-3 rounded-full border-2 border-[var(--brand)]" style={{ background: t[2] === "done" ? "var(--brand)" : "var(--surface)" }} /><div className="text-[11px] text-default-400 tnum">{t[0]}</div><div className="mt-0.5 text-[12.5px] font-semibold">{t[1]}</div></li>))}
+          <ol className="flex flex-col">
+            {tl.map((t, i) => {
+              const done = t[2] === "done";
+              const last = i === tl.length - 1;
+              return (
+                <li key={i} className="flex gap-3">
+                  {/* rail: dot + connecting line, perfectly centered */}
+                  <div className="flex w-3 shrink-0 flex-col items-center">
+                    <span className="mt-1 h-3 w-3 shrink-0 rounded-full border-2 border-primary" style={{ background: done ? "var(--brand)" : "var(--surface)" }} />
+                    {!last && <span className="my-1 w-0.5 flex-1 rounded-full bg-default-200" />}
+                  </div>
+                  <div className={last ? "pb-0" : "pb-5"}>
+                    <div className="text-[11px] text-default-400 tnum">{t[0]}</div>
+                    <div className="mt-0.5 text-[12.5px] font-semibold">{t[1]}</div>
+                  </div>
+                </li>
+              );
+            })}
           </ol>
         </CardBody></Card>
       )}
