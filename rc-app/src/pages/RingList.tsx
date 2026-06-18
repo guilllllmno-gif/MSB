@@ -7,7 +7,7 @@ import { Shell, PageHead } from "@/components/Shell";
 import { Pill, Initials } from "@/components/bits";
 import { RingBasis } from "@/components/RingBasis";
 import { NewRingDrawer } from "@/components/NewRingDrawer";
-import { rings, DIM_META, DIM_ORDER, confTone, confLabel, RING_STATES, RING_TILES, matchRingTile, type RingStateKey, type Ring } from "@/lib/rings";
+import { rings, DIM_META, DIM_ORDER, confTone, confLabel, RING_STATES, RING_TILES, matchRingTile, ringActions, type RingStateKey, type Ring } from "@/lib/rings";
 import { ringStore, useRingVersion } from "@/lib/store";
 
 const ME = { i: "JL", n: "James Liu", c: "var(--brand)" };
@@ -109,7 +109,7 @@ export default function RingList() {
                   <div className="flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
                     {st === "pending" && <Tooltip content="认领 · 转调查中" size="sm" delay={300}><Button isIconOnly size="sm" radius="full" variant="flat" className="bg-default-100" onPress={() => claim(r)}><UserPlus className="h-4 w-4 text-default-500" strokeWidth={1.9} /></Button></Tooltip>}
                     <Tooltip content="查看图谱" size="sm" delay={300}><Button isIconOnly size="sm" radius="full" variant="flat" className="bg-default-100" onPress={() => nav(`/ring?id=${r.id}`)}><Eye className="h-4 w-4 text-default-500" strokeWidth={1.9} /></Button></Tooltip>
-                    <Tooltip content="并入案件" size="sm" delay={300}><Button isIconOnly size="sm" radius="full" variant="flat" className="bg-primary/10 text-primary" onPress={() => { ringStore.set(r.id, "cased"); toast.success(`${r.id} 已并入调查案件`); }}><FolderPlus className="h-4 w-4" strokeWidth={1.9} /></Button></Tooltip>
+                    {ringActions(st).includes("case") && <Tooltip content="并入案件" size="sm" delay={300}><Button isIconOnly size="sm" radius="full" variant="flat" className="bg-primary/10 text-primary" onPress={() => { ringStore.set(r.id, "cased"); toast.success(`${r.id} 已并入调查案件`); }}><FolderPlus className="h-4 w-4" strokeWidth={1.9} /></Button></Tooltip>}
                   </div>
                 </TableCell>
               </TableRow>

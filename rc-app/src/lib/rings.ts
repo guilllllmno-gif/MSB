@@ -37,6 +37,13 @@ export const RING_TILES: { f: string; label: string }[] = [
 export const matchRingTile = (f: string, state: RingStateKey) => (f === "all" ? true : RING_STATES[state].bucket === f);
 // 研判处置 action key → resulting state ("reqinfo" is non-terminal: stays investigating)
 export const DISP_STATE: Record<string, RingStateKey> = { case: "cased", watch: "listed", escalate: "escalated", fp: "closed_fp", reqinfo: "investigating" };
+// which disposition actions are allowed in each state (gates the flow)
+//  待认领 → 必须先认领（无处置动作）；观察中 → 弱关联仅可升级/标记误报；调查中 → 全开放
+export function ringActions(state: RingStateKey): string[] {
+  if (state === "watching") return ["escalate", "fp"];
+  if (state === "investigating") return ["case", "watch", "escalate", "fp", "reqinfo"];
+  return []; // pending（先认领）/ terminal（已处置）
+}
 
 export interface RingMember { id: string; name: string; sub: string; kind: "商户" | "地址" | "群组"; i: string; c: string; alerts: number; role: string }
 export interface RingEdge { a: number; b: number; dims: RingDim[]; strength: number; note: string } // a,b = member index

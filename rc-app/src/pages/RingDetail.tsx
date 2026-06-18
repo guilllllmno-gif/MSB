@@ -6,7 +6,7 @@ import { ArrowLeft, FolderPlus, ListPlus, FileDown, Coins, Link2, Smartphone, Gl
 import { Shell } from "@/components/Shell";
 import { Pill, Initials, SectionLabel } from "@/components/bits";
 import { RingBasis } from "@/components/RingBasis";
-import { ringOf, DIM_META, DIM_ORDER, confTone, confLabel, RING_FIELDS, RING_STATES, DISP_STATE, type RingDim, type Ring, type RingStateKey } from "@/lib/rings";
+import { ringOf, DIM_META, DIM_ORDER, confTone, confLabel, RING_FIELDS, RING_STATES, DISP_STATE, ringActions, type RingDim, type Ring, type RingStateKey } from "@/lib/rings";
 import { ringStore, useRingVersion } from "@/lib/store";
 
 const ME = { i: "JL", n: "James Liu", c: "var(--brand)" };
@@ -87,8 +87,10 @@ export default function RingDetail() {
   const owner = ringStore.ownerOf(ring.id, ring.owner);
   const tone = confTone(ring.confidence);
   const claim = () => { ringStore.set(ring.id, "investigating", ME); toast.success(`${ring.id} 已认领 · 进入调查中`); };
+  const allowed = ringActions(state);
+  const prefer = ring.confidence >= 80 ? "case" : ring.confidence >= 60 ? "reqinfo" : "fp";
   const [open, setOpen] = useState(false);
-  const [disp, setDisp] = useState<string>(ring.confidence >= 80 ? "case" : ring.confidence >= 60 ? "reqinfo" : "fp");
+  const [disp, setDisp] = useState<string>(allowed.includes(prefer) ? prefer : allowed[0] ?? "fp");
   const [note, setNote] = useState("");
   const [fieldVals, setFieldVals] = useState<Record<string, string[]>>({});
   const [errs, setErrs] = useState<Set<string>>(new Set());
@@ -138,7 +140,7 @@ export default function RingDetail() {
             <RingBasis ring={ring} />
             {state === "pending" && <Button size="sm" variant="bordered" startContent={<UserPlus className="h-4 w-4" />} onPress={claim}>认领</Button>}
             <Button size="sm" variant="bordered" startContent={<FileDown className="h-4 w-4" />} onPress={() => toast.success("团伙研判报告已导出")}>导出报告</Button>
-            {sd.active && <Button size="sm" color="primary" startContent={<ClipboardCheck className="h-4 w-4" />} onPress={() => setOpen(true)}>研判处置</Button>}
+            {allowed.length > 0 && <Button size="sm" color="primary" startContent={<ClipboardCheck className="h-4 w-4" />} onPress={() => setOpen(true)}>研判处置</Button>}
           </div>
         </div>
       </CardBody></Card>
@@ -268,26 +270,31 @@ export default function RingDetail() {
               {ring.hubNote && <p className="mt-2.5 flex items-start gap-1.5 border-t border-divider pt-2.5 text-[11.5px] leading-relaxed text-default-500"><Info className="mt-px h-3.5 w-3.5 shrink-0" />{ring.hubNote}</p>}
             </div>
 
-            <div>
-              <SectionLabel>处置结论 · 终态</SectionLabel>
-              <div className="grid grid-cols-2 gap-2">
-                {DISP.map((d) => { const on = disp === d.k; const Icon = d.icon; return (
-                  <button key={d.k} onClick={() => pickDisp(d.k)} className="flex flex-col items-center gap-1.5 rounded-xl border-[1.5px] px-1.5 py-3 text-[12.5px] font-semibold transition-colors"
-                    style={on ? { borderColor: "var(--brand)", background: "var(--brand-soft)", color: "var(--brand)" } : { borderColor: "var(--line)", color: "var(--text-2)" }}>
-                    <Icon className="h-[18px] w-[18px]" />{d.label}</button>
-                ); })}
+            {state === "watching" && <p className="flex items-start gap-1.5 rounded-xl border border-divider bg-default-50 p-2.5 text-[11.5px] leading-relaxed text-default-500"><Info className="mt-px h-3.5 w-3.5 shrink-0" />弱关联团伙（低于阈值）仅可「升级 MLRO」或「标记误报」，不进入聚案 / 列名单处置流。</p>}
+            {DISP.some((d) => allowed.includes(d.k)) && (
+              <div>
+                <SectionLabel>处置结论 · 终态</SectionLabel>
+                <div className="grid grid-cols-2 gap-2">
+                  {DISP.filter((d) => allowed.includes(d.k)).map((d) => { const on = disp === d.k; const Icon = d.icon; return (
+                    <button key={d.k} onClick={() => pickDisp(d.k)} className="flex flex-col items-center gap-1.5 rounded-xl border-[1.5px] px-1.5 py-3 text-[12.5px] font-semibold transition-colors"
+                      style={on ? { borderColor: "var(--brand)", background: "var(--brand-soft)", color: "var(--brand)" } : { borderColor: "var(--line)", color: "var(--text-2)" }}>
+                      <Icon className="h-[18px] w-[18px]" />{d.label}</button>
+                  ); })}
+                </div>
               </div>
-            </div>
-            <div>
-              <SectionLabel>流程操作 · 不结案</SectionLabel>
-              <div className="grid grid-cols-1 gap-2">
-                {PROC.map((d) => { const on = disp === d.k; const Icon = d.icon; return (
-                  <button key={d.k} onClick={() => pickDisp(d.k)} className="flex items-center justify-center gap-2 rounded-xl border-[1.5px] px-1.5 py-2.5 text-[12.5px] font-semibold transition-colors"
-                    style={on ? { borderColor: "var(--brand)", background: "var(--brand-soft)", color: "var(--brand)" } : { borderColor: "var(--line)", color: "var(--text-2)" }}>
-                    <Icon className="h-[18px] w-[18px]" />{d.label}<span className="text-[11px] font-normal text-default-400">· 保持调查中</span></button>
-                ); })}
+            )}
+            {PROC.some((d) => allowed.includes(d.k)) && (
+              <div>
+                <SectionLabel>流程操作 · 不结案</SectionLabel>
+                <div className="grid grid-cols-1 gap-2">
+                  {PROC.filter((d) => allowed.includes(d.k)).map((d) => { const on = disp === d.k; const Icon = d.icon; return (
+                    <button key={d.k} onClick={() => pickDisp(d.k)} className="flex items-center justify-center gap-2 rounded-xl border-[1.5px] px-1.5 py-2.5 text-[12.5px] font-semibold transition-colors"
+                      style={on ? { borderColor: "var(--brand)", background: "var(--brand-soft)", color: "var(--brand)" } : { borderColor: "var(--line)", color: "var(--text-2)" }}>
+                      <Icon className="h-[18px] w-[18px]" />{d.label}<span className="text-[11px] font-normal text-default-400">· 保持调查中</span></button>
+                  ); })}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* per-action form */}
             {(RING_FIELDS[disp] || []).map((fd) => fd.type === "select" ? (
