@@ -38,7 +38,7 @@ export default function RingList() {
   const matchQ = (r: Ring) => !q.trim() || (r.id + r.name + r.typology + r.members.map((m) => m.name).join("")).toLowerCase().includes(q.toLowerCase());
   const count = (f: string) => all.filter((r) => matchRingTile(f, stateOf(r)) && matchQ(r)).length;
   const rows = all.filter((r) => matchRingTile(filter, stateOf(r)) && matchQ(r));
-  const claim = (r: Ring) => { ringStore.set(r.id, "investigating", ME); toast.success(`${r.id} 已认领 · 进入调查中`); };
+  const claim = (r: Ring) => { ringStore.set(r.id, "investigating", ME, "认领 · 进入调查中"); toast.success(`${r.id} 已认领 · 进入调查中`); };
 
   return (
     <Shell crumb={["风控", "检测策略", "团伙识别"]} wide>
@@ -109,7 +109,7 @@ export default function RingList() {
                   <div className="flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
                     {st === "pending" && <Tooltip content="认领 · 转调查中" size="sm" delay={300}><Button isIconOnly size="sm" radius="full" variant="flat" className="bg-default-100" onPress={() => claim(r)}><UserPlus className="h-4 w-4 text-default-500" strokeWidth={1.9} /></Button></Tooltip>}
                     <Tooltip content="查看图谱" size="sm" delay={300}><Button isIconOnly size="sm" radius="full" variant="flat" className="bg-default-100" onPress={() => nav(`/ring?id=${r.id}`)}><Eye className="h-4 w-4 text-default-500" strokeWidth={1.9} /></Button></Tooltip>
-                    {ringActions(st).includes("case") && <Tooltip content="并入案件" size="sm" delay={300}><Button isIconOnly size="sm" radius="full" variant="flat" className="bg-primary/10 text-primary" onPress={() => { ringStore.set(r.id, "cased"); toast.success(`${r.id} 已并入调查案件`); }}><FolderPlus className="h-4 w-4" strokeWidth={1.9} /></Button></Tooltip>}
+                    {ringActions(st).includes("case") && <Tooltip content="并入案件" size="sm" delay={300}><Button isIconOnly size="sm" radius="full" variant="flat" className="bg-primary/10 text-primary" onPress={() => { ringStore.set(r.id, "cased", undefined, "并入调查案件"); toast.success(`${r.id} 已并入调查案件`); }}><FolderPlus className="h-4 w-4" strokeWidth={1.9} /></Button></Tooltip>}
                   </div>
                 </TableCell>
               </TableRow>

@@ -31,7 +31,7 @@ export function useAlertVersion() {
 }
 
 // ── ring (团伙) state store ──
-const ringData: Record<string, { state?: string; owner?: Person | null }> = {};
+const ringData: Record<string, { state?: string; owner?: Person | null; events?: { t: string; text: string }[] }> = {};
 let ringCreated: Ring[] = [];
 let ringVersion = 0;
 const ringListeners = new Set<() => void>();
@@ -43,7 +43,15 @@ export const ringStore = {
   created() { return ringCreated; },
   stateOf(id: string, base: string) { return ringData[id]?.state || base; },
   ownerOf(id: string, base: Person | null | undefined) { const o = ringData[id]; return o && o.owner !== undefined ? o.owner : base ?? null; },
-  set(id: string, state: string, owner?: Person | null) { const cur = ringData[id] || {}; cur.state = state; if (owner !== undefined) cur.owner = owner; ringData[id] = cur; ringNotify(); },
+  eventsOf(id: string) { return ringData[id]?.events || []; },
+  set(id: string, state: string, owner?: Person | null, event?: string) {
+    const cur = ringData[id] || {};
+    cur.state = state;
+    if (owner !== undefined) cur.owner = owner;
+    if (event) cur.events = [...(cur.events || []), { t: now(), text: event }];
+    ringData[id] = cur;
+    ringNotify();
+  },
   addRing(r: Ring) { ringCreated = [r, ...ringCreated]; ringNotify(); },
 };
 

@@ -6,6 +6,7 @@ import { ArrowLeft, FolderPlus, ListPlus, FileDown, Coins, Link2, Smartphone, Gl
 import { Shell } from "@/components/Shell";
 import { Pill, Initials, SectionLabel } from "@/components/bits";
 import { RingBasis } from "@/components/RingBasis";
+import { Timeline } from "@/components/Timeline";
 import { ringOf, DIM_META, DIM_ORDER, confTone, confLabel, RING_FIELDS, RING_STATES, DISP_STATE, ringActions, type RingDim, type Ring, type RingStateKey } from "@/lib/rings";
 import { ringStore, useRingVersion } from "@/lib/store";
 
@@ -102,7 +103,7 @@ export default function RingDetail() {
   const sd = RING_STATES[state];
   const owner = ringStore.ownerOf(ring.id, ring.owner);
   const tone = confTone(ring.confidence);
-  const claim = () => { ringStore.set(ring.id, "investigating", ME); toast.success(`${ring.id} 已认领 · 进入调查中`); };
+  const claim = () => { ringStore.set(ring.id, "investigating", ME, "认领 · 进入调查中"); toast.success(`${ring.id} 已认领 · 进入调查中`); };
   const allowed = ringActions(state);
   const prefer = ring.confidence >= 80 ? "case" : ring.confidence >= 60 ? "reqinfo" : "fp";
   const [open, setOpen] = useState(false);
@@ -111,7 +112,15 @@ export default function RingDetail() {
   const [fieldVals, setFieldVals] = useState<Record<string, string[]>>({});
   const [errs, setErrs] = useState<Set<string>>(new Set());
   const [expDim, setExpDim] = useState<RingDim | null>(null);
+  const [tab, setTab] = useState<"info" | "log">("info");
   const edges = [...ring.edges].sort((a, b) => b.strength - a.strength);
+
+  // activity log: detection → in-session actions → current state
+  const logItems = [
+    { time: ring.span, text: `系统多维聚类识别成团 · ${ring.typology} · 置信度 ${ring.confidence}%`, done: true },
+    ...ringStore.eventsOf(ring.id).map((e) => ({ time: e.t, text: e.text, done: true })),
+    { time: "当前", text: `${sd.label}${owner ? ` · ${owner.n}` : ""}`, done: !sd.active },
+  ];
 
   const pickDisp = (k: string) => { setDisp(k); setFieldVals({}); setErrs(new Set()); };
   const toggleField = (k: string, val: string, multi: boolean) => setFieldVals((p) => {
@@ -127,7 +136,7 @@ export default function RingDetail() {
     setErrs(e);
     if (e.size) { toast.error("请补全所需信息"); return; }
     const d = ACTIONS.find((x) => x.k === disp);
-    ringStore.set(ring.id, DISP_STATE[disp]);
+    ringStore.set(ring.id, DISP_STATE[disp], undefined, d?.label ?? "提交研判");
     toast.success(`${ring.id} · ${d?.msg ?? "已提交研判"}`);
     setOpen(false);
   };
@@ -136,31 +145,44 @@ export default function RingDetail() {
     <Shell crumb={["风控", "检测策略", "团伙识别", ring.id]} wide>
       <button onClick={() => nav("/rings")} className="mb-3.5 inline-flex items-center gap-1.5 text-[13px] font-medium text-default-500 hover:text-foreground"><ArrowLeft className="h-4 w-4" />返回团伙列表</button>
 
-      {/* top bar */}
-      <Card shadow="none" className="mb-5 card"><CardBody className="py-5">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="min-w-0">
-            <h1 className="flex flex-wrap items-center gap-2.5 text-[23px] font-bold tracking-tight">
-              {ring.name}
-              <Pill tone={ring.risk} dot={false}>{ring.typology}</Pill>
-              <Pill tone={tone}>{confLabel(ring.confidence)} {ring.confidence}%</Pill>
-              <Pill tone={sd.tone}>{sd.label}{ring.caseRef ? ` · ${ring.caseRef}` : ""}</Pill>
-            </h1>
-            <div className="mt-2.5 text-[13px] text-default-500">
-              {ring.id} · {ring.members.length} 个主体 · 关联告警 <b className="text-foreground">{ring.alertCount}</b> 条 · 涉及 <b className="text-foreground">{ring.amount}</b> · {ring.span}
-            </div>
-          </div>
-          <div className="flex shrink-0 items-center gap-2.5">
-            {ring.sla && <Pill tone={ring.sla.tone} icon={<Clock className="h-3.5 w-3.5" />}>SLA {ring.sla.text}</Pill>}
-            {owner ? <span className="flex items-center gap-1.5 text-[13px] font-semibold"><Initials p={owner} size={26} />{owner.n}</span> : <Pill tone="grey">未分配</Pill>}
-            <RingBasis ring={ring} />
-            {state === "pending" && <Button size="sm" variant="bordered" startContent={<UserPlus className="h-4 w-4" />} onPress={claim}>认领</Button>}
-            <Button size="sm" variant="bordered" startContent={<FileDown className="h-4 w-4" />} onPress={() => toast.success("团伙研判报告已导出")}>导出报告</Button>
-            {allowed.length > 0 && <Button size="sm" color="primary" startContent={<ClipboardCheck className="h-4 w-4" />} onPress={() => setOpen(true)}>研判处置</Button>}
+      {/* top bar — flat, no box */}
+      <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0">
+          <h1 className="flex flex-wrap items-center gap-2.5 text-[23px] font-bold tracking-tight">
+            {ring.name}
+            <Pill tone={ring.risk} dot={false}>{ring.typology}</Pill>
+            <Pill tone={tone}>{confLabel(ring.confidence)} {ring.confidence}%</Pill>
+            <Pill tone={sd.tone}>{sd.label}{ring.caseRef ? ` · ${ring.caseRef}` : ""}</Pill>
+          </h1>
+          <div className="mt-2.5 text-[13px] text-default-500">
+            {ring.id} · {ring.members.length} 个主体 · 关联告警 <b className="text-foreground">{ring.alertCount}</b> 条 · 涉及 <b className="text-foreground">{ring.amount}</b> · {ring.span}
           </div>
         </div>
-      </CardBody></Card>
+        <div className="flex shrink-0 items-center gap-2.5">
+          {ring.sla && <Pill tone={ring.sla.tone} icon={<Clock className="h-3.5 w-3.5" />}>SLA {ring.sla.text}</Pill>}
+          {owner ? <span className="flex items-center gap-1.5 text-[13px] font-semibold"><Initials p={owner} size={26} />{owner.n}</span> : <Pill tone="grey">未分配</Pill>}
+          <RingBasis ring={ring} />
+          {state === "pending" && <Button size="sm" variant="bordered" startContent={<UserPlus className="h-4 w-4" />} onPress={claim}>认领</Button>}
+          <Button size="sm" variant="bordered" startContent={<FileDown className="h-4 w-4" />} onPress={() => toast.success("团伙研判报告已导出")}>导出报告</Button>
+          {allowed.length > 0 && <Button size="sm" color="primary" startContent={<ClipboardCheck className="h-4 w-4" />} onPress={() => setOpen(true)}>研判处置</Button>}
+        </div>
+      </div>
 
+      {/* tabs */}
+      <div className="mb-5 flex items-center gap-6 border-b border-divider">
+        {([["info", "团伙详情"], ["log", "活动日志"]] as const).map(([k, label]) => (
+          <button key={k} onClick={() => setTab(k)} className={`relative -mb-px pb-3 text-[14px] font-semibold transition-colors ${tab === k ? "text-foreground" : "text-default-400 hover:text-default-600"}`}>
+            {label}
+            {tab === k && <span className="absolute inset-x-0 bottom-0 h-0.5 rounded-full bg-primary" />}
+          </button>
+        ))}
+      </div>
+
+      {tab === "log" ? (
+        <Card shadow="none" className="card"><CardHeader><div className="text-[15px] font-bold">活动日志 · 操作时间线</div></CardHeader><CardBody className="pt-0">
+          <Timeline items={logItems} />
+        </CardBody></Card>
+      ) : (
       <div className="flex flex-col gap-5">
         {/* graph + its evidence — the edges ARE the evidence, so they live together */}
         <Card shadow="none" className="card"><CardHeader className="flex flex-wrap items-center justify-between gap-2"><div><div className="text-[15px] font-bold">关系图谱</div><div className="text-[12px] text-default-400">节点 = 主体 · 连线 = 共享关系（颜色 / 圆点 = 维度）· 连线标签「强度」= 关联强度，越高越可靠</div></div>
@@ -266,6 +288,7 @@ export default function RingDetail() {
         </Card>
         </div>
       </div>
+      )}
 
       {/* 研判处置 — side drawer */}
       <Drawer isOpen={open} onOpenChange={setOpen} placement="right" size="md" classNames={{ base: "!w-[46vw] !min-w-[420px] !max-w-[720px]" }}>

@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { Card, CardHeader, CardBody, Button, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell } from "@heroui/react";
 import { ArrowLeft, ClipboardCheck, Clock, Info, Network, ArrowRight } from "lucide-react";
 import { Shell } from "@/components/Shell";
+import { Timeline } from "@/components/Timeline";
 import { Pill, SoftChip, Initials, RiskBadge } from "@/components/bits";
 import { ReviewDialog } from "@/components/ReviewDialog";
 import { alerts, RC_STATES, sevMeta, type Tone } from "@/lib/data";
@@ -174,25 +175,7 @@ export default function AlertDetail() {
         </div>
       ) : (
         <Card shadow="none" className="card"><CardHeader><div className="text-[15px] font-bold">活动日志 · 处理时间线</div></CardHeader><CardBody className="pt-0">
-          <ol className="flex flex-col">
-            {tl.map((t, i) => {
-              const done = t[2] === "done";
-              const last = i === tl.length - 1;
-              return (
-                <li key={i} className="flex gap-3">
-                  {/* rail: dot + connecting line, perfectly centered */}
-                  <div className="flex w-3 shrink-0 flex-col items-center">
-                    <span className="mt-1 h-3 w-3 shrink-0 rounded-full border-2 border-primary" style={{ background: done ? "var(--brand)" : "var(--surface)" }} />
-                    {!last && <span className="my-1 w-0.5 flex-1 rounded-full bg-default-200" />}
-                  </div>
-                  <div className={last ? "pb-0" : "pb-5"}>
-                    <div className="text-[11px] text-default-400 tnum">{t[0]}</div>
-                    <div className="mt-0.5 text-[12.5px] font-semibold">{t[1]}</div>
-                  </div>
-                </li>
-              );
-            })}
-          </ol>
+          <Timeline items={tl.map((t) => ({ time: t[0], text: t[1], done: t[2] === "done" }))} />
         </CardBody></Card>
       )}
 
