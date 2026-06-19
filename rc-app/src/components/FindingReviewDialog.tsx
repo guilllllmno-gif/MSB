@@ -53,7 +53,7 @@ export function FindingReviewDialog({ findingId, open, onOpenChange, onDone }: {
     if (choice === "confirm") {
       if (!trace) { setErr(true); toast.error("请评估资金追溯情况"); return; }
       const rec = traceRecovery(trace);
-      const linked = rec.frozen ? "已联动「请求下游冻结」" : rec.lossReported ? "已联动「上报已发生损失」" : "持续追踪(暂不登记冻结 / 损失)";
+      const linked = rec.frozen ? "默认登记「请求下游冻结」" : rec.lossReported ? "默认登记「上报已发生损失」" : "持续追踪(不预设冻结 / 损失)";
       findingStore.set(f.id, { status: "tracing", trace, backfill, frozen: rec.frozen, lossReported: rec.lossReported, event: `确认可疑 · 进入追溯 · ${trace} · ${linked}${note.trim() ? " · " + note.trim() : ""}` });
       toast.success(`${f.id} · 确认可疑 → 进入追溯`);
       if (rec.frozen || rec.lossReported) toast(linked);
@@ -127,10 +127,11 @@ export function FindingReviewDialog({ findingId, open, onOpenChange, onDone }: {
                       <div className="mb-1.5 flex items-center gap-1.5 font-semibold" style={{ color: toneVar(ti.tone) }}><LinkIcon className="h-3.5 w-3.5" />联动处置</div>
                       <p className="text-default-600">{ti.guide}</p>
                       <div className="mt-2 flex flex-wrap gap-1.5">
-                        <span className="rounded-md px-2 py-0.5 text-[11px] font-semibold" style={{ background: rec.frozen ? "var(--success-bg)" : "var(--chip-bg)", color: rec.frozen ? "var(--success)" : "var(--chip-fg)" }}>{rec.frozen ? "✓ 请求下游冻结" : "请求下游冻结"}</span>
-                        <span className="rounded-md px-2 py-0.5 text-[11px] font-semibold" style={{ background: rec.lossReported ? "var(--warning-bg)" : "var(--chip-bg)", color: rec.lossReported ? "var(--warning)" : "var(--chip-fg)" }}>{rec.lossReported ? "✓ 上报已发生损失" : "上报已发生损失"}</span>
-                        <span className="rounded-md bg-default-100 px-2 py-0.5 text-[11px] text-default-400">止损(封号 / 列名单)在追溯工作台手动执行</span>
+                        <span className="rounded-md px-2 py-0.5 text-[11px] font-semibold" style={{ background: rec.frozen ? "var(--success-bg)" : "var(--chip-bg)", color: rec.frozen ? "var(--success)" : "var(--chip-fg)" }}>{rec.frozen ? "✓ 默认 · 请求下游冻结" : "请求下游冻结 · 可手动"}</span>
+                        <span className="rounded-md px-2 py-0.5 text-[11px] font-semibold" style={{ background: rec.lossReported ? "var(--warning-bg)" : "var(--chip-bg)", color: rec.lossReported ? "var(--warning)" : "var(--chip-fg)" }}>{rec.lossReported ? "✓ 默认 · 上报已发生损失" : "上报已发生损失 · 可手动"}</span>
+                        <span className="rounded-md bg-default-100 px-2 py-0.5 text-[11px] text-default-400">止损(封号 / 列名单)· 工作台手动</span>
                       </div>
+                      <p className="mt-1.5 text-[11px] leading-relaxed text-default-400">默认项随档位自动登记;另一项与止损动作均可在追溯工作台按实际补登,<b>不互斥</b>。</p>
                     </div>
                   ); })()}
                   <Checkbox isSelected={backfill} onValueChange={setBackfill} classNames={{ base: "max-w-full m-0 inline-flex w-full items-start rounded-xl border border-divider p-2.5", label: "text-[12.5px]" }}>
