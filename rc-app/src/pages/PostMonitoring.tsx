@@ -1,11 +1,16 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 import { Button, Tooltip, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Drawer, DrawerContent, DrawerHeader, DrawerBody } from "@heroui/react";
-import { History, ClipboardCheck, Eye, Clock, UserRound } from "lucide-react";
+import { History, ClipboardCheck, Eye, Clock, UserRound, UserPlus } from "lucide-react";
 import { Shell, PageHead } from "@/components/Shell";
 import { Pill, Initials } from "@/components/bits";
+import { FindingReviewDialog } from "@/components/FindingReviewDialog";
 import { FINDINGS, FSTATES, BATCHES, type Finding, type FState } from "@/lib/findings";
 import { findingStore, useFindingVersion } from "@/lib/store";
+import type { Person } from "@/lib/data";
+
+const ME: Person = { i: "JL", n: "James Liu", c: "var(--brand)" };
 
 const TILES: { f: string; label: string }[] = [
   { f: "all", label: "全部" },
@@ -23,6 +28,10 @@ export default function PostMonitoring() {
   useFindingVersion();
   const [filter, setFilter] = useState("all");
   const [hist, setHist] = useState(false);
+  const [reviewId, setReviewId] = useState<string | null>(null);
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const openReview = (id: string) => { setReviewId(id); setReviewOpen(true); };
+  const claim = (f: Finding) => { findingStore.set(f.id, { status: "progress", owner: ME, event: "认领 · 开始回溯调查" }); toast.success(`${f.id} · 已认领`); };
 
   const stOf = (f: Finding) => findingStore.statusOf(f.id, f.status) as FState;
   const count = (key: string) => FINDINGS.filter((f) => matchTile(key, stOf(f))).length;
@@ -92,8 +101,12 @@ export default function PostMonitoring() {
                 <TableCell><span className="inline-flex items-center gap-1" style={{ color: f.sla.tone === "red" ? "var(--danger)" : f.sla.tone === "amber" ? "var(--warning)" : "var(--text-3)" }}><Clock className="h-3.5 w-3.5" />{f.sla.text}</span></TableCell>
                 <TableCell>
                   <div className="flex items-center justify-end gap-1.5">
-                    <Tooltip content="查看详情" size="sm" delay={300}><Button isIconOnly size="sm" radius="full" variant="flat" className="bg-default-100" onPress={() => nav(`/finding?id=${f.id}`)}><Eye className="h-4 w-4 text-default-500" strokeWidth={1.9} /></Button></Tooltip>
-                    <Tooltip content="进入详情审核" size="sm" delay={300}><Button size="sm" radius="full" color="primary" variant="flat" startContent={<ClipboardCheck className="h-3.5 w-3.5" />} onPress={() => nav(`/finding?id=${f.id}`)}>审核</Button></Tooltip>
+                    <Tooltip content="查看详情工作台" size="sm" delay={300}><Button isIconOnly size="sm" radius="full" variant="flat" className="bg-default-100" onPress={() => nav(`/finding?id=${f.id}`)}><Eye className="h-4 w-4 text-default-500" strokeWidth={1.9} /></Button></Tooltip>
+                    {st === "new"
+                      ? <Tooltip content="认领 · 开始回溯" size="sm" delay={300}><Button size="sm" radius="full" color="primary" variant="flat" startContent={<UserPlus className="h-3.5 w-3.5" />} onPress={() => claim(f)}>认领</Button></Tooltip>
+                      : FSTATES[st].active
+                        ? <Tooltip content="审核研判 · 确认可疑 / 补料 / 升级" size="sm" delay={300}><Button size="sm" radius="full" color="primary" variant="flat" startContent={<ClipboardCheck className="h-3.5 w-3.5" />} onPress={() => openReview(f.id)}>审核</Button></Tooltip>
+                        : null}
                   </div>
                 </TableCell>
               </TableRow>
@@ -132,6 +145,9 @@ export default function PostMonitoring() {
           </DrawerBody>
         </DrawerContent>
       </Drawer>
+
+      {/* 审核 → 命中研判抽屉(列表内联,与告警研判一致;按状态自适应处置 / 流程动作)*/}
+      <FindingReviewDialog findingId={reviewId} open={reviewOpen} onOpenChange={setReviewOpen} />
     </Shell>
   );
 }
