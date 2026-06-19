@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { Button, Select, SelectItem } from "@heroui/react";
-import { ArrowLeft, RefreshCw, Coins, Snowflake, AlertTriangle, ArrowUpRight, ArrowRight, UserX, ShieldPlus, UserPlus, ClipboardCheck } from "lucide-react";
+import { ArrowLeft, RefreshCw, Coins, Snowflake, AlertTriangle, ArrowUpRight, ArrowRight, UserX, ShieldPlus, UserPlus, ClipboardCheck, Lightbulb } from "lucide-react";
 import { Shell } from "@/components/Shell";
 import { Pill } from "@/components/bits";
 import { FindingReviewDialog } from "@/components/FindingReviewDialog";
@@ -154,11 +154,22 @@ export default function PostDetail() {
             </div>
           ) : null}
 
-          {/* 为什么事中漏判 */}
-          {d?.gap && (
+          {/* 为什么事中漏判 · 系统建议(规则缺口 → 处置建议,合并) */}
+          {(d?.gap || d?.rec) && (
             <div className="card border-l-[3px] p-5" style={{ borderLeftColor: "var(--warning)" }}>
-              <div className="mb-2 text-[11px] font-bold uppercase tracking-wider text-default-400">为什么事中漏判 · 规则缺口</div>
-              <p className="text-[12.5px] leading-relaxed text-default-600">{d.gap}</p>
+              <div className="mb-3 text-[11px] font-bold uppercase tracking-wider text-default-400">为什么事中漏判 · 系统建议</div>
+              {d?.gap && (
+                <div className="mb-4">
+                  <div className="mb-1.5 flex items-center gap-1.5 text-[12px] font-bold" style={{ color: "var(--warning)" }}><AlertTriangle className="h-3.5 w-3.5" />规则缺口</div>
+                  <p className="text-[12.5px] leading-relaxed text-default-600">{d.gap}</p>
+                </div>
+              )}
+              {d?.rec && (
+                <div className="rounded-xl border border-divider bg-default-50 p-3.5">
+                  <div className="mb-1.5 flex items-center gap-1.5 text-[12px] font-bold text-foreground"><Lightbulb className="h-3.5 w-3.5 text-primary" />系统建议</div>
+                  <p className="text-[12.5px] leading-relaxed text-default-600">{d.rec}</p>
+                </div>
+              )}
             </div>
           )}
 
@@ -211,14 +222,6 @@ export default function PostDetail() {
               <Kv label="历史">{d.profile.history}</Kv>
             </>}
           </div>
-
-          {/* 系统建议 */}
-          {d?.rec && (
-            <div className="card p-5">
-              <div className="mb-2 text-[11px] font-bold uppercase tracking-wider text-default-400">系统建议</div>
-              <p className="text-[12.5px] leading-relaxed text-default-600">{d.rec}</p>
-            </div>
-          )}
 
           {/* 处置摘要 */}
           <div className="card p-5">
