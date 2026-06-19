@@ -98,3 +98,31 @@ export const findingStore = {
 export function useFindingVersion() {
   return useSyncExternalStore(findingStore.subscribe, findingStore.getVersion, findingStore.getVersion);
 }
+
+// ── 报告报送(FINTRAC)状态store ──
+const reportData: Record<string, { status?: string; mlro?: Person | null; ref?: string; events?: { t: string; text: string; reason: string }[] }> = {};
+let reportVersion = 0;
+const reportListeners = new Set<() => void>();
+const reportNotify = () => { reportVersion++; reportListeners.forEach((l) => l()); };
+
+export const reportStore = {
+  subscribe(cb: () => void) { reportListeners.add(cb); return () => { reportListeners.delete(cb); }; },
+  getVersion() { return reportVersion; },
+  statusOf(id: string, base: string) { return reportData[id]?.status || base; },
+  mlroOf(id: string, base: Person | null) { const o = reportData[id]; return o && o.mlro !== undefined ? o.mlro : base; },
+  refOf(id: string, base?: string) { const o = reportData[id]; return o && o.ref !== undefined ? o.ref : base; },
+  eventsOf(id: string) { return reportData[id]?.events || []; },
+  set(id: string, status: string, opts: { mlro?: Person | null; ref?: string; event?: string; reason?: string } = {}) {
+    const cur = reportData[id] || {};
+    cur.status = status;
+    if (opts.mlro !== undefined) cur.mlro = opts.mlro;
+    if (opts.ref !== undefined) cur.ref = opts.ref;
+    cur.events = [...(cur.events || []), { t: now(), text: opts.event || status, reason: opts.reason || "" }];
+    reportData[id] = cur;
+    reportNotify();
+  },
+};
+
+export function useReportVersion() {
+  return useSyncExternalStore(reportStore.subscribe, reportStore.getVersion, reportStore.getVersion);
+}
