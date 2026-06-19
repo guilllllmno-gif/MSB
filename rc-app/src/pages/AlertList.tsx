@@ -6,7 +6,7 @@ import { Search, SlidersHorizontal, Tag, Clock, CheckCircle2, AlertTriangle, Cir
 import { Shell, PageHead } from "@/components/Shell";
 import { Pill, Initials } from "@/components/bits";
 import { ReviewDialog } from "@/components/ReviewDialog";
-import { alerts, RC_STATES } from "@/lib/data";
+import { alerts, RC_STATES, GATE_STATES, INVESTIGATION_STATES } from "@/lib/data";
 import { alertStore, useAlertVersion } from "@/lib/store";
 
 const ME = { i: "JL", n: "James Liu", c: "var(--brand)" };
@@ -22,20 +22,16 @@ const CURRENT_ROLE = "主管";
 const CAN_ASSIGN = ["主管", "L2"].includes(CURRENT_ROLE);
 
 const TILES: { f: string; label: string }[] = [
-  { f: "all", label: "全部警报" },
-  { f: "unclaimed", label: "待认领" },
-  { f: "progress", label: "处理中" },
-  { f: "pending", label: "待补充材料" },
+  { f: "all", label: "全部" },
+  { f: "progress", label: "调查中" },
+  { f: "l2", label: "待L2复核" },
   { f: "escalated", label: "已升级" },
-  { f: "done", label: "已结案" },
 ];
 const matchTile = (f: string, state: string) =>
   f === "all" ? true
-    : f === "unclaimed" ? state === "new"
-    : f === "progress" ? state === "progress" || state === "pending_l2"
-    : f === "pending" ? state === "pending"
-    : f === "escalated" ? state === "escalated"
-    : f === "done" ? state.startsWith("closed") : false;
+    : f === "progress" ? state === "progress"
+    : f === "l2" ? state === "pending_l2"
+    : f === "escalated" ? state === "escalated" : false;
 
 const STATUS_ICON: Record<string, typeof Clock> = {
   new: Clock, progress: CircleDot, pending_l2: Clock, pending: AlertTriangle,
@@ -59,11 +55,12 @@ export default function AlertList() {
   const [reviewOpen, setReviewOpen] = useState(false);
   const [selected, setSelected] = useState<Selection>(new Set());
 
-  const count = (f: string) => alerts.filter((a) => matchTile(f, alertStore.stateOf(a.id, a.state))).length;
+  // 告警研判 = investigation lane only(事中已转研判 / 事后检测直连);gate 状态归事中监控
+  const count = (f: string) => alerts.filter((a) => { const st = alertStore.stateOf(a.id, a.state); return INVESTIGATION_STATES.includes(st) && matchTile(f, st); }).length;
   const rows = alerts.filter((a) => {
     const st = alertStore.stateOf(a.id, a.state);
     const okQ = !q.trim() || (a.id + a.order + a.merchant).toLowerCase().includes(q.toLowerCase());
-    return matchTile(filter, st) && okQ;
+    return INVESTIGATION_STATES.includes(st) && matchTile(filter, st) && okQ;
   });
   const openReview = (id: string) => { setReviewId(id); setReviewOpen(true); };
 
@@ -87,10 +84,10 @@ export default function AlertList() {
   };
 
   return (
-    <Shell crumb={["交易", "交易监控", "交易警报"]} wide>
+    <Shell crumb={["交易", "交易监控", "告警研判"]} wide>
       <PageHead
-        title="交易警报"
-        sub="规则引擎与链上监控产生的实时告警，点击任意告警查看详情与处置。"
+        title="告警研判"
+        sub="可疑告警的调查与研判 · 回答「这单可疑吗、要不要转合规上报 STR」—— 来自事中转研判与事后回溯检测,点击查看详情与处置。"
         actions={<>
           {selCount > 0 && <span className="mr-1 text-[12.5px] text-default-500">已选 <b className="text-foreground">{selCount}</b> 项</span>}
           <Button size="sm" radius="full" variant="flat" className="bg-default-100" isDisabled={selCount === 0} startContent={<Check className="h-3.5 w-3.5" />} onPress={batchClaim}>批量认领</Button>
@@ -114,7 +111,7 @@ export default function AlertList() {
       />
 
       {/* lifecycle filter tiles — soft floating cards, active = blue accent */}
-      <div className="mb-5 grid grid-cols-3 gap-3.5 md:grid-cols-6">
+      <div className="mb-5 grid grid-cols-2 gap-3.5 md:grid-cols-4">
         {TILES.map((t) => {
           const on = filter === t.f;
           return (
@@ -139,9 +136,9 @@ export default function AlertList() {
       </div>
 
       {/* table — clean component per design (checkbox select, grey header, hover rows, icon actions) */}
-      <Table aria-label="交易警报" radius="lg" selectionMode="multiple" color="primary"
+      <Table aria-label="交易警报" radius="lg" selectionMode="multiple" color="default"
         selectedKeys={selected} onSelectionChange={setSelected} checkboxesProps={{ color: "primary" }}
-        classNames={{ wrapper: "card no-scrollbar p-0 rounded-2xl overflow-x-auto", th: "bg-default-50 text-default-500 text-[12px] font-medium h-12 border-b border-divider whitespace-nowrap", td: "py-5 text-[13px] whitespace-nowrap group-data-[selected=true]:before:!bg-default-100", tr: "border-b border-default-100 last:border-0 transition-colors data-[hover=true]:bg-default-50 hover:bg-default-50" }}>
+        classNames={{ wrapper: "card no-scrollbar p-0 rounded-2xl overflow-x-auto", th: "bg-default-50 text-default-500 text-[12px] font-medium h-12 border-b border-divider whitespace-nowrap", td: "py-5 text-[13px] whitespace-nowrap group-data-[selected=true]:before:!bg-default-100/50", tr: "border-b border-default-100 last:border-0 transition-colors data-[hover=true]:bg-default-50 hover:bg-default-50" }}>
         <TableHeader>
           <TableColumn>警报ID</TableColumn><TableColumn>商户名称/交易ID</TableColumn><TableColumn>类型</TableColumn>
           <TableColumn>风险评分</TableColumn><TableColumn>命中告警</TableColumn><TableColumn>交易金额</TableColumn>
@@ -154,6 +151,7 @@ export default function AlertList() {
             const sd = RC_STATES[st];
             const assignee = alertStore.assigneeOf(a.id, a.assignee);
             const Icon = STATUS_ICON[st] || Clock;
+            const src = GATE_STATES.includes(a.state) ? "实时升级" : "事后检测"; // 来源:事中转研判 vs 事后检测直连
             return (
               <TableRow key={a.id}>
                 <TableCell>
@@ -161,6 +159,7 @@ export default function AlertList() {
                     <span className="text-[13px] font-medium">{a.id}</span>
                     <button onClick={() => copyId(a.id)} aria-label="复制告警ID" className="text-default-300 transition-colors hover:text-default-500"><Copy className="h-3.5 w-3.5" /></button>
                   </span>
+                  <span className="mt-0.5 block w-fit rounded bg-default-100 px-1.5 text-[10px] font-semibold text-default-500">{src}</span>
                 </TableCell>
                 <TableCell><div className="font-semibold">{a.merchant}</div><div className="text-[11px] text-default-400">{a.order}</div></TableCell>
                 <TableCell><span className="text-default-600">{a.type}</span></TableCell>

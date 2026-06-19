@@ -7,7 +7,7 @@ import { Shell } from "@/components/Shell";
 import { Timeline } from "@/components/Timeline";
 import { Pill, SoftChip, Initials, RiskBadge } from "@/components/bits";
 import { ReviewDialog } from "@/components/ReviewDialog";
-import { alerts, RC_STATES, sevMeta, type Tone } from "@/lib/data";
+import { alerts, RC_STATES, GATE_STATES, sevMeta, type Tone } from "@/lib/data";
 import { ringsForMerchant, DIM_META, DIM_ORDER, confTone, confLabel } from "@/lib/rings";
 import { alertStore, useAlertVersion } from "@/lib/store";
 
@@ -35,6 +35,7 @@ export default function AlertDetail() {
   const [tab, setTab] = useState<"info" | "log">("info");
 
   const state = alertStore.stateOf(a.id, a.state);
+  const gate = GATE_STATES.includes(state); // 事中闸口车道 vs 告警研判调查车道
   const sd = RC_STATES[state];
   const assignee = alertStore.assigneeOf(a.id, a.assignee);
   const sev = sevMeta[a.sev];
@@ -50,8 +51,8 @@ export default function AlertDetail() {
   const reopen = () => { alertStore.set(a.id, "progress", { assignee: assignee || ME, event: "重新打开告警" }); toast.success("已重新打开"); };
 
   return (
-    <Shell crumb={["风控", "监控运营", "交易警报", a.order]}>
-      <button onClick={() => nav("/alerts")} className="mb-3.5 inline-flex items-center gap-1.5 text-[13px] font-medium text-default-500 hover:text-foreground"><ArrowLeft className="h-4 w-4" />返回告警工作台</button>
+    <Shell crumb={["风控", "监控运营", gate ? "事中监控" : "告警研判", a.order]}>
+      <button onClick={() => nav(gate ? "/monitoring" : "/alerts")} className="mb-3.5 inline-flex items-center gap-1.5 text-[13px] font-medium text-default-500 hover:text-foreground"><ArrowLeft className="h-4 w-4" />{gate ? "返回事中监控" : "返回告警研判"}</button>
 
       {/* top action bar — flat, no box */}
       <div className="mb-5 flex flex-wrap items-start justify-between gap-4">

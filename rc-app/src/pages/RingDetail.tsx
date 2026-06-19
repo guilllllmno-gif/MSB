@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { Card, CardHeader, CardBody, Button, Drawer, DrawerContent, DrawerHeader, DrawerBody, DrawerFooter, Textarea, Select, SelectItem } from "@heroui/react";
@@ -7,7 +7,7 @@ import { Shell } from "@/components/Shell";
 import { Pill, Initials, SectionLabel } from "@/components/bits";
 import { RingBasis } from "@/components/RingBasis";
 import { Timeline } from "@/components/Timeline";
-import { ringOf, DIM_META, DIM_ORDER, confTone, confLabel, RING_FIELDS, RING_STATES, DISP_STATE, ringActions, type RingDim, type Ring, type RingStateKey } from "@/lib/rings";
+import { ringOf, caseRefFor, DIM_META, DIM_ORDER, confTone, confLabel, RING_FIELDS, RING_STATES, DISP_STATE, ringActions, type RingDim, type Ring, type RingEdge, type RingStateKey } from "@/lib/rings";
 import { ringStore, useRingVersion } from "@/lib/store";
 
 const ME = { i: "JL", n: "James Liu", c: "var(--brand)" };
@@ -16,21 +16,88 @@ const DIM_ICON: Record<RingDim, typeof Coins> = { funds: Coins, address: Link2, 
 const THRESHOLD = 60;
 const toneCol = (t: string) => (t === "red" ? "var(--danger)" : t === "amber" ? "var(--warning)" : "var(--text-2)");
 
-// relationship graph — radial, adaptive to member count (scales node/radius/canvas)
+// deterministic force-directed layout (Fruchterman–Reingold + centripetal gravity).
+// Used for larger rings where a single circle tangles; seeded on a circle so the
+// result is stable across renders (no randomness). Returns unit-space coords.
+function forceLayout(n: number, edges: RingEdge[]): { x: number; y: number }[] {
+  const p = Array.from({ length: n }, (_, i) => {
+    const a = -Math.PI / 2 + (i * 2 * Math.PI) / n;
+    return { x: Math.cos(a), y: Math.sin(a) };
+  });
+  if (n <= 2) return p;
+  const k = 2.0 / Math.sqrt(n); // ideal edge length
+  let temp = 0.9;
+  for (let it = 0; it < 400; it++) {
+    const disp = p.map(() => ({ x: 0, y: 0 }));
+    for (let i = 0; i < n; i++)
+      for (let j = i + 1; j < n; j++) {
+        let dx = p[i].x - p[j].x, dy = p[i].y - p[j].y;
+        const d = Math.hypot(dx, dy) || 1e-3;
+        const f = (k * k) / d;
+        dx = (dx / d) * f; dy = (dy / d) * f;
+        disp[i].x += dx; disp[i].y += dy;
+        disp[j].x -= dx; disp[j].y -= dy;
+      }
+    for (const e of edges) {
+      let dx = p[e.a].x - p[e.b].x, dy = p[e.a].y - p[e.b].y;
+      const d = Math.hypot(dx, dy) || 1e-3;
+      const f = ((d * d) / k) * (0.5 + e.strength / 100); // stronger edge → shorter spring
+      dx = (dx / d) * f; dy = (dy / d) * f;
+      disp[e.a].x -= dx; disp[e.a].y -= dy;
+      disp[e.b].x += dx; disp[e.b].y += dy;
+    }
+    for (let i = 0; i < n; i++) { disp[i].x += -p[i].x * 0.3; disp[i].y += -p[i].y * 0.3; } // gravity
+    for (let i = 0; i < n; i++) {
+      const dl = Math.hypot(disp[i].x, disp[i].y) || 1e-3;
+      p[i].x += (disp[i].x / dl) * Math.min(dl, temp);
+      p[i].y += (disp[i].y / dl) * Math.min(dl, temp);
+    }
+    temp *= 0.985;
+  }
+  return p;
+}
+
+// relationship graph — single circle for small rings, force-directed for large
 function Graph({ ring }: { ring: Ring }) {
   const n = ring.members.length;
   // adapt to member count so it stays legible as the ring grows
   const size = n <= 5 ? 50 : n <= 8 ? 42 : 34;
-  const r = n <= 5 ? 112 : n <= 8 ? 134 : 152;
   const W = 520;
-  const H = Math.max(340, Math.round(2 * r + size + 110));
-  const cx = W / 2, cy = H / 2;
   const labelW = Math.round(size * 2.6);
   const showChipText = n <= 8; // hide the "强度" word when dense, keep dots + number
-  const pos = ring.members.map((_, i) => {
-    const a = -Math.PI / 2 + (i * 2 * Math.PI) / n;
-    return { x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) };
-  });
+  const force = n >= 6; // small rings read best as a clean circle
+
+  const { pos, H } = useMemo(() => {
+    if (!force) {
+      const r = n <= 5 ? 112 : 134;
+      const Hc = Math.max(340, Math.round(2 * r + size + 110));
+      const cx = W / 2, cy = Hc / 2;
+      return {
+        H: Hc,
+        pos: ring.members.map((_, i) => {
+          const a = -Math.PI / 2 + (i * 2 * Math.PI) / n;
+          return { x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) };
+        }),
+      };
+    }
+    // force layout → fit unit-space bbox into the canvas with padding for labels
+    const u = forceLayout(n, ring.edges);
+    const xs = u.map((q) => q.x), ys = u.map((q) => q.y);
+    const minX = Math.min(...xs), maxX = Math.max(...xs);
+    const minY = Math.min(...ys), maxY = Math.max(...ys);
+    const bw = maxX - minX || 1, bh = maxY - minY || 1;
+    const padX = labelW / 2 + 10, padYTop = size / 2 + 14, padYBot = size / 2 + 30;
+    const innerW = W - 2 * padX;
+    const scale = Math.min(innerW / bw, 460 / bh); // cap height so very tall chains stay bounded
+    const cw = bw * scale, ch = bh * scale;
+    const Hc = Math.round(ch + padYTop + padYBot);
+    const offX = (W - cw) / 2, offY = padYTop;
+    return {
+      H: Hc,
+      pos: u.map((q) => ({ x: offX + (q.x - minX) * scale, y: offY + (q.y - minY) * scale })),
+    };
+  }, [ring, n, force, size, labelW]);
+
   const pc = (v: number, max: number) => `${(v / max) * 100}%`;
   return (
     <div className="relative mx-auto w-full" style={{ maxWidth: W, aspectRatio: `${W}/${H}` }}>
@@ -79,7 +146,7 @@ const ACTIONS = [...DISP, ...PROC];
 
 // 操作后影响 — what submitting each disposition does (shown after a choice is made)
 const IMPACT: Record<string, (r: Ring) => string> = {
-  case: (r) => `将本团伙 <b>${r.members.length}</b> 个主体与 <b>${r.alertCount}</b> 条关联告警按所选调查范围并入调查案件${r.caseRef ? `（并入 <b>${r.caseRef}</b>）` : "（无在办案件则新建）"}。后续 STR 起草、多笔关联调查在「案件管理」中进行 · 团伙状态转 <b>已聚案</b>。`,
+  case: (r) => `将本团伙 <b>${r.members.length}</b> 个主体与 <b>${r.alertCount}</b> 条关联告警按所选调查范围并入调查案件${r.caseRef ? `（并入 <b>${r.caseRef}</b>）` : `（新建 <b>${caseRefFor(r)}</b>）`}。后续 STR 起草、多笔关联调查在「案件管理」中进行 · 团伙状态转 <b>已聚案</b>。`,
   watch: (r) => `将所选对象（成员地址 / 商户主体 / 关联群组）批量写入风控名单，涉及 <b>${r.amount}</b> 资金敞口；后续同类交易将按名单规则自动加严或拦截 · 团伙状态转 <b>已列名单</b>。`,
   escalate: (r) => `升级至 MLRO 评估是否构成可疑活动、是否向 FINTRAC 报送 STR；<b>${r.typology}</b> 高风险，相关主体可触发资金冻结 · 团伙状态转 <b>已升级 MLRO</b>。`,
   fp: () => `判定为误聚 / 误报并关闭团伙；可同时降低误命中维度权重或将相关网络加入可信白名单，回流模型减少后续误聚 · 团伙状态转 <b>已关闭 · 误报</b>。`,
@@ -103,11 +170,13 @@ export default function RingDetail() {
   const sd = RING_STATES[state];
   const owner = ringStore.ownerOf(ring.id, ring.owner);
   const tone = confTone(ring.confidence);
+  const caseRef = ringStore.caseRefOf(ring.id, ring.caseRef);
   const claim = () => { ringStore.set(ring.id, "investigating", ME, "认领 · 进入调查中"); toast.success(`${ring.id} 已认领 · 进入调查中`); };
   const allowed = ringActions(state);
-  const prefer = ring.confidence >= 80 ? "case" : ring.confidence >= 60 ? "reqinfo" : "fp";
+  // smart default disposition for the current state + confidence (recomputed each time the drawer opens)
+  const defaultDisp = () => { const p = ring.confidence >= 80 ? "case" : ring.confidence >= 60 ? "reqinfo" : "fp"; return allowed.includes(p) ? p : allowed[0] ?? "fp"; };
   const [open, setOpen] = useState(false);
-  const [disp, setDisp] = useState<string>(allowed.includes(prefer) ? prefer : allowed[0] ?? "fp");
+  const [disp, setDisp] = useState<string>(defaultDisp());
   const [note, setNote] = useState("");
   const [fieldVals, setFieldVals] = useState<Record<string, string[]>>({});
   const [errs, setErrs] = useState<Set<string>>(new Set());
@@ -122,6 +191,11 @@ export default function RingDetail() {
     { time: "当前", text: `${sd.label}${owner ? ` · ${owner.n}` : ""}`, done: !sd.active },
   ];
 
+  // open the disposition drawer, selecting `preset` if it's allowed else the smart default
+  const openDisp = (preset?: string) => { setDisp(preset && allowed.includes(preset) ? preset : defaultDisp()); setFieldVals({}); setErrs(new Set()); setOpen(true); };
+  // deep-link from the list ("并入案件" shortcut) → open drawer pre-selected to that disposition
+  const action = sp.get("action");
+  useEffect(() => { if (action && allowed.includes(action)) openDisp(action); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [action]);
   const pickDisp = (k: string) => { setDisp(k); setFieldVals({}); setErrs(new Set()); };
   const toggleField = (k: string, val: string, multi: boolean) => setFieldVals((p) => {
     const cur = p[k] || [];
@@ -136,8 +210,9 @@ export default function RingDetail() {
     setErrs(e);
     if (e.size) { toast.error("请补全所需信息"); return; }
     const d = ACTIONS.find((x) => x.k === disp);
-    ringStore.set(ring.id, DISP_STATE[disp], undefined, d?.label ?? "提交研判");
-    toast.success(`${ring.id} · ${d?.msg ?? "已提交研判"}`);
+    const newCaseRef = disp === "case" ? caseRefFor(ring) : undefined;
+    ringStore.set(ring.id, DISP_STATE[disp], undefined, `${d?.label ?? "提交研判"}${newCaseRef ? ` · ${newCaseRef}` : ""}`, newCaseRef);
+    toast.success(`${ring.id} · ${d?.msg ?? "已提交研判"}${newCaseRef ? ` · ${newCaseRef}` : ""}`);
     setOpen(false);
   };
 
@@ -152,7 +227,7 @@ export default function RingDetail() {
             {ring.name}
             <Pill tone={ring.risk} dot={false}>{ring.typology}</Pill>
             <Pill tone={tone}>{confLabel(ring.confidence)} {ring.confidence}%</Pill>
-            <Pill tone={sd.tone}>{sd.label}{ring.caseRef ? ` · ${ring.caseRef}` : ""}</Pill>
+            <Pill tone={sd.tone}>{sd.label}{caseRef ? ` · ${caseRef}` : ""}</Pill>
           </h1>
           <div className="mt-2.5 text-[13px] text-default-500">
             {ring.id} · {ring.members.length} 个主体 · 关联告警 <b className="text-foreground">{ring.alertCount}</b> 条 · 涉及 <b className="text-foreground">{ring.amount}</b> · {ring.span}
@@ -164,7 +239,7 @@ export default function RingDetail() {
           <RingBasis ring={ring} />
           {state === "pending" && <Button size="sm" variant="bordered" startContent={<UserPlus className="h-4 w-4" />} onPress={claim}>认领</Button>}
           <Button size="sm" variant="bordered" startContent={<FileDown className="h-4 w-4" />} onPress={() => toast.success("团伙研判报告已导出")}>导出报告</Button>
-          {allowed.length > 0 && <Button size="sm" color="primary" startContent={<ClipboardCheck className="h-4 w-4" />} onPress={() => setOpen(true)}>研判处置</Button>}
+          {allowed.length > 0 && <Button size="sm" color="primary" startContent={<ClipboardCheck className="h-4 w-4" />} onPress={() => openDisp()}>研判处置</Button>}
         </div>
       </div>
 

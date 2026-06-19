@@ -179,7 +179,7 @@ export const alerts: Alert[] = [
     checklist: [["确认地址标签为交易所", true], ["金额在自动放行区间", true], ["建议加入白名单", false]],
   },
   {
-    id: "ALT-50205", state: "progress", order: "WD-20260312-077", sev: "mid", score: 58, level: "Elevated", type: "提现",
+    id: "ALT-50205", state: "new", order: "WD-20260312-077", sev: "mid", score: 58, level: "Elevated", type: "提现",
     title: "快进快出钱包", ruleShort: "快进快出钱包", ago: "今日 05:12", submitted: "2026-03-12 05:12:18",
     sla: { text: "剩 20h", pct: 35, color: "blue" }, assignee: { i: "ML", n: "Mike Lin", c: "var(--success)" },
     amount: "CAD 4,500.00", asset: "4,490 USDT", network: "TRC-20",
@@ -204,6 +204,10 @@ export const alerts: Alert[] = [
     checklist: [["核查入金/转出时间线", true], ["要求业务实质说明", false], ["评估是否过账行为", false]],
   },
 ];
+
+// lane split: gate states live in 事中监控 (real-time), investigation states in 告警研判
+export const GATE_STATES = ["new", "pending"];
+export const INVESTIGATION_STATES = ["progress", "pending_l2", "escalated"];
 
 export interface StateDef { label: string; cls: Tone; bucket: string; active: boolean }
 export const RC_STATES: Record<string, StateDef> = {
@@ -233,12 +237,23 @@ export const PROC = [
   { k: "reqinfo", label: "请求信息" },
   { k: "l2", label: "升级至L2" },
 ];
+// 事中闸口处置集(放行决策)—— 与调查处置集区分;gate 状态走这套
+export const GATE_DISP = [
+  { k: "release", label: "放行" },
+  { k: "reject", label: "拒绝" },
+];
+export const GATE_PROC = [
+  { k: "reqinfo", label: "补料" },
+  { k: "transfer", label: "转研判" },
+];
 export const REASONS: Record<string, string[]> = {
   release: ["证据充分，链上溯源风险可控", "商户补充材料已核实", "与历史交易模式一致", "信号为低风险，无需上报", "误报 · 规则需调优", "其他（见研判依据）"],
   case: ["需多笔交易关联调查", "商户主体存在结构性风险", "链上资金路径需深挖", "疑似分层洗钱 / 结构化拆分", "链上溯源触及制裁实体", "其他（见研判依据）"],
   watch: ["对手地址加入黑名单", "商户加入加强监控名单", "对手地址加入关注名单", "关联群组加入观察名单", "其他（见研判依据）"],
   reqinfo: ["要求补充 KYB / KYC 资料", "要求提供资金来源证明", "要求说明交易用途", "要求补充收款方关系证明", "其他（见研判依据）"],
   l2: ["风险超 L1 处置权限", "需高级别复核确认", "处置存在分歧，需二级研判", "其他（见研判依据）"],
+  reject: ["制裁 / 名单命中", "链上溯源风险过高", "商户无法说明资金用途", "超出可放行风险阈值", "其他（见研判依据）"],
+  transfer: ["链上溯源需深查", "疑似分层 / 结构化拆分", "需多笔关联调查", "商户主体存在结构性风险", "制裁 / 名单疑似命中需复核", "超出事中处置权限", "其他（见研判依据）"],
 };
 export const IMPACT: Record<string, (a: Alert) => string> = {
   release: (a) => `结案放行后本告警关闭，关联在途订单 <b>${a.order}</b> 解除风控标记 — 实际${a.type === "提现" ? "出金" : "入账"}由「事中监控」闸口执行。记入审计日志，供 L2 / 合规复核。`,
@@ -246,6 +261,8 @@ export const IMPACT: Record<string, (a: Alert) => string> = {
   watch: () => `对手地址 / 商户写入风控名单，后续同类交易将按名单规则自动处置；本告警据此结案。`,
   reqinfo: () => `向商户发起补充材料请求，告警转「待补充材料」，SLA 计时暂停；资料回补后重新进入研判。`,
   l2: () => `移交 L2 高级审核员复核，告警转「待 L2 复核」；L1 处置建议与依据一并提交，由 L2 作出最终结论。`,
+  reject: (a) => `拒绝本笔，关联在途订单 <b>${a.order}</b> 资金<b>原路退回</b>；本警报据此结案并记入处置记录。`,
+  transfer: (a) => `本笔<b>离开实时闸口</b>，转入<b>告警研判</b>由风控深度调查（可进一步转合规上报 STR）；关联订单 <b>${a.order}</b> 资金维持暂缓。`,
 };
 export const ITONE: Record<string, Tone> = { release: "green", case: "violet", watch: "amber", reqinfo: "blue", l2: "violet" };
 
@@ -277,6 +294,8 @@ export const SUBMIT: Record<string, { state: string; label: string }> = {
   watch: { state: "closed_done", label: "加入监控名单" },
   reqinfo: { state: "pending", label: "请求补充信息" },
   l2: { state: "pending_l2", label: "升级至 L2 复核" },
+  reject: { state: "closed_case", label: "拒绝 · 资金退回" },
+  transfer: { state: "progress", label: "转研判 · 移交告警研判" },
 };
 export function aiRec(a: Alert): { k: string; conf: number } {
   if (a.sanctions.status === "直接命中") return { k: "case", conf: 97 };

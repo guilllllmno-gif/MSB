@@ -9,9 +9,14 @@ const AlertList = lazy(() => import("@/pages/AlertList"));
 const AlertDetail = lazy(() => import("@/pages/AlertDetail"));
 const RingList = lazy(() => import("@/pages/RingList"));
 const RingDetail = lazy(() => import("@/pages/RingDetail"));
+const Dashboard = lazy(() => import("@/pages/Dashboard"));
+const Monitoring = lazy(() => import("@/pages/Monitoring"));
+const PostMonitoring = lazy(() => import("@/pages/PostMonitoring"));
+const PostDetail = lazy(() => import("@/pages/PostDetail"));
+const Dispositions = lazy(() => import("@/pages/Dispositions"));
 const Placeholder = lazy(() => import("@/pages/Placeholder"));
 
-const STUBS = ["/dashboard", "/monitoring", "/rules", "/strategy", "/lists", "/cases", "/reports", "/audit"];
+const STUBS = ["/rules", "/strategy", "/lists", "/cases", "/reports", "/audit"];
 
 export default function App() {
   return (
@@ -20,7 +25,12 @@ export default function App() {
       <HeroUIProvider>
         <Suspense fallback={<div className="flex h-screen items-center justify-center bg-[var(--page)]"><Spinner color="primary" /></div>}>
           <Routes>
-            <Route path="/" element={<Navigate to="/alerts" replace />} />
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/monitoring" element={<Monitoring />} />
+            <Route path="/post-monitoring" element={<PostMonitoring />} />
+            <Route path="/finding" element={<PostDetail />} />
+            <Route path="/dispositions" element={<Dispositions />} />
             <Route path="/alerts" element={<AlertList />} />
             <Route path="/alert" element={<AlertDetail />} />
             <Route path="/rings" element={<RingList />} />

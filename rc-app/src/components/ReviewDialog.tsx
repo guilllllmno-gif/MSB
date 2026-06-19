@@ -1,14 +1,14 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Drawer, DrawerContent, DrawerHeader, DrawerBody, DrawerFooter, Button, Select, SelectItem, Textarea, Checkbox } from "@heroui/react";
-import { Check, FolderOpen, Shield, FileQuestion, ArrowUpCircle } from "lucide-react";
+import { Check, FolderOpen, Shield, FileQuestion, ArrowUpCircle, Ban, Send } from "lucide-react";
 import { Initials, SectionLabel } from "./bits";
-import { alerts, RC_STATES, DISP, PROC, REASONS, IMPACT, FIELDS, SUBMIT, aiRec } from "@/lib/data";
+import { alerts, RC_STATES, GATE_STATES, DISP, PROC, GATE_DISP, GATE_PROC, REASONS, IMPACT, FIELDS, SUBMIT, aiRec } from "@/lib/data";
 import { alertStore } from "@/lib/store";
 
 const L1 = { i: "JL", n: "James Liu", c: "var(--brand)" };
-const DISP_ICON: Record<string, typeof Check> = { release: Check, case: FolderOpen, watch: Shield };
-const PROC_ICON: Record<string, typeof Check> = { reqinfo: FileQuestion, l2: ArrowUpCircle };
+const DISP_ICON: Record<string, typeof Check> = { release: Check, case: FolderOpen, watch: Shield, reject: Ban };
+const PROC_ICON: Record<string, typeof Check> = { reqinfo: FileQuestion, l2: ArrowUpCircle, transfer: Send };
 
 // clean selection styles — a single primary accent, neutral otherwise
 const onStyle = { borderColor: "var(--brand)", background: "var(--brand-soft)", color: "var(--brand)" };
@@ -25,10 +25,14 @@ export function ReviewDialog({ alertId, open, onOpenChange, onDone }: { alertId:
 
   const state = a ? alertStore.stateOf(a.id, a.state) : "new";
   const active = a ? RC_STATES[state].active : false;
+  const gate = GATE_STATES.includes(state); // 事中闸口车道 → 放行/拒绝/补料/转研判
+  const DISP_SET = gate ? GATE_DISP : DISP;
+  const PROC_SET = gate ? GATE_PROC : PROC;
   const choice = disp || proc;
 
   useEffect(() => {
-    if (open && a) { setDisp(active ? aiRec(a).k : null); setProc(null); setReason(""); setBasis(""); setFieldVals({}); setErrs(new Set()); }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (open && a) { setDisp(active ? (gate ? "release" : aiRec(a).k) : null); setProc(null); setReason(""); setBasis(""); setFieldVals({}); setErrs(new Set()); }
   }, [open, alertId]); // eslint-disable-line
 
   if (!a) return null;
@@ -57,19 +61,19 @@ export function ReviewDialog({ alertId, open, onOpenChange, onDone }: { alertId:
     <Drawer isOpen={open} onOpenChange={onOpenChange} placement="right" size="md" classNames={{ base: "!w-[50vw] !min-w-[460px] !max-w-[820px]" }}>
       <DrawerContent>
         <DrawerHeader className="flex-col items-start gap-0.5 border-b border-divider">
-          <span className="text-[15px] font-bold">告警研判 · 处置结论</span>
+          <span className="text-[15px] font-bold">{gate ? "事中处置 · 放行决策" : "告警研判 · 处置结论"}</span>
           <span className="text-[11.5px] font-normal text-default-400">{a.id} · {a.merchant}</span>
         </DrawerHeader>
         <DrawerBody className="gap-4 py-4">
-          <div className="flex items-center gap-2.5 text-[13px] font-semibold"><Initials p={L1} size={26} />{L1.n} 研判操作<span className="ml-auto rounded-full bg-default-100 px-2 py-0.5 text-[11px] font-semibold text-default-500">L1 调查</span></div>
+          <div className="flex items-center gap-2.5 text-[13px] font-semibold"><Initials p={L1} size={26} />{L1.n} {gate ? "审批操作" : "研判操作"}<span className="ml-auto rounded-full bg-default-100 px-2 py-0.5 text-[11px] font-semibold text-default-500">{gate ? "L1 · 事中闸口" : "L1 调查"}</span></div>
 
           {!active ? (
             <div className="rounded-xl border border-divider bg-default-50 p-3 text-[12.5px] text-default-500">本告警已关闭 · <b>{RC_STATES[state].label.replace("已结 · ", "")}</b>。如需变更请重新打开。</div>
           ) : (
             <>
-              <div><SectionLabel>处置结论</SectionLabel>
-                <div className="grid grid-cols-3 gap-2">
-                  {DISP.map((d) => { const Icon = DISP_ICON[d.k]; const on = disp === d.k; return (
+              <div><SectionLabel>{gate ? "放行决策" : "处置结论"}</SectionLabel>
+                <div className={`grid gap-2 ${gate ? "grid-cols-2" : "grid-cols-3"}`}>
+                  {DISP_SET.map((d) => { const Icon = DISP_ICON[d.k]; const on = disp === d.k; return (
                     <button key={d.k} onClick={() => { setDisp(on ? null : d.k); setProc(null); }} className="flex flex-col items-center gap-1.5 rounded-xl border-[1.5px] px-1.5 py-3 text-[12.5px] font-semibold transition-colors"
                       style={on ? onStyle : offStyle}>
                       <Icon className="h-[18px] w-[18px]" />{d.label}</button>
@@ -78,7 +82,7 @@ export function ReviewDialog({ alertId, open, onOpenChange, onDone }: { alertId:
               </div>
               <div><SectionLabel>流程操作</SectionLabel>
                 <div className="grid grid-cols-2 gap-2">
-                  {PROC.map((p) => { const Icon = PROC_ICON[p.k]; const on = proc === p.k; return (
+                  {PROC_SET.map((p) => { const Icon = PROC_ICON[p.k]; const on = proc === p.k; return (
                     <button key={p.k} onClick={() => { setProc(on ? null : p.k); setDisp(null); }} className="flex flex-col items-center gap-1.5 rounded-xl border px-1.5 py-2.5 text-[12px] font-medium transition-colors"
                       style={on ? onStyle : offStyle}>
                       <Icon className="h-4 w-4" />{p.label}</button>
@@ -93,7 +97,7 @@ export function ReviewDialog({ alertId, open, onOpenChange, onDone }: { alertId:
               )}
 
               {choice && (
-                <Select size="sm" label={`${DISP.concat(PROC).find((x) => x.k === choice)?.label} · 原因`} labelPlacement="outside" placeholder="请选择…" isRequired aria-label="原因"
+                <Select size="sm" label={`${DISP_SET.concat(PROC_SET).find((x) => x.k === choice)?.label} · 原因`} labelPlacement="outside" placeholder="请选择…" isRequired aria-label="原因"
                   selectedKeys={reason ? [reason] : []} isInvalid={errs.has("reason")}
                   onSelectionChange={(keys) => setReason(Array.from(keys as Set<string>)[0] ?? "")}>
                   {(REASONS[choice] || []).map((r) => <SelectItem key={r}>{r}</SelectItem>)}

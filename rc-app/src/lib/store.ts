@@ -31,7 +31,7 @@ export function useAlertVersion() {
 }
 
 // ── ring (团伙) state store ──
-const ringData: Record<string, { state?: string; owner?: Person | null; events?: { t: string; text: string }[] }> = {};
+const ringData: Record<string, { state?: string; owner?: Person | null; caseRef?: string; events?: { t: string; text: string }[] }> = {};
 let ringCreated: Ring[] = [];
 let ringVersion = 0;
 const ringListeners = new Set<() => void>();
@@ -43,11 +43,13 @@ export const ringStore = {
   created() { return ringCreated; },
   stateOf(id: string, base: string) { return ringData[id]?.state || base; },
   ownerOf(id: string, base: Person | null | undefined) { const o = ringData[id]; return o && o.owner !== undefined ? o.owner : base ?? null; },
+  caseRefOf(id: string, base?: string) { return ringData[id]?.caseRef ?? base; },
   eventsOf(id: string) { return ringData[id]?.events || []; },
-  set(id: string, state: string, owner?: Person | null, event?: string) {
+  set(id: string, state: string, owner?: Person | null, event?: string, caseRef?: string) {
     const cur = ringData[id] || {};
     cur.state = state;
     if (owner !== undefined) cur.owner = owner;
+    if (caseRef !== undefined) cur.caseRef = caseRef;
     if (event) cur.events = [...(cur.events || []), { t: now(), text: event }];
     ringData[id] = cur;
     ringNotify();
@@ -57,4 +59,42 @@ export const ringStore = {
 
 export function useRingVersion() {
   return useSyncExternalStore(ringStore.subscribe, ringStore.getVersion, ringStore.getVersion);
+}
+
+// ── 事后监控命中(finding)状态store ──
+const findingData: Record<string, { status?: string; owner?: Person | null; trace?: string; backfill?: boolean; frozen?: boolean; lossReported?: boolean; restricted?: boolean; listed?: boolean; events?: { t: string; text: string }[] }> = {};
+let findingVersion = 0;
+const findingListeners = new Set<() => void>();
+const findingNotify = () => { findingVersion++; findingListeners.forEach((l) => l()); };
+
+export const findingStore = {
+  subscribe(cb: () => void) { findingListeners.add(cb); return () => { findingListeners.delete(cb); }; },
+  getVersion() { return findingVersion; },
+  statusOf(id: string, base: string) { return findingData[id]?.status || base; },
+  ownerOf(id: string, base: Person | null) { const o = findingData[id]; return o && o.owner !== undefined ? o.owner : base; },
+  traceOf(id: string, base?: string) { const o = findingData[id]; return o && o.trace !== undefined ? o.trace : base; },
+  backfillOf(id: string, base?: boolean) { const o = findingData[id]; return o && o.backfill !== undefined ? o.backfill : base; },
+  frozenOf(id: string) { return !!findingData[id]?.frozen; },
+  lossOf(id: string) { return !!findingData[id]?.lossReported; },
+  restrictedOf(id: string) { return !!findingData[id]?.restricted; },
+  listedOf(id: string) { return !!findingData[id]?.listed; },
+  eventsOf(id: string) { return findingData[id]?.events || []; },
+  set(id: string, opts: { status?: string; owner?: Person | null; trace?: string; backfill?: boolean; frozen?: boolean; lossReported?: boolean; restricted?: boolean; listed?: boolean; event?: string }) {
+    const cur = findingData[id] || {};
+    if (opts.status !== undefined) cur.status = opts.status;
+    if (opts.owner !== undefined) cur.owner = opts.owner;
+    if (opts.trace !== undefined) cur.trace = opts.trace;
+    if (opts.backfill !== undefined) cur.backfill = opts.backfill;
+    if (opts.frozen !== undefined) cur.frozen = opts.frozen;
+    if (opts.lossReported !== undefined) cur.lossReported = opts.lossReported;
+    if (opts.restricted !== undefined) cur.restricted = opts.restricted;
+    if (opts.listed !== undefined) cur.listed = opts.listed;
+    if (opts.event) cur.events = [...(cur.events || []), { t: now(), text: opts.event }];
+    findingData[id] = cur;
+    findingNotify();
+  },
+};
+
+export function useFindingVersion() {
+  return useSyncExternalStore(findingStore.subscribe, findingStore.getVersion, findingStore.getVersion);
 }

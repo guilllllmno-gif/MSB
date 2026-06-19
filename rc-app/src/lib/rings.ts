@@ -251,6 +251,50 @@ export const rings: Ring[] = [
     recommendation: "6 地址群组向 RapidPay 拆分入金、经归集与中转后分发至 4 个出口钱包，且与 QuickWallet 共享设备群——典型众包养卡 / 结构化拆分网络。建议并入案件，对群组 #C2 全部地址批量列名单，对两商户加严入金阈值。",
     hubNote: "已剔除超级节点：交易所充值热钱包（网络内高频公共节点，不计入聚类）",
   },
+  {
+    id: "RING-2026-082", name: "跨境分层归集网络", typology: "分层洗钱", typologyEn: "Cross-border layering",
+    confidence: 88, risk: "red",
+    shared: [
+      { dim: "funds", count: 12, contrib: 40 },
+      { dim: "address", count: 7, contrib: 30 },
+      { dim: "device", count: 4, contrib: 14 },
+      { dim: "ip", count: 3, contrib: 4 },
+    ],
+    members: [
+      { id: "M1", name: "GlobalRemit Ltd.", sub: "商户 · 美国", kind: "商户", i: "GR", c: "var(--brand)", alerts: 4, role: "归集入金商户" },
+      { id: "M2", name: "拆分群组 #B1", sub: "5 个拆分地址", kind: "群组", i: "B1", c: "var(--warning)", alerts: 2, role: "拆分源" },
+      { id: "M3", name: "拆分群组 #B2", sub: "4 个拆分地址", kind: "群组", i: "B2", c: "var(--warning)", alerts: 2, role: "拆分源" },
+      { id: "M4", name: "拆分群组 #B3", sub: "3 个拆分地址", kind: "群组", i: "B3", c: "var(--warning)", alerts: 1, role: "拆分源" },
+      { id: "M5", name: "0x9Df2…A4c0", sub: "归集地址", kind: "地址", i: "0x", c: "var(--violet)", alerts: 2, role: "归集源" },
+      { id: "M6", name: "中转钱包 ×2", sub: "2 个中转地址", kind: "群组", i: "⛓", c: "var(--success)", alerts: 1, role: "中转层" },
+      { id: "M7", name: "中转钱包 ×3", sub: "3 个中转地址", kind: "群组", i: "⛓", c: "var(--success)", alerts: 1, role: "中转层" },
+      { id: "M8", name: "出口地址 ×3", sub: "3 个出口钱包", kind: "群组", i: "✦", c: "#0ea5e9", alerts: 1, role: "资金出口" },
+      { id: "M9", name: "出口地址 ×2", sub: "2 个出口钱包", kind: "群组", i: "✦", c: "#0ea5e9", alerts: 1, role: "资金出口" },
+      { id: "M10", name: "HavenPay Inc.", sub: "商户 · 离岸", kind: "商户", i: "HP", c: "var(--danger)", alerts: 2, role: "出金商户" },
+      { id: "M11", name: "设备群 DV-9", sub: "4 个共享设备指纹", kind: "群组", i: "DV", c: "var(--text-2)", alerts: 1, role: "共享设备" },
+      { id: "M12", name: "SwiftNode Corp.", sub: "商户 · 加拿大", kind: "商户", i: "SN", c: "var(--brand)", alerts: 1, role: "关联商户" },
+    ],
+    edges: [
+      { a: 1, b: 0, dims: ["funds", "address"], strength: 58, note: "群组 #B1 向 GlobalRemit 拆分入金 + 地址复用" },
+      { a: 2, b: 0, dims: ["funds"], strength: 52, note: "群组 #B2 相近金额拆分入金" },
+      { a: 3, b: 0, dims: ["funds", "address"], strength: 49, note: "群组 #B3 拆分入金 + 共享收款地址" },
+      { a: 0, b: 4, dims: ["funds", "address"], strength: 60, note: "入金集中归集至 0x9Df2 + 复用归集地址" },
+      { a: 4, b: 5, dims: ["funds"], strength: 46, note: "归集后经中转钱包 ×2 过账" },
+      { a: 4, b: 6, dims: ["funds", "address"], strength: 44, note: "归集后经中转钱包 ×3 过账 + 地址复用" },
+      { a: 5, b: 7, dims: ["funds"], strength: 40, note: "中转后分发至出口地址 ×3" },
+      { a: 6, b: 8, dims: ["funds"], strength: 38, note: "中转后分发至出口地址 ×2" },
+      { a: 7, b: 9, dims: ["funds", "address"], strength: 34, note: "出口资金注入 HavenPay 托管钱包" },
+      { a: 8, b: 9, dims: ["funds"], strength: 30, note: "出口资金注入 HavenPay" },
+      { a: 1, b: 10, dims: ["device", "ip"], strength: 28, note: "群组 #B1 与设备群 DV-9 共享设备 / 出口 IP" },
+      { a: 2, b: 10, dims: ["device"], strength: 26, note: "群组 #B2 复用设备群指纹" },
+      { a: 3, b: 10, dims: ["device", "ip"], strength: 24, note: "群组 #B3 共享设备 / IP" },
+      { a: 0, b: 11, dims: ["device", "ip"], strength: 22, note: "GlobalRemit 与 SwiftNode 共享设备 / 出口 IP" },
+    ],
+    amount: "CAD 128,400", alertCount: 12, span: "近 21 天",
+    state: "investigating", owner: { i: "SC", n: "Sarah Chen", c: "var(--brand)" }, sla: { text: "剩 9h", pct: 82, tone: "amber" },
+    recommendation: "三个拆分群组向 GlobalRemit 集中拆分入金，经归集地址与两层中转钱包过账后分发至 5 个出口钱包，最终注入离岸 HavenPay——典型跨境分层归集网络，且拆分源与 SwiftNode 共享设备群。建议并入案件统一调查，对全部拆分 / 出口地址批量列名单，对 GlobalRemit、HavenPay 加严入金阈值并升级 MLRO 评估 STR。",
+    hubNote: "已剔除超级节点：跨链桥接合约地址（网络内 9+ 主体共用，区分度低，不计入聚类）",
+  },
 ];
 
 // per-disposition form fields for the 研判处置 drawer
@@ -311,5 +355,7 @@ export function buildRing(input: { name: string; typology: string; members: Ring
 }
 
 export const ringOf = (id?: string) => rings.find((r) => r.id === id) || rings[0];
+// case reference for a ring once it is merged into a case — reuse an existing one or derive from the ring id
+export const caseRefFor = (r: Ring) => r.caseRef ?? r.id.replace(/^RING-/, "CASE-");
 // rings a given merchant participates in (for alert-detail integration)
 export const ringsForMerchant = (merchant: string) => rings.filter((r) => r.members.some((m) => m.name.includes(merchant.split(" ")[0])));

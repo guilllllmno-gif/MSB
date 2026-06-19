@@ -102,14 +102,14 @@ export default function RingList() {
                 </TableCell>
                 <TableCell><span className="font-semibold tnum">{r.amount}</span></TableCell>
                 <TableCell><span className="text-default-600 tnum">{r.alertCount} 条</span></TableCell>
-                <TableCell><Pill tone={sd.tone}>{sd.label}{r.caseRef ? ` · ${r.caseRef}` : ""}</Pill></TableCell>
+                <TableCell><Pill tone={sd.tone}>{sd.label}{ringStore.caseRefOf(r.id, r.caseRef) ? ` · ${ringStore.caseRefOf(r.id, r.caseRef)}` : ""}</Pill></TableCell>
                 <TableCell>{owner ? <span className="inline-flex items-center gap-1.5"><Initials p={owner} size={22} />{owner.n}</span> : <span className="inline-flex items-center gap-1.5 text-default-400"><UserRound className="h-3.5 w-3.5" />未分配</span>}</TableCell>
                 <TableCell>{r.sla ? <span className="inline-flex items-center gap-1 text-default-500"><Clock className="h-3.5 w-3.5" />{r.sla.text}</span> : <span className="text-default-300">无时限</span>}</TableCell>
                 <TableCell>
                   <div className="flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
                     {st === "pending" && <Tooltip content="认领 · 转调查中" size="sm" delay={300}><Button isIconOnly size="sm" radius="full" variant="flat" className="bg-default-100" onPress={() => claim(r)}><UserPlus className="h-4 w-4 text-default-500" strokeWidth={1.9} /></Button></Tooltip>}
                     <Tooltip content="查看图谱" size="sm" delay={300}><Button isIconOnly size="sm" radius="full" variant="flat" className="bg-default-100" onPress={() => nav(`/ring?id=${r.id}`)}><Eye className="h-4 w-4 text-default-500" strokeWidth={1.9} /></Button></Tooltip>
-                    {ringActions(st).includes("case") && <Tooltip content="并入案件" size="sm" delay={300}><Button isIconOnly size="sm" radius="full" variant="flat" className="bg-primary/10 text-primary" onPress={() => { ringStore.set(r.id, "cased", undefined, "并入调查案件"); toast.success(`${r.id} 已并入调查案件`); }}><FolderPlus className="h-4 w-4" strokeWidth={1.9} /></Button></Tooltip>}
+                    {ringActions(st).includes("case") && <Tooltip content="并入案件 · 填写处置" size="sm" delay={300}><Button isIconOnly size="sm" radius="full" variant="flat" className="bg-primary/10 text-primary" onPress={() => nav(`/ring?id=${r.id}&action=case`)}><FolderPlus className="h-4 w-4" strokeWidth={1.9} /></Button></Tooltip>}
                   </div>
                 </TableCell>
               </TableRow>
