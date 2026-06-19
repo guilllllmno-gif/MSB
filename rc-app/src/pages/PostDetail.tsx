@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { Button, Select, SelectItem } from "@heroui/react";
-import { ArrowLeft, RefreshCw, Coins, Snowflake, AlertTriangle, ArrowUpRight, ArrowRight, UserX, ShieldPlus, UserPlus, ClipboardCheck, Lightbulb } from "lucide-react";
+import { ArrowLeft, RefreshCw, Coins, Snowflake, AlertTriangle, ArrowUpRight, ArrowRight, UserX, ShieldPlus, UserPlus, ClipboardCheck, Lightbulb, ArrowDownToLine, GitMerge, ArrowLeftRight, Shuffle, Waypoints, CircleOff } from "lucide-react";
 import { Shell } from "@/components/Shell";
 import { Pill } from "@/components/bits";
 import { FindingReviewDialog } from "@/components/FindingReviewDialog";
@@ -11,6 +11,9 @@ import { findingStore, useFindingVersion } from "@/lib/store";
 
 const ME = { i: "JL", n: "James Liu", c: "var(--brand)" };
 const tc = (t: string) => (t === "red" ? "var(--danger)" : t === "amber" ? "var(--warning)" : t === "green" ? "var(--success)" : t === "violet" ? "var(--violet)" : t === "blue" ? "var(--brand)" : "var(--text-3)");
+const tbg = (t: string) => (t === "red" ? "var(--danger-bg)" : t === "amber" ? "var(--warning-bg)" : t === "green" ? "var(--success-bg)" : t === "violet" ? "var(--violet-bg)" : t === "blue" ? "var(--brand-soft)" : "var(--chip-bg)");
+// 资金路径节点角色 → 图标
+const ROLE_ICON: Record<string, typeof Coins> = { 来源: ArrowDownToLine, 归集: GitMerge, 中转: ArrowLeftRight, 混淆: Shuffle, 跨链: Waypoints, 出口: ArrowUpRight, 失联: CircleOff };
 
 function Kv({ label, children }: { label: string; children: React.ReactNode }) {
   return <div className="flex items-baseline justify-between gap-3 border-b border-dashed border-default-200 py-2 text-[12.5px] last:border-0"><span className="text-default-500">{label}</span><span className="text-right font-semibold">{children}</span></div>;
@@ -173,17 +176,33 @@ export default function PostDetail() {
             </div>
           )}
 
-          {/* 资金路径 */}
+          {/* 资金路径 — 逐跳流向(按 typology 自适应,仅扇入 / 链跳类有) */}
           {d?.path && (
             <div className="card p-5">
-              <div className="mb-3 text-[11px] font-bold uppercase tracking-wider text-default-400">资金路径</div>
-              <div className="flex flex-wrap items-center gap-1.5">
-                {d.path.map((p, i) => (
-                  <span key={i} className="flex items-center gap-1.5">
-                    <span className="rounded-lg border px-2.5 py-1 text-[12px] font-semibold" style={{ borderColor: tc(p[1]), color: tc(p[1]) }}>{p[0]}</span>
-                    {i < d.path!.length - 1 && <ArrowRight className="h-4 w-4 text-default-300" />}
-                  </span>
-                ))}
+              <div className="mb-1 text-[11px] font-bold uppercase tracking-wider text-default-400">资金路径</div>
+              <p className="mb-4 text-[11.5px] leading-relaxed text-default-400">资金逐跳流向:来源 → 归集 / 混淆 → 出口。越靠右越接近出金 / 失联,节点颜色越深风险越高。</p>
+              <div className="flex items-start gap-1 overflow-x-auto no-scrollbar pb-1">
+                {d.path.map((n, i) => {
+                  const RIcon = ROLE_ICON[n.role] || Coins;
+                  const last = i === d.path!.length - 1;
+                  const nextTone = last ? n.tone : d.path![i + 1].tone;
+                  return (
+                    <div key={i} className="flex items-start">
+                      <div className="flex w-[108px] shrink-0 flex-col items-center text-center">
+                        <span className="flex h-11 w-11 items-center justify-center rounded-2xl border-[1.5px]" style={{ borderColor: tc(n.tone), background: tbg(n.tone), color: tc(n.tone) }}><RIcon className="h-5 w-5" /></span>
+                        <span className="mt-1.5 rounded-full px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider" style={{ background: tbg(n.tone), color: tc(n.tone) }}>{n.role}</span>
+                        <span className="mt-1 text-[12px] font-semibold leading-tight">{n.label}</span>
+                        {n.meta && <span className="mt-0.5 text-[10.5px] leading-tight text-default-400">{n.meta}</span>}
+                      </div>
+                      {!last && (
+                        <div className="flex h-11 w-9 shrink-0 items-center justify-center gap-0.5">
+                          <span className="h-[2px] flex-1 rounded-full" style={{ background: tc(nextTone), opacity: 0.45 }} />
+                          <ArrowRight className="h-4 w-4 shrink-0" style={{ color: tc(nextTone) }} />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}

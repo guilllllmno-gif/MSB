@@ -71,7 +71,9 @@ export const findingOf = (id?: string) => FINDINGS.find((f) => f.id === id) || F
 // 命中详情证据(供详情页审研判 / 给结论)
 export interface TxRow { t: string; party: string; amount: string; note: string }
 export interface Factor { emoji: string; title: string; desc: string; tone: Tone }
-export interface Detail { factors: Factor[]; profile: { country: string; kyc: string; registered: string; history: string }; txList: TxRow[]; gap: string; rec: string; path?: [string, Tone][] }
+// 资金路径节点:角色(来源/归集/中转/混淆/跨链/出口/失联)+ 风险色 + 每跳金额/说明
+export interface PathNode { label: string; role: string; tone: Tone; meta?: string }
+export interface Detail { factors: Factor[]; profile: { country: string; kyc: string; registered: string; history: string }; txList: TxRow[]; gap: string; rec: string; path?: PathNode[] }
 export const DETAIL: Record<string, Detail> = {
   "PM-2026-031": {
     factors: [
@@ -103,7 +105,12 @@ export const DETAIL: Record<string, Detail> = {
     ],
     gap: "事中按单商户单笔评估,看不到「多商户 → 同一地址」的跨主体归集关系;扇入只有图聚类/跨账户维度才显形。",
     rec: "确认分层归集网络,转案件 + 并入团伙;回填「多主体扇入同一地址」图关系规则。",
-    path: [["6 商户", "amber"], ["归集 0x9Df2", "red"], ["中转 ×2", "amber"], ["出口 ×3", "grey"]],
+    path: [
+      { label: "6 商户账户", role: "来源", tone: "amber", meta: "分散入金" },
+      { label: "归集 0x9Df2", role: "归集", tone: "red", meta: "CAD 86,400" },
+      { label: "中转钱包 ×2", role: "中转", tone: "amber", meta: "归集后过账" },
+      { label: "出口地址 ×3", role: "出口", tone: "grey", meta: "分发出口" },
+    ],
   },
   "PM-2026-029": {
     factors: [
@@ -134,7 +141,12 @@ export const DETAIL: Record<string, Detail> = {
     ],
     gap: "事中按交易时点的链上风险打分,隐私币/跨链是在「事后回看资金去向」才暴露;实时无法预知后续链跳。",
     rec: "确认溯源切断,转报送 + 案件;回填「兑入隐私币 / 跨链桥」typology 提高链上规则权重。",
-    path: [["来源充值", "grey"], ["兑入 XMR", "red"], ["跨链桥", "red"], ["失联", "red"]],
+    path: [
+      { label: "来源充值", role: "来源", tone: "grey", meta: "BTC 入金" },
+      { label: "兑入 XMR", role: "混淆", tone: "red", meta: "隐私币" },
+      { label: "跨链桥", role: "跨链", tone: "red", meta: "切断溯源" },
+      { label: "失联", role: "失联", tone: "red", meta: "去向不可追" },
+    ],
   },
   "PM-2026-027": {
     factors: [
