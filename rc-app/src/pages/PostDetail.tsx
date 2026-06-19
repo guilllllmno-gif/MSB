@@ -6,7 +6,7 @@ import { ArrowLeft, RefreshCw, Coins, Snowflake, AlertTriangle, ArrowUpRight, Ar
 import { Shell } from "@/components/Shell";
 import { Pill } from "@/components/bits";
 import { FindingReviewDialog } from "@/components/FindingReviewDialog";
-import { findingOf, detailOf, FSTATES, TRACE, type FState } from "@/lib/findings";
+import { findingOf, detailOf, FSTATES, TRACE, traceTier, traceRecovery, type FState } from "@/lib/findings";
 import { findingStore, useFindingVersion } from "@/lib/store";
 
 const ME = { i: "JL", n: "James Liu", c: "var(--brand)" };
@@ -39,7 +39,7 @@ export default function PostDetail() {
 
   const claim = () => { findingStore.set(f.id, { status: "progress", owner: ME, event: "认领 · 开始回溯调查" }); toast.success(`${f.id} · 已认领`); };
   const doBackfill = () => { findingStore.set(f.id, { backfill: true, event: "规则回填检测规则" }); toast(`已回填检测规则 · typology「${f.pattern}」事中即时拦截`); };
-  const updateTrace = (v: string) => { if (v) findingStore.set(f.id, { trace: v, event: `更新追溯评估:${v}` }); };
+  const updateTrace = (v: string) => { if (v) { const rec = traceRecovery(v); findingStore.set(f.id, { trace: v, frozen: rec.frozen, lossReported: rec.lossReported, event: `更新追溯评估:${v}` }); } };
   const reqFreeze = () => { findingStore.set(f.id, { frozen: true, event: "请求下游交易所冻结" }); toast.success(`${f.id} · 已请求下游冻结`); };
   const reportLoss = () => { findingStore.set(f.id, { lossReported: true, event: "上报已发生损失" }); toast.success(`${f.id} · 已上报已发生损失`); };
   const restrict = () => { findingStore.set(f.id, { restricted: true, event: "限制 / 封禁账户 · 止损" }); toast.success(`${f.id} · 已限制账户`); };
@@ -98,6 +98,7 @@ export default function PostDetail() {
               onSelectionChange={(keys) => updateTrace(Array.from(keys as Set<string>)[0] ?? "")}>
               {TRACE.map((t) => <SelectItem key={t}>{t}</SelectItem>)}
             </Select>
+            {traceTier(tr) && <p className="mt-1.5 text-[11px] leading-relaxed text-default-400">{traceTier(tr)!.guide}</p>}
           </div>
 
           <div className="text-[11px] font-bold uppercase tracking-wider text-default-400">止损 · 阻断后续</div>

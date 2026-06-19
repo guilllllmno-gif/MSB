@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Drawer, DrawerContent, DrawerHeader, DrawerBody, DrawerFooter, Button, Select, SelectItem, Textarea, Checkbox } from "@heroui/react";
-import { ShieldAlert } from "lucide-react";
-import { Initials, SectionLabel } from "./bits";
-import { findingOf, STEP, STEP_FLOW, CAN_CONFIRM, FSTATES, TRACE, type FState, type StepKey } from "@/lib/findings";
+import { ShieldAlert, Link2 as LinkIcon } from "lucide-react";
+import { Initials, SectionLabel, toneVar } from "./bits";
+import { findingOf, STEP, STEP_FLOW, CAN_CONFIRM, FSTATES, TRACE, traceTier, traceRecovery, type FState, type StepKey } from "@/lib/findings";
 import { findingStore, useFindingVersion } from "@/lib/store";
 
 const ME = { i: "JL", n: "James Liu", c: "var(--brand)" };
@@ -52,8 +52,11 @@ export function FindingReviewDialog({ findingId, open, onOpenChange, onDone }: {
     if (!choice) { toast.error("请选择处置结论或流程操作"); return; }
     if (choice === "confirm") {
       if (!trace) { setErr(true); toast.error("请评估资金追溯情况"); return; }
-      findingStore.set(f.id, { status: "tracing", trace, backfill, event: `确认可疑 · 进入追溯 · ${trace}${note.trim() ? " · " + note.trim() : ""}` });
+      const rec = traceRecovery(trace);
+      const linked = rec.frozen ? "已联动「请求下游冻结」" : rec.lossReported ? "已联动「上报已发生损失」" : "持续追踪(暂不登记冻结 / 损失)";
+      findingStore.set(f.id, { status: "tracing", trace, backfill, frozen: rec.frozen, lossReported: rec.lossReported, event: `确认可疑 · 进入追溯 · ${trace} · ${linked}${note.trim() ? " · " + note.trim() : ""}` });
       toast.success(`${f.id} · 确认可疑 → 进入追溯`);
+      if (rec.frozen || rec.lossReported) toast(linked);
       if (backfill) toast(`已回填检测规则 · typology「${f.pattern}」事中即时拦截`);
     } else {
       const c = STEP[choice];
@@ -117,6 +120,19 @@ export function FindingReviewDialog({ findingId, open, onOpenChange, onDone }: {
                     onSelectionChange={(keys) => { setTrace(Array.from(keys as Set<string>)[0] ?? ""); setErr(false); }}>
                     {TRACE.map((t) => <SelectItem key={t}>{t}</SelectItem>)}
                   </Select>
+
+                  {/* 追溯档位 → 联动处置(追回组自动;止损组手动) */}
+                  {(() => { const ti = traceTier(trace); if (!ti) return null; const rec = traceRecovery(trace); return (
+                    <div className="-mt-1 rounded-xl border border-divider bg-default-50 p-3 text-[12px] leading-relaxed">
+                      <div className="mb-1.5 flex items-center gap-1.5 font-semibold" style={{ color: toneVar(ti.tone) }}><LinkIcon className="h-3.5 w-3.5" />联动处置</div>
+                      <p className="text-default-600">{ti.guide}</p>
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        <span className="rounded-md px-2 py-0.5 text-[11px] font-semibold" style={{ background: rec.frozen ? "var(--success-bg)" : "var(--chip-bg)", color: rec.frozen ? "var(--success)" : "var(--chip-fg)" }}>{rec.frozen ? "✓ 请求下游冻结" : "请求下游冻结"}</span>
+                        <span className="rounded-md px-2 py-0.5 text-[11px] font-semibold" style={{ background: rec.lossReported ? "var(--warning-bg)" : "var(--chip-bg)", color: rec.lossReported ? "var(--warning)" : "var(--chip-fg)" }}>{rec.lossReported ? "✓ 上报已发生损失" : "上报已发生损失"}</span>
+                        <span className="rounded-md bg-default-100 px-2 py-0.5 text-[11px] text-default-400">止损(封号 / 列名单)在追溯工作台手动执行</span>
+                      </div>
+                    </div>
+                  ); })()}
                   <Checkbox isSelected={backfill} onValueChange={setBackfill} classNames={{ base: "max-w-full m-0 inline-flex w-full items-start rounded-xl border border-divider p-2.5", label: "text-[12.5px]" }}>
                     <span className="font-semibold">规则回填</span>
                     <span className="block text-[11px] text-default-400">把 typology「{f.pattern}」回填到检测规则,使事中实时拦截同类(事后 → 规则优化闭环)</span>

@@ -34,7 +34,21 @@ export const STEP_FLOW: Record<FState, StepKey[]> = {
   closed_fp: [], closed_str: [], closed_case: [],
 };
 export const CAN_CONFIRM: FState[] = ["progress", "pending", "escalated"]; // 可「确认可疑」→ 追溯中
-export const TRACE = ["可追溯 · 已冻结下游账户", "部分可追溯 · 持续追踪", "不可追溯 · 上报已发生损失"];
+
+// 资金追溯三档 —— 选哪档,联动「追回组」对应处置(冻结 / 损失 互斥;止损组保持手动)
+export interface TraceTier { label: string; tone: Tone; recovery: "freeze" | "track" | "loss"; guide: string }
+export const TRACE_TIERS: TraceTier[] = [
+  { label: "可追溯 · 已冻结下游账户", tone: "green", recovery: "freeze", guide: "资金已定位到可触达的下游账户并冻结 —— 追回有望。自动登记「已请求下游冻结」,与下游机构协作追回;无需上报损失。" },
+  { label: "部分可追溯 · 持续追踪", tone: "amber", recovery: "track", guide: "链路部分中断 —— 以止损与持续追踪为主。暂不登记冻结 / 损失,后续视追踪结果再补。" },
+  { label: "不可追溯 · 上报已发生损失", tone: "red", recovery: "loss", guide: "链路已断、资金不可逆 —— 自动登记「上报已发生损失」,重心转向止损(封号 / 列名单)与规则回填堵下一笔。" },
+];
+export const TRACE = TRACE_TIERS.map((t) => t.label);
+export const traceTier = (label?: string) => TRACE_TIERS.find((t) => t.label === label);
+// 追溯档位 → 追回组联动状态(冻结 / 损失互斥;止损组不在此自动)
+export const traceRecovery = (label?: string): { frozen: boolean; lossReported: boolean } => {
+  const r = traceTier(label)?.recovery;
+  return { frozen: r === "freeze", lossReported: r === "loss" };
+};
 
 export interface Finding { id: string; pattern: string; icon: typeof Layers; subject: string; sub: string; period: string; hit: string; amount: string; risk: "red" | "amber"; status: FState; batch: string; txns: number; rule: string; sla: { text: string; tone: Tone }; owner: Person | null; trace?: string; backfill?: boolean }
 const JL: Person = { i: "JL", n: "James Liu", c: "var(--brand)" };
