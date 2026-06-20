@@ -55,10 +55,15 @@ export const CFLOW: Record<CState, CaseAction[]> = {
   closed: [], merged: [],
 };
 
+// 涉案主体:一个案件可含多商户 / 多主体(地址 / 个人 / UBO),各有在案角色
+export type SubjType = "商户" | "链上地址" | "个人" | "UBO";
+export const SUBJ_TONE: Record<SubjType, Tone> = { 商户: "blue", 链上地址: "violet", 个人: "amber", UBO: "grey" };
+export interface CaseSubject { name: string; type: SubjType; role: string; amount?: string; kyc?: string }
+
 export interface Case {
   id: string; subject: string; sub: string; type: string; risk: string; priority: Priority;
   amount: string; links: number; linkIds: string; linkTo?: string; state: CState;
-  owner: Person | null; sla: { text: string; tone: Tone }; submitted: string; src: string;
+  owner: Person | null; sla: { text: string; tone: Tone }; submitted: string; src: string; subjects?: CaseSubject[];
 }
 
 const SC: Person = { i: "SC", n: "Sarah Chen", c: "var(--violet)" };
@@ -67,12 +72,41 @@ const EZ: Person = { i: "EZ", n: "Emma Zhang", c: "var(--success)" };
 const DW: Person = { i: "DW", n: "David Wu", c: "#0ea5e9" };
 
 export const CASES: Case[] = [
-  { id: "CASE-20260318-001", subject: "NovaPay Technologies Ltd.", sub: "美国 · 商户", type: "混币器关联 · 制裁溯源", risk: "可疑洗钱", priority: "高", amount: "CAD 8,200.00", links: 2, linkIds: "ALT-50231 · DEP-20260315-001", linkTo: "/alert?id=ALT-50231", state: "mlro", owner: null, sla: { text: "剩 1d 02h", tone: "amber" }, submitted: "2026-03-18 09:30", src: "告警升级" },
+  { id: "CASE-20260318-001", subject: "NovaPay Technologies Ltd.", sub: "美国 · 商户", type: "混币器关联 · 制裁溯源", risk: "可疑洗钱", priority: "高", amount: "CAD 8,200.00", links: 2, linkIds: "ALT-50231 · DEP-20260315-001", linkTo: "/alert?id=ALT-50231", state: "mlro", owner: null, sla: { text: "剩 1d 02h", tone: "amber" }, submitted: "2026-03-18 09:30", src: "告警升级",
+    subjects: [
+      { name: "NovaPay Technologies Ltd.", type: "商户", role: "收款商户", amount: "CAD 8,200", kyc: "KYB 未完成" },
+      { name: "0x5078…Ec8c", type: "链上地址", role: "混币器关联来源", amount: "CAD 8,200" },
+      { name: "Tornado Cash", type: "链上地址", role: "制裁混币器(OFAC)" },
+    ] },
   { id: "CASE-20260317-014", subject: "GlobalRemit Ltd.", sub: "离岸 · 商户", type: "大额分层归集", risk: "可疑洗钱", priority: "高", amount: "CAD 48,000.00", links: 3, linkIds: "WD-20260317-188 等 3 项", state: "queued", owner: EZ, sla: { text: "今日报送", tone: "red" }, submitted: "2026-03-17 15:12", src: "告警升级" },
-  { id: "CASE-20260317-009", subject: "BlockTrade Corp.", sub: "美国 · 商户", type: "KYW 超阈值", risk: "欺诈交易", priority: "中", amount: "CAD 21,400.00", links: 2, linkIds: "ALT-50229 · WD-20260314-058", linkTo: "/alert?id=ALT-50229", state: "str_draft", owner: SC, sla: { text: "剩 2d 06h", tone: "amber" }, submitted: "2026-03-17 11:05", src: "事中驳回" },
-  { id: "CASE-20260316-021", subject: "归集地址 0x71Be…F0", sub: "链上 · 多商户网络", type: "扇入归集网络", risk: "团伙网络", priority: "高", amount: "CAD 124,000.00", links: 6, linkIds: "PM-2026-020 · 6 主体", linkTo: "/finding?id=PM-2026-020", state: "investigating", owner: SC, sla: { text: "剩 18h", tone: "amber" }, submitted: "2026-03-16 10:33", src: "事后转案件" },
-  { id: "CASE-20260318-018", subject: "OffshoreFX Ltd.", sub: "离岸 · 商户", type: "OFAC SDN 直接命中", risk: "制裁规避", priority: "高", amount: "CAD 11,900.00", links: 2, linkIds: "ALT-50218 · WD-20260313-021", linkTo: "/alert?id=ALT-50218", state: "filed", owner: EZ, sla: { text: "已报送", tone: "grey" }, submitted: "2026-03-13 06:20", src: "制裁冻结" },
-  { id: "CASE-20260315-007", subject: "RapidPay", sub: "加拿大 · 商户", type: "众包养卡团伙", risk: "团伙网络", priority: "高", amount: "CAD 38,400.00", links: 6, linkIds: "RING-2026-031 · 6 主体", linkTo: "/ring?id=RING-2026-031", state: "investigating", owner: DW, sla: { text: "剩 1d 12h", tone: "amber" }, submitted: "2026-03-15 16:30", src: "团伙转案件" },
+  { id: "CASE-20260317-009", subject: "BlockTrade Corp.", sub: "美国 · 商户", type: "KYW 超阈值", risk: "欺诈交易", priority: "中", amount: "CAD 21,400.00", links: 2, linkIds: "ALT-50229 · WD-20260314-058", linkTo: "/alert?id=ALT-50229", state: "str_draft", owner: SC, sla: { text: "剩 2d 06h", tone: "amber" }, submitted: "2026-03-17 11:05", src: "事中驳回",
+    subjects: [
+      { name: "BlockTrade Corp.", type: "商户", role: "出金商户", amount: "CAD 21,400", kyc: "完成" },
+      { name: "bc1q…7h2k", type: "链上地址", role: "高风险收款钱包(KYW 88)" },
+    ] },
+  { id: "CASE-20260316-021", subject: "归集地址 0x71Be…F0", sub: "链上 · 多商户网络", type: "扇入归集网络", risk: "团伙网络", priority: "高", amount: "CAD 124,000.00", links: 6, linkIds: "PM-2026-020 · 6 主体", linkTo: "/finding?id=PM-2026-020", state: "investigating", owner: SC, sla: { text: "剩 18h", tone: "amber" }, submitted: "2026-03-16 10:33", src: "事后转案件",
+    subjects: [
+      { name: "归集地址 0x71Be…F0", type: "链上地址", role: "资金归集(核心)", amount: "CAD 124,000" },
+      { name: "RapidPay", type: "商户", role: "资金来源", amount: "CAD 38,400", kyc: "完成" },
+      { name: "Eastwind Exchange", type: "商户", role: "资金来源", amount: "CAD 27,100", kyc: "完成" },
+      { name: "SwiftRemit Inc.", type: "商户", role: "资金来源", amount: "CAD 22,500", kyc: "完成" },
+      { name: "中转钱包 ×2", type: "链上地址", role: "归集后过账" },
+      { name: "出口地址 ×3", type: "链上地址", role: "分发出口" },
+    ] },
+  { id: "CASE-20260318-018", subject: "OffshoreFX Ltd.", sub: "离岸 · 商户", type: "OFAC SDN 直接命中", risk: "制裁规避", priority: "高", amount: "CAD 11,900.00", links: 2, linkIds: "ALT-50218 · WD-20260313-021", linkTo: "/alert?id=ALT-50218", state: "filed", owner: EZ, sla: { text: "已报送", tone: "grey" }, submitted: "2026-03-13 06:20", src: "制裁冻结",
+    subjects: [
+      { name: "OffshoreFX Ltd.", type: "商户", role: "出金商户", amount: "CAD 11,900", kyc: "完成" },
+      { name: "0x7F4a…9c21", type: "链上地址", role: "OFAC SDN 制裁实体(收款)" },
+    ] },
+  { id: "CASE-20260315-007", subject: "众包养卡团伙(RING-2026-031)", sub: "团伙 · 6 主体", type: "众包养卡团伙", risk: "团伙网络", priority: "高", amount: "CAD 38,400.00", links: 6, linkIds: "RING-2026-031 · 6 主体", linkTo: "/ring?id=RING-2026-031", state: "investigating", owner: DW, sla: { text: "剩 1d 12h", tone: "amber" }, submitted: "2026-03-15 16:30", src: "团伙转案件",
+    subjects: [
+      { name: "RapidPay", type: "商户", role: "团伙核心商户", amount: "CAD 14,200", kyc: "完成" },
+      { name: "QuickWallet Ltd.", type: "商户", role: "关联商户", amount: "CAD 12,000", kyc: "完成" },
+      { name: "PayFlow Systems", type: "商户", role: "关联商户", amount: "CAD 12,200", kyc: "完成" },
+      { name: "设备指纹群 #D7", type: "链上地址", role: "设备 / IP 共享聚类" },
+      { name: "Chen Wei", type: "个人", role: "疑似实际控制人(UBO)" },
+      { name: "Li Ming", type: "UBO", role: "多商户共同受益所有人" },
+    ] },
   { id: "CASE-20260312-003", subject: "QuickWallet Ltd.", sub: "美国 · 商户", type: "结构化拆分", risk: "结构化拆分", priority: "中", amount: "CAD 9,800.00", links: 1, linkIds: "PM-2026-022", linkTo: "/finding?id=PM-2026-022", state: "closed", owner: JL, sla: { text: "已完结", tone: "grey" }, submitted: "2026-03-12 14:20", src: "事后转案件" },
   { id: "CASE-20260310-002", subject: "HavenPay Inc.", sub: "离岸 · 商户", type: "混币器关联", risk: "可疑洗钱", priority: "中", amount: "CAD 33,500.00", links: 2, linkIds: "WD-20260316-256 等", state: "merged", owner: DW, sla: { text: "已合并", tone: "grey" }, submitted: "2026-03-10 17:20", src: "告警升级" },
 ];

@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { Drawer, DrawerContent, DrawerHeader, DrawerBody, DrawerFooter, Button, Textarea, Select, SelectItem } from "@heroui/react";
 import { ExternalLink, UserPlus } from "lucide-react";
 import { Initials, SectionLabel, Pill, KvRow } from "./bits";
-import { CSTATE, CFLOW, strLabel, PRIO_TONE, CASES, type Case, type CState } from "@/lib/cases";
+import { CSTATE, CFLOW, strLabel, PRIO_TONE, SUBJ_TONE, CASES, type Case, type CState, type SubjType } from "@/lib/cases";
 import { caseStore, useCaseVersion } from "@/lib/store";
 
 const ME = { i: "JL", n: "James Liu", c: "var(--brand)" };
@@ -69,6 +69,21 @@ export function CaseReviewDrawer({ caseItem, open, onOpenChange, onDone }: { cas
             <KvRow label="来源">{c.src}</KvRow>
             <KvRow label="STR 进展"><button onClick={() => nav("/reports")} className="inline-flex items-center gap-1 hover:opacity-80" style={{ color: str.link ? "var(--brand)" : "var(--text-3)" }}>{str.text}{str.link && <ExternalLink className="h-3 w-3" />}</button></KvRow>
           </div>
+
+          {/* 涉案主体 —— 一个案件可含多商户 / 多主体 */}
+          {(() => { const subs = c.subjects && c.subjects.length ? c.subjects : [{ name: c.subject, type: (c.sub.includes("链上") ? "链上地址" : "商户") as SubjType, role: "案由主体", amount: c.amount }]; return (
+            <div><SectionLabel>涉案主体 · {subs.length}</SectionLabel>
+              <div className="flex flex-col gap-2">
+                {subs.map((s, i) => (
+                  <div key={i} className="flex items-center gap-2.5 rounded-xl border border-divider p-2.5">
+                    <Pill tone={SUBJ_TONE[s.type]} dot={false}>{s.type}</Pill>
+                    <div className="min-w-0 flex-1"><div className="truncate text-[12.5px] font-semibold">{s.name}</div><div className="text-[11px] text-default-400">{s.role}{s.kyc ? ` · ${s.kyc}` : ""}</div></div>
+                    {s.amount && <span className="shrink-0 text-[12px] font-semibold tnum">{s.amount}</span>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ); })()}
 
           {!owner && sd.active && (
             <Button color="primary" startContent={<UserPlus className="h-4 w-4" />} onPress={claim}>认领案件 · 开始调查</Button>
