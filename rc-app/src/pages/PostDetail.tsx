@@ -53,7 +53,6 @@ export default function PostDetail() {
   const Icon = f.icon;
 
   const claim = () => { findingStore.set(f.id, { status: "progress", owner: ME, event: "认领 · 开始回溯调查" }); toast.success(`${f.id} · 已认领`); };
-  const disposed = restricted || listed || frozen || loss || bf || !!tr; // 是否已有处置动作
 
   return (
     <Shell crumb={["交易", "交易监控", "事后监控", f.id]}>
@@ -93,23 +92,22 @@ export default function PostDetail() {
         <span className="text-[12.5px] text-default-500">本命中为交易完成后回溯发现 —— 事中已无法拦截。{st === "tracing" || st === "closed_str" || st === "closed_case" ? <>确认可疑,资金追溯评估:<b className="text-foreground">{tr || "待评估"}</b>。</> : "若确认可疑,需评估能否追溯、是否上报已发生损失。"}</span>
       </div>
 
-      {/* 处置摘要 — 顶部横向状态条(已有处置动作时显示) */}
-      {disposed && (
-        <div className="card mb-5 p-4">
-          <div className="mb-3 flex items-center gap-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-default-400">处置摘要</span>
-            {st === "tracing" && <button onClick={() => setTraceOpen(true)} className="text-[11.5px] font-semibold text-primary hover:opacity-80">管理追溯处置 →</button>}
-          </div>
-          <div className="flex flex-wrap gap-x-7 gap-y-3">
-            <Summ label="资金追溯" tone={tr ? "amber" : undefined}>{tr || "未评估"}</Summ>
-            <Summ label="账户处置" tone={restricted ? "red" : undefined}>{restricted ? "已限制 / 封禁" : "—"}</Summ>
-            <Summ label="对手名单" tone={listed ? "amber" : undefined}>{listed ? "已列名单" : "—"}</Summ>
-            <Summ label="下游冻结" tone={frozen ? "green" : undefined}>{frozen ? "已请求" : "—"}</Summ>
-            <Summ label="损失上报" tone={loss ? "amber" : undefined}>{loss ? "已上报" : "—"}</Summ>
-            <Summ label="规则回填" tone={bf ? "green" : undefined}>{bf ? "已回填" : "未回填"}</Summ>
-          </div>
+      {/* 处置摘要 — 顶部横向状态条(常驻;空值占位) */}
+      <div className="card mb-5 p-4">
+        <div className="mb-3 flex items-center gap-2">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-default-400">处置摘要</span>
+          {st === "tracing" && <button onClick={() => setTraceOpen(true)} className="text-[11.5px] font-semibold text-primary hover:opacity-80">管理追溯处置 →</button>}
         </div>
-      )}
+        <div className="flex flex-wrap gap-x-7 gap-y-3">
+          <Summ label="当前状态" tone={sd.tone}>{sd.label}</Summ>
+          <Summ label="资金追溯" tone={tr ? "amber" : undefined}>{tr || "未评估"}</Summ>
+          <Summ label="账户处置" tone={restricted ? "red" : undefined}>{restricted ? "已限制 / 封禁" : "—"}</Summ>
+          <Summ label="对手名单" tone={listed ? "amber" : undefined}>{listed ? "已列名单" : "—"}</Summ>
+          <Summ label="下游冻结" tone={frozen ? "green" : undefined}>{frozen ? "已请求" : "—"}</Summ>
+          <Summ label="损失上报" tone={loss ? "amber" : undefined}>{loss ? "已上报" : "—"}</Summ>
+          <Summ label="规则回填" tone={bf ? "green" : undefined}>{bf ? "已回填" : "未回填"}</Summ>
+        </div>
+      </div>
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         <div className="flex flex-col gap-5 lg:col-span-2">
