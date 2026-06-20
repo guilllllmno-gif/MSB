@@ -193,6 +193,25 @@ export default function PostDetail() {
             </div>
           )}
 
+          {/* 对手集中度分布 — 占比条(替代逐笔表格,集中度类) */}
+          {d?.dist?.length ? (
+            <div className="card p-5">
+              <div className="mb-1 text-[11px] font-bold uppercase tracking-wider text-default-400">{d.distLabel || "对手分布"}</div>
+              <p className="mb-3 text-[11.5px] leading-relaxed text-default-400">按金额占比看对手集中度 —— 单一对手占比越高越异常(本例 80% 流向同一高风险辖区交易所)。</p>
+              <div className="flex h-3 w-full overflow-hidden rounded-full">
+                {d.dist.map((s, i) => <div key={i} style={{ width: `${s.pct}%`, background: tc(s.tone) }} title={`${s.label} · ${s.pct}%`} />)}
+              </div>
+              <div className="mt-3 flex flex-col gap-2">
+                {d.dist.map((s, i) => (
+                  <div key={i} className="flex items-center justify-between text-[12.5px]">
+                    <span className="inline-flex items-center gap-2"><span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: tc(s.tone) }} />{s.label}</span>
+                    <span className="font-semibold tnum"><span style={{ color: tc(s.tone) }}>{s.pct}%</span> · {s.amount}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
           {/* 涉及交易明细 */}
           {d?.txList.length ? (
             <div className="card overflow-hidden p-0">
@@ -213,6 +232,7 @@ export default function PostDetail() {
                   ))}
                 </tbody>
               </table>
+              {!d.txList.some((tx) => tx.id) && <p className="border-t border-divider px-4 py-2.5 text-[11px] leading-relaxed text-default-400">各环节为<b className="text-default-500">同一资金在不同阶段</b>的流转量(汇入 → 过账 → 分发),非逐笔加总;完整逐跳见上方「资金路径」。</p>}
             </div>
           ) : null}
         </div>

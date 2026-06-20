@@ -43,6 +43,13 @@ export const STEP_FLOW: Record<FState, StepKey[]> = {
 };
 export const CAN_CONFIRM: FState[] = ["progress", "pending", "escalated"]; // 可「确认可疑」→ 追溯中
 
+// 终态处置结论的必填理由(记审计日志)—— 转报送 / 转案件 / 误报关闭
+export const FREASONS: Record<string, string[]> = {
+  str: ["确认结构化拆分 · 规避申报阈值", "确认分层归集 · 洗钱网络", "链上溯源切断 · 隐私币 / 跨链", "确认可疑且无合理解释", "其他(见调查依据)"],
+  case: ["需多笔 / 跨主体关联深查", "并入既有案件", "涉及团伙 / 网络", "需执法 / 外部协作", "其他(见调查依据)"],
+  fp: ["回看为正常业务波动(如促销)", "已有合理解释 · 资料充分", "规则误命中 · 需调优", "其他(见调查依据)"],
+};
+
 // 资金追溯三档 —— 选哪档,给「追回组」一个**默认建议**(不互斥、不禁止;另一项仍可手动补登)
 export interface TraceTier { label: string; tone: Tone; recovery: "freeze" | "track" | "loss"; guide: string }
 export const TRACE_TIERS: TraceTier[] = [
@@ -83,7 +90,9 @@ export interface TxRow { id?: string; t: string; party: string; amount: string; 
 export interface Factor { emoji: string; title: string; desc: string; tone: Tone }
 // 资金路径节点:角色(来源/归集/中转/混淆/跨链/出口/失联)+ 风险色 + 每跳金额/说明
 export interface PathNode { label: string; role: string; tone: Tone; meta?: string }
-export interface Detail { factors: Factor[]; profile: { country: string; kyc: string; registered: string; history: string; tags?: string[] }; txList: TxRow[]; gap: string; rec: string; path?: PathNode[] }
+// 分布构成(对手集中度等)—— 用占比条而非逐笔表格更直观
+export interface DistSeg { label: string; pct: number; amount: string; tone: Tone }
+export interface Detail { factors: Factor[]; profile: { country: string; kyc: string; registered: string; history: string; tags?: string[] }; txList: TxRow[]; gap: string; rec: string; path?: PathNode[]; dist?: DistSeg[]; distLabel?: string }
 export const DETAIL: Record<string, Detail> = {
   "PM-2026-031": {
     factors: [
@@ -176,9 +185,11 @@ export const DETAIL: Record<string, Detail> = {
       { emoji: "🌐", title: "对手位于高风险辖区", desc: "FATF 关注地区", tone: "amber" },
     ],
     profile: { country: "离岸", kyc: "完成", registered: "1.1 年", history: "30 天 19 笔 · 对手集中" },
-    txList: [
-      { t: "近 30 天", party: "高风险交易所 X", amount: "CAD 26,800", note: "占比 80%" },
-      { t: "近 30 天", party: "其它对手", amount: "CAD 6,700", note: "占比 20%" },
+    txList: [],
+    distLabel: "近 30 天出金对手分布",
+    dist: [
+      { label: "高风险交易所 X(单一对手)", pct: 80, amount: "CAD 26,800", tone: "amber" },
+      { label: "其它对手(合计)", pct: 20, amount: "CAD 6,700", tone: "grey" },
     ],
     gap: "事中按单笔评估,看不到「30 天对手集中度」分布;集中度需聚合统计。",
     rec: "核实业务合理性;异常则升级 / 加强监控;回填对手集中度规则。",

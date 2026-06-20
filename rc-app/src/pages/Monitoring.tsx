@@ -4,6 +4,7 @@ import { Button, Tooltip, Tabs, Tab, Table, TableHeader, TableColumn, TableBody,
 import { Clock, ClipboardCheck, Eye } from "lucide-react";
 import { Shell, PageHead } from "@/components/Shell";
 import { Pill } from "@/components/bits";
+import { ReviewDialog } from "@/components/ReviewDialog";
 import { alerts, RC_STATES, GATE_STATES, type Alert } from "@/lib/data";
 import { alertStore, useAlertVersion } from "@/lib/store";
 
@@ -14,6 +15,9 @@ export default function Monitoring() {
   const nav = useNavigate();
   useAlertVersion();
   const [tab, setTab] = useState<"充值" | "提现">("充值");
+  const [reviewId, setReviewId] = useState<string | null>(null);
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const openReview = (id: string) => { setReviewId(id); setReviewOpen(true); };
 
   const stOf = (a: Alert) => alertStore.stateOf(a.id, a.state);
   // 事中 = 实时闸口:只看 gate 车道(待决 / 补料待回),按 SLA 紧迫度排序
@@ -81,8 +85,8 @@ export default function Monitoring() {
                       <Tooltip content="查看详情" size="sm" delay={300}>
                         <Button isIconOnly size="sm" radius="full" variant="flat" className="bg-default-100" onPress={() => nav(`/alert?id=${a.id}`)}><Eye className="h-4 w-4 text-default-500" strokeWidth={1.9} /></Button>
                       </Tooltip>
-                      <Tooltip content="进入详情审核 · 放行 / 拒绝 / 补料 / 转研判" size="sm" delay={300}>
-                        <Button size="sm" radius="full" color="primary" variant="flat" startContent={<ClipboardCheck className="h-3.5 w-3.5" />} onPress={() => nav(`/alert?id=${a.id}`)}>审核</Button>
+                      <Tooltip content="审核 · 放行 / 拒绝 / 补料 / 转研判" size="sm" delay={300}>
+                        <Button size="sm" radius="full" color="primary" variant="flat" startContent={<ClipboardCheck className="h-3.5 w-3.5" />} onPress={() => openReview(a.id)}>审核</Button>
                       </Tooltip>
                     </div>
                   </TableCell>
@@ -92,6 +96,9 @@ export default function Monitoring() {
           </TableBody>
         </Table>
       </div>
+
+      {/* 审核抽屉(行内,与告警研判 / 事后监控一致;gate 车道 → 放行 / 拒绝 / 补料 / 转研判)*/}
+      <ReviewDialog alertId={reviewId} open={reviewOpen} onOpenChange={setReviewOpen} />
     </Shell>
   );
 }

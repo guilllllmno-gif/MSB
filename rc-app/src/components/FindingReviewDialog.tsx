@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { Drawer, DrawerContent, DrawerHeader, DrawerBody, DrawerFooter, Button, Select, SelectItem, Textarea, Checkbox } from "@heroui/react";
 import { ShieldAlert, Link2 as LinkIcon } from "lucide-react";
 import { Initials, SectionLabel, toneVar } from "./bits";
-import { findingOf, STEP, STEP_FLOW, CAN_CONFIRM, FSTATES, TRACE, traceTier, traceRecovery, type FState, type StepKey } from "@/lib/findings";
+import { findingOf, STEP, STEP_FLOW, CAN_CONFIRM, FSTATES, FREASONS, TRACE, traceTier, traceRecovery, type FState, type StepKey } from "@/lib/findings";
 import { findingStore, useFindingVersion } from "@/lib/store";
 
 const ME = { i: "JL", n: "James Liu", c: "var(--brand)" };
@@ -35,7 +35,9 @@ export function FindingReviewDialog({ findingId, open, onOpenChange, onDone }: {
   const [trace, setTrace] = useState("");
   const [backfill, setBackfill] = useState(true);
   const [note, setNote] = useState("");
+  const [reason, setReason] = useState("");
   const [err, setErr] = useState(false);
+  const [reasonErr, setReasonErr] = useState(false);
 
   const st = findingStore.statusOf(f.id, f.status) as FState;
   const sd = FSTATES[st];
@@ -45,11 +47,12 @@ export function FindingReviewDialog({ findingId, open, onOpenChange, onDone }: {
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (open) { setChoice(null); setTrace(""); setBackfill(true); setNote(""); setErr(false); }
+    if (open) { setChoice(null); setTrace(""); setBackfill(true); setNote(""); setReason(""); setErr(false); setReasonErr(false); }
   }, [open, findingId]);
 
   const submit = () => {
     if (!choice) { toast.error("请选择处置结论或流程操作"); return; }
+    if (FREASONS[choice] && !reason) { setReasonErr(true); toast.error("请选择处置理由"); return; }
     if (choice === "confirm") {
       if (!trace) { setErr(true); toast.error("请评估资金追溯情况"); return; }
       const rec = traceRecovery(trace);
@@ -60,7 +63,7 @@ export function FindingReviewDialog({ findingId, open, onOpenChange, onDone }: {
       if (backfill) toast(`已回填检测规则 · typology「${f.pattern}」事中即时拦截`);
     } else {
       const c = STEP[choice];
-      findingStore.set(f.id, { status: c.to, owner: choice === "claim" ? ME : undefined, event: `${c.label}${note.trim() ? " · " + note.trim() : ""}` });
+      findingStore.set(f.id, { status: c.to, owner: choice === "claim" ? ME : undefined, event: `${c.label}${reason ? " · " + reason : ""}${note.trim() ? " · " + note.trim() : ""}` });
       toast.success(`${f.id} · ${c.label}`);
     }
     onOpenChange(false); onDone?.();
@@ -111,6 +114,14 @@ export function FindingReviewDialog({ findingId, open, onOpenChange, onDone }: {
 
               {choice && (
                 <div className="rounded-xl border border-divider bg-default-100 p-3 text-[12px] leading-relaxed text-default-600">{IMPACT[choice]}</div>
+              )}
+
+              {choice && FREASONS[choice] && (
+                <Select size="sm" label={`${LABEL[choice]} · 处置理由`} labelPlacement="outside" placeholder="请选择…" isRequired aria-label="处置理由"
+                  selectedKeys={reason ? [reason] : []} isInvalid={reasonErr}
+                  onSelectionChange={(keys) => { setReason(Array.from(keys as Set<string>)[0] ?? ""); setReasonErr(false); }}>
+                  {FREASONS[choice].map((r) => <SelectItem key={r}>{r}</SelectItem>)}
+                </Select>
               )}
 
               {choice === "confirm" && (
