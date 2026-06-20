@@ -4,10 +4,10 @@ import type { Tone, Person } from "./data";
 
 // 检测维度 —— 事后监控是批量回溯,主体维度不统一(不像事中/告警的单笔单商户)
 export type FDim = "merchant" | "address" | "network";
-export const FDIM: Record<FDim, { label: string; icon: typeof Layers; profileTitle: string }> = {
-  merchant: { label: "商户主体", icon: Store, profileTitle: "商户画像" },
-  address: { label: "链上地址", icon: Wallet, profileTitle: "地址画像" },
-  network: { label: "多商户网络", icon: Network, profileTitle: "网络画像" },
+export const FDIM: Record<FDim, { label: string; icon: typeof Layers; profileTitle: string; tone: Tone }> = {
+  merchant: { label: "商户主体", icon: Store, profileTitle: "商户画像", tone: "blue" },
+  address: { label: "链上地址", icon: Wallet, profileTitle: "地址画像", tone: "violet" },
+  network: { label: "多商户网络", icon: Network, profileTitle: "网络画像", tone: "amber" },
 };
 
 export type FState = "new" | "progress" | "pending" | "escalated" | "tracing" | "closed_fp" | "closed_str" | "closed_case";

@@ -27,6 +27,7 @@ export default function PostMonitoring() {
   const nav = useNavigate();
   useFindingVersion();
   const [filter, setFilter] = useState("all");
+  const [dim, setDim] = useState("all");
   const [hist, setHist] = useState(false);
   const [reviewId, setReviewId] = useState<string | null>(null);
   const [reviewOpen, setReviewOpen] = useState(false);
@@ -34,8 +35,8 @@ export default function PostMonitoring() {
   const claim = (f: Finding) => { findingStore.set(f.id, { status: "progress", owner: ME, event: "认领 · 开始回溯调查" }); toast.success(`${f.id} · 已认领`); };
 
   const stOf = (f: Finding) => findingStore.statusOf(f.id, f.status) as FState;
-  const count = (key: string) => FINDINGS.filter((f) => matchTile(key, stOf(f))).length;
-  const rows = FINDINGS.filter((f) => matchTile(filter, stOf(f)));
+  const count = (key: string) => FINDINGS.filter((f) => matchTile(key, stOf(f)) && (dim === "all" || f.dim === dim)).length;
+  const rows = FINDINGS.filter((f) => matchTile(filter, stOf(f)) && (dim === "all" || f.dim === dim));
 
   const batchHits = FINDINGS.filter((f) => f.batch === "#20260619-02").length;
   const pendingN = FINDINGS.filter((f) => !stOf(f).startsWith("closed")).length;
@@ -71,6 +72,16 @@ export default function PostMonitoring() {
         })}
       </div>
 
+      {/* 检测维度筛选 —— 商户 / 链上地址 / 多商户网络 */}
+      <div className="mb-4 flex flex-wrap items-center gap-1.5">
+        <span className="mr-1 text-[11.5px] text-default-400">检测维度</span>
+        <button onClick={() => setDim("all")} className={`rounded-full border px-3 py-1.5 text-[12px] font-semibold transition-colors ${dim === "all" ? "border-[var(--brand)] bg-[var(--brand-soft)] text-[var(--brand)]" : "border-divider text-default-500 hover:bg-default-100"}`}>全部维度</button>
+        {(["merchant", "address", "network"] as const).map((d) => {
+          const on = dim === d; const DI = FDIM[d].icon;
+          return <button key={d} onClick={() => setDim(d)} className={`inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-[12px] font-semibold transition-colors ${on ? "border-[var(--brand)] bg-[var(--brand-soft)] text-[var(--brand)]" : "border-divider text-default-500 hover:bg-default-100"}`}><DI className="h-3.5 w-3.5" />{FDIM[d].label}</button>;
+        })}
+      </div>
+
       {/* findings table — 审核进详情页 */}
       <Table aria-label="事后监控命中" radius="lg" classNames={{ wrapper: "card no-scrollbar p-0 rounded-2xl overflow-x-auto", th: "bg-default-50 text-default-500 text-[12px] font-medium h-12 border-b border-divider whitespace-nowrap", td: "py-4 text-[13px] align-top", tr: "border-b border-default-100 last:border-0 transition-colors data-[hover=true]:bg-default-50 hover:bg-default-50" }}>
         <TableHeader>
@@ -87,7 +98,7 @@ export default function PostMonitoring() {
             return (
               <TableRow key={f.id}>
                 <TableCell><button onClick={() => nav(`/finding?id=${f.id}`)} className="text-left"><span className="inline-flex items-center gap-2 font-semibold whitespace-nowrap"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-default-100 text-default-500"><Icon className="h-4 w-4" /></span>{f.pattern}</span><div className="ml-9 text-[11px] text-default-400">{f.id} · {f.period}</div></button></TableCell>
-                <TableCell><div className="flex flex-col items-start gap-1"><span className="font-medium">{f.subject}</span><span className="inline-flex items-center gap-1 rounded bg-default-100 px-1.5 py-0.5 text-[10px] font-semibold text-default-500">{(() => { const DI = FDIM[f.dim].icon; return <DI className="h-3 w-3" />; })()}{FDIM[f.dim].label}</span></div></TableCell>
+                <TableCell><div className="flex flex-col items-start gap-1"><span className="font-medium">{f.subject}</span><Pill tone={FDIM[f.dim].tone} dot={false} icon={(() => { const DI = FDIM[f.dim].icon; return <DI className="h-3 w-3" />; })()}>{FDIM[f.dim].label}</Pill></div></TableCell>
                 <TableCell><span className="block max-w-[280px] text-[12.5px] leading-snug text-default-600">{f.hit}</span></TableCell>
                 <TableCell><div className="font-semibold tnum whitespace-nowrap">{f.amount}</div><div className="mt-0.5 text-[10.5px] text-default-400">已出账</div></TableCell>
                 <TableCell>

@@ -240,7 +240,7 @@ export default function PostDetail() {
           <div className="card p-5">
             <div className="mb-2 flex items-center justify-between gap-2">
               <span className="text-[11px] font-bold uppercase tracking-wider text-default-400">{FDIM[f.dim].profileTitle}</span>
-              <span className="inline-flex items-center gap-1 rounded-full bg-default-100 px-2 py-0.5 text-[10.5px] font-semibold text-default-500">{(() => { const DI = FDIM[f.dim].icon; return <DI className="h-3 w-3" />; })()}{FDIM[f.dim].label}</span>
+              <Pill tone={FDIM[f.dim].tone} dot={false} icon={(() => { const DI = FDIM[f.dim].icon; return <DI className="h-3 w-3" />; })()}>{FDIM[f.dim].label}</Pill>
             </div>
             <div className="text-[14px] font-bold">{f.subject}</div>
             <div className="mb-2 text-[12px] text-default-400">{f.sub}</div>
