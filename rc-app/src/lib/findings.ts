@@ -83,7 +83,7 @@ export interface TxRow { id?: string; t: string; party: string; amount: string; 
 export interface Factor { emoji: string; title: string; desc: string; tone: Tone }
 // 资金路径节点:角色(来源/归集/中转/混淆/跨链/出口/失联)+ 风险色 + 每跳金额/说明
 export interface PathNode { label: string; role: string; tone: Tone; meta?: string }
-export interface Detail { factors: Factor[]; profile: { country: string; kyc: string; registered: string; history: string }; txList: TxRow[]; gap: string; rec: string; path?: PathNode[] }
+export interface Detail { factors: Factor[]; profile: { country: string; kyc: string; registered: string; history: string; tags?: string[] }; txList: TxRow[]; gap: string; rec: string; path?: PathNode[] }
 export const DETAIL: Record<string, Detail> = {
   "PM-2026-031": {
     factors: [
@@ -107,7 +107,7 @@ export const DETAIL: Record<string, Detail> = {
       { emoji: "💰", title: "14 天归集 CAD 86,400", desc: "归集后疑似统一中转", tone: "red" },
       { emoji: "🔗", title: "归集地址非任一商户托管", desc: "第三方控制,典型分层", tone: "amber" },
     ],
-    profile: { country: "—(链上地址)", kyc: "不适用", registered: "地址活跃 22 天", history: "关联 6 商户 · 网络内高频" },
+    profile: { country: "—(链上地址)", kyc: "不适用", registered: "地址活跃 22 天", history: "关联 6 商户 · 网络内高频", tags: ["扇入归集", "第三方控制", "多商户关联", "高风险"] },
     txList: [
       { t: "06-05 ~ 06-18", party: "RapidPay 等 6 商户", amount: "CAD 86,400", note: "汇入归集地址 0x9Df2" },
       { t: "06-16 21:10", party: "中转钱包 ×2", amount: "CAD 40,200", note: "归集后过账" },
@@ -144,10 +144,10 @@ export const DETAIL: Record<string, Detail> = {
       { emoji: "🧱", title: "多笔分散兑换", desc: "规避单笔大额识别", tone: "amber" },
       { emoji: "🚫", title: "去向不可追溯", desc: "进入隐私链后失联", tone: "red" },
     ],
-    profile: { country: "—(链上地址)", kyc: "不适用", registered: "多链活跃", history: "30 天 11 笔 · 关联混币器" },
+    profile: { country: "—(链上地址)", kyc: "不适用", registered: "多链活跃", history: "30 天 11 笔 · 关联混币器", tags: ["隐私币兑换", "跨链桥", "溯源切断", "高风险"] },
     txList: [
-      { t: "05-22 ~ 06-18", party: "XMR 网络", amount: "CAD 52,000", note: "兑入隐私币" },
-      { t: "06-10 03:21", party: "跨链桥", amount: "CAD 21,000", note: "跨链转出" },
+      { t: "05-22 ~ 06-15", party: "XMR 网络", amount: "CAD 31,000", note: "多笔兑入隐私币(分散)" },
+      { id: "0x7c91…3aF2", t: "06-10 03:21", party: "跨链桥 Bridge", amount: "CAD 21,000", note: "跨链转出" },
     ],
     gap: "事中按交易时点的链上风险打分,隐私币/跨链是在「事后回看资金去向」才暴露;实时无法预知后续链跳。",
     rec: "确认溯源切断,转报送 + 案件;回填「兑入隐私币 / 跨链桥」typology 提高链上规则权重。",
@@ -199,7 +199,7 @@ export const DETAIL: Record<string, Detail> = {
   },
   "PM-2026-020": {
     factors: [{ emoji: "🕸", title: "确认洗钱归集网络", desc: "并入案件深查", tone: "red" }],
-    profile: { country: "—(链上地址)", kyc: "不适用", registered: "已结案 · 转案件", history: "不可追溯 · 已上报损失" },
+    profile: { country: "—(链上地址)", kyc: "不适用", registered: "已结案 · 转案件", history: "不可追溯 · 已上报损失", tags: ["扇入归集", "洗钱网络", "已列黑名单"] },
     txList: [{ t: "近 14 天", party: "多商户 → 0x71Be", amount: "CAD 124,000", note: "31 笔归集" }],
     gap: "扇入归集,事中缺跨主体图关系。已回填规则。",
     rec: "已并入案件 · 已上报损失 · 已回填规则。",

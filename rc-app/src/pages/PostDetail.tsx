@@ -198,7 +198,7 @@ export default function PostDetail() {
             <div className="card overflow-hidden p-0">
               <div className="border-b border-divider p-4 text-[13px] font-bold">涉及交易明细 · {f.txns} 笔(样本 {d.txList.length})</div>
               <table className="w-full text-[12.5px]">
-                <thead><tr className="border-b border-divider text-[11.5px] text-default-400"><th className="px-4 py-2 text-left font-medium">交易ID / 订单号</th><th className="px-4 py-2 text-left font-medium">时间</th><th className="px-4 py-2 text-left font-medium">对手</th><th className="px-4 py-2 text-right font-medium">金额</th><th className="px-4 py-2 text-left font-medium">说明</th></tr></thead>
+                <thead><tr className="border-b border-divider text-[11.5px] text-default-400"><th className="px-4 py-2 text-left font-medium">交易ID / 哈希</th><th className="px-4 py-2 text-left font-medium">时间</th><th className="px-4 py-2 text-left font-medium">对手</th><th className="px-4 py-2 text-right font-medium">金额</th><th className="px-4 py-2 text-left font-medium">说明</th></tr></thead>
                 <tbody>
                   {d.txList.map((tx, i) => (
                     <tr key={i} className="border-b border-default-100 last:border-0">
@@ -224,6 +224,11 @@ export default function PostDetail() {
             </div>
             <div className="text-[14px] font-bold">{f.subject}</div>
             <div className="mb-2 text-[12px] text-default-400">{f.sub}</div>
+            {d?.profile?.tags?.length ? (
+              <div className="mb-2 flex flex-wrap gap-1.5">
+                {d.profile.tags.map((tg) => <span key={tg} className="rounded-md px-1.5 py-0.5 text-[10.5px] font-semibold" style={{ background: tg === "高风险" || tg.includes("黑名单") ? "var(--danger-bg)" : "var(--chip-bg)", color: tg === "高风险" || tg.includes("黑名单") ? "var(--danger)" : "var(--chip-fg)" }}>{tg}</span>)}
+              </div>
+            ) : null}
             {d?.profile && <>
               <Kv label="注册地 / 辖区">{d.profile.country}</Kv>
               <Kv label="KYC / KYB">{d.profile.kyc}</Kv>
