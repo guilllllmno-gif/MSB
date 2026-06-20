@@ -196,7 +196,9 @@ export default function PostDetail() {
           {/* 涉及交易明细 */}
           {d?.txList.length ? (
             <div className="card overflow-hidden p-0">
-              <div className="border-b border-divider p-4 text-[13px] font-bold">涉及交易明细 · {f.txns} 笔(样本 {d.txList.length})</div>
+              {(() => { const perOrder = d.txList.some((tx) => tx.id); return (
+                <div className="border-b border-divider p-4 text-[13px] font-bold">{perOrder ? `涉及交易明细 · 共 ${f.txns} 笔(逐笔样本 ${d.txList.length})` : `资金流构成 · 共 ${f.txns} 笔`}<span className="ml-2 text-[11px] font-normal text-default-400">{perOrder ? "逐笔订单 / 哈希" : "按环节汇总,非逐笔"}</span></div>
+              ); })()}
               <table className="w-full text-[12.5px]">
                 <thead><tr className="border-b border-divider text-[11.5px] text-default-400"><th className="px-4 py-2 text-left font-medium">交易ID / 哈希</th><th className="px-4 py-2 text-left font-medium">时间</th><th className="px-4 py-2 text-left font-medium">对手</th><th className="px-4 py-2 text-right font-medium">金额</th><th className="px-4 py-2 text-left font-medium">说明</th></tr></thead>
                 <tbody>
