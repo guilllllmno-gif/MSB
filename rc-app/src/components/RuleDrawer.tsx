@@ -65,6 +65,24 @@ export function RuleDrawer({ rule, open, onOpenChange, onDone }: { rule: Rule | 
             <KvRow label="来源">{rule.to ? <button onClick={() => nav(rule.to!)} className="inline-flex items-center gap-1 text-primary hover:opacity-80">{rule.src} · {rule.srcId} <ExternalLink className="h-3 w-3" /></button> : rule.src}</KvRow>
           </div>
 
+          {/* 结构化条件逻辑(新建规则)*/}
+          {rule.clauses?.length ? (
+            <div className="card p-3.5">
+              <SectionLabel>条件逻辑</SectionLabel>
+              <div className="flex flex-col gap-1.5 text-[12.5px]">
+                <div className="flex flex-wrap items-center gap-1.5"><span className="rounded-md bg-[var(--brand-soft)] px-2 py-0.5 text-[11px] font-bold text-[var(--brand)]">IF</span><span className="text-[11px] text-default-400">满足全部(AND)</span></div>
+                {rule.clauses.map((c, i) => (
+                  <div key={i} className="flex flex-wrap items-center gap-1.5 pl-2">
+                    {i > 0 && <span className="rounded bg-default-100 px-1.5 py-0.5 text-[10px] font-bold text-default-500">且</span>}
+                    <span className="font-semibold">{c.field}</span><span className="text-primary">{c.op}</span><span className="font-semibold tnum">{c.value}</span>
+                  </div>
+                ))}
+                <div className="flex flex-wrap items-center gap-1.5"><span className="rounded-md bg-[var(--success-bg)] px-2 py-0.5 text-[11px] font-bold text-[var(--success)]">THEN</span><span className="font-semibold">{rule.action}</span></div>
+                {rule.otherwise && <div className="flex flex-wrap items-center gap-1.5"><span className="rounded-md bg-default-100 px-2 py-0.5 text-[11px] font-bold text-default-500">ELSE</span><span className="text-default-600">{rule.otherwise}</span></div>}
+              </div>
+            </div>
+          ) : null}
+
           {/* 回填闭环进度 */}
           {fromBackfill && (
             <div className="card p-3.5">

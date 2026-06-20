@@ -51,10 +51,18 @@ export const RUFLOW: Record<RuState, RuAction[]> = {
 };
 
 export interface Backtest { window: string; scanned: string; wouldHit: number; estFp: string }
+
+// 结构化条件:IF 子句(AND 连接)… THEN 处置 ELSE 否则
+export interface Clause { field: string; op: string; value: string }
+export const RULE_FIELDS = ["单笔金额 (CAD)", "7 日累计金额 (CAD)", "24h 笔数", "30 日对手集中度 (%)", "扇入主体数", "KYW 评分", "综合风险评分", "账户休眠天数", "账户年龄 (天)", "地址风险标签", "名单", "跨链 / 隐私币", "KYB 状态"];
+export const RULE_OPS = ["≥", "≤", ">", "<", "=", "≠", "命中", "包含"];
+export const RULE_ELSE = ["放行 · 无需处置", "继续监控", "加强监控", "转研判"];
+export const condText = (cs: Clause[]) => cs.filter((c) => c.field && c.op && c.value).map((c) => `${c.field} ${c.op} ${c.value}`).join(" 且 ");
+
 export interface Rule {
   id: string; name: string; cat: RuCat; venue?: Venue; cond: string; action: string; state: RuState;
   hits30: number; fp30: string; src: string; srcId?: string; to?: string;
-  owner: Person; updated: string; weight: string; backtest?: Backtest;
+  owner: Person; updated: string; weight: string; backtest?: Backtest; clauses?: Clause[]; otherwise?: string;
 }
 
 const JL: Person = { i: "JL", n: "James Liu", c: "var(--brand)" };
