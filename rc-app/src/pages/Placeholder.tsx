@@ -5,7 +5,7 @@ import { Shell } from "@/components/Shell";
 
 const LABELS: Record<string, string> = {
   "/dashboard": "风控仪表盘", "/monitoring": "事中监控",
-  "/strategy": "全局策略", "/lists": "名单管理", "/cases": "案件管理", "/audit": "审计日志",
+  "/strategy": "全局策略", "/lists": "名单管理", "/audit": "审计日志",
 };
 
 export default function Placeholder() {

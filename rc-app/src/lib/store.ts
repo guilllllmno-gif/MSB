@@ -2,6 +2,7 @@ import { useSyncExternalStore } from "react";
 import type { Person } from "./data";
 import type { Ring } from "./rings";
 import type { Rule } from "./rules";
+import type { Case } from "./cases";
 
 interface Override { state?: string; assignee?: Person | null; events: { t: string; text: string; reason: string }[] }
 
@@ -161,4 +162,33 @@ export const ruleStore = {
 
 export function useRuleVersion() {
   return useSyncExternalStore(ruleStore.subscribe, ruleStore.getVersion, ruleStore.getVersion);
+}
+
+// ── 案件管理状态store ──
+const caseData: Record<string, { state?: string; owner?: Person | null; events?: { t: string; text: string; reason: string }[] }> = {};
+let caseCreated: Case[] = [];
+let caseVersion = 0;
+const caseListeners = new Set<() => void>();
+const caseNotify = () => { caseVersion++; caseListeners.forEach((l) => l()); };
+
+export const caseStore = {
+  subscribe(cb: () => void) { caseListeners.add(cb); return () => { caseListeners.delete(cb); }; },
+  getVersion() { return caseVersion; },
+  created() { return caseCreated; },
+  stateOf(id: string, base: string) { return caseData[id]?.state || base; },
+  ownerOf(id: string, base: Person | null) { const o = caseData[id]; return o && o.owner !== undefined ? o.owner : base; },
+  eventsOf(id: string) { return caseData[id]?.events || []; },
+  add(c: Case) { caseCreated = [c, ...caseCreated]; caseNotify(); },
+  set(id: string, state: string, opts: { owner?: Person | null; event?: string; reason?: string } = {}) {
+    const cur = caseData[id] || {};
+    cur.state = state;
+    if (opts.owner !== undefined) cur.owner = opts.owner;
+    cur.events = [...(cur.events || []), { t: now(), text: opts.event || state, reason: opts.reason || "" }];
+    caseData[id] = cur;
+    caseNotify();
+  },
+};
+
+export function useCaseVersion() {
+  return useSyncExternalStore(caseStore.subscribe, caseStore.getVersion, caseStore.getVersion);
 }
