@@ -2,11 +2,11 @@ import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { Button, Tabs, Tab, Dropdown, DropdownTrigger, DropdownMenu, DropdownItem, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell } from "@heroui/react";
-import { ArrowLeft, ChevronLeft, ChevronRight, MoreHorizontal, Pencil, FlaskConical, Copy, Trash2, ArrowRight, Download } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, MoreHorizontal, Pencil, FlaskConical, Copy, Power, Trash2, ArrowRight, Download } from "lucide-react";
 import { Shell } from "@/components/Shell";
 import { Pill } from "@/components/bits";
 import { Timeline } from "@/components/Timeline";
-import { RULES, RUSTATE, RUFLOW, CAT_ICON, VENUE, venueOf, bfrMeta, bfrDefault, condText, type Rule, type RuState, type RuAction } from "@/lib/rules";
+import { RULES, RUSTATE, CAT_ICON, VENUE, venueOf, bfrMeta, bfrDefault, condText, type Rule, type RuState } from "@/lib/rules";
 import { FINDINGS } from "@/lib/findings";
 import { findingStore, ruleStore, useRuleVersion, useFindingVersion } from "@/lib/store";
 import type { Person } from "@/lib/data";
@@ -61,9 +61,8 @@ export default function RuleDetail() {
   const trMax = Math.max(...tr);
   const hitTotal = st === "live" ? (rule.hits30 * 90 + 287) : 0; // 累计命中(mock,基于近30天)
 
-  // 状态门控的治理操作(不同状态操作不同)
-  const btnColor = (t?: string) => (t === "green" ? "success" : t === "red" ? "danger" : t === "amber" ? "warning" : t === "grey" ? "default" : "primary") as "success" | "danger" | "warning" | "default" | "primary";
-  const doAction = (a: RuAction) => { ruleStore.set(rule.id, a.to, { owner: owner || ME, event: a.label }); toast.success(`${rule.name} · ${a.label}`); if (a.to === "live") toast("规则已上线 · 事中闸口实时拦截同类"); };
+  // 固定操作:禁用 / 启用(其余为原型动作)
+  const toggle = () => { ruleStore.set(rule.id, st === "disabled" ? "live" : "disabled", { owner: owner || ME, event: st === "disabled" ? "重新启用规则" : "停用规则" }); toast.success(st === "disabled" ? "已重新启用" : "已停用"); };
 
   // 规则概要字段
   const summary: [string, React.ReactNode][] = [
@@ -100,17 +99,14 @@ export default function RuleDetail() {
           <div className="mt-2.5 text-[13px] text-default-500">{rule.cat} · {ven.label} · 创建 <span className="tnum">{rule.updated}</span> · 负责人 <b className="text-foreground">{(owner || ME).n}</b> · 来源 {rule.to ? <button onClick={() => nav(rule.to!)} className="text-primary hover:opacity-80">{rule.src} {rule.srcId}</button> : rule.src}</div>
         </div>
         <div className="flex items-center gap-2">
-          {/* 状态门控治理操作 —— 不同状态操作不同 */}
-          {RUFLOW[st].map((a, i) => { const Icon = a.icon; return (
-            <Button key={a.k} size="sm" color={btnColor(a.tone)} variant={i === 0 ? "solid" : "flat"} startContent={<Icon className="h-4 w-4" />} onPress={() => doAction(a)}>{a.label}</Button>
-          ); })}
-          {/* 统一类操作(与状态无关) */}
+          {/* 固定操作 —— 不随状态变 */}
+          <Button size="sm" color="primary" startContent={<Pencil className="h-4 w-4" />} onPress={() => toast("编辑规则 · 打开规则编辑器")}>编辑规则</Button>
           <Dropdown placement="bottom-end">
             <DropdownTrigger><Button isIconOnly size="sm" variant="flat" className="bg-default-100"><MoreHorizontal className="h-4 w-4" /></Button></DropdownTrigger>
-            <DropdownMenu aria-label="规则操作" onAction={(k) => { if (k === "edit") toast("编辑规则 · 打开规则编辑器"); else if (k === "backtest") toast("回测模拟 · 在历史窗口上重放该规则"); else if (k === "copy") toast("已复制规则 · 生成副本草案"); else if (k === "delete") toast.error("删除规则 · 需变更审批"); }}>
-              <DropdownItem key="edit" startContent={<Pencil className="h-4 w-4" />}>编辑规则</DropdownItem>
+            <DropdownMenu aria-label="规则操作" onAction={(k) => { if (k === "disable") toggle(); else if (k === "backtest") toast("回测模拟 · 在历史窗口上重放该规则"); else if (k === "copy") toast("已复制规则 · 生成副本草案"); else if (k === "delete") toast.error("删除规则 · 需变更审批"); }}>
               <DropdownItem key="backtest" startContent={<FlaskConical className="h-4 w-4" />}>回测模拟</DropdownItem>
               <DropdownItem key="copy" startContent={<Copy className="h-4 w-4" />}>复制规则</DropdownItem>
+              <DropdownItem key="disable" startContent={<Power className="h-4 w-4" />}>{st === "disabled" ? "启用规则" : "禁用规则"}</DropdownItem>
               <DropdownItem key="delete" className="text-danger" color="danger" startContent={<Trash2 className="h-4 w-4" />}>删除规则</DropdownItem>
             </DropdownMenu>
           </Dropdown>
