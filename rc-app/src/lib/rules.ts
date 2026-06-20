@@ -14,6 +14,16 @@ export const RUSTATE: Record<RuState, { label: string; tone: Tone; active: boole
 
 export type RuCat = "金额阈值" | "链上溯源" | "行为模式" | "名单筛查" | "评分模型" | "统计聚合";
 export const CATS: RuCat[] = ["金额阈值", "链上溯源", "行为模式", "名单筛查", "评分模型", "统计聚合"];
+
+// 执行场景:事中(实时闸口)/ 事后(批量回溯)/ 两者 —— 决定规则能否实时拦截
+export type Venue = "gate" | "batch" | "both";
+export const VENUE: Record<Venue, { label: string; short: string; tone: Tone; hint: string }> = {
+  gate: { label: "事中 · 实时闸口", short: "事中", tone: "blue", hint: "交易发生时即可实时判定 —— 单笔阈值 / 名单 / 地址风险 / 同主体滑窗累计。可当场放行 / 拒绝。" },
+  batch: { label: "事后 · 批量回溯", short: "事后", tone: "violet", hint: "需跨时间 / 跨主体聚合,实时算不出 —— 扇入归集 / 速度偏离 / 对手集中度 / 链跳回溯。只能批量回扫。" },
+  both: { label: "事中 + 事后", short: "事中+事后", tone: "green", hint: "事中先做近实时标记 / 拦截,事后批量复扫补全(如链上溯源、扇入图关联)。" },
+};
+// 未显式标场景时:统计聚合类默认事后,其余默认事中
+export const venueOf = (r: { cat: RuCat; venue?: Venue }): Venue => r.venue || (r.cat === "统计聚合" ? "batch" : "gate");
 export const CAT_ICON: Record<RuCat, typeof DollarSign> = {
   金额阈值: DollarSign, 链上溯源: Link2, 行为模式: Activity, 名单筛查: ShieldAlert, 评分模型: Gauge, 统计聚合: Network,
 };
@@ -42,7 +52,7 @@ export const RUFLOW: Record<RuState, RuAction[]> = {
 
 export interface Backtest { window: string; scanned: string; wouldHit: number; estFp: string }
 export interface Rule {
-  id: string; name: string; cat: RuCat; cond: string; action: string; state: RuState;
+  id: string; name: string; cat: RuCat; venue?: Venue; cond: string; action: string; state: RuState;
   hits30: number; fp30: string; src: string; srcId?: string; to?: string;
   owner: Person; updated: string; weight: string; backtest?: Backtest;
 }
@@ -56,7 +66,7 @@ const RH: Person = { i: "RH", n: "Raj Hota", c: "#0ea5e9" }; // 风控建模 / �
 export const RULES: Rule[] = [
   { id: "R-AMT-001", name: "大额充值监控", cat: "金额阈值", cond: "单笔充值 ≥ CAD 5,000", action: "评分 +60 · 转研判", state: "live", hits30: 142, fp30: "6%", src: "内置", owner: JL, updated: "2026-04-12", weight: "+60" },
   { id: "R-AMT-002", name: "大额提现监控", cat: "金额阈值", cond: "单笔提现 ≥ CAD 3,000", action: "评分 +55 · 转研判", state: "live", hits30: 98, fp30: "9%", src: "内置", owner: JL, updated: "2026-04-12", weight: "+55" },
-  { id: "R-CHN-001", name: "混币器关联", cat: "链上溯源", cond: "资金 ≤2 跳触及制裁混币器", action: "评分 +35 · 冻结", state: "live", hits30: 12, fp30: "2%", src: "内置", owner: SC, updated: "2026-05-03", weight: "+35" },
+  { id: "R-CHN-001", name: "混币器关联", cat: "链上溯源", venue: "both", cond: "资金 ≤2 跳触及制裁混币器", action: "评分 +35 · 冻结", state: "live", hits30: 12, fp30: "2%", src: "内置", owner: SC, updated: "2026-05-03", weight: "+35" },
   { id: "R-LST-001", name: "制裁地址命中", cat: "名单筛查", cond: "收 / 发方命中 OFAC / UN", action: "直接拦截 · 冻结 · 升级 MLRO", state: "live", hits30: 3, fp30: "0%", src: "内置", owner: EZ, updated: "2026-02-20", weight: "+100" },
   { id: "R-SCR-001", name: "KYW 评分超阈值", cat: "评分模型", cond: "收款钱包 KYW 评分 > 70", action: "评分 +50 · 转研判", state: "live", hits30: 27, fp30: "14%", src: "内置", owner: SC, updated: "2026-05-19", weight: "+50" },
   { id: "R-BHV-001", name: "高频拆分入金(单笔)", cat: "行为模式", cond: "24h 内 ≥5 笔且金额相近", action: "评分 +30 · 转研判", state: "live", hits30: 19, fp30: "21%", src: "内置", owner: JL, updated: "2026-03-28", weight: "+30" },
@@ -71,11 +81,11 @@ export const RULES: Rule[] = [
 export const ruleOf = (id?: string) => RULES.find((r) => r.id === id);
 
 // 规则回填 → 派生规则草案(命中 backfill 的 typology)。历史回填(静态 backfill)默认已上线;本会话新回填的进回测。
-export const BFR: Record<string, { name: string; cat: RuCat; cond: string; action: string; weight: string }> = {
-  "结构化拆分(累计)": { name: "同主体滑窗累计阈值", cat: "统计聚合", cond: "同主体 7 日累计入金 ≥ CAD 10,000", action: "评分 +40 · 转研判", weight: "+40" },
-  "多账户归集(扇入)": { name: "多主体扇入同一地址", cat: "统计聚合", cond: "≥4 主体 14 日内汇入同一非托管地址", action: "转研判 · 图关联标记", weight: "+40" },
-  "休眠后突发": { name: "休眠激活异常", cat: "行为模式", cond: "休眠 ≥60 天后单日出金笔数 ≥ 基线 5×", action: "评分 +30", weight: "+30" },
-  "币币链跳(回溯)": { name: "隐私币 / 跨链跳转", cat: "链上溯源", cond: "兑入隐私币 或 经跨链桥转出", action: "评分 +45 · 转研判", weight: "+45" },
+export const BFR: Record<string, { name: string; cat: RuCat; venue: Venue; cond: string; action: string; weight: string }> = {
+  "结构化拆分(累计)": { name: "同主体滑窗累计阈值", cat: "统计聚合", venue: "gate", cond: "同主体 7 日累计入金 ≥ CAD 10,000", action: "评分 +40 · 转研判", weight: "+40" },
+  "多账户归集(扇入)": { name: "多主体扇入同一地址", cat: "统计聚合", venue: "both", cond: "≥4 主体 14 日内汇入同一非托管地址", action: "转研判 · 图关联标记", weight: "+40" },
+  "休眠后突发": { name: "休眠激活异常", cat: "行为模式", venue: "gate", cond: "休眠 ≥60 天后单日出金笔数 ≥ 基线 5×", action: "评分 +30", weight: "+30" },
+  "币币链跳(回溯)": { name: "隐私币 / 跨链跳转", cat: "链上溯源", venue: "both", cond: "兑入隐私币 或 经跨链桥转出", action: "评分 +45 · 转研判", weight: "+45" },
 };
-export const bfrMeta = (pattern: string) => BFR[pattern] || { name: `${pattern}（回填）`, cat: "统计聚合" as RuCat, cond: "回填 typology · 待补条件", action: "评分 +N", weight: "+30" };
+export const bfrMeta = (pattern: string) => BFR[pattern] || { name: `${pattern}（回填）`, cat: "统计聚合" as RuCat, venue: "gate" as Venue, cond: "回填 typology · 待补条件", action: "评分 +N", weight: "+30" };
 export const bfrDefault = (staticBackfill?: boolean): RuState => (staticBackfill ? "live" : "backtest");

@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from "react";
 import type { Person } from "./data";
 import type { Ring } from "./rings";
+import type { Rule } from "./rules";
 
 interface Override { state?: string; assignee?: Person | null; events: { t: string; text: string; reason: string }[] }
 
@@ -129,6 +130,7 @@ export function useReportVersion() {
 
 // ── 监控规则状态store(变更治理:回测 → 审批 → 上线 / 停用)──
 const ruleData: Record<string, { state?: string; owner?: Person | null; events?: { t: string; text: string; reason: string }[] }> = {};
+let ruleCreated: Rule[] = [];
 let ruleVersion = 0;
 const ruleListeners = new Set<() => void>();
 const ruleNotify = () => { ruleVersion++; ruleListeners.forEach((l) => l()); };
@@ -136,9 +138,11 @@ const ruleNotify = () => { ruleVersion++; ruleListeners.forEach((l) => l()); };
 export const ruleStore = {
   subscribe(cb: () => void) { ruleListeners.add(cb); return () => { ruleListeners.delete(cb); }; },
   getVersion() { return ruleVersion; },
+  created() { return ruleCreated; },
   stateOf(id: string, base: string) { return ruleData[id]?.state || base; },
   ownerOf(id: string, base: Person | null) { const o = ruleData[id]; return o && o.owner !== undefined ? o.owner : base; },
   eventsOf(id: string) { return ruleData[id]?.events || []; },
+  add(r: Rule) { ruleCreated = [r, ...ruleCreated]; ruleNotify(); },
   set(id: string, state: string, opts: { owner?: Person | null; event?: string; reason?: string } = {}) {
     const cur = ruleData[id] || {};
     cur.state = state;

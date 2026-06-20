@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { Drawer, DrawerContent, DrawerHeader, DrawerBody, DrawerFooter, Button, Textarea } from "@heroui/react";
 import { ExternalLink, Check } from "lucide-react";
 import { Initials, SectionLabel, Pill, KvRow } from "./bits";
-import { RUSTATE, RUFLOW, CAT_ICON, type Rule, type RuState } from "@/lib/rules";
+import { RUSTATE, RUFLOW, CAT_ICON, VENUE, venueOf, type Rule, type RuState } from "@/lib/rules";
 import { ruleStore, useRuleVersion } from "@/lib/store";
 
 const RH = { i: "RH", n: "Raj Hota", c: "#0ea5e9" }; // 变更治理执行人
@@ -57,6 +57,7 @@ export function RuleDrawer({ rule, open, onOpenChange, onDone }: { rule: Rule | 
           {/* 规则摘要 */}
           <div className="card p-3.5">
             <KvRow label="类别">{rule.cat}</KvRow>
+            <KvRow label="执行场景"><span className="inline-flex items-center gap-1.5"><Pill tone={VENUE[venueOf(rule)].tone} dot={false}>{VENUE[venueOf(rule)].short}</Pill></span></KvRow>
             <KvRow label="触发条件">{rule.cond}</KvRow>
             <KvRow label="命中处置">{rule.action}</KvRow>
             <KvRow label="权重 / 评分">{rule.weight}</KvRow>

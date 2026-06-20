@@ -5,7 +5,8 @@ import { Eye, Settings2, Search, RefreshCw, ExternalLink } from "lucide-react";
 import { Shell, PageHead } from "@/components/Shell";
 import { Pill, Initials } from "@/components/bits";
 import { RuleDrawer } from "@/components/RuleDrawer";
-import { RULES, RUSTATE, CAT_ICON, CATS, bfrMeta, bfrDefault, type Rule, type RuState } from "@/lib/rules";
+import { NewRuleDrawer } from "@/components/NewRuleDrawer";
+import { RULES, RUSTATE, CAT_ICON, CATS, VENUE, venueOf, bfrMeta, bfrDefault, type Rule, type RuState } from "@/lib/rules";
 import { FINDINGS } from "@/lib/findings";
 import { findingStore, ruleStore, useRuleVersion, useFindingVersion } from "@/lib/store";
 import type { Person } from "@/lib/data";
@@ -30,6 +31,7 @@ export default function RulesPage() {
   const [q, setQ] = useState("");
   const [sel, setSel] = useState<Rule | null>(null);
   const [open, setOpen] = useState(false);
+  const [newOpen, setNewOpen] = useState(false);
 
   // 规则回填闭环:命中 backfill 的 typology 实时派生为规则(历史回填→已上线,本会话新回填→回测中)
   const finRules: Rule[] = FINDINGS
@@ -43,7 +45,7 @@ export default function RulesPage() {
       };
     });
 
-  const all: Rule[] = [...finRules, ...RULES];
+  const all: Rule[] = [...ruleStore.created(), ...finRules, ...RULES];
   const stOf = (r: Rule) => ruleStore.stateOf(r.id, r.state) as RuState;
 
   const count = (key: string) => all.filter((r) => key === "all" || stOf(r) === key).length;
@@ -65,7 +67,7 @@ export default function RulesPage() {
       <PageHead
         title="监控规则"
         sub="事中 / 告警的检测规则库与变更治理 —— 内置规则长期生效;事后监控「规则回填」的 typology 在此走 回测 → 审批 → 上线,闭环让事中实时拦截同类。"
-        actions={<Button size="sm" radius="full" color="primary" variant="flat" startContent={<Settings2 className="h-3.5 w-3.5" />}>新建规则</Button>}
+        actions={<Button size="sm" radius="full" color="primary" variant="flat" startContent={<Settings2 className="h-3.5 w-3.5" />} onPress={() => setNewOpen(true)}>新建规则</Button>}
       />
 
       {/* 回填闭环概览 */}
@@ -125,7 +127,7 @@ export default function RulesPage() {
                 <TableCell>
                   <button onClick={() => manage(r)} className="text-left">
                     <span className="inline-flex items-center gap-2 font-semibold whitespace-nowrap"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-default-100 text-default-500"><CIcon className="h-4 w-4" /></span>{r.name}</span>
-                    <div className="ml-9 text-[11px] text-default-400">{r.cat} · {r.id}</div>
+                    <div className="ml-9 mt-0.5 flex items-center gap-1.5"><Pill tone={VENUE[venueOf(r)].tone} dot={false}>{VENUE[venueOf(r)].short}</Pill><span className="text-[11px] text-default-400">{r.cat} · {r.id}</span></div>
                   </button>
                 </TableCell>
                 <TableCell><span className="block max-w-[240px] text-[12.5px] leading-snug text-default-600">{r.cond}</span></TableCell>
@@ -147,6 +149,7 @@ export default function RulesPage() {
       </Table>
 
       <RuleDrawer rule={sel} open={open} onOpenChange={setOpen} />
+      <NewRuleDrawer open={newOpen} onOpenChange={setNewOpen} />
     </Shell>
   );
 }
