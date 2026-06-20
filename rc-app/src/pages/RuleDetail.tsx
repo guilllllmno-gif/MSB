@@ -1,11 +1,13 @@
 import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
-import { Button, Tabs, Tab, Dropdown, DropdownTrigger, DropdownMenu, DropdownItem, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell } from "@heroui/react";
-import { ArrowLeft, ChevronLeft, ChevronRight, MoreHorizontal, Pencil, FlaskConical, Copy, Power, Trash2, ArrowRight, Download } from "lucide-react";
+import { Button, Tabs, Tab, Dropdown, DropdownTrigger, DropdownMenu, DropdownItem, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter } from "@heroui/react";
+import { ArrowLeft, ChevronLeft, ChevronRight, MoreHorizontal, Pencil, FlaskConical, Copy, Power, Trash2, ArrowRight, Download, AlertTriangle } from "lucide-react";
 import { Shell } from "@/components/Shell";
 import { Pill } from "@/components/bits";
 import { Timeline } from "@/components/Timeline";
+import { NewRuleDrawer } from "@/components/NewRuleDrawer";
+import { RuleBacktestDrawer } from "@/components/RuleBacktestDrawer";
 import { RULES, RUSTATE, CAT_ICON, VENUE, venueOf, bfrMeta, bfrDefault, condText, type Rule, type RuState } from "@/lib/rules";
 import { FINDINGS } from "@/lib/findings";
 import { findingStore, ruleStore, useRuleVersion, useFindingVersion } from "@/lib/store";
@@ -40,9 +42,22 @@ export default function RuleDetail() {
   useRuleVersion();
   useFindingVersion();
   const [tab, setTab] = useState("basic");
+  const [editOpen, setEditOpen] = useState(false);
+  const [btOpen, setBtOpen] = useState(false);
+  const [delOpen, setDelOpen] = useState(false);
 
   const id = sp.get("id");
-  const rule = resolve(id);
+  const base = resolve(id);
+  const rule = { ...base, ...ruleStore.editsOf(base.id) } as Rule;
+  if (ruleStore.isRemoved(base.id)) return (
+    <Shell crumb={["检测策略", "监控规则", "已删除"]}>
+      <div className="flex min-h-[55vh] flex-col items-center justify-center gap-3 text-center">
+        <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-default-100 text-default-400"><Trash2 className="h-6 w-6" /></span>
+        <p className="text-[15px] font-bold">规则已删除</p>
+        <Button color="primary" onPress={() => nav("/rules")}>返回监控规则</Button>
+      </div>
+    </Shell>
+  );
   const st = ruleStore.stateOf(rule.id, rule.state) as RuState;
   const sd = RUSTATE[st];
   const owner = ruleStore.ownerOf(rule.id, rule.owner);
@@ -61,8 +76,14 @@ export default function RuleDetail() {
   const trMax = Math.max(...tr);
   const hitTotal = st === "live" ? (rule.hits30 * 90 + 287) : 0; // 累计命中(mock,基于近30天)
 
-  // 固定操作:禁用 / 启用(其余为原型动作)
+  // 固定操作:编辑 / 回测 / 复制 / 禁用·启用 / 删除
   const toggle = () => { ruleStore.set(rule.id, st === "disabled" ? "live" : "disabled", { owner: owner || ME, event: st === "disabled" ? "重新启用规则" : "停用规则" }); toast.success(st === "disabled" ? "已重新启用" : "已停用"); };
+  const doCopy = () => {
+    const n = ruleStore.created().length + 1;
+    const copy: Rule = { ...rule, id: `R-CP-${String(n).padStart(3, "0")}`, name: `${rule.name}（副本）`, state: "backtest", src: `复制自 ${rule.id}`, srcId: undefined, to: undefined, hits30: 0, fp30: "—", updated: "2026-06-20" };
+    ruleStore.add(copy); toast.success(`已复制为「${copy.name}」· 进入回测`); nav(`/rule?id=${copy.id}`);
+  };
+  const doDelete = () => { ruleStore.remove(rule.id); setDelOpen(false); toast.success(`已删除「${rule.name}」`); nav("/rules"); };
 
   // 规则概要字段
   const summary: [string, React.ReactNode][] = [
@@ -100,10 +121,10 @@ export default function RuleDetail() {
         </div>
         <div className="flex items-center gap-2">
           {/* 固定操作 —— 不随状态变 */}
-          <Button size="sm" color="primary" startContent={<Pencil className="h-4 w-4" />} onPress={() => toast("编辑规则 · 打开规则编辑器")}>编辑规则</Button>
+          <Button size="sm" color="primary" startContent={<Pencil className="h-4 w-4" />} onPress={() => setEditOpen(true)}>编辑规则</Button>
           <Dropdown placement="bottom-end">
             <DropdownTrigger><Button isIconOnly size="sm" variant="flat" className="bg-default-100"><MoreHorizontal className="h-4 w-4" /></Button></DropdownTrigger>
-            <DropdownMenu aria-label="规则操作" onAction={(k) => { if (k === "disable") toggle(); else if (k === "backtest") toast("回测模拟 · 在历史窗口上重放该规则"); else if (k === "copy") toast("已复制规则 · 生成副本草案"); else if (k === "delete") toast.error("删除规则 · 需变更审批"); }}>
+            <DropdownMenu aria-label="规则操作" onAction={(k) => { if (k === "disable") toggle(); else if (k === "backtest") setBtOpen(true); else if (k === "copy") doCopy(); else if (k === "delete") setDelOpen(true); }}>
               <DropdownItem key="backtest" startContent={<FlaskConical className="h-4 w-4" />}>回测模拟</DropdownItem>
               <DropdownItem key="copy" startContent={<Copy className="h-4 w-4" />}>复制规则</DropdownItem>
               <DropdownItem key="disable" startContent={<Power className="h-4 w-4" />}>{st === "disabled" ? "启用规则" : "禁用规则"}</DropdownItem>
@@ -239,6 +260,19 @@ export default function RuleDetail() {
           </div>
         </div>
       )}
+
+      <NewRuleDrawer open={editOpen} onOpenChange={setEditOpen} editRule={rule} />
+      <RuleBacktestDrawer rule={rule} open={btOpen} onOpenChange={setBtOpen} />
+      <Modal isOpen={delOpen} onOpenChange={setDelOpen} size="sm" placement="center">
+        <ModalContent>
+          <ModalHeader className="flex items-center gap-2 text-[15px]"><span className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ background: "var(--danger-bg)", color: "var(--danger)" }}><AlertTriangle className="h-4 w-4" /></span>删除规则</ModalHeader>
+          <ModalBody className="text-[13px] leading-relaxed text-default-600">确认删除规则 <b className="text-foreground">{rule.id} {rule.name}</b>?删除后将从规则库移除,事中 / 事后不再按此规则判定。此操作记入变更审计。</ModalBody>
+          <ModalFooter>
+            <Button variant="bordered" onPress={() => setDelOpen(false)}>取消</Button>
+            <Button color="danger" onPress={doDelete}>确认删除</Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
     </Shell>
   );
 }

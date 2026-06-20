@@ -42,7 +42,9 @@ export default function RulesPage() {
       };
     });
 
-  const all: Rule[] = [...ruleStore.created(), ...finRules, ...RULES];
+  const all: Rule[] = [...ruleStore.created(), ...finRules, ...RULES]
+    .filter((r) => !ruleStore.isRemoved(r.id))
+    .map((r) => ({ ...r, ...ruleStore.editsOf(r.id) }) as Rule);
   const stOf = (r: Rule) => ruleStore.stateOf(r.id, r.state) as RuState;
 
   const count = (key: string) => all.filter((r) => key === "all" || stOf(r) === key).length;

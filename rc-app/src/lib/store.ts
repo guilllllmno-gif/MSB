@@ -130,6 +130,8 @@ export function useReportVersion() {
 
 // ── 监控规则状态store(变更治理:回测 → 审批 → 上线 / 停用)──
 const ruleData: Record<string, { state?: string; owner?: Person | null; events?: { t: string; text: string; reason: string }[] }> = {};
+const ruleEdits: Record<string, Partial<Rule>> = {};
+const ruleRemoved = new Set<string>();
 let ruleCreated: Rule[] = [];
 let ruleVersion = 0;
 const ruleListeners = new Set<() => void>();
@@ -142,7 +144,11 @@ export const ruleStore = {
   stateOf(id: string, base: string) { return ruleData[id]?.state || base; },
   ownerOf(id: string, base: Person | null) { const o = ruleData[id]; return o && o.owner !== undefined ? o.owner : base; },
   eventsOf(id: string) { return ruleData[id]?.events || []; },
+  editsOf(id: string) { return ruleEdits[id]; },
+  isRemoved(id: string) { return ruleRemoved.has(id); },
   add(r: Rule) { ruleCreated = [r, ...ruleCreated]; ruleNotify(); },
+  update(id: string, patch: Partial<Rule>) { ruleEdits[id] = { ...(ruleEdits[id] || {}), ...patch }; ruleNotify(); },
+  remove(id: string) { ruleRemoved.add(id); ruleNotify(); },
   set(id: string, state: string, opts: { owner?: Person | null; event?: string; reason?: string } = {}) {
     const cur = ruleData[id] || {};
     cur.state = state;

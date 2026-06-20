@@ -14,7 +14,8 @@ const VENUES: Venue[] = ["gate", "batch", "both"];
 const onStyle = { borderColor: "var(--brand)", background: "var(--brand-soft)", color: "var(--brand)" };
 const offStyle = { borderColor: "var(--line)", color: "var(--text-2)" };
 
-export function NewRuleDrawer({ open, onOpenChange, onDone }: { open: boolean; onOpenChange: (o: boolean) => void; onDone?: () => void }) {
+export function NewRuleDrawer({ open, onOpenChange, onDone, editRule }: { open: boolean; onOpenChange: (o: boolean) => void; onDone?: (id?: string) => void; editRule?: Rule | null }) {
+  const editing = !!editRule;
   const [name, setName] = useState("");
   const [cat, setCat] = useState<RuCat | "">("");
   const [venue, setVenue] = useState<Venue | "">("");
@@ -26,8 +27,16 @@ export function NewRuleDrawer({ open, onOpenChange, onDone }: { open: boolean; o
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (open) { setName(""); setCat(""); setVenue(""); setClauses([{ field: "", op: "", value: "" }]); setOtherwise(""); setAction(""); setWeight(""); setErrs(new Set()); }
-  }, [open]);
+    if (open) {
+      setErrs(new Set());
+      if (editRule) {
+        setName(editRule.name); setCat(editRule.cat); setVenue(editRule.venue || ""); setAction(editRule.action); setWeight(editRule.weight);
+        setOtherwise(editRule.otherwise || ""); setClauses(editRule.clauses?.length ? editRule.clauses.map((c) => ({ ...c })) : [{ field: "", op: "", value: "" }]);
+      } else {
+        setName(""); setCat(""); setVenue(""); setClauses([{ field: "", op: "", value: "" }]); setOtherwise(""); setAction(""); setWeight("");
+      }
+    }
+  }, [open, editRule]);
 
   const setClause = (i: number, patch: Partial<Clause>) => setClauses((cs) => cs.map((c, j) => (j === i ? { ...c, ...patch } : c)));
   const addClause = () => setClauses((cs) => [...cs, { field: "", op: "", value: "" }]);
@@ -43,6 +52,11 @@ export function NewRuleDrawer({ open, onOpenChange, onDone }: { open: boolean; o
     if (!action) e.add("action");
     setErrs(e);
     if (e.size) { toast.error("请补全规则信息(名称 / 类别 / 执行场景 / 至少一条完整条件 / 处置)"); return; }
+    if (editing && editRule) {
+      ruleStore.update(editRule.id, { name: name.trim(), cat: cat as RuCat, venue: venue as Venue, cond: condText(validClauses), clauses: validClauses, otherwise: otherwise || undefined, action, weight: weight.trim() || editRule.weight });
+      toast.success(`已保存「${name.trim()}」`);
+      onOpenChange(false); onDone?.(editRule.id); return;
+    }
     const n = ruleStore.created().length + 1;
     const rule: Rule = {
       id: `R-NEW-${String(n).padStart(3, "0")}`, name: name.trim(), cat: cat as RuCat, venue: venue as Venue,
@@ -52,15 +66,15 @@ export function NewRuleDrawer({ open, onOpenChange, onDone }: { open: boolean; o
     ruleStore.add(rule);
     toast.success(`已新建规则「${rule.name}」· 进入回测`);
     toast(`执行场景:${VENUE[rule.venue!].label} · 待回测达标后审批上线`);
-    onOpenChange(false); onDone?.();
+    onOpenChange(false); onDone?.(rule.id);
   };
 
   return (
     <Drawer isOpen={open} onOpenChange={onOpenChange} placement="right" size="md" classNames={{ base: "!w-[50vw] !min-w-[460px] !max-w-[820px]" }}>
       <DrawerContent>
         <DrawerHeader className="flex-col items-start gap-0.5 border-b border-divider">
-          <span className="text-[15px] font-bold">新建监控规则</span>
-          <span className="text-[11.5px] font-normal text-default-400">新规则先进回测,达标审批后才上线生效</span>
+          <span className="text-[15px] font-bold">{editing ? "编辑监控规则" : "新建监控规则"}</span>
+          <span className="text-[11.5px] font-normal text-default-400">{editing ? `${editRule!.id} · 修改条件 / 处置 / 场景` : "新规则先进回测,达标审批后才上线生效"}</span>
         </DrawerHeader>
         <DrawerBody className="gap-4 py-4">
           <Input size="sm" label="规则名称" labelPlacement="outside" placeholder="如:同主体滑窗累计阈值" isRequired value={name} onValueChange={setName} isInvalid={errs.has("name")} />
@@ -128,11 +142,11 @@ export function NewRuleDrawer({ open, onOpenChange, onDone }: { open: boolean; o
 
           <Input size="sm" label="权重 / 评分(选填)" labelPlacement="outside" placeholder="如:+40" value={weight} onValueChange={setWeight} />
 
-          <p className="rounded-xl border border-divider bg-default-100 p-3 text-[11.5px] leading-relaxed text-default-500">新建规则<b>不直接上线</b> —— 进入「回测中」,回测命中 / 误报达标后提交审批,审批通过才在所选场景生效。</p>
+          {!editing && <p className="rounded-xl border border-divider bg-default-100 p-3 text-[11.5px] leading-relaxed text-default-500">新建规则<b>不直接上线</b> —— 进入「回测中」,回测命中 / 误报达标后提交审批,审批通过才在所选场景生效。</p>}
         </DrawerBody>
         <DrawerFooter className="border-t border-divider">
           <Button variant="bordered" onPress={() => onOpenChange(false)}>取消</Button>
-          <Button color="primary" onPress={submit}>创建 · 进回测</Button>
+          <Button color="primary" onPress={submit}>{editing ? "保存修改" : "创建 · 进回测"}</Button>
         </DrawerFooter>
       </DrawerContent>
     </Drawer>
