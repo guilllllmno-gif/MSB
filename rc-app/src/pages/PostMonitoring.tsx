@@ -6,7 +6,7 @@ import { History, ClipboardCheck, Eye, Clock, UserRound, UserPlus } from "lucide
 import { Shell, PageHead } from "@/components/Shell";
 import { Pill, Initials } from "@/components/bits";
 import { FindingReviewDialog } from "@/components/FindingReviewDialog";
-import { FINDINGS, FSTATES, BATCHES, type Finding, type FState } from "@/lib/findings";
+import { FINDINGS, FSTATES, FDIM, BATCHES, type Finding, type FState } from "@/lib/findings";
 import { findingStore, useFindingVersion } from "@/lib/store";
 import type { Person } from "@/lib/data";
 
@@ -87,7 +87,7 @@ export default function PostMonitoring() {
             return (
               <TableRow key={f.id}>
                 <TableCell><button onClick={() => nav(`/finding?id=${f.id}`)} className="text-left"><span className="inline-flex items-center gap-2 font-semibold whitespace-nowrap"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-default-100 text-default-500"><Icon className="h-4 w-4" /></span>{f.pattern}</span><div className="ml-9 text-[11px] text-default-400">{f.id} · {f.period}</div></button></TableCell>
-                <TableCell><span className="font-medium">{f.subject}</span></TableCell>
+                <TableCell><div className="flex flex-col items-start gap-1"><span className="font-medium">{f.subject}</span><span className="inline-flex items-center gap-1 rounded bg-default-100 px-1.5 py-0.5 text-[10px] font-semibold text-default-500">{(() => { const DI = FDIM[f.dim].icon; return <DI className="h-3 w-3" />; })()}{FDIM[f.dim].label}</span></div></TableCell>
                 <TableCell><span className="block max-w-[280px] text-[12.5px] leading-snug text-default-600">{f.hit}</span></TableCell>
                 <TableCell><div className="font-semibold tnum whitespace-nowrap">{f.amount}</div><div className="mt-0.5 text-[10.5px] text-default-400">已出账</div></TableCell>
                 <TableCell>

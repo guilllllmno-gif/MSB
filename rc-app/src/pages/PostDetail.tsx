@@ -7,7 +7,7 @@ import { Shell } from "@/components/Shell";
 import { Pill } from "@/components/bits";
 import { FindingReviewDialog } from "@/components/FindingReviewDialog";
 import { TraceDrawer } from "@/components/TraceDrawer";
-import { findingOf, detailOf, FSTATES, type FState } from "@/lib/findings";
+import { findingOf, detailOf, FSTATES, FDIM, type FState } from "@/lib/findings";
 import { findingStore, useFindingVersion } from "@/lib/store";
 
 const ME = { i: "JL", n: "James Liu", c: "var(--brand)" };
@@ -119,6 +119,7 @@ export default function PostDetail() {
             <p className="text-[13px] leading-relaxed text-default-700">{f.hit}</p>
             <div className="mt-3 grid grid-cols-1 gap-x-8 sm:grid-cols-2">
               <Kv label="命中规则 / 模型">{f.rule}</Kv>
+              <Kv label="检测维度"><span className="inline-flex items-center gap-1">{(() => { const DI = FDIM[f.dim].icon; return <DI className="h-3.5 w-3.5 text-default-400" />; })()}{FDIM[f.dim].label}</span></Kv>
               <Kv label="监测周期">{f.period}</Kv>
               <Kv label="涉及交易数">{f.txns} 笔</Kv>
               <Kv label="涉及金额">{f.amount}</Kv>
@@ -197,10 +198,11 @@ export default function PostDetail() {
             <div className="card overflow-hidden p-0">
               <div className="border-b border-divider p-4 text-[13px] font-bold">涉及交易明细 · {f.txns} 笔(样本 {d.txList.length})</div>
               <table className="w-full text-[12.5px]">
-                <thead><tr className="border-b border-divider text-[11.5px] text-default-400"><th className="px-4 py-2 text-left font-medium">时间</th><th className="px-4 py-2 text-left font-medium">对手</th><th className="px-4 py-2 text-right font-medium">金额</th><th className="px-4 py-2 text-left font-medium">说明</th></tr></thead>
+                <thead><tr className="border-b border-divider text-[11.5px] text-default-400"><th className="px-4 py-2 text-left font-medium">交易ID / 订单号</th><th className="px-4 py-2 text-left font-medium">时间</th><th className="px-4 py-2 text-left font-medium">对手</th><th className="px-4 py-2 text-right font-medium">金额</th><th className="px-4 py-2 text-left font-medium">说明</th></tr></thead>
                 <tbody>
                   {d.txList.map((tx, i) => (
                     <tr key={i} className="border-b border-default-100 last:border-0">
+                      <td className="px-4 py-2.5 whitespace-nowrap">{tx.id ? <span className="font-semibold tnum">{tx.id}</span> : <span className="text-default-400">多笔汇总</span>}</td>
                       <td className="px-4 py-2.5 tnum text-default-500 whitespace-nowrap">{tx.t}</td>
                       <td className="px-4 py-2.5 font-medium">{tx.party}</td>
                       <td className="px-4 py-2.5 text-right font-semibold tnum">{tx.amount}</td>
@@ -214,9 +216,12 @@ export default function PostDetail() {
         </div>
 
         <div className="flex flex-col gap-5">
-          {/* 主体画像 */}
+          {/* 主体画像 — 按检测维度自适应(商户 / 地址 / 网络) */}
           <div className="card p-5">
-            <div className="mb-2 text-[11px] font-bold uppercase tracking-wider text-default-400">主体画像</div>
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-default-400">{FDIM[f.dim].profileTitle}</span>
+              <span className="inline-flex items-center gap-1 rounded-full bg-default-100 px-2 py-0.5 text-[10.5px] font-semibold text-default-500">{(() => { const DI = FDIM[f.dim].icon; return <DI className="h-3 w-3" />; })()}{FDIM[f.dim].label}</span>
+            </div>
             <div className="text-[14px] font-bold">{f.subject}</div>
             <div className="mb-2 text-[12px] text-default-400">{f.sub}</div>
             {d?.profile && <>

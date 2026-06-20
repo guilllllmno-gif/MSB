@@ -1,6 +1,14 @@
 // 事后监控:回溯命中(findings)数据 + 命中项状态机 + 批次历史。状态/处置存 store.ts 的 findingStore(内存)。
-import { Layers, Network, Zap, Repeat, Coins, Shuffle, UserPlus, FileQuestion, RotateCcw, ArrowUpCircle, XCircle, Send, FolderPlus } from "lucide-react";
+import { Layers, Network, Zap, Repeat, Coins, Shuffle, UserPlus, FileQuestion, RotateCcw, ArrowUpCircle, XCircle, Send, FolderPlus, Store, Wallet } from "lucide-react";
 import type { Tone, Person } from "./data";
+
+// 检测维度 —— 事后监控是批量回溯,主体维度不统一(不像事中/告警的单笔单商户)
+export type FDim = "merchant" | "address" | "network";
+export const FDIM: Record<FDim, { label: string; icon: typeof Layers; profileTitle: string }> = {
+  merchant: { label: "商户主体", icon: Store, profileTitle: "商户画像" },
+  address: { label: "链上地址", icon: Wallet, profileTitle: "地址画像" },
+  network: { label: "多商户网络", icon: Network, profileTitle: "网络画像" },
+};
 
 export type FState = "new" | "progress" | "pending" | "escalated" | "tracing" | "closed_fp" | "closed_str" | "closed_case";
 export const FSTATES: Record<FState, { label: string; tone: Tone; active: boolean }> = {
@@ -52,26 +60,26 @@ export const traceRecovery = (label?: string): { frozen?: boolean; lossReported?
   return {};
 };
 
-export interface Finding { id: string; pattern: string; icon: typeof Layers; subject: string; sub: string; period: string; hit: string; amount: string; risk: "red" | "amber"; status: FState; batch: string; txns: number; rule: string; sla: { text: string; tone: Tone }; owner: Person | null; trace?: string; backfill?: boolean }
+export interface Finding { id: string; pattern: string; icon: typeof Layers; dim: FDim; subject: string; sub: string; period: string; hit: string; amount: string; risk: "red" | "amber"; status: FState; batch: string; txns: number; rule: string; sla: { text: string; tone: Tone }; owner: Person | null; trace?: string; backfill?: boolean }
 const JL: Person = { i: "JL", n: "James Liu", c: "var(--brand)" };
 const SC: Person = { i: "SC", n: "Sarah Chen", c: "var(--violet)" };
 const MK: Person = { i: "MK", n: "Mae Koh", c: "var(--success)" };
 export const FINDINGS: Finding[] = [
-  { id: "PM-2026-031", pattern: "结构化拆分(累计)", icon: Layers, subject: "RapidPay", sub: "商户 · 加拿大", period: "近 7 天", hit: "14 笔均 < CAD 1,000、合计 CAD 12,600,疑似规避大额申报阈值", amount: "CAD 12,600", risk: "red", status: "new", batch: "#20260619-02", txns: 14, rule: "高频拆分交易(累计阈值)", sla: { text: "剩 2d", tone: "amber" }, owner: null },
-  { id: "PM-2026-030", pattern: "多账户归集(扇入)", icon: Network, subject: "归集地址 0x9Df2…A4c0", sub: "链上地址 · ERC-20", period: "近 14 天", hit: "6 个商户向同一归集地址集中转入,典型分层归集", amount: "CAD 86,400", risk: "red", status: "tracing", batch: "#20260619-02", txns: 23, rule: "扇入归集模式", sla: { text: "剩 9h", tone: "amber" }, owner: SC },
-  { id: "PM-2026-029", pattern: "休眠后突发", icon: Zap, subject: "BlockTrade Corp.", sub: "商户 · 美国", period: "近 24h", hit: "账户休眠 90 天后单日 8 笔高额出金,行为突变", amount: "CAD 41,200", risk: "amber", status: "progress", batch: "#20260619-02", txns: 8, rule: "休眠激活异常", sla: { text: "剩 1d 04h", tone: "amber" }, owner: JL },
-  { id: "PM-2026-028", pattern: "币币链跳(回溯)", icon: Shuffle, subject: "0x5078…Ec8c", sub: "链上地址 · 多链", period: "近 30 天", hit: "多笔兑入隐私币后跨链提走,切断溯源链路", amount: "CAD 52,000", risk: "red", status: "escalated", batch: "#20260618-02", txns: 11, rule: "隐私币 / 跨链溯源", sla: { text: "剩 6h", tone: "red" }, owner: SC },
-  { id: "PM-2026-027", pattern: "交易速度骤增", icon: Repeat, subject: "NovaPay Technologies", sub: "商户 · 美国", period: "近 48h", hit: "笔频较 30 天基线 5.2×,远超同业商户群", amount: "CAD 18,900", risk: "amber", status: "pending", batch: "#20260618-02", txns: 46, rule: "速度 / 峰值偏离", sla: { text: "已暂停", tone: "grey" }, owner: MK },
-  { id: "PM-2026-026", pattern: "对手集中度异常", icon: Coins, subject: "SwiftRemit Inc.", sub: "商户 · 离岸", period: "近 30 天", hit: "80% 出金流向单一高风险司法管辖区交易所", amount: "CAD 33,500", risk: "amber", status: "new", batch: "#20260619-02", txns: 19, rule: "对手集中度", sla: { text: "剩 2d 06h", tone: "amber" }, owner: null },
+  { id: "PM-2026-031", pattern: "结构化拆分(累计)", icon: Layers, dim: "merchant", subject: "RapidPay", sub: "商户 · 加拿大", period: "近 7 天", hit: "14 笔均 < CAD 1,000、合计 CAD 12,600,疑似规避大额申报阈值", amount: "CAD 12,600", risk: "red", status: "new", batch: "#20260619-02", txns: 14, rule: "高频拆分交易(累计阈值)", sla: { text: "剩 2d", tone: "amber" }, owner: null },
+  { id: "PM-2026-030", pattern: "多账户归集(扇入)", icon: Network, dim: "network", subject: "归集地址 0x9Df2…A4c0", sub: "链上地址 · ERC-20", period: "近 14 天", hit: "6 个商户向同一归集地址集中转入,典型分层归集", amount: "CAD 86,400", risk: "red", status: "tracing", batch: "#20260619-02", txns: 23, rule: "扇入归集模式", sla: { text: "剩 9h", tone: "amber" }, owner: SC },
+  { id: "PM-2026-029", pattern: "休眠后突发", icon: Zap, dim: "merchant", subject: "BlockTrade Corp.", sub: "商户 · 美国", period: "近 24h", hit: "账户休眠 90 天后单日 8 笔高额出金,行为突变", amount: "CAD 41,200", risk: "amber", status: "progress", batch: "#20260619-02", txns: 8, rule: "休眠激活异常", sla: { text: "剩 1d 04h", tone: "amber" }, owner: JL },
+  { id: "PM-2026-028", pattern: "币币链跳(回溯)", icon: Shuffle, dim: "address", subject: "0x5078…Ec8c", sub: "链上地址 · 多链", period: "近 30 天", hit: "多笔兑入隐私币后跨链提走,切断溯源链路", amount: "CAD 52,000", risk: "red", status: "escalated", batch: "#20260618-02", txns: 11, rule: "隐私币 / 跨链溯源", sla: { text: "剩 6h", tone: "red" }, owner: SC },
+  { id: "PM-2026-027", pattern: "交易速度骤增", icon: Repeat, dim: "merchant", subject: "NovaPay Technologies", sub: "商户 · 美国", period: "近 48h", hit: "笔频较 30 天基线 5.2×,远超同业商户群", amount: "CAD 18,900", risk: "amber", status: "pending", batch: "#20260618-02", txns: 46, rule: "速度 / 峰值偏离", sla: { text: "已暂停", tone: "grey" }, owner: MK },
+  { id: "PM-2026-026", pattern: "对手集中度异常", icon: Coins, dim: "merchant", subject: "SwiftRemit Inc.", sub: "商户 · 离岸", period: "近 30 天", hit: "80% 出金流向单一高风险司法管辖区交易所", amount: "CAD 33,500", risk: "amber", status: "new", batch: "#20260619-02", txns: 19, rule: "对手集中度", sla: { text: "剩 2d 06h", tone: "amber" }, owner: null },
   // 已结案历史(让「已结案」分桶有数据)
-  { id: "PM-2026-022", pattern: "结构化拆分(累计)", icon: Layers, subject: "QuickWallet Ltd.", sub: "商户 · 美国", period: "近 7 天", hit: "拆分入金规避阈值,确认漏判,已补 STR", amount: "CAD 9,800", risk: "red", status: "closed_str", batch: "#20260618-02", txns: 11, rule: "高频拆分交易(累计阈值)", sla: { text: "已完结", tone: "grey" }, owner: JL, trace: "部分可追溯 · 持续追踪", backfill: true },
-  { id: "PM-2026-021", pattern: "交易速度骤增", icon: Repeat, subject: "PayFlow Systems", sub: "商户 · 加拿大", period: "近 48h", hit: "促销活动导致笔频上升,回看为正常业务波动", amount: "CAD 6,400", risk: "amber", status: "closed_fp", batch: "#20260617-02", txns: 28, rule: "速度 / 峰值偏离", sla: { text: "已完结", tone: "grey" }, owner: MK },
-  { id: "PM-2026-020", pattern: "多账户归集(扇入)", icon: Network, subject: "归集地址 0x71Be…F0", sub: "链上地址 · ERC-20", period: "近 14 天", hit: "确认洗钱归集网络,并入案件深查", amount: "CAD 124,000", risk: "red", status: "closed_case", batch: "#20260615-02", txns: 31, rule: "扇入归集模式", sla: { text: "已完结", tone: "grey" }, owner: SC, trace: "不可追溯 · 上报已发生损失", backfill: true },
+  { id: "PM-2026-022", pattern: "结构化拆分(累计)", icon: Layers, dim: "merchant", subject: "QuickWallet Ltd.", sub: "商户 · 美国", period: "近 7 天", hit: "拆分入金规避阈值,确认漏判,已补 STR", amount: "CAD 9,800", risk: "red", status: "closed_str", batch: "#20260618-02", txns: 11, rule: "高频拆分交易(累计阈值)", sla: { text: "已完结", tone: "grey" }, owner: JL, trace: "部分可追溯 · 持续追踪", backfill: true },
+  { id: "PM-2026-021", pattern: "交易速度骤增", icon: Repeat, dim: "merchant", subject: "PayFlow Systems", sub: "商户 · 加拿大", period: "近 48h", hit: "促销活动导致笔频上升,回看为正常业务波动", amount: "CAD 6,400", risk: "amber", status: "closed_fp", batch: "#20260617-02", txns: 28, rule: "速度 / 峰值偏离", sla: { text: "已完结", tone: "grey" }, owner: MK },
+  { id: "PM-2026-020", pattern: "多账户归集(扇入)", icon: Network, dim: "network", subject: "归集地址 0x71Be…F0", sub: "链上地址 · ERC-20", period: "近 14 天", hit: "确认洗钱归集网络,并入案件深查", amount: "CAD 124,000", risk: "red", status: "closed_case", batch: "#20260615-02", txns: 31, rule: "扇入归集模式", sla: { text: "已完结", tone: "grey" }, owner: SC, trace: "不可追溯 · 上报已发生损失", backfill: true },
 ];
 export const findingOf = (id?: string) => FINDINGS.find((f) => f.id === id) || FINDINGS[0];
 
 // 命中详情证据(供详情页审研判 / 给结论)
-export interface TxRow { t: string; party: string; amount: string; note: string }
+export interface TxRow { id?: string; t: string; party: string; amount: string; note: string } // id = 订单号 / 交易ID;归集/汇总类逐笔不适用则留空
 export interface Factor { emoji: string; title: string; desc: string; tone: Tone }
 // 资金路径节点:角色(来源/归集/中转/混淆/跨链/出口/失联)+ 风险色 + 每跳金额/说明
 export interface PathNode { label: string; role: string; tone: Tone; meta?: string }
@@ -85,10 +93,10 @@ export const DETAIL: Record<string, Detail> = {
     ],
     profile: { country: "加拿大", kyc: "完成", registered: "1.4 年", history: "近 30 天 42 笔 · 无历史违规" },
     txList: [
-      { t: "06-12 09:14", party: "0x5078…Ec8c", amount: "CAD 980", note: "充值" },
-      { t: "06-12 13:02", party: "0x5078…Ec8c", amount: "CAD 920", note: "充值" },
-      { t: "06-13 10:31", party: "0x77a1…b2D9", amount: "CAD 950", note: "充值" },
-      { t: "06-14 16:48", party: "0x5078…Ec8c", amount: "CAD 990", note: "充值" },
+      { id: "DEP-20260612-0142", t: "06-12 09:14", party: "0x5078…Ec8c", amount: "CAD 980", note: "充值" },
+      { id: "DEP-20260612-0188", t: "06-12 13:02", party: "0x5078…Ec8c", amount: "CAD 920", note: "充值" },
+      { id: "DEP-20260613-0091", t: "06-13 10:31", party: "0x77a1…b2D9", amount: "CAD 950", note: "充值" },
+      { id: "DEP-20260614-0235", t: "06-14 16:48", party: "0x5078…Ec8c", amount: "CAD 990", note: "充值" },
     ],
     gap: "事中按单笔阈值(≥CAD 1,000)判定,14 笔每笔都压在线下,逐笔放行;拆分只有在 7 日累计维度才显形 —— 事中缺累计/滑窗规则。",
     rec: "确认结构化拆分,补 STR;回填「同主体 7 日累计 ≥ CAD 10,000」累计规则,使事中实时拦截同类。",
@@ -122,10 +130,10 @@ export const DETAIL: Record<string, Detail> = {
     ],
     profile: { country: "美国", kyc: "完成", registered: "2.1 年", history: "休眠 90 天 · 激活前均值 CAD 1,200/日" },
     txList: [
-      { t: "06-19 08:02", party: "bc1q…7h2k", amount: "CAD 6,400", note: "提现" },
-      { t: "06-19 09:30", party: "bc1q…7h2k", amount: "CAD 5,800", note: "提现" },
-      { t: "06-19 11:15", party: "0x3Ab…9F1", amount: "CAD 5,200", note: "提现" },
-      { t: "06-19 14:40", party: "0x3Ab…9F1", amount: "CAD 4,900", note: "提现" },
+      { id: "WD-20260619-0712", t: "06-19 08:02", party: "bc1q…7h2k", amount: "CAD 6,400", note: "提现" },
+      { id: "WD-20260619-0744", t: "06-19 09:30", party: "bc1q…7h2k", amount: "CAD 5,800", note: "提现" },
+      { id: "WD-20260619-0779", t: "06-19 11:15", party: "0x3Ab…9F1", amount: "CAD 5,200", note: "提现" },
+      { id: "WD-20260619-0821", t: "06-19 14:40", party: "0x3Ab…9F1", amount: "CAD 4,900", note: "提现" },
     ],
     gap: "事中无「与自身历史基线对比」,单笔金额未超绝对阈值;休眠后突变只有时序/基线模型才能识别。",
     rec: "调查账户是否被盗用 / 易主;视结果转报送或案件;回填「休眠 N 天后激活 + 日出金突增」行为规则。",
