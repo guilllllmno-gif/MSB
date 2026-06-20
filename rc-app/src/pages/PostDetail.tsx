@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
-import { Button, Select, SelectItem } from "@heroui/react";
-import { ArrowLeft, RefreshCw, Coins, Snowflake, AlertTriangle, ArrowUpRight, ArrowRight, UserX, ShieldPlus, UserPlus, ClipboardCheck, Lightbulb, ArrowDownToLine, GitMerge, ArrowLeftRight, Shuffle, Waypoints, CircleOff } from "lucide-react";
+import { Button } from "@heroui/react";
+import { ArrowLeft, Coins, AlertTriangle, ArrowUpRight, ArrowRight, UserPlus, ClipboardCheck, Lightbulb, ArrowDownToLine, GitMerge, ArrowLeftRight, Shuffle, Waypoints, CircleOff } from "lucide-react";
 import { Shell } from "@/components/Shell";
 import { Pill } from "@/components/bits";
 import { FindingReviewDialog } from "@/components/FindingReviewDialog";
-import { findingOf, detailOf, FSTATES, TRACE, traceTier, traceRecovery, type FState } from "@/lib/findings";
+import { TraceDrawer } from "@/components/TraceDrawer";
+import { findingOf, detailOf, FSTATES, type FState } from "@/lib/findings";
 import { findingStore, useFindingVersion } from "@/lib/store";
 
 const ME = { i: "JL", n: "James Liu", c: "var(--brand)" };
@@ -19,6 +20,16 @@ function Kv({ label, children }: { label: string; children: React.ReactNode }) {
   return <div className="flex items-baseline justify-between gap-3 border-b border-dashed border-default-200 py-2 text-[12.5px] last:border-0"><span className="text-default-500">{label}</span><span className="text-right font-semibold">{children}</span></div>;
 }
 
+// 处置摘要横向条目:标签在上、值在下,值按状态上色
+function Summ({ label, tone, children }: { label: string; tone?: string; children: React.ReactNode }) {
+  return (
+    <div className="min-w-[88px]">
+      <div className="text-[10.5px] uppercase tracking-wider text-default-400">{label}</div>
+      <div className="mt-0.5 text-[12.5px] font-semibold" style={{ color: tone ? tc(tone) : "var(--text-3)" }}>{children}</div>
+    </div>
+  );
+}
+
 export default function PostDetail() {
   const nav = useNavigate();
   const [sp] = useSearchParams();
@@ -26,6 +37,7 @@ export default function PostDetail() {
   const f = findingOf(sp.get("id") || undefined);
 
   const [rev, setRev] = useState(false);
+  const [traceOpen, setTraceOpen] = useState(false);
 
   const st = findingStore.statusOf(f.id, f.status) as FState;
   const sd = FSTATES[st];
@@ -41,12 +53,7 @@ export default function PostDetail() {
   const Icon = f.icon;
 
   const claim = () => { findingStore.set(f.id, { status: "progress", owner: ME, event: "认领 · 开始回溯调查" }); toast.success(`${f.id} · 已认领`); };
-  const doBackfill = () => { findingStore.set(f.id, { backfill: true, event: "规则回填检测规则" }); toast(`已回填检测规则 · typology「${f.pattern}」事中即时拦截`); };
-  const updateTrace = (v: string) => { if (v) { const rec = traceRecovery(v); findingStore.set(f.id, { trace: v, frozen: rec.frozen, lossReported: rec.lossReported, event: `更新追溯评估:${v}` }); } };
-  const reqFreeze = () => { findingStore.set(f.id, { frozen: true, event: "请求下游交易所冻结" }); toast.success(`${f.id} · 已请求下游冻结`); };
-  const reportLoss = () => { findingStore.set(f.id, { lossReported: true, event: "上报已发生损失" }); toast.success(`${f.id} · 已上报已发生损失`); };
-  const restrict = () => { findingStore.set(f.id, { restricted: true, event: "限制 / 封禁账户 · 止损" }); toast.success(`${f.id} · 已限制账户`); };
-  const addList = () => { findingStore.set(f.id, { listed: true, event: "对手地址 / 主体列名单" }); toast.success(`${f.id} · 已列入名单`); };
+  const disposed = restricted || listed || frozen || loss || bf || !!tr; // 是否已有处置动作
 
   return (
     <Shell crumb={["交易", "交易监控", "事后监控", f.id]}>
@@ -68,7 +75,12 @@ export default function PostDetail() {
           {sd.active ? (
             st === "new"
               ? <Button size="sm" color="primary" startContent={<UserPlus className="h-4 w-4" />} onPress={claim}>认领</Button>
-              : <Button size="sm" color="primary" startContent={<ClipboardCheck className="h-4 w-4" />} onPress={() => setRev(true)}>审核</Button>
+              : st === "tracing"
+                ? <>
+                    <Button size="sm" color="primary" startContent={<Coins className="h-4 w-4" />} onPress={() => setTraceOpen(true)}>追溯处置</Button>
+                    <Button size="sm" variant="bordered" startContent={<ClipboardCheck className="h-4 w-4" />} onPress={() => setRev(true)}>结案审核</Button>
+                  </>
+                : <Button size="sm" color="primary" startContent={<ClipboardCheck className="h-4 w-4" />} onPress={() => setRev(true)}>审核</Button>
           ) : (
             <Pill tone={sd.tone}>{sd.label} · 已结案</Pill>
           )}
@@ -81,48 +93,21 @@ export default function PostDetail() {
         <span className="text-[12.5px] text-default-500">本命中为交易完成后回溯发现 —— 事中已无法拦截。{st === "tracing" || st === "closed_str" || st === "closed_case" ? <>确认可疑,资金追溯评估:<b className="text-foreground">{tr || "待评估"}</b>。</> : "若确认可疑,需评估能否追溯、是否上报已发生损失。"}</span>
       </div>
 
-      {/* 追溯工作台 — 仅追溯中状态。重心:报送 + 止损 + 留痕(资金常不可逆,不依赖追回) */}
-      {st === "tracing" && (
-        <div className="card mb-5 p-5">
-          <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
-            <div className="text-[14px] font-bold">追溯处置 · 资金已出账</div>
-            <div className="flex flex-wrap gap-1.5">
-              {restricted && <Pill tone="red">已限制账户</Pill>}
-              {listed && <Pill tone="amber">已列名单</Pill>}
-              {frozen && <Pill tone="green">已请求下游冻结</Pill>}
-              {loss && <Pill tone="amber">已上报损失</Pill>}
-              {bf && <Pill tone="green">已回填规则</Pill>}
-            </div>
+      {/* 处置摘要 — 顶部横向状态条(已有处置动作时显示) */}
+      {disposed && (
+        <div className="card mb-5 p-4">
+          <div className="mb-3 flex items-center gap-2">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-default-400">处置摘要</span>
+            {st === "tracing" && <button onClick={() => setTraceOpen(true)} className="text-[11.5px] font-semibold text-primary hover:opacity-80">管理追溯处置 →</button>}
           </div>
-          <p className="mb-3 text-[11.5px] text-default-400">钱已出账多半不可逆,确认可疑的客户也大概率已流失 —— 追溯的重点不是"追回",而是<b className="text-default-600">履行报送义务 + 止损(封号/列名单/规则回填) + 审计留痕</b>;限制/封禁即结束该客户关系,在确认可疑下是预期止损,非误伤。能追回只是加分项。</p>
-
-          <div className="mb-3 max-w-md">
-            <Select size="sm" label="资金追溯评估" labelPlacement="outside" aria-label="资金追溯评估" selectedKeys={tr ? [tr] : []}
-              onSelectionChange={(keys) => updateTrace(Array.from(keys as Set<string>)[0] ?? "")}>
-              {TRACE.map((t) => <SelectItem key={t}>{t}</SelectItem>)}
-            </Select>
-            {traceTier(tr) && <p className="mt-1.5 text-[11px] leading-relaxed text-default-400">{traceTier(tr)!.guide}</p>}
+          <div className="flex flex-wrap gap-x-7 gap-y-3">
+            <Summ label="资金追溯" tone={tr ? "amber" : undefined}>{tr || "未评估"}</Summ>
+            <Summ label="账户处置" tone={restricted ? "red" : undefined}>{restricted ? "已限制 / 封禁" : "—"}</Summ>
+            <Summ label="对手名单" tone={listed ? "amber" : undefined}>{listed ? "已列名单" : "—"}</Summ>
+            <Summ label="下游冻结" tone={frozen ? "green" : undefined}>{frozen ? "已请求" : "—"}</Summ>
+            <Summ label="损失上报" tone={loss ? "amber" : undefined}>{loss ? "已上报" : "—"}</Summ>
+            <Summ label="规则回填" tone={bf ? "green" : undefined}>{bf ? "已回填" : "未回填"}</Summ>
           </div>
-
-          <div className="text-[11px] font-bold uppercase tracking-wider text-default-400">止损 · 阻断后续</div>
-          <div className="mt-1.5 flex flex-wrap gap-2">
-            {!restricted && <Button size="sm" variant="bordered" startContent={<UserX className="h-4 w-4" />} onPress={restrict}>限制 / 封禁账户</Button>}
-            {!listed && <Button size="sm" variant="bordered" startContent={<ShieldPlus className="h-4 w-4" />} onPress={addList}>对手列名单</Button>}
-            {!bf && <Button size="sm" variant="bordered" startContent={<RefreshCw className="h-4 w-4" />} onPress={doBackfill}>规则回填</Button>}
-            {restricted && listed && bf && <span className="text-[12px] text-default-400">止损动作已完成</span>}
-          </div>
-
-          <div className="mt-3 text-[11px] font-bold uppercase tracking-wider text-default-400">追回 · 留痕(常追不回)</div>
-          <div className="mt-1.5 flex flex-wrap gap-2">
-            {!frozen && <Button size="sm" variant="bordered" startContent={<Snowflake className="h-4 w-4" />} onPress={reqFreeze}>请求下游冻结</Button>}
-            {!loss && <Button size="sm" variant="bordered" startContent={<AlertTriangle className="h-4 w-4" />} onPress={reportLoss}>上报已发生损失</Button>}
-          </div>
-
-          <p className="mt-3 flex flex-wrap items-center gap-1.5 rounded-xl border border-divider bg-default-50 p-2.5 text-[11.5px] leading-relaxed text-default-500">
-            <RefreshCw className="h-3.5 w-3.5 shrink-0 text-default-400" />
-            规则回填:基于本 typology 生成检测规则草案 → 变更治理 → 回测 → 审批后由<b className="text-foreground">事中实时拦截同类</b>(堵住下一笔,本笔不依赖追回);生效前不影响线上。
-            <button onClick={() => nav("/rules")} className="inline-flex items-center gap-0.5 font-semibold text-primary hover:opacity-80">去监控规则 <ArrowUpRight className="h-3.5 w-3.5" /></button>
-          </p>
         </div>
       )}
 
@@ -242,17 +227,6 @@ export default function PostDetail() {
             </>}
           </div>
 
-          {/* 处置摘要 */}
-          <div className="card p-5">
-            <div className="mb-2 text-[11px] font-bold uppercase tracking-wider text-default-400">处置摘要</div>
-            <Kv label="当前状态"><Pill tone={sd.tone}>{sd.label}</Pill></Kv>
-            <Kv label="账户处置">{restricted ? <span style={{ color: "var(--danger)" }}>已限制 / 封禁</span> : <span className="font-normal text-default-400">—</span>}</Kv>
-            <Kv label="对手名单">{listed ? <span style={{ color: "var(--warning)" }}>已列名单</span> : <span className="font-normal text-default-400">—</span>}</Kv>
-            <Kv label="规则回填">{bf ? <span style={{ color: "var(--success)" }}>已回填</span> : <span className="font-normal text-default-400">未回填</span>}</Kv>
-            <Kv label="资金追溯">{tr || <span className="font-normal text-default-400">未评估</span>}</Kv>
-            <Kv label="下游冻结">{frozen ? <span style={{ color: "var(--success)" }}>已请求</span> : <span className="font-normal text-default-400">—</span>}</Kv>
-            <Kv label="损失上报">{loss ? <span style={{ color: "var(--warning)" }}>已上报</span> : <span className="font-normal text-default-400">—</span>}</Kv>
-          </div>
         </div>
       </div>
 
@@ -273,6 +247,8 @@ export default function PostDetail() {
 
       {/* 审核 → 命中研判抽屉(与告警研判一致,按状态自适应处置 / 流程动作)*/}
       <FindingReviewDialog findingId={f.id} open={rev} onOpenChange={setRev} />
+      {/* 追溯处置抽屉(资金已出账;止损 / 追回 / 评估 / 回填,即时生效)*/}
+      <TraceDrawer findingId={f.id} open={traceOpen} onOpenChange={setTraceOpen} onReview={() => setRev(true)} />
     </Shell>
   );
 }
