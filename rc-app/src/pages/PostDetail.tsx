@@ -2,13 +2,14 @@ import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { Button } from "@heroui/react";
-import { ArrowLeft, Coins, AlertTriangle, ArrowUpRight, ArrowRight, UserPlus, ClipboardCheck, Lightbulb, ArrowDownToLine, GitMerge, ArrowLeftRight, Shuffle, Waypoints, CircleOff } from "lucide-react";
+import { ArrowLeft, Coins, AlertTriangle, ArrowUpRight, ArrowRight, UserPlus, ClipboardCheck, Lightbulb, ArrowDownToLine, GitMerge, ArrowLeftRight, Shuffle, Waypoints, CircleOff, FolderPlus, Link2 } from "lucide-react";
 import { Shell } from "@/components/Shell";
 import { Pill } from "@/components/bits";
 import { FindingReviewDialog } from "@/components/FindingReviewDialog";
 import { TraceDrawer } from "@/components/TraceDrawer";
-import { findingOf, detailOf, FSTATES, FDIM, type FState } from "@/lib/findings";
-import { findingStore, useFindingVersion } from "@/lib/store";
+import { findingOf, detailOf, FINDINGS, FSTATES, FDIM, dimSubjType, type FState } from "@/lib/findings";
+import { findingStore, caseStore, useFindingVersion } from "@/lib/store";
+import type { Case } from "@/lib/cases";
 
 const ME = { i: "JL", n: "James Liu", c: "var(--brand)" };
 const tc = (t: string) => (t === "red" ? "var(--danger)" : t === "amber" ? "var(--warning)" : t === "green" ? "var(--success)" : t === "violet" ? "var(--violet)" : t === "blue" ? "var(--brand)" : "var(--text-3)");
@@ -53,6 +54,19 @@ export default function PostDetail() {
   const Icon = f.icon;
 
   const claim = () => { findingStore.set(f.id, { status: "progress", owner: ME, event: "认领 · 开始回溯调查" }); toast.success(`${f.id} · 已认领`); };
+  // 关联命中(跨维度同主体/网络)
+  const related = (f.related || []).map((id) => FINDINGS.find((x) => x.id === id)).filter(Boolean) as typeof FINDINGS;
+  // 一键并案:把本命中 + 关联命中合并为一个案件(涉案主体自动并集),减少人工
+  const consolidate = () => {
+    const group = [f, ...related];
+    const subjects = group.map((g) => ({ name: g.subject, type: dimSubjType(g.dim), role: `${FDIM[g.dim].label} · ${g.pattern}`, amount: g.amount }));
+    const n = caseStore.created().length + 1;
+    const c: Case = { id: `CASE-20260621-${String(n).padStart(3, "0")}`, subject: "跨维度关联网络", sub: `${group.length} 命中 · 多维度`, type: "跨维度关联并案", risk: "团伙网络", priority: "高", amount: "—", links: group.length, linkIds: group.map((g) => g.id).join(" · "), state: "investigating", owner: ME, sla: { text: "剩 3d", tone: "amber" }, submitted: "2026-06-21 10:00", src: "事后转案件(关联并案)", subjects };
+    caseStore.add(c);
+    group.forEach((g) => findingStore.set(g.id, { event: `并案 → ${c.id}` }));
+    toast.success(`已并案 ${c.id} · ${group.length} 条命中合一`);
+    nav("/cases");
+  };
 
   return (
     <Shell crumb={["交易", "交易监控", "事后监控", f.id]}>
@@ -188,6 +202,25 @@ export default function PostDetail() {
                   );
                 })}
               </div>
+            </div>
+          )}
+
+          {/* 关联命中 · 跨维度(同主体 / 网络)—— 一键并案,减少人工 */}
+          {related.length > 0 && (
+            <div className="card border-l-[3px] p-5" style={{ borderLeftColor: "var(--brand)" }}>
+              <div className="mb-1 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-default-400"><Link2 className="h-3.5 w-3.5" />关联命中 · 跨维度</div>
+              <p className="mb-3 text-[11.5px] leading-relaxed text-default-400">同一主体 / 网络在<b className="text-default-600">其它维度也被命中</b> —— 同笔钱被不同镜头各看一遍。建议<b className="text-default-600">合并调查与报送</b>,避免重复立案、重复 STR。</p>
+              <div className="mb-3 flex flex-col gap-2">
+                {related.map((r) => { const RDI = FDIM[r.dim].icon; const rst = findingStore.statusOf(r.id, r.status) as FState; return (
+                  <button key={r.id} onClick={() => nav(`/finding?id=${r.id}`)} className="flex items-center gap-2.5 rounded-xl border border-divider p-2.5 text-left transition-colors hover:bg-default-50">
+                    <Pill tone={FDIM[r.dim].tone} dot={false} icon={<RDI className="h-3 w-3" />}>{FDIM[r.dim].label}</Pill>
+                    <div className="min-w-0 flex-1"><div className="truncate text-[12.5px] font-semibold">{r.pattern} · {r.subject}</div><div className="text-[11px] text-default-400">{r.id} · {FSTATES[rst].label} · {r.amount}</div></div>
+                    <ArrowUpRight className="h-4 w-4 shrink-0 text-default-300" />
+                  </button>
+                ); })}
+              </div>
+              <Button size="sm" color="primary" startContent={<FolderPlus className="h-4 w-4" />} onPress={consolidate}>一并转入同一案件(共 {related.length + 1} 条)</Button>
+              <p className="mt-2 text-[11px] leading-relaxed text-default-400">一键并案:本命中 + 关联命中合为一个案件,**涉案主体自动并集**,在案件管理统一调查、一份 STR 报送。</p>
             </div>
           )}
 
