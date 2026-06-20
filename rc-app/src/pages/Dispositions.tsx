@@ -1,10 +1,9 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { toast } from "sonner";
-import { Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Input, Button } from "@heroui/react";
-import { Search, Download, Eye } from "lucide-react";
+import { Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Input, Button, Drawer, DrawerContent, DrawerHeader, DrawerBody, DrawerFooter } from "@heroui/react";
+import { Search, Download, Eye, FileText } from "lucide-react";
 import { Shell, PageHead } from "@/components/Shell";
-import { Pill, Initials } from "@/components/bits";
+import { Pill, Initials, KvRow } from "@/components/bits";
 import { alerts, RC_STATES, type Person, type Tone } from "@/lib/data";
 import { FINDINGS } from "@/lib/findings";
 import { alertStore, useAlertVersion, findingStore, useFindingVersion } from "@/lib/store";
@@ -56,6 +55,8 @@ export default function Dispositions() {
   useFindingVersion();
   const [filter, setFilter] = useState("all");
   const [q, setQ] = useState("");
+  const [rec, setRec] = useState<DispRecord | null>(null);
+  const [open, setOpen] = useState(false);
 
   // live: alerts decided this session (terminal state) flow into the archive at the top
   const stOf = (id: string, base: string) => alertStore.stateOf(id, base);
@@ -85,7 +86,8 @@ export default function Dispositions() {
     return okF && okQ;
   });
 
-  const view = (r: DispRecord) => { if (r.to) nav(r.to); else toast(`处置详情 · ${r.id}`); };
+  // 有关联原始记录的(本会话决策 / 事后命中)跳详情页;静态归档记录开只读详情抽屉
+  const view = (r: DispRecord) => { if (r.to) nav(r.to); else { setRec(r); setOpen(true); } };
 
   return (
     <Shell crumb={["交易", "交易监控", "处置记录"]} wide>
@@ -146,6 +148,45 @@ export default function Dispositions() {
           })}
         </TableBody>
       </Table>
+
+      {/* 归档处置详情(只读)—— 静态归档记录无关联详情页,在此查看 */}
+      <Drawer isOpen={open} onOpenChange={setOpen} placement="right" size="md" classNames={{ base: "!w-[46vw] !min-w-[440px] !max-w-[760px]" }}>
+        <DrawerContent>
+          {rec && (() => { const o = OUTCOME[rec.outcome]; return (
+            <>
+              <DrawerHeader className="flex-col items-start gap-0.5 border-b border-divider">
+                <span className="text-[15px] font-bold">处置详情 · 归档</span>
+                <span className="text-[11.5px] font-normal text-default-400">{rec.id} · {rec.merchant}</span>
+              </DrawerHeader>
+              <DrawerBody className="gap-4 py-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-default-100 text-default-500"><FileText className="h-4 w-4" /></span>
+                  <Pill tone={o.tone}>{o.label}</Pill>
+                  {rec.src && <span className="rounded bg-default-100 px-1.5 py-0.5 text-[10.5px] font-semibold text-default-500">{rec.src}</span>}
+                </div>
+                <div className="card p-3.5">
+                  <KvRow label="订单号 / 交易ID">{rec.id}</KvRow>
+                  <KvRow label="商户名称">{rec.merchant}</KvRow>
+                  <KvRow label="类型">{rec.type}</KvRow>
+                  <KvRow label="金额">{rec.amount}</KvRow>
+                  <KvRow label="触发规则">{rec.rule}</KvRow>
+                  <KvRow label="处置结果"><Pill tone={o.tone}>{o.label}</Pill></KvRow>
+                  <KvRow label="决策人"><span className="inline-flex items-center gap-1.5"><Initials p={rec.by} size={20} />{rec.by.n}</span></KvRow>
+                  <KvRow label="处置时间">{rec.time}</KvRow>
+                </div>
+                <div>
+                  <div className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-default-400">处置原因</div>
+                  <p className="rounded-xl border border-divider bg-default-50 p-3 text-[12.5px] leading-relaxed text-default-600">{rec.reason}</p>
+                </div>
+                <p className="rounded-xl border border-divider bg-default-100 p-3 text-[11.5px] leading-relaxed text-default-500">本条为<b>终态归档记录</b>(只读),供复盘与审计查询。实际报送在「报告报送」、建案在「案件管理」。</p>
+              </DrawerBody>
+              <DrawerFooter className="border-t border-divider">
+                <Button variant="bordered" onPress={() => setOpen(false)}>关闭</Button>
+              </DrawerFooter>
+            </>
+          ); })()}
+        </DrawerContent>
+      </Drawer>
     </Shell>
   );
 }
