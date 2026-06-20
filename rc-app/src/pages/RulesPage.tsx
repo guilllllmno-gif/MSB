@@ -4,7 +4,6 @@ import { Button, Tooltip, Table, TableHeader, TableColumn, TableBody, TableRow, 
 import { Eye, Settings2, Search, RefreshCw, ExternalLink } from "lucide-react";
 import { Shell, PageHead } from "@/components/Shell";
 import { Pill, Initials } from "@/components/bits";
-import { RuleDrawer } from "@/components/RuleDrawer";
 import { NewRuleDrawer } from "@/components/NewRuleDrawer";
 import { RULES, RUSTATE, CAT_ICON, CATS, VENUE, venueOf, bfrMeta, bfrDefault, type Rule, type RuState } from "@/lib/rules";
 import { FINDINGS } from "@/lib/findings";
@@ -29,8 +28,6 @@ export default function RulesPage() {
   const [filter, setFilter] = useState("all");
   const [cat, setCat] = useState("all");
   const [q, setQ] = useState("");
-  const [sel, setSel] = useState<Rule | null>(null);
-  const [open, setOpen] = useState(false);
   const [newOpen, setNewOpen] = useState(false);
 
   // 规则回填闭环:命中 backfill 的 typology 实时派生为规则(历史回填→已上线,本会话新回填→回测中)
@@ -60,7 +57,7 @@ export default function RulesPage() {
   const pipeN = all.filter((r) => stOf(r) === "backtest" || stOf(r) === "pending").length;
   const bfN = finRules.length;
 
-  const manage = (r: Rule) => { setSel(r); setOpen(true); };
+  const manage = (r: Rule) => nav(`/rule?id=${r.id}`);
 
   return (
     <Shell crumb={["检测策略", "监控规则"]} wide>
@@ -148,7 +145,6 @@ export default function RulesPage() {
         </TableBody>
       </Table>
 
-      <RuleDrawer rule={sel} open={open} onOpenChange={setOpen} />
       <NewRuleDrawer open={newOpen} onOpenChange={setNewOpen} />
     </Shell>
   );

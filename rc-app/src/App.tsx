@@ -16,6 +16,7 @@ const PostDetail = lazy(() => import("@/pages/PostDetail"));
 const Dispositions = lazy(() => import("@/pages/Dispositions"));
 const ReportFiling = lazy(() => import("@/pages/ReportFiling"));
 const RulesPage = lazy(() => import("@/pages/RulesPage"));
+const RuleDetail = lazy(() => import("@/pages/RuleDetail"));
 const Placeholder = lazy(() => import("@/pages/Placeholder"));
 
 const STUBS = ["/strategy", "/lists", "/cases", "/audit"];
@@ -35,6 +36,7 @@ export default function App() {
             <Route path="/dispositions" element={<Dispositions />} />
             <Route path="/reports" element={<ReportFiling />} />
             <Route path="/rules" element={<RulesPage />} />
+            <Route path="/rule" element={<RuleDetail />} />
             <Route path="/alerts" element={<AlertList />} />
             <Route path="/alert" element={<AlertDetail />} />
             <Route path="/rings" element={<RingList />} />
