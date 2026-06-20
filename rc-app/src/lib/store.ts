@@ -126,3 +126,29 @@ export const reportStore = {
 export function useReportVersion() {
   return useSyncExternalStore(reportStore.subscribe, reportStore.getVersion, reportStore.getVersion);
 }
+
+// ── 监控规则状态store(变更治理:回测 → 审批 → 上线 / 停用)──
+const ruleData: Record<string, { state?: string; owner?: Person | null; events?: { t: string; text: string; reason: string }[] }> = {};
+let ruleVersion = 0;
+const ruleListeners = new Set<() => void>();
+const ruleNotify = () => { ruleVersion++; ruleListeners.forEach((l) => l()); };
+
+export const ruleStore = {
+  subscribe(cb: () => void) { ruleListeners.add(cb); return () => { ruleListeners.delete(cb); }; },
+  getVersion() { return ruleVersion; },
+  stateOf(id: string, base: string) { return ruleData[id]?.state || base; },
+  ownerOf(id: string, base: Person | null) { const o = ruleData[id]; return o && o.owner !== undefined ? o.owner : base; },
+  eventsOf(id: string) { return ruleData[id]?.events || []; },
+  set(id: string, state: string, opts: { owner?: Person | null; event?: string; reason?: string } = {}) {
+    const cur = ruleData[id] || {};
+    cur.state = state;
+    if (opts.owner !== undefined) cur.owner = opts.owner;
+    cur.events = [...(cur.events || []), { t: now(), text: opts.event || state, reason: opts.reason || "" }];
+    ruleData[id] = cur;
+    ruleNotify();
+  },
+};
+
+export function useRuleVersion() {
+  return useSyncExternalStore(ruleStore.subscribe, ruleStore.getVersion, ruleStore.getVersion);
+}

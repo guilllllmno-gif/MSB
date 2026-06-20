@@ -21,7 +21,7 @@ export function TraceDrawer({ findingId, open, onOpenChange, onReview }: { findi
   const listed = findingStore.listedOf(f.id);
 
   const updateTrace = (v: string) => { if (v) { const rec = traceRecovery(v); findingStore.set(f.id, { trace: v, frozen: rec.frozen, lossReported: rec.lossReported, event: `更新追溯评估:${v}` }); } };
-  const doBackfill = () => { findingStore.set(f.id, { backfill: true, event: "规则回填检测规则" }); toast(`已回填检测规则 · typology「${f.pattern}」事中即时拦截`); };
+  const doBackfill = () => { findingStore.set(f.id, { backfill: true, event: "规则回填 · 生成规则草案进回测" }); toast.success(`已回填 · typology「${f.pattern}」生成规则草案`); toast("已进入「监控规则」回测 → 审批 → 上线闭环"); };
   const reqFreeze = () => { findingStore.set(f.id, { frozen: true, event: "请求下游交易所冻结" }); toast.success(`${f.id} · 已请求下游冻结`); };
   const reportLoss = () => { findingStore.set(f.id, { lossReported: true, event: "上报已发生损失" }); toast.success(`${f.id} · 已上报已发生损失`); };
   const restrict = () => { findingStore.set(f.id, { restricted: true, event: "限制 / 封禁账户 · 止损" }); toast.success(`${f.id} · 已限制账户`); };

@@ -4,7 +4,7 @@ import { Hammer } from "lucide-react";
 import { Shell } from "@/components/Shell";
 
 const LABELS: Record<string, string> = {
-  "/dashboard": "风控仪表盘", "/monitoring": "事中监控", "/rules": "监控规则",
+  "/dashboard": "风控仪表盘", "/monitoring": "事中监控",
   "/strategy": "全局策略", "/lists": "名单管理", "/cases": "案件管理", "/audit": "审计日志",
 };
 
