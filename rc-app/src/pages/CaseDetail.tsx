@@ -5,12 +5,12 @@ import { Button, Tabs, Tab, Select, SelectItem, Textarea, Checkbox } from "@hero
 import {
   ArrowLeft, ChevronLeft, ChevronRight, ChevronDown, UserPlus, ExternalLink, ArrowUpRight, Link2, Plus,
   Lightbulb, Check, X, ArrowRight, ArrowDownToLine, GitMerge, ArrowLeftRight, Shuffle, Waypoints, CircleOff, Coins,
-  Gauge, ShieldAlert, CheckCircle2, Wallet, Landmark, BellRing,
+  Gauge, ShieldAlert, CheckCircle2, Wallet, Landmark, BellRing, FileText, Eye, Download, FileSignature, Save, Send,
 } from "lucide-react";
 import { Shell } from "@/components/Shell";
 import { Pill } from "@/components/bits";
 import { Timeline } from "@/components/Timeline";
-import { CASES, CSTATE, strLabel, PRIO_TONE, SUBJ_TONE, decideActions, dossierOf, factorContrib, caseScore, type Case, type CState, type SubjType } from "@/lib/cases";
+import { CASES, CSTATE, PRIO_TONE, SUBJ_TONE, decideActions, dossierOf, factorContrib, caseScore, type Case, type CState, type SubjType } from "@/lib/cases";
 import { FINDINGS, FDIM, dimSubjType } from "@/lib/findings";
 import { caseStore, findingStore, useCaseVersion, useFindingVersion } from "@/lib/store";
 import type { Person } from "@/lib/data";
@@ -57,13 +57,14 @@ export default function CaseDetail() {
   const [recResp, setRecResp] = useState<null | "agree" | "overturn">(null);
   const [recReason, setRecReason] = useState("");
   const [openF, setOpenF] = useState<Set<string>>(new Set());
+  const [unlinked, setUnlinked] = useState<Set<string>>(new Set());
+  const [narr, setNarr] = useState<string | null>(null);
 
   const c = resolve(sp.get("id"));
   const st = caseStore.stateOf(c.id, c.state) as CState;
   const sd = CSTATE[st];
   const owner = caseStore.ownerOf(c.id, c.owner);
   const events = caseStore.eventsOf(c.id);
-  const str = strLabel(st);
   const d = dossierOf(c);
   const score = caseScore(d);
   const actions = decideActions(st);
@@ -111,6 +112,26 @@ export default function CaseDetail() {
     toast.success(`${c.id} · ${action.label}`);
     if (to === "queued" || to === "filed") toast("已联动报告报送 · STR 流程");
     setChoice(null); setNote(""); setMergeTo(""); setDual(false);
+  };
+
+  // 关联案件富卡(显式 or 从简版 rings/relatedCases 派生)+ 证据材料 + STR 草稿
+  const relatedRich = (d.relatedRich || [
+    ...d.rings.map((r) => ({ id: r.id, subject: r.name, relType: "同团伙", relTone: "violet" as const, conf: "高置信", state: "调查中", amount: "—", score: 0, basis: "团伙识别关联聚类", by: "团伙识别", at: "系统建议" })),
+    ...d.relatedCases.map((r) => ({ id: r.id, subject: r.name, relType: "关联案件", relTone: "blue" as const, conf: "—", state: "—", amount: "—", score: 0, basis: "同主体 / 同网络", by: "系统", at: "" })),
+  ]).filter((r) => !unlinked.has(r.id));
+  const mergeInfo = d.mergeInfo || { count: relatedRich.length, total: "—", strength: relatedRich.length > 1 ? "强" : "中", ring: d.rings[0]?.id || "—" };
+  const files = d.files || [
+    { name: "KYT 链上分析报告", ext: "PDF", size: "2.10 MB", note: "地址风险评分与资金溯源路径" },
+    { name: "主体 KYC 资料快照", ext: "PNG", size: "1.05 MB", note: "注册信息与风险等级评定" },
+    { name: "关联交易流水", ext: "XLSX", size: "0.74 MB", note: "近 90 天关联主体交易明细" },
+  ];
+  const str = d.str || { type: "STR(可疑交易报告)", indicators: d.factors.slice(0, 2).map((f) => f.label).join(" · "), drafter: (owner || ME).n, narrative: `${c.subject}:${d.evidence.join(";")}。建议作为可疑交易上报 FINTRAC。` };
+  const narrative = narr ?? str.narrative;
+  const unlink = (id: string) => { setUnlinked((p) => new Set(p).add(id)); caseStore.set(c.id, st, { event: `解除关联 ${id}` }); toast.success(`已解除关联 ${id}`); };
+  const submitMLRO = () => {
+    if (st === "str_draft") { caseStore.set(c.id, "mlro", { owner: owner || ME, event: "提交 MLRO 评估 · STR 草稿" }); toast.success("已提交 MLRO 评估"); }
+    else if (st === "investigating") toast("请先在下方「定性可疑 · 起草 STR」提交,再提交 MLRO 评估");
+    else toast("当前状态无需提交 MLRO");
   };
 
   const otherCases = CASES.filter((x) => x.id !== c.id && x.state !== "merged" && x.state !== "closed");
@@ -321,44 +342,84 @@ export default function CaseDetail() {
             <div className="mt-3 rounded-lg bg-default-50 p-2.5 text-[11.5px] leading-snug text-default-500"><span className="font-semibold text-default-600">历史处置:</span> {d.priorDisp}</div>
           </Card>
 
-          {/* 涉案主体 + 关联同伙 */}
+          {/* 涉案主体 */}
+          <Card icon={Coins} title={`涉案主体 · ${subs.length}`}>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {subs.map((s, i) => (
+                <div key={i} className="flex items-center gap-2.5 rounded-xl border border-divider p-2.5">
+                  <Pill tone={SUBJ_TONE[s.type]} dot={false}>{s.type}</Pill>
+                  <div className="min-w-0 flex-1"><div className="truncate text-[12.5px] font-semibold">{s.name}</div><div className="text-[11px] text-default-400">{s.role}{s.kyc ? ` · ${s.kyc}` : ""}</div></div>
+                  {s.amount && <span className="shrink-0 text-[12px] font-semibold tnum">{s.amount}</span>}
+                </div>
+              ))}
+            </div>
+          </Card>
+
+          {/* 关联案件 · 串并 */}
+          <Card icon={Link2} title="关联案件 · 串并">
+            <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {[["关联案件数", String(mergeInfo.count)], ["串并涉及总额", mergeInfo.total], ["最高关联强度", mergeInfo.strength], ["疑似团伙", mergeInfo.ring]].map(([k, v]) => (
+                <div key={k} className="rounded-xl border border-divider p-2.5"><div className="text-[10.5px] text-default-400">{k}</div><div className="mt-0.5 text-[15px] font-extrabold tnum">{v}</div></div>
+              ))}
+            </div>
+            <div className="flex flex-col gap-2">
+              {relatedRich.length ? relatedRich.map((r) => (
+                <div key={r.id} className="rounded-xl border border-divider p-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button onClick={() => nav(r.id.startsWith("CASE") ? `/case?id=${r.id}` : r.id.startsWith("RING") ? `/ring?id=${r.id}` : "/cases")} className="text-[13px] font-bold text-primary hover:opacity-80">{r.id}</button>
+                    <Pill tone={r.relTone} dot={false}>{r.relType}</Pill>
+                    {r.conf !== "—" && <span className="rounded-md px-1.5 py-0.5 text-[10px] font-semibold" style={{ background: tbg(r.relTone), color: tc(r.relTone) }}>{r.conf}</span>}
+                    <span className="ml-auto text-[11.5px] text-default-500">主体 <b className="text-foreground">{r.subject}</b>{r.state !== "—" ? ` · 状态 ${r.state}` : ""}{r.amount !== "—" ? ` · 金额 ${r.amount}` : ""}{r.score ? ` · 风险分 ${r.score}` : ""}</span>
+                    {sd.active && <button onClick={() => unlink(r.id)} className="shrink-0 rounded-full border border-divider px-2 py-0.5 text-[11px] font-semibold text-default-500 hover:bg-default-100">解除关联</button>}
+                  </div>
+                  <div className="mt-2 flex items-start gap-1.5 rounded-lg bg-default-50 p-2 text-[11.5px] leading-snug text-default-600"><Link2 className="mt-0.5 h-3 w-3 shrink-0 text-default-400" /><span><b className="text-default-700">关联依据:</b>{r.basis}</span></div>
+                  {r.at && <div className="mt-1.5 text-[10.5px] text-default-400">{r.by} · {r.at}</div>}
+                </div>
+              )) : <p className="text-[11.5px] text-default-400">未发现关联案件 / 团伙。</p>}
+            </div>
+            {sd.active && candidates.length > 0 && (
+              <div className="mt-3 rounded-xl border p-2.5" style={{ borderColor: "var(--brand-bd)", background: "var(--brand-softer)" }}>
+                <div className="mb-1.5 flex items-center gap-1 text-[11px] font-bold text-[var(--brand)]"><Link2 className="h-3 w-3" />建议纳入(其它维度命中)</div>
+                <div className="flex flex-col gap-1.5">
+                  {candidates.map((fd) => { const DI = FDIM[fd.dim].icon; return (
+                    <div key={fd.id} className="flex items-center gap-1.5 rounded-lg border border-divider bg-content1 p-1.5">
+                      <Pill tone={FDIM[fd.dim].tone} dot={false} icon={<DI className="h-2.5 w-2.5" />}>{FDIM[fd.dim].label}</Pill>
+                      <div className="min-w-0 flex-1"><div className="truncate text-[11px] font-semibold">{fd.pattern} · {fd.subject}</div><div className="text-[9.5px] text-default-400">{fd.id} · {fd.amount}</div></div>
+                      <button onClick={() => intake(fd)} className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-[var(--brand-soft)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--brand)] hover:opacity-80"><Plus className="h-2.5 w-2.5" />纳入</button>
+                    </div>
+                  ); })}
+                </div>
+              </div>
+            )}
+          </Card>
+
+          {/* 证据材料 + STR 草稿 */}
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-            <Card icon={Coins} title={`涉案主体 · ${subs.length}`}>
+            <Card icon={FileText} title="证据材料">
               <div className="flex flex-col gap-2">
-                {subs.map((s, i) => (
+                {files.map((fl, i) => (
                   <div key={i} className="flex items-center gap-2.5 rounded-xl border border-divider p-2.5">
-                    <Pill tone={SUBJ_TONE[s.type]} dot={false}>{s.type}</Pill>
-                    <div className="min-w-0 flex-1"><div className="truncate text-[12.5px] font-semibold">{s.name}</div><div className="text-[11px] text-default-400">{s.role}{s.kyc ? ` · ${s.kyc}` : ""}</div></div>
-                    {s.amount && <span className="shrink-0 text-[12px] font-semibold tnum">{s.amount}</span>}
+                    <span className="flex h-8 w-9 shrink-0 items-center justify-center rounded-lg text-[9px] font-extrabold" style={{ background: tbg(fl.ext === "PDF" ? "red" : fl.ext === "XLSX" ? "green" : fl.ext === "PNG" ? "violet" : "blue"), color: tc(fl.ext === "PDF" ? "red" : fl.ext === "XLSX" ? "green" : fl.ext === "PNG" ? "violet" : "blue") }}>{fl.ext}</span>
+                    <div className="min-w-0 flex-1"><div className="truncate text-[12.5px] font-semibold">{fl.name}</div><div className="truncate text-[10.5px] text-default-400">{fl.size} · {fl.note}</div></div>
+                    <button onClick={() => toast("预览(原型占位)")} className="shrink-0 rounded-lg p-1.5 text-default-400 hover:bg-default-100"><Eye className="h-3.5 w-3.5" /></button>
+                    <button onClick={() => toast("下载(原型占位)")} className="shrink-0 rounded-lg p-1.5 text-default-400 hover:bg-default-100"><Download className="h-3.5 w-3.5" /></button>
                   </div>
                 ))}
               </div>
             </Card>
-            <Card icon={Link2} title="关联同伙 · 团伙 / 案件">
-              <div className="flex flex-col gap-1.5">
-                {[...d.rings.map((r) => ({ ...r, kind: "团伙", tone: "violet" as const })), ...d.relatedCases.map((r) => ({ ...r, kind: "案件", tone: "blue" as const }))].map((r) => (
-                  <button key={r.id} onClick={() => nav(r.to)} className="flex items-center gap-2 rounded-xl border border-divider p-2.5 text-left transition-colors hover:bg-default-50">
-                    <Pill tone={r.tone} dot={false}>{r.kind}</Pill>
-                    <div className="min-w-0 flex-1"><div className="truncate text-[12.5px] font-semibold">{r.name}</div><div className="text-[10.5px] text-default-400">{r.id}</div></div>
-                    <ArrowUpRight className="h-4 w-4 shrink-0 text-default-300" />
-                  </button>
-                ))}
-                {!d.rings.length && !d.relatedCases.length && <p className="text-[11.5px] text-default-400">未发现关联团伙 / 案件。</p>}
+            <Card icon={FileSignature} title="STR 草稿">
+              <div className="mb-2.5 grid grid-cols-2 gap-x-6">
+                <Kv label="报告类型">{str.type}</Kv>
+                <Kv label="可疑指标">{str.indicators}</Kv>
+                <Kv label="起草人">{str.drafter}</Kv>
+                <Kv label="签发权">仅 MLRO 可签发报送</Kv>
               </div>
-              {sd.active && candidates.length > 0 && (
-                <div className="mt-2.5 rounded-xl border p-2.5" style={{ borderColor: "var(--brand-bd)", background: "var(--brand-softer)" }}>
-                  <div className="mb-1.5 flex items-center gap-1 text-[11px] font-bold text-[var(--brand)]"><Link2 className="h-3 w-3" />建议纳入(其它维度命中)</div>
-                  <div className="flex flex-col gap-1.5">
-                    {candidates.map((fd) => { const DI = FDIM[fd.dim].icon; return (
-                      <div key={fd.id} className="flex items-center gap-1.5 rounded-lg border border-divider bg-content1 p-1.5">
-                        <Pill tone={FDIM[fd.dim].tone} dot={false} icon={<DI className="h-2.5 w-2.5" />}>{FDIM[fd.dim].label}</Pill>
-                        <div className="min-w-0 flex-1"><div className="truncate text-[11px] font-semibold">{fd.pattern} · {fd.subject}</div><div className="text-[9.5px] text-default-400">{fd.id} · {fd.amount}</div></div>
-                        <button onClick={() => intake(fd)} className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-[var(--brand-soft)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--brand)] hover:opacity-80"><Plus className="h-2.5 w-2.5" />纳入</button>
-                      </div>
-                    ); })}
-                  </div>
-                </div>
-              )}
+              <div className="mb-1 text-[10.5px] font-bold uppercase tracking-wider text-default-400">叙述摘要(草稿)</div>
+              <Textarea size="sm" value={narrative} onValueChange={setNarr} minRows={4} aria-label="STR 叙述摘要" />
+              <div className="mt-2.5 flex justify-end gap-2">
+                <Button size="sm" variant="bordered" startContent={<Save className="h-3.5 w-3.5" />} onPress={() => toast.success("STR 草稿已保存")}>保存草稿</Button>
+                <Button size="sm" color="primary" startContent={<Send className="h-3.5 w-3.5" />} onPress={submitMLRO}>提交 MLRO 评估</Button>
+              </div>
             </Card>
           </div>
 

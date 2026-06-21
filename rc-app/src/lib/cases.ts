@@ -132,6 +132,7 @@ export const decideActions = (st: CState): DecideAction[] => (st === "investigat
 export interface CasePathHop { label: string; role: string; tone: Tone; meta?: string }
 // 加权评分因子:raw 为该因子 0–100 原始分,weight 为权重(同团伙识别口径),contrib = raw×weight
 export interface ScoreFactor { key: string; label: string; cat: string; weight: number; raw: number; tone: Tone; evidence: string[] }
+export interface RelatedCase { id: string; subject: string; relType: string; relTone: Tone; conf: string; state: string; amount: string; score: number; basis: string; by: string; at: string }
 export interface BaselinePair { label: string; norm: string; current: string; abnormal?: boolean }
 export interface CaseAlert { id: string; sev: Tone; sevLabel: string; desc: string; rule: string; time: string }
 export interface CaseDossier {
@@ -144,8 +145,13 @@ export interface CaseDossier {
   baseline: BaselinePair[]; priorDisp: string;
   // Q3 钱从哪到哪
   path?: CasePathHop[]; chainRisk: string[]; fundNature: string;
-  // Q4 有没有同伙
+  // Q4 有没有同伙(简版链接 + 富卡:类型 / 置信度 / 关联依据 / 归属)
   rings: { id: string; name: string; to: string }[]; relatedCases: { id: string; name: string; to: string }[];
+  mergeInfo?: { count: number; total: string; strength: string; ring: string };
+  relatedRich?: RelatedCase[];
+  // 证据材料 + STR 草稿(⑦ 证据与留痕)
+  files?: { name: string; ext: string; size: string; note: string }[];
+  str?: { type: string; indicators: string; drafter: string; narrative: string };
   // ⑤ 决策锚点(相似案件处置基准)
   anchor: { similar: number; release: number; strRate: number; note: string };
   // 系统建议处置(弱建议)—— 收敛信号成决策起点;分析师同意 / 推翻并留痕
@@ -178,6 +184,18 @@ export const CASE_DOSSIER: Record<string, CaseDossier> = {
       { label: "历史处置", norm: "2 次告警 · 均放行无前科", current: "本次首违" },
     ],
     priorDisp: "关联 3 笔历史违规(同网络其它商户)· 本商户无前科",
+    mergeInfo: { count: 2, total: "CAD 26,400", strength: "强", ring: "G-2026-014" },
+    relatedRich: [
+      { id: "CASE-20260317-009", subject: "BlockTrade Corp.", relType: "同团伙", relTone: "red", conf: "高置信", state: "STR 草稿", amount: "CAD 12,400", score: 91, basis: "共用提现地址 0x7a…dE2,资金链下游汇于同一归集节点 3FZbgi…7Ax", by: "Sarah Chen(风险)", at: "2026-03-02 11:48 · 系统共用地址自动建议" },
+      { id: "CASE-20260301-051", subject: "J. Morrison", relType: "同设备", relTone: "amber", conf: "中置信", state: "调查中", amount: "CAD 5,800", score: 64, basis: "同设备指纹 fp_9a3c…,同 IP 198.51.100.x,登录时间窗重叠", by: "Sarah Chen(风险)", at: "2026-03-02 11:48 · 手动关联" },
+    ],
+    files: [
+      { name: "KYT 链上分析报告", ext: "PDF", size: "3.07 MB", note: "第三方 KYT 服务返回的地址风险评分与资金溯源路径" },
+      { name: "主体 KYC 资料快照", ext: "PNG", size: "1.24 MB", note: "注册信息、UBO 结构、风险等级评定记录" },
+      { name: "关联交易流水", ext: "XLSX", size: "0.86 MB", note: "近 90 天关联主体全部入金 / 兑换 / 提现明细" },
+      { name: "OFAC 名单筛查记录", ext: "DOCX", size: "0.32 MB", note: "来源地址簇与 OFAC SDN 名单的间接关联比对结果" },
+    ],
+    str: { type: "STR(可疑交易报告)", indicators: "混币器接触 · 过水模式", drafter: "Sarah Chen(风控)", narrative: "本案账户于 2026-03-15 接收来自混币器 Tornado Cash 钱包地址的 0.21 BTC,经层跳中转后入金平台并即时兑换为 CAD 8,200,且于 14 分钟内发起全额提现,符合分层(layering)与过水特征。建议作为可疑交易上报。" },
     path: [
       { label: "Tornado Cash", role: "来源", tone: "red", meta: "92% 溯源命中" },
       { label: "中转地址 ×3", role: "中转", tone: "amber", meta: "36h 内归集" },
