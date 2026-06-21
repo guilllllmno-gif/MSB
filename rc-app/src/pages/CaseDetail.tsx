@@ -20,6 +20,17 @@ const ME: Person = { i: "JL", n: "James Liu", c: "var(--brand)" };
 const tc = (t: string) => (t === "red" ? "var(--danger)" : t === "amber" ? "var(--warning)" : t === "green" ? "var(--success)" : t === "violet" ? "var(--violet)" : t === "blue" ? "var(--brand)" : "var(--text-3)");
 const tbg = (t: string) => (t === "red" ? "var(--danger-bg)" : t === "amber" ? "var(--warning-bg)" : t === "green" ? "var(--success-bg)" : t === "violet" ? "var(--violet-bg)" : t === "blue" ? "var(--brand-soft)" : "var(--chip-bg)");
 const ROLE_ICON: Record<string, typeof Coins> = { 来源: ArrowDownToLine, 归集: GitMerge, 中转: ArrowLeftRight, 混淆: Shuffle, 跨链: Waypoints, 出口: ArrowUpRight, 失联: CircleOff };
+// 链上地址主体的风险标签(从名称 / 在案角色推导)
+const addrTags = (s: { name: string; role: string }): string[] => {
+  const t = `${s.name}${s.role}`; const out: string[] = [];
+  if (/混币|tornado/i.test(t)) out.push("混币器", "OFAC");
+  if (/归集|扇入/.test(t)) out.push("扇入归集");
+  if (/制裁|ofac|sdn|黑名单/i.test(t)) out.push("制裁名单", "高风险");
+  if (/中转|过账/.test(t)) out.push("中转钱包");
+  if (/出口|分发/.test(t)) out.push("分发出口");
+  if (/设备|ip/i.test(t)) out.push("设备 / IP 聚类");
+  return out.length ? Array.from(new Set(out)) : ["链上地址"];
+};
 
 function resolve(id: string | null): Case {
   const created = caseStore.created().find((c) => c.id === id);
@@ -60,6 +71,7 @@ export default function CaseDetail() {
   const [openF, setOpenF] = useState<Set<string>>(new Set());
   const [unlinked, setUnlinked] = useState<Set<string>>(new Set());
   const [narr, setNarr] = useState<string | null>(null);
+  const [subjIdx, setSubjIdx] = useState(0);
 
   const c = resolve(sp.get("id"));
   const st = caseStore.stateOf(c.id, c.state) as CState;
@@ -314,34 +326,79 @@ export default function CaseDetail() {
             </Card>
           </div>
 
-          {/* 商户画像与行为基线(本次 vs 历史) */}
-          <Card icon={Coins} title="商户画像与行为基线" extra={<Pill tone={d.profile.tier} dot={false}>KYC {d.profile.kyc}</Pill>}>
-            <div className="grid grid-cols-1 gap-x-8 gap-y-1 lg:grid-cols-2">
-              <div>
-                <div className="mb-1 text-[10.5px] font-bold uppercase tracking-wider text-default-400">商户档案</div>
-                <Kv label="注册地 / 辖区">{d.profile.country}</Kv>
-                <Kv label="制裁名单">{d.profile.sanctions}</Kv>
-                <Kv label="PEP">{d.profile.pep}</Kv>
-                <Kv label="30 日交易额">{d.profile.vol30}</Kv>
-                <Kv label="限额">{d.profile.limit}</Kv>
-              </div>
-              <div>
-                <div className="mb-1 text-[10.5px] font-bold uppercase tracking-wider text-default-400">行为基线偏离 · 本次 vs 历史常态</div>
-                <div className="flex flex-col">
-                  {d.baseline.map((b, i) => (
-                    <div key={i} className="flex items-center gap-2 border-b border-dashed border-default-200 py-1.5 text-[12px] last:border-0">
-                      <span className="w-[88px] shrink-0 text-default-500">{b.label}</span>
-                      <span className="text-default-400">{b.norm}</span>
-                      <ArrowRight className="h-3 w-3 shrink-0 text-default-300" />
-                      <span className="font-semibold" style={{ color: b.abnormal ? "var(--danger)" : undefined }}>{b.current}</span>
-                      {b.abnormal && <span className="ml-auto shrink-0 rounded bg-[var(--danger-bg)] px-1 py-px text-[9px] font-bold" style={{ color: "var(--danger)" }}>偏离</span>}
-                    </div>
-                  ))}
+          {/* 主体画像与行为基线 —— 案件含多主体,按主体切换(主交易主体给完整画像 + 行为基线,其它主体按类型自适应) */}
+          {(() => {
+            const sel = subs[Math.min(subjIdx, subs.length - 1)] || subs[0];
+            const isPrimary = !!sel && (sel.name === c.subject || c.subject.includes(sel.name) || sel.name.includes(c.subject));
+            const tags = sel && sel.type === "链上地址" ? addrTags(sel) : [];
+            return (
+              <Card icon={Coins} title="主体画像与行为基线" extra={<span className="text-[11.5px] text-default-400">{subs.length} 个涉案主体 · 点选切换</span>}>
+                {/* 主体切换 */}
+                <div className="mb-3.5 flex flex-wrap gap-1.5">
+                  {subs.map((s, i) => { const on = i === Math.min(subjIdx, subs.length - 1); return (
+                    <button key={i} onClick={() => setSubjIdx(i)} className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11.5px] font-semibold transition-colors"
+                      style={on ? { borderColor: "var(--brand)", background: "var(--brand-soft)", color: "var(--brand)" } : { borderColor: "var(--line)", color: "var(--text-2)" }}>
+                      <span className="h-1.5 w-1.5 rounded-full" style={{ background: tc(SUBJ_TONE[s.type]) }} />{s.name}
+                    </button>
+                  ); })}
                 </div>
-              </div>
-            </div>
-            <div className="mt-3 rounded-lg bg-default-50 p-2.5 text-[11.5px] leading-snug text-default-500"><span className="font-semibold text-default-600">历史处置:</span> {d.priorDisp}</div>
-          </Card>
+
+                {/* 选中主体页头 */}
+                <div className="mb-3 flex flex-wrap items-center gap-2">
+                  <span className="text-[15px] font-bold">{sel?.name}</span>
+                  <Pill tone={SUBJ_TONE[sel?.type || "商户"]} dot={false}>{sel?.type}</Pill>
+                  <span className="text-[12px] text-default-400">{sel?.role}</span>
+                  {sel?.amount && <span className="ml-auto text-[13px] font-semibold tnum">{sel.amount}</span>}
+                </div>
+
+                {isPrimary ? (
+                  <>
+                    <div className="grid grid-cols-1 gap-x-8 gap-y-1 lg:grid-cols-2">
+                      <div>
+                        <div className="mb-1 text-[10.5px] font-bold uppercase tracking-wider text-default-400">主体档案</div>
+                        <Kv label="注册地 / 辖区">{d.profile.country}</Kv>
+                        <Kv label="KYC / 风险等级">{d.profile.kyc}</Kv>
+                        <Kv label="制裁名单">{d.profile.sanctions}</Kv>
+                        <Kv label="PEP">{d.profile.pep}</Kv>
+                        <Kv label="30 日交易额 / 限额">{d.profile.vol30} / {d.profile.limit}</Kv>
+                      </div>
+                      <div>
+                        <div className="mb-1 text-[10.5px] font-bold uppercase tracking-wider text-default-400">行为基线偏离 · 本次 vs 历史常态</div>
+                        <div className="flex flex-col">
+                          {d.baseline.map((b, i) => (
+                            <div key={i} className="flex items-center gap-2 border-b border-dashed border-default-200 py-1.5 text-[12px] last:border-0">
+                              <span className="w-[88px] shrink-0 text-default-500">{b.label}</span>
+                              <span className="text-default-400">{b.norm}</span>
+                              <ArrowRight className="h-3 w-3 shrink-0 text-default-300" />
+                              <span className="font-semibold" style={{ color: b.abnormal ? "var(--danger)" : undefined }}>{b.current}</span>
+                              {b.abnormal && <span className="ml-auto shrink-0 rounded bg-[var(--danger-bg)] px-1 py-px text-[9px] font-bold" style={{ color: "var(--danger)" }}>偏离</span>}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="mt-3 rounded-lg bg-default-50 p-2.5 text-[11.5px] leading-snug text-default-500"><span className="font-semibold text-default-600">历史处置:</span> {d.priorDisp}</div>
+                  </>
+                ) : (
+                  <div>
+                    <div className="grid grid-cols-1 gap-x-8 gap-y-1 sm:grid-cols-2">
+                      <Kv label="主体类型">{sel?.type}</Kv>
+                      <Kv label="在案角色">{sel?.role}</Kv>
+                      {sel?.amount && <Kv label="涉及金额">{sel.amount}</Kv>}
+                      {sel?.kyc && <Kv label="KYC / KYB">{sel.kyc}</Kv>}
+                    </div>
+                    {sel?.type === "链上地址" && (
+                      <div className="mt-2">
+                        <div className="mb-1.5 text-[10.5px] font-bold uppercase tracking-wider text-default-400">地址风险标签</div>
+                        <div className="flex flex-wrap gap-1.5">{tags.map((tg) => <span key={tg} className="rounded-md px-1.5 py-0.5 text-[10.5px] font-semibold" style={{ background: tg === "高风险" || tg === "OFAC" || tg.includes("制裁") ? "var(--danger-bg)" : "var(--chip-bg)", color: tg === "高风险" || tg === "OFAC" || tg.includes("制裁") ? "var(--danger)" : "var(--chip-fg)" }}>{tg}</span>)}</div>
+                      </div>
+                    )}
+                    <p className="mt-3 rounded-lg bg-default-50 p-2.5 text-[11.5px] leading-snug text-default-500">该主体为本案<b className="text-default-600">涉案关联主体</b>(非主交易主体),完整画像与行为基线随调查展开补充;主交易主体 <b className="text-default-600">{c.subject}</b> 的档案与基线见首个主体视图。</p>
+                  </div>
+                )}
+              </Card>
+            );
+          })()}
 
           {/* 涉案主体 */}
           <Card icon={Coins} title={`涉案主体 · ${subs.length}`}>
