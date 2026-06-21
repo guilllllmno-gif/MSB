@@ -4,7 +4,7 @@ import { Button, Input } from "@heroui/react";
 import { Fingerprint, Search, Bell, History, Network, FolderOpen, FileText, ArrowUpRight, ShieldAlert, Store, Link2, Layers } from "lucide-react";
 import { Shell, PageHead } from "@/components/Shell";
 import { Pill, SoftChip, SectionLabel, Initials, RiskBadge, toneVar } from "@/components/bits";
-import { directory, footprint, totalExposure, fmtCAD, entityType, ENTITY_TONE, caseStr, sameEntity, type EntityType } from "@/lib/entity360";
+import { directory, footprint, totalExposure, fmtCAD, entityType, ENTITY_TONE, caseStr, sameEntity, linkedAddresses, type EntityType } from "@/lib/entity360";
 import { RC_STATES, type Tone } from "@/lib/data";
 import { FSTATES, FDIM } from "@/lib/findings";
 import { CSTATE, type CState } from "@/lib/cases";
@@ -111,6 +111,9 @@ function Profile({ name }: { name: string }) {
     return [...set.values()].slice(0, 12);
   }, [fp, name]);
 
+  // 商户 → 关联链上地址(从告警交易对手反推:托管钱包 + 入金来源 / 出金去向对手)
+  const addrs = useMemo(() => (type === "商户" ? linkedAddresses(name) : []), [name, type]);
+
   return (
     <Shell crumb={["主体档案", name]} wide>
       <PageHead title={name} sub="跨模块主体360 · 一个主体在 事中 / 事后 / 告警 / 团伙 / 案件 / 报送 的全部足迹聚到一张视图,避免同主体被各模块割裂、重复立案。" actions={
@@ -215,6 +218,25 @@ function Profile({ name }: { name: string }) {
               {!a0 && <div className="py-2 text-[11.5px] text-default-400">该主体未在事中告警出现,画像取自事后 / 案件维度。{type === "链上地址" && "链上地址以行为标签为主。"}</div>}
             </div>
           </div>
+
+          {addrs.length > 0 && (
+            <div className="card p-4">
+              <SectionLabel>关联链上地址 · 从交易反推</SectionLabel>
+              <div className="flex flex-col gap-1.5">
+                {addrs.map((a) => (
+                  <button key={a.addr} onClick={() => nav(`/entity?name=${encodeURIComponent(a.addr)}`)}
+                    className="card-hover group flex items-center gap-2 rounded-lg border border-default-200 px-2.5 py-2 text-left">
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg" style={{ background: "var(--violet-bg)", color: "var(--violet)" }}><Link2 className="h-3.5 w-3.5" /></span>
+                    <span className="min-w-0 flex-1 truncate text-[12px] font-semibold">{a.addr}</span>
+                    <Pill tone={a.role === "商户托管" ? "blue" : "violet"} dot={false}>{a.role}</Pill>
+                    <span className="shrink-0 text-[10.5px] text-default-400">{a.dir}</span>
+                    <ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-default-300 group-hover:text-brand" />
+                  </button>
+                ))}
+              </div>
+              <p className="mt-2 text-[11px] leading-relaxed text-default-400">从该商户告警的 sender / receiver 反推。<b>商户托管</b>=本方钱包,<b>交易对手</b>=入金来源 / 出金去向地址,点进看该地址全模块足迹。</p>
+            </div>
+          )}
 
           {related.length > 0 && (
             <div className="card p-4">

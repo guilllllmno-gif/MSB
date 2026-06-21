@@ -72,6 +72,31 @@ export function footprint(name: string): Footprint {
   };
 }
 
+// --- 商户 → 关联链上地址(从交易对手反推)----------------------------------
+// footprint 按归一化键匹配,商户键≠地址键,故商户自己的钱包/对手地址不会直接命中。
+// 但每条告警都带 sender/receiver,商户侧标「商户托管」—— 从中抽出该商户交易里出现的地址,
+// 区分「商户托管钱包」(本方持有)与「交易对手地址」(入金来源/出金去向),可点进地址 360。
+const ADDR_RE = /(0x[0-9a-fA-F]{2,8}…[0-9a-fA-F]{2,8}|bc1[a-z0-9]{1,8}…[a-z0-9]{1,8}|[A-Za-z0-9]{2,8}…[A-Za-z0-9]{2,8})/;
+export interface LinkedAddr { addr: string; role: "商户托管" | "交易对手"; dir: string; alertId: string; alertTitle: string }
+export function linkedAddresses(name: string): LinkedAddr[] {
+  const out = new Map<string, LinkedAddr>();
+  for (const a of alerts.filter((x) => sameEntity(x.merchant, name))) {
+    for (const [field, val] of [["sender", a.sender], ["receiver", a.receiver]] as const) {
+      const m = val.match(ADDR_RE);
+      if (!m) continue;
+      const custody = val.includes("商户托管");
+      const addr = m[1];
+      if (!out.has(addr)) out.set(addr, {
+        addr, role: custody ? "商户托管" : "交易对手",
+        dir: custody ? "本方持有钱包" : field === "sender" ? "入金来源" : "出金去向",
+        alertId: a.id, alertTitle: a.title,
+      });
+    }
+  }
+  // 托管钱包排前
+  return [...out.values()].sort((x, y) => (x.role === "商户托管" ? -1 : 1) - (y.role === "商户托管" ? -1 : 1));
+}
+
 // 涉及金额合计(粗略:解析各记录金额字符串求和,只为给一个量级感)
 export const parseAmt = (s?: string): number => (s ? Number(s.replace(/[^0-9.]/g, "")) || 0 : 0);
 export function totalExposure(fp: Footprint): number {
