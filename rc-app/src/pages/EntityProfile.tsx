@@ -4,7 +4,7 @@ import { Button, Input } from "@heroui/react";
 import { Fingerprint, Search, Bell, History, Network, FolderOpen, FileText, ArrowUpRight, ShieldAlert, Store, Link2, Layers } from "lucide-react";
 import { Shell, PageHead } from "@/components/Shell";
 import { Pill, SoftChip, SectionLabel, Initials, RiskBadge, toneVar } from "@/components/bits";
-import { directory, footprint, totalExposure, fmtCAD, entityType, ENTITY_TONE, caseStr, sameEntity, linkedAddresses, type EntityType } from "@/lib/entity360";
+import { directory, footprint, totalExposure, fmtCAD, entityType, ENTITY_TONE, caseStr, sameEntity, linkedAddresses } from "@/lib/entity360";
 import { RC_STATES, type Tone } from "@/lib/data";
 import { FSTATES, FDIM } from "@/lib/findings";
 import { CSTATE, type CState } from "@/lib/cases";
@@ -103,11 +103,12 @@ function Profile({ name }: { name: string }) {
   const a0 = fp.alerts[0];
   const TypeIcon = type === "链上地址" ? Link2 : type === "团伙" ? Network : Store;
 
-  // 关联主体 —— 同团伙成员 + 同案件涉案主体(去掉自己)
+  // 关联商户 —— 同团伙成员 + 同案件涉案主体里的「其它商户」(主体=商户维度,地址不作关联主体,见下方属性卡)
   const related = useMemo(() => {
     const set = new Map<string, { name: string; via: string }>();
-    fp.rings.forEach((rh) => rh.ring.members.forEach((m) => { if (!sameEntity(m.name, name) && m.kind !== "群组") set.set(m.name, { name: m.name, via: `同团伙 ${rh.ring.id}` }); }));
-    fp.cases.forEach((c) => (c.subjects || []).forEach((s) => { if (!sameEntity(s.name, name)) set.set(s.name, { name: s.name, via: `同案 ${c.id}` }); }));
+    const add = (n: string, via: string) => { if (!sameEntity(n, name) && entityType(n) === "商户") set.set(n, { name: n, via }); };
+    fp.rings.forEach((rh) => rh.ring.members.forEach((m) => { if (m.kind !== "群组") add(m.name, `同团伙 ${rh.ring.id}`); }));
+    fp.cases.forEach((c) => (c.subjects || []).forEach((s) => add(s.name, `同案 ${c.id}`)));
     return [...set.values()].slice(0, 12);
   }, [fp, name]);
 
@@ -116,7 +117,7 @@ function Profile({ name }: { name: string }) {
 
   return (
     <Shell crumb={["主体档案", name]} wide>
-      <PageHead title={name} sub="跨模块主体360 · 一个主体在 事中 / 事后 / 告警 / 团伙 / 案件 / 报送 的全部足迹聚到一张视图,避免同主体被各模块割裂、重复立案。" actions={
+      <PageHead title={name} sub="商户主体360 · 一个商户(法律实体)在 事中 / 事后 / 告警 / 团伙 / 案件 / 报送 的全部足迹聚到一张视图。地址 / 行为是该商户名下的属性与记录,不另作主体。" actions={
         <Button size="sm" variant="flat" className="bg-default-100" startContent={<Fingerprint className="h-4 w-4" />} onPress={() => nav("/entity")}>主体目录</Button>
       } />
 
@@ -221,20 +222,18 @@ function Profile({ name }: { name: string }) {
 
           {addrs.length > 0 && (
             <div className="card p-4">
-              <SectionLabel>关联链上地址 · 从交易反推</SectionLabel>
+              <SectionLabel>关联链上地址 · 该商户属性</SectionLabel>
               <div className="flex flex-col gap-1.5">
                 {addrs.map((a) => (
-                  <button key={a.addr} onClick={() => nav(`/entity?name=${encodeURIComponent(a.addr)}`)}
-                    className="card-hover group flex items-center gap-2 rounded-lg border border-default-200 px-2.5 py-2 text-left">
+                  <div key={a.addr} className="flex items-center gap-2 rounded-lg border border-default-200 px-2.5 py-2">
                     <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg" style={{ background: "var(--violet-bg)", color: "var(--violet)" }}><Link2 className="h-3.5 w-3.5" /></span>
                     <span className="min-w-0 flex-1 truncate text-[12px] font-semibold">{a.addr}</span>
                     <Pill tone={a.role === "商户托管" ? "blue" : "violet"} dot={false}>{a.role}</Pill>
                     <span className="shrink-0 text-[10.5px] text-default-400">{a.dir}</span>
-                    <ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-default-300 group-hover:text-brand" />
-                  </button>
+                  </div>
                 ))}
               </div>
-              <p className="mt-2 text-[11px] leading-relaxed text-default-400">从该商户告警的 sender / receiver 反推。<b>商户托管</b>=本方钱包,<b>交易对手</b>=入金来源 / 出金去向地址,点进看该地址全模块足迹。</p>
+              <p className="mt-2 text-[11px] leading-relaxed text-default-400">从该商户告警 sender / receiver 反推,作为商户<b>属性</b>展示(地址不另作主体)。<b>商户托管</b>=本方钱包,<b>交易对手</b>=入金来源 / 出金去向。高风险外部地址归 <b>名单管理</b> / 案件子主体。</p>
             </div>
           )}
 
@@ -282,13 +281,13 @@ function Directory() {
 
   return (
     <Shell crumb={["主体档案"]} wide>
-      <PageHead title="主体档案 · 360" sub="按归一化键聚合全站主体 —— 一个商户 / 地址在 告警 / 事后 / 团伙 / 案件 / 报送 的全部足迹。点任一主体进 360 视图。" />
+      <PageHead title="主体档案 · 360" sub="主体 = 商户(法律实体)维度。按归一化键聚合每个商户在 告警 / 事后 / 团伙 / 案件 / 报送 的全部足迹;地址 / 行为是商户名下属性与记录,不另作主体。点任一商户进 360 视图。" />
       <div className="card mb-4 flex flex-wrap items-center gap-x-6 gap-y-2 p-4">
-        <Stat label="已识别主体" value={all.length} />
+        <Stat label="商户主体" value={all.length} />
         <Stat label="跨 ≥2 模块" value={crossMod} tone="amber" />
         <Stat label="在办案件主体" value={all.filter((e) => e.cases > 0).length} tone="violet" />
         <div className="ml-auto w-full max-w-[280px]">
-          <Input size="sm" radius="lg" placeholder="搜索主体名 / 地址" value={q} onValueChange={setQ}
+          <Input size="sm" radius="lg" placeholder="搜索商户名" value={q} onValueChange={setQ}
             startContent={<Search className="h-4 w-4 text-default-400" />} classNames={{ inputWrapper: "bg-default-100 shadow-none" }} />
         </div>
       </div>
@@ -297,8 +296,7 @@ function Directory() {
         <table className="w-full text-[12.5px]">
           <thead>
             <tr className="border-b border-default-100 text-[11px] font-bold uppercase tracking-wider text-default-400">
-              <th className="px-4 py-2.5 text-left">主体</th>
-              <th className="px-3 py-2.5 text-left">类型</th>
+              <th className="px-4 py-2.5 text-left">商户主体</th>
               <th className="px-3 py-2.5 text-left">模块覆盖</th>
               <th className="px-3 py-2.5 text-right">告警</th>
               <th className="px-3 py-2.5 text-right">事后</th>
@@ -313,7 +311,6 @@ function Directory() {
               <tr key={e.key} onClick={() => nav(`/entity?name=${encodeURIComponent(e.name)}`)}
                 className="cursor-pointer border-b border-default-50 transition-colors hover:bg-default-50">
                 <td className="px-4 py-3 font-semibold">{e.name}</td>
-                <td className="px-3 py-3"><Pill tone={ENTITY_TONE[e.type as EntityType]} dot={false}>{e.type}</Pill></td>
                 <td className="px-3 py-3"><div className="flex items-center gap-2"><ModDots on={e} /><span className="text-[11px] font-bold text-default-400">{e.span}/5</span></div></td>
                 <td className="px-3 py-3 text-right tabular-nums">{e.alerts || "—"}</td>
                 <td className="px-3 py-3 text-right tabular-nums">{e.findings || "—"}</td>
@@ -323,7 +320,7 @@ function Directory() {
                 <td className="px-4 py-3 text-right"><ArrowUpRight className="ml-auto h-4 w-4 text-default-300" /></td>
               </tr>
             ))}
-            {list.length === 0 && <tr><td colSpan={9} className="py-12 text-center text-[12.5px] text-default-400">无匹配主体</td></tr>}
+            {list.length === 0 && <tr><td colSpan={8} className="py-12 text-center text-[12.5px] text-default-400">无匹配商户</td></tr>}
           </tbody>
         </table>
       </div>

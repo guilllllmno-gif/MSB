@@ -146,5 +146,7 @@ export function directory(): DirEntry[] {
     rec.total = rec.alerts + rec.findings + rec.rings + rec.cases + rec.reports;
     out.push(rec);
   }
-  return out.sort((a, b) => b.span - a.span || b.total - a.total);
+  // 主体 = 商户(法律实体)维度。地址 / 团伙不作独立主体:地址是商户的属性(见 linkedAddresses)、
+  // 无归属外部地址归 名单管理 / 案件子主体;团伙有 /ring 模块。
+  return out.filter((e) => e.type === "商户").sort((a, b) => b.span - a.span || b.total - a.total);
 }
