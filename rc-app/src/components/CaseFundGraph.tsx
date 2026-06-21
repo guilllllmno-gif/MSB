@@ -68,9 +68,9 @@ export function CaseFundGraph({ graph }: { graph: CaseGraph }) {
             );
           })}
 
-          {/* 世界标签 */}
-          <div className="absolute bottom-2.5 text-center text-[10px] text-default-400" style={{ left: (PADX + dividerX) / 2 - 90, width: 180 }}>链上世界 · Chainalysis KYT</div>
-          <div className="absolute bottom-2.5 text-center text-[10px] text-default-400" style={{ left: (dividerX + W - PADX) / 2 - 90, width: 180 }}>法币世界 · 自有数据</div>
+          {/* 世界标签(可按资金方向配置,默认 链上→法币) */}
+          <div className="absolute bottom-2.5 text-center text-[10px] text-default-400" style={{ left: (PADX + dividerX) / 2 - 90, width: 180 }}>{graph.leftWorld || "链上世界 · Chainalysis KYT"}</div>
+          <div className="absolute bottom-2.5 text-center text-[10px] text-default-400" style={{ left: (dividerX + W - PADX) / 2 - 90, width: 180 }}>{graph.rightWorld || "法币世界 · 自有数据"}</div>
         </div>
       </div>
 

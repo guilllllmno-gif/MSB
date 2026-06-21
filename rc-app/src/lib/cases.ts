@@ -159,7 +159,7 @@ export interface CasePathHop { label: string; role: string; tone: Tone; meta?: s
 export type GNodeKind = "mixer" | "mule" | "hub" | "platform" | "exit" | "normal";
 export interface GraphNode { id: string; label: string; sub?: string; col: number; kind: GNodeKind }
 export interface GraphEdge { from: string; to: string; w?: string }
-export interface CaseGraph { cols: string[]; dividerAfter: number; nodes: GraphNode[]; edges: GraphEdge[]; stats: { label: string; value: string }[] }
+export interface CaseGraph { cols: string[]; dividerAfter: number; nodes: GraphNode[]; edges: GraphEdge[]; stats: { label: string; value: string }[]; leftWorld?: string; rightWorld?: string }
 export const GKIND: Record<GNodeKind, { tone: Tone; glyph: string; label: string }> = {
   mixer: { tone: "red", glyph: "🌀", label: "高危源头 / 混币器" },
   mule: { tone: "amber", glyph: "👤", label: "中转 mule" },
@@ -322,6 +322,33 @@ export const CASE_DOSSIER: Record<string, CaseDossier> = {
       { label: "商户关联", norm: "互无关联", current: "突现协同", abnormal: true },
     ],
     priorDisp: "PM-2026-020 事后命中转入本案 · 商户个体此前无单独违规",
+    graph: {
+      cols: ["商户来源", "归集", "中转", "出口"], dividerAfter: 0, leftWorld: "法币世界 · 商户入金", rightWorld: "链上世界 · Chainalysis KYT",
+      nodes: [
+        { id: "m1", label: "RapidPay", sub: "商户", col: 0, kind: "platform" },
+        { id: "m2", label: "Eastwind", sub: "商户", col: 0, kind: "platform" },
+        { id: "m3", label: "SwiftRemit", sub: "商户", col: 0, kind: "platform" },
+        { id: "m4", label: "商户 D", sub: "商户", col: 0, kind: "platform" },
+        { id: "m5", label: "商户 E", sub: "商户", col: 0, kind: "platform" },
+        { id: "m6", label: "商户 F", sub: "商户", col: 0, kind: "platform" },
+        { id: "hub", label: "归集地址", sub: "0x71Be…F0", col: 1, kind: "hub" },
+        { id: "t1", label: "中转钱包", sub: "1A9x…c2", col: 2, kind: "mule" },
+        { id: "t2", label: "中转钱包", sub: "1A9x…c2", col: 2, kind: "mule" },
+        { id: "e1", label: "出口地址", sub: "1A9x…c2", col: 3, kind: "exit" },
+        { id: "e2", label: "出口地址", sub: "1A9x…c2", col: 3, kind: "exit" },
+        { id: "e3", label: "出口地址", sub: "1A9x…c2", col: 3, kind: "exit" },
+      ],
+      edges: [
+        { from: "m1", to: "hub", w: "38,400" }, { from: "m2", to: "hub", w: "27,100" }, { from: "m3", to: "hub", w: "22,500" },
+        { from: "m4", to: "hub" }, { from: "m5", to: "hub" }, { from: "m6", to: "hub" },
+        { from: "hub", to: "t1" }, { from: "hub", to: "t2" },
+        { from: "t1", to: "e1" }, { from: "t1", to: "e2" }, { from: "t2", to: "e3" },
+      ],
+      stats: [
+        { label: "节点总数", value: "12" }, { label: "归集金额", value: "CAD 124,000" },
+        { label: "扇入主体", value: "6 商户" }, { label: "归集节点", value: "1" }, { label: "出口", value: "3" },
+      ],
+    },
     path: [
       { label: "6 商户账户", role: "来源", tone: "amber", meta: "分散入金" },
       { label: "归集 0x71Be", role: "归集", tone: "red", meta: "CAD 124,000" },
@@ -379,6 +406,27 @@ export const CASE_DOSSIER: Record<string, CaseDossier> = {
       { label: "注册时间", norm: "分散", current: "集中于近期", abnormal: true },
     ],
     priorDisp: "RING-2026-031 团伙识别转入 · 关注名单群组关联",
+    graph: {
+      cols: ["养卡商户", "归集", "中转", "出金"], dividerAfter: 0, leftWorld: "法币世界 · 商户", rightWorld: "链上世界",
+      nodes: [
+        { id: "m1", label: "RapidPay", sub: "团伙核心", col: 0, kind: "platform" },
+        { id: "m2", label: "QuickWallet", sub: "关联商户", col: 0, kind: "platform" },
+        { id: "m3", label: "PayFlow", sub: "关联商户", col: 0, kind: "platform" },
+        { id: "hub", label: "归集钱包", sub: "0x..养卡", col: 1, kind: "hub" },
+        { id: "t1", label: "中转 mule", sub: "1A9x…c2", col: 2, kind: "mule" },
+        { id: "t2", label: "中转 mule", sub: "1A9x…c2", col: 2, kind: "mule" },
+        { id: "out", label: "集中出金", sub: "分层后出金", col: 3, kind: "exit" },
+      ],
+      edges: [
+        { from: "m1", to: "hub", w: "14,200" }, { from: "m2", to: "hub", w: "12,000" }, { from: "m3", to: "hub", w: "12,200" },
+        { from: "hub", to: "t1" }, { from: "hub", to: "t2" },
+        { from: "t1", to: "out" }, { from: "t2", to: "out" },
+      ],
+      stats: [
+        { label: "节点总数", value: "7" }, { label: "涉案总额", value: "CAD 38,400" },
+        { label: "共同 UBO", value: "2" }, { label: "共享设备群", value: "#D7" }, { label: "出金", value: "1" },
+      ],
+    },
     path: [
       { label: "3 关联商户", role: "来源", tone: "amber", meta: "众包养卡" },
       { label: "归集钱包", role: "归集", tone: "red", meta: "CAD 38,400" },
