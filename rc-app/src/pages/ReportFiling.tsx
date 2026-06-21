@@ -1,16 +1,13 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button, Tooltip, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Input } from "@heroui/react";
-import { FileText, Eye, Clock, Download, AlertTriangle, FileSignature, Search, UserRound } from "lucide-react";
+import { FileText, Eye, Clock, Download, AlertTriangle, ArrowRight, Search, UserRound, Plus } from "lucide-react";
 import { Shell, PageHead } from "@/components/Shell";
 import { Pill, Initials, SoftChip } from "@/components/bits";
-import { ReportDrawer } from "@/components/ReportDrawer";
-import { REPORTS, RTYPE, RSTATE, MLRO, caseStrState, type Report, type RType, type RState } from "@/lib/reports";
-import { CASES, type CState } from "@/lib/cases";
-import { caseStore, reportStore, useReportVersion, useCaseVersion } from "@/lib/store";
-import type { Person } from "@/lib/data";
-
-const ME: Person = { i: "JL", n: "James Liu", c: "var(--brand)" };
+import { NewReportDrawer } from "@/components/NewReportDrawer";
+import { RTYPE, RSTATE, type Report } from "@/lib/reports";
+import { allReports, liveStatus } from "@/lib/reportsAll";
+import { reportStore, useReportVersion, useCaseVersion } from "@/lib/store";
 
 const TILES: { f: string; label: string }[] = [
   { f: "all", label: "全部" },
@@ -35,32 +32,11 @@ export default function ReportFiling() {
   const [filter, setFilter] = useState("all");
   const [type, setType] = useState("all");
   const [q, setQ] = useState("");
-  const [sel, setSel] = useState<Report | null>(null);
-  const [open, setOpen] = useState(false);
+  const [newOpen, setNewOpen] = useState(false);
 
-  // 案件管理 = STR 唯一发起点:案件进入 起草/评估/报送 后实时派生为 STR 报告汇入此处
-  // (制裁规避走 TPR 直连,不在此派生)
-  const STR_STATES = ["str_draft", "mlro", "queued", "filed"];
-  const caseReports: Report[] = [...caseStore.created(), ...CASES]
-    .filter((c) => STR_STATES.includes(caseStore.stateOf(c.id, c.state)) && c.risk !== "制裁规避")
-    .map((c) => {
-      const cs = caseStore.stateOf(c.id, c.state) as CState;
-      const rs = caseStrState(cs);
-      const filed = rs === "filed";
-      return {
-        id: `STR-${c.id}`, type: "STR" as RType, status: rs,
-        src: "案件管理", srcId: c.id, to: `/case?id=${c.id}`,
-        subject: c.subject, sub: `案件 · ${c.type}`, amount: c.amount,
-        summary: `${c.risk} —— ${c.type};经案件研判确认可疑,起草 STR 上报 FINTRAC。`,
-        officer: caseStore.ownerOf(c.id, c.owner) || ME,
-        mlro: rs === "draft" ? null : MLRO,
-        due: rs === "draft" ? { text: "起草中", tone: "grey" as const } : rs === "review" ? { text: "待复核 · 剩 28d", tone: "amber" as const } : rs === "queued" ? { text: "待报送", tone: "blue" as const } : { text: "已报送", tone: "grey" as const },
-        filedAt: filed ? "2026-06-19 16:40" : undefined,
-      };
-    });
-
-  const all: Report[] = [...caseReports, ...REPORTS];
-  const stOf = (r: Report) => reportStore.statusOf(r.id, r.status) as RState;
+  // 报告全集 = 案件派生 STR + 手动新建 + 静态 LVCTR/TPR(口径见 lib/reportsAll)
+  const all: Report[] = allReports();
+  const stOf = liveStatus;
 
   const count = (key: string) => all.filter((r) => key === "all" || stOf(r) === key).length;
   const rows = all.filter((r) => {
@@ -76,14 +52,17 @@ export default function ReportFiling() {
   const filedN = all.filter((r) => stOf(r) === "filed").length;
   const openN = all.filter((r) => RSTATE[stOf(r)].active).length;
 
-  const review = (r: Report) => { setSel(r); setOpen(true); };
+  const review = (r: Report) => nav(`/report?id=${r.id}`);
 
   return (
     <Shell crumb={["治理与合规", "报告报送"]} wide>
       <PageHead
         title="报告报送"
         sub="FINTRAC 合规上报工作台(MLRO 视图)—— STR 一律由「案件管理」确认可疑后派生(单一发起点);LVCTR 系统按客观阈值自动归集、TPR 制裁命中即时上报。在此复核、报送并跟踪 FINTRAC 受理回执。"
-        actions={<Button size="sm" radius="full" variant="flat" className="bg-default-100" startContent={<Download className="h-3.5 w-3.5" />}>导出报送台账</Button>}
+        actions={<>
+          <Button size="sm" radius="full" variant="flat" className="bg-default-100" startContent={<Download className="h-3.5 w-3.5" />}>导出报送台账</Button>
+          <Button size="sm" radius="full" color="primary" startContent={<Plus className="h-3.5 w-3.5" />} onPress={() => setNewOpen(true)}>新建报告</Button>
+        </>}
       />
 
       {/* 需立即处理 —— 时限驱动 */}
@@ -162,8 +141,8 @@ export default function ReportFiling() {
                 <TableCell><span className="inline-flex items-center gap-1" style={{ color: r.due.tone === "red" ? "var(--danger)" : r.due.tone === "amber" ? "var(--warning)" : "var(--text-3)" }}><Clock className="h-3.5 w-3.5" />{r.due.text}</span></TableCell>
                 <TableCell>
                   <div className="flex items-center justify-end gap-1.5">
-                    <Tooltip content="查看 / 复核" size="sm" delay={300}><Button isIconOnly size="sm" radius="full" variant="flat" className="bg-default-100" onPress={() => review(r)}><Eye className="h-4 w-4 text-default-500" strokeWidth={1.9} /></Button></Tooltip>
-                    {active && <Tooltip content="MLRO 复核 / 报送" size="sm" delay={300}><Button size="sm" radius="full" color="primary" variant="flat" startContent={<FileSignature className="h-3.5 w-3.5" />} onPress={() => review(r)}>复核</Button></Tooltip>}
+                    <Tooltip content="查看详情" size="sm" delay={300}><Button isIconOnly size="sm" radius="full" variant="flat" className="bg-default-100" onPress={() => review(r)}><Eye className="h-4 w-4 text-default-500" strokeWidth={1.9} /></Button></Tooltip>
+                    {active && <Tooltip content="进详情复核 / 报送" size="sm" delay={300}><Button size="sm" radius="full" color="primary" variant="flat" endContent={<ArrowRight className="h-3.5 w-3.5" />} onPress={() => review(r)}>复核</Button></Tooltip>}
                   </div>
                 </TableCell>
               </TableRow>
@@ -172,7 +151,7 @@ export default function ReportFiling() {
         </TableBody>
       </Table>
 
-      <ReportDrawer report={sel} open={open} onOpenChange={setOpen} />
+      <NewReportDrawer open={newOpen} onOpenChange={setNewOpen} />
     </Shell>
   );
 }

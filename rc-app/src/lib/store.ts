@@ -2,6 +2,8 @@ import { useSyncExternalStore } from "react";
 import type { Person } from "./data";
 import type { Ring } from "./rings";
 import type { Rule } from "./rules";
+import type { Report } from "./reports";
+import type { ListEntry } from "./lists";
 import type { Case, CaseSubject } from "./cases";
 
 interface Override { state?: string; assignee?: Person | null; events: { t: string; text: string; reason: string }[] }
@@ -103,6 +105,7 @@ export function useFindingVersion() {
 
 // ── 报告报送(FINTRAC)状态store ──
 const reportData: Record<string, { status?: string; mlro?: Person | null; ref?: string; events?: { t: string; text: string; reason: string }[] }> = {};
+let reportCreated: Report[] = [];
 let reportVersion = 0;
 const reportListeners = new Set<() => void>();
 const reportNotify = () => { reportVersion++; reportListeners.forEach((l) => l()); };
@@ -110,6 +113,8 @@ const reportNotify = () => { reportVersion++; reportListeners.forEach((l) => l()
 export const reportStore = {
   subscribe(cb: () => void) { reportListeners.add(cb); return () => { reportListeners.delete(cb); }; },
   getVersion() { return reportVersion; },
+  created() { return reportCreated; },
+  add(r: Report) { reportCreated = [r, ...reportCreated]; reportNotify(); },
   statusOf(id: string, base: string) { return reportData[id]?.status || base; },
   mlroOf(id: string, base: Person | null) { const o = reportData[id]; return o && o.mlro !== undefined ? o.mlro : base; },
   refOf(id: string, base?: string) { const o = reportData[id]; return o && o.ref !== undefined ? o.ref : base; },
@@ -162,6 +167,35 @@ export const ruleStore = {
 
 export function useRuleVersion() {
   return useSyncExternalStore(ruleStore.subscribe, ruleStore.getVersion, ruleStore.getVersion);
+}
+
+// ── 名单管理状态store(筛查名单生命周期:待复核 → 生效 → 暂停 / 过期 / 移除)──
+const listData: Record<string, { status?: string; owner?: Person | null; events?: { t: string; text: string; reason: string }[] }> = {};
+let listCreated: ListEntry[] = [];
+let listVersion = 0;
+const listListeners = new Set<() => void>();
+const listNotify = () => { listVersion++; listListeners.forEach((l) => l()); };
+
+export const listStore = {
+  subscribe(cb: () => void) { listListeners.add(cb); return () => { listListeners.delete(cb); }; },
+  getVersion() { return listVersion; },
+  created() { return listCreated; },
+  statusOf(id: string, base: string) { return listData[id]?.status || base; },
+  ownerOf(id: string, base: Person | null) { const o = listData[id]; return o && o.owner !== undefined ? o.owner : base; },
+  eventsOf(id: string) { return listData[id]?.events || []; },
+  add(e: ListEntry) { listCreated = [e, ...listCreated]; listNotify(); },
+  set(id: string, status: string, opts: { owner?: Person | null; event?: string; reason?: string } = {}) {
+    const cur = listData[id] || {};
+    cur.status = status;
+    if (opts.owner !== undefined) cur.owner = opts.owner;
+    cur.events = [...(cur.events || []), { t: now(), text: opts.event || status, reason: opts.reason || "" }];
+    listData[id] = cur;
+    listNotify();
+  },
+};
+
+export function useListVersion() {
+  return useSyncExternalStore(listStore.subscribe, listStore.getVersion, listStore.getVersion);
 }
 
 // ── 案件管理状态store ──

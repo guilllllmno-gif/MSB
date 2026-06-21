@@ -99,7 +99,7 @@ export const REPORTS: Report[] = [
     subject: "OffshoreFX Ltd. · 0x7F4a…9c21", sub: "提现 · OFAC SDN 直接命中", amount: "CAD 11,900", summary: "收款地址直接命中 OFAC SDN 制裁名单,资金已自动冻结,按制裁财产立即上报(无需可疑判定)。",
     officer: DW, mlro: EZ, due: { text: "已报送", tone: "grey" }, filedAt: "2026-03-13 07:05", ref: "FINTRAC #TPR-CA-2603-10882" },
   { id: "LVCTR-20260619-0143", type: "LVCTR", status: "queued", src: "系统自动", subject: "大额虚拟货币交易批次", sub: "06-18 当日 · 12 笔 ≥ CAD 10,000",
-    amount: "CAD 246,800", summary: "系统自动归集当日 ≥ CAD 10,000 虚拟货币交易,客观阈值触发,无需可疑判定,批量报送。",
+    amount: "CAD 207,300", summary: "系统自动归集当日 ≥ CAD 10,000 虚拟货币交易,客观阈值触发,无需可疑判定,批量报送。",
     officer: SYS, mlro: null, due: { text: "剩 2 工作日", tone: "amber" } },
   { id: "LVCTR-20260616-0138", type: "LVCTR", status: "ack", src: "系统自动", subject: "大额虚拟货币交易批次", sub: "06-15 当日 · 9 笔 ≥ CAD 10,000",
     amount: "CAD 181,500", summary: "当日大额虚拟货币交易批量报送,已获 FINTRAC 接收回执。",
@@ -107,6 +107,106 @@ export const REPORTS: Report[] = [
 ];
 
 export const reportOf = (id?: string) => REPORTS.find((r) => r.id === id);
+
+// ── 详情页:进度条按类型自适应(STR 走人工研判链;LVCTR 走客观阈值链)──
+export const RSTEPS: Record<RType, [string, string, string, string, string]> = {
+  STR: ["草稿", "分析师复核", "待 MLRO 签发", "已报送", "FINTRAC 受理"],
+  LVCTR: ["阈值触发", "自动归集", "待报送", "已报送", "FINTRAC 受理"],
+  TPR: ["制裁命中", "资产冻结", "待报送", "已报送", "FINTRAC 受理"],
+};
+// 状态 → 当前步(done = idx < cur,current = idx === cur)
+export const reportStep = (s: RState): number =>
+  s === "draft" ? 0 : s === "review" || s === "queued" || s === "returned" ? 2 : s === "filed" ? 3 : s === "ack" ? 4 : 0;
+
+// ── 详情正文(按类型自适应)──
+export interface PvRow { k: string; v: string }                       // FINTRAC 报文键值
+export interface LvctrTxn { id: string; party: string; kind: string; time: string; amount: string } // LVCTR 批次逐笔
+export interface ReportDetail {
+  reason?: { src: string; body: string; tags: { label: string; tone: Tone }[] }; // STR / TPR:可疑/依据叙述 + 风险标签
+  batch?: { count: number; shown: number; total: string; window: string; threshold: string; trigger: string; txns: LvctrTxn[]; note: string }; // LVCTR:批次归集
+  preview: { title: string; format: string; rows: PvRow[] };          // FINTRAC 报文预览
+}
+
+// 报文主体(机构信息),全站统一
+const REPORTING_ENTITY = "Future Pay CA (MSB# M2024xxxx)";
+
+export const RDETAIL: Record<string, ReportDetail> = {
+  // STR hero(案件 CASE-20260318-001 派生)—— 可疑理由由案件研判定性、人工撰写
+  "STR-CASE-20260318-001": {
+    reason: {
+      src: "由案件研判定性 · 人工撰写",
+      body: "主体账户于 2026-03-01 接收来自混币器 Tornado Cash 关联地址的 0.21 BTC,经单跳中转后入金平台并即时兑换为 CAD 8,200,到账 14 分钟内发起全额提现至外部地址,符合分层(layering)与过水特征。结合主体注册仅 3 个月、本次金额偏离历史基线 7 倍,判定为可疑交易,依据 PCMLTFA 建议作为 STR 上报。",
+      tags: [{ label: "混币器接触", tone: "red" }, { label: "过水模式", tone: "red" }, { label: "基线偏离 ×7", tone: "amber" }, { label: "疑似团伙 G-2026-014", tone: "violet" }],
+    },
+    preview: {
+      title: "Suspicious Transaction Report (STR)", format: "FINTRAC F2-R / JSON",
+      rows: [
+        { k: "Report Type", v: "STR" }, { k: "Reporting Entity", v: REPORTING_ENTITY },
+        { k: "Subject", v: "NovaPay Technologies Ltd." }, { k: "Transaction Date", v: "2026-03-01" },
+        { k: "Amount (CAD)", v: "8,200.00" }, { k: "Virtual Currency", v: "0.21 BTC → USDT" },
+        { k: "Suspicion Grounds", v: "Mixer exposure (Tornado Cash); layering; rapid pass-through" },
+        { k: "Related Case", v: "CASE-20260318-001" },
+      ],
+    },
+  },
+  // LVCTR(系统自动归集批次)—— 客观阈值,无需可疑判定
+  "LVCTR-20260619-0143": {
+    batch: {
+      count: 12, shown: 6, total: "CAD 207,300", window: "2026-06-18 当日", threshold: "≥ CAD 10,000", trigger: "系统自动 · 阈值归集",
+      txns: [
+        { id: "TXN-…0142", party: "SwiftX Ltd", kind: "加密兑法币", time: "06-18 09:12", amount: "18,500" },
+        { id: "TXN-…0145", party: "Orbit Ltd", kind: "法币入金", time: "06-18 10:30", amount: "25,000" },
+        { id: "TXN-…0151", party: "Lin W.", kind: "日累计提现", time: "06-18 11:48", amount: "11,200" },
+        { id: "TXN-…0160", party: "Apex Holdings", kind: "加密兑法币", time: "06-18 13:05", amount: "14,800" },
+        { id: "TXN-…0166", party: "NovaPay Tech.", kind: "稳定币兑换", time: "06-18 15:22", amount: "10,400" },
+        { id: "TXN-…0171", party: "Kraken-U", kind: "法币入金", time: "06-18 16:40", amount: "32,100" },
+      ],
+      note: "每笔均独立达到或日累计达到 CAD 10,000 阈值。批量报送时每笔生成一条 LVCTR 记录。",
+    },
+    preview: {
+      title: "Large Virtual Currency Transaction Report", format: "FINTRAC LVCTR · batch",
+      rows: [
+        { k: "Report Type", v: "LVCTR (batch)" }, { k: "Batch Date", v: "2026-06-18" },
+        { k: "Reporting Entity", v: REPORTING_ENTITY }, { k: "Transactions", v: "12" },
+        { k: "Batch Total (CAD)", v: "207,300.00" }, { k: "Threshold", v: "≥ CAD 10,000 (per txn / daily aggregate)" },
+        { k: "Trigger", v: "Automated threshold aggregation (R-AMT-01)" },
+      ],
+    },
+  },
+  // TPR(制裁财产报告)—— 制裁命中即时上报,非可疑判定
+  "TPR-20260313-0021": {
+    reason: {
+      src: "制裁筛查命中 · 法定即时上报",
+      body: "提现收款地址 0x7F4a…9c21 直接命中 OFAC SDN 制裁名单(实体清单),交易已被实时拦截、资金自动冻结。按 PCMLTFA 及制裁条例属受控财产,须立即(无延迟)上报 FINTRAC 并阻断,无需可疑判定。",
+      tags: [{ label: "OFAC SDN 直接命中", tone: "red" }, { label: "资金已冻结", tone: "violet" }, { label: "法定即时上报", tone: "amber" }],
+    },
+    preview: {
+      title: "Terrorist Property / Sanctions Report (TPR)", format: "FINTRAC TPR · immediate",
+      rows: [
+        { k: "Report Type", v: "TPR" }, { k: "Reporting Entity", v: REPORTING_ENTITY },
+        { k: "Subject", v: "OffshoreFX Ltd." }, { k: "Controlled Address", v: "0x7F4a…9c21" },
+        { k: "Sanctions List", v: "OFAC SDN" }, { k: "Amount Frozen (CAD)", v: "11,900.00" },
+        { k: "Action", v: "Blocked + frozen + reported to law enforcement" },
+      ],
+    },
+  },
+};
+
+// 取详情:命中样本则用 RDETAIL,否则按类型兜底合成(案件派生 STR 用 summary 当叙述)
+export function reportDetail(r: Report): ReportDetail {
+  if (RDETAIL[r.id]) return RDETAIL[r.id];
+  if (r.type === "LVCTR") {
+    return {
+      batch: { count: 1, shown: 1, total: r.amount, window: r.sub, threshold: "≥ CAD 10,000", trigger: "系统自动 · 阈值触发", txns: [{ id: r.srcId || r.id, party: r.subject, kind: "大额虚拟货币交易", time: r.sub, amount: r.amount.replace(/[^0-9.,]/g, "") }], note: "达到 CAD 10,000 客观阈值,系统自动生成 LVCTR 记录。" },
+      preview: { title: "Large Virtual Currency Transaction Report", format: "FINTRAC LVCTR", rows: [{ k: "Report Type", v: "LVCTR" }, { k: "Reporting Entity", v: REPORTING_ENTITY }, { k: "Subject", v: r.subject }, { k: "Amount (CAD)", v: r.amount.replace(/[^0-9.,]/g, "") }] },
+    };
+  }
+  const tone: Tone = r.type === "TPR" ? "violet" : "red";
+  return {
+    reason: { src: r.type === "TPR" ? "制裁筛查命中 · 法定即时上报" : "由案件研判定性 · 人工撰写", body: r.summary, tags: [{ label: r.sub, tone }] },
+    preview: { title: r.type === "TPR" ? "Sanctions / Terrorist Property Report (TPR)" : "Suspicious Transaction Report (STR)", format: r.type === "TPR" ? "FINTRAC TPR" : "FINTRAC F2-R / JSON", rows: [{ k: "Report Type", v: r.type }, { k: "Reporting Entity", v: REPORTING_ENTITY }, { k: "Subject", v: r.subject }, { k: "Amount (CAD)", v: r.amount.replace(/[^0-9.,]/g, "") }, ...(r.srcId ? [{ k: "Source", v: r.srcId }] : [])] },
+  };
+}
 
 // 案件 → STR 报告状态映射(案件管理 = STR 唯一发起点;在 ReportFiling 实时派生)。
 export const caseStrState = (cs: string): RState =>
