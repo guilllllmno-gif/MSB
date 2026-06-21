@@ -4,8 +4,8 @@ import { Drawer, DrawerContent, DrawerHeader, DrawerBody, DrawerFooter, Button, 
 import { ShieldAlert, Link2 as LinkIcon } from "lucide-react";
 import { Initials, SectionLabel, toneVar } from "./bits";
 import { findingOf, STEP, STEP_FLOW, CAN_CONFIRM, FSTATES, FREASONS, TRACE, traceTier, traceRecovery, type FState, type StepKey } from "@/lib/findings";
-import { mkCase } from "@/lib/cases";
-import { findingStore, caseStore, useFindingVersion } from "@/lib/store";
+import { intakeCase } from "@/lib/caseIntake";
+import { findingStore, useFindingVersion } from "@/lib/store";
 
 const ME = { i: "JL", n: "James Liu", c: "var(--brand)" };
 
@@ -66,11 +66,10 @@ export function FindingReviewDialog({ findingId, open, onOpenChange, onDone }: {
       const c = STEP[choice];
       findingStore.set(f.id, { status: c.to, owner: choice === "claim" ? ME : undefined, event: `${c.label}${reason ? " · " + reason : ""}${note.trim() ? " · " + note.trim() : ""}` });
       toast.success(`${f.id} · ${c.label}`);
-      // 转案件 → 在案件管理生成案件(STR 由案件统一起草)
+      // 转案件 → 在案件管理生成 / 并入案件(STR 由案件统一起草)
       if (choice === "case") {
-        const nc = mkCase(caseStore.created().length + 1, { subject: f.subject, sub: `事后 · ${f.pattern}`, type: f.pattern, risk: "可疑洗钱", amount: f.amount, src: "事后转案件", linkIds: f.id, linkTo: `/finding?id=${f.id}` });
-        caseStore.add(nc);
-        toast(`已转案件 ${nc.id} · 在案件管理起草 STR`);
+        const { id, attached } = intakeCase({ subject: f.subject, sub: `事后 · ${f.pattern}`, type: f.pattern, risk: "可疑洗钱", amount: f.amount, src: "事后转案件", linkIds: f.id, linkTo: `/finding?id=${f.id}`, addSubject: { name: f.subject, type: f.subject.includes("地址") || f.subject.includes("0x") ? "链上地址" : "商户", role: `事后命中 · ${f.pattern}`, amount: f.amount } });
+        toast(attached ? `已并入在办案件 ${id} · 同主体统一调查` : `已转案件 ${id} · 在案件管理起草 STR`);
       }
     }
     onOpenChange(false); onDone?.();

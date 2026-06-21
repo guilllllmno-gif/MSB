@@ -13,8 +13,9 @@ import { Timeline } from "@/components/Timeline";
 import { CaseFundGraph } from "@/components/CaseFundGraph";
 import { CASES, CSTATE, PRIO_TONE, SUBJ_TONE, recToOp, dossierOf, factorContrib, caseScore, type Case, type CState, type SubjType } from "@/lib/cases";
 import { CaseReviewDrawer } from "@/components/CaseReviewDrawer";
+import { RSTATE, caseStrState } from "@/lib/reports";
 import { FINDINGS, FDIM, dimSubjType } from "@/lib/findings";
-import { caseStore, findingStore, useCaseVersion, useFindingVersion } from "@/lib/store";
+import { caseStore, findingStore, reportStore, useCaseVersion, useFindingVersion, useReportVersion } from "@/lib/store";
 import type { Person } from "@/lib/data";
 
 const ME: Person = { i: "JL", n: "James Liu", c: "var(--brand)" };
@@ -61,6 +62,7 @@ export default function CaseDetail() {
   const [sp] = useSearchParams();
   useCaseVersion();
   useFindingVersion();
+  useReportVersion();
   const [tab, setTab] = useState("desk");
   const [reviewOpen, setReviewOpen] = useState(sp.get("rev") === "1");
   const [preselect, setPreselect] = useState<string | null>(null);
@@ -80,6 +82,10 @@ export default function CaseDetail() {
   const d = dossierOf(c);
   const score = caseScore(d);
   const recOp = recToOp[d.rec.disp] || d.rec.disp;
+  // 双向联动:案件派生的 STR 在报告报送的进展回灌本页(报送/回执后提示结案)
+  const inStrPipe = ["str_draft", "mlro", "queued", "filed"].includes(st);
+  const repSt = inStrPipe ? reportStore.statusOf(`STR-${c.id}`, caseStrState(st)) : "";
+  const repAdvanced = ["queued", "filed", "ack"].includes(repSt);
 
   const idx = CASES.findIndex((x) => x.id === c.id);
   const prev = idx > 0 ? CASES[idx - 1] : null;
@@ -209,6 +215,15 @@ export default function CaseDetail() {
           </div>
         )}
       </div>
+
+      {/* 双向联动:关联 STR 在报告报送的进展回灌(报送/回执后提示结案) */}
+      {sd.active && repAdvanced && (
+        <div className="card mb-5 flex flex-wrap items-center gap-x-3 gap-y-1.5 border-l-[3px] p-3.5" style={{ borderLeftColor: repSt === "ack" ? "var(--success)" : "var(--brand)" }}>
+          <CheckCircle2 className="h-4 w-4" style={{ color: repSt === "ack" ? "var(--success)" : "var(--brand)" }} />
+          <span className="text-[12.5px]">关联 STR <b>{RSTATE[repSt as keyof typeof RSTATE].label}</b> —— 由 MLRO 在报告报送推进。{repSt === "filed" || repSt === "ack" ? "本案可「结案归档」收尾。" : "报送中。"}</span>
+          <button onClick={() => nav("/reports")} className="ml-auto inline-flex items-center gap-1 text-[12px] font-semibold text-primary hover:opacity-80">查看报送<ArrowUpRight className="h-3.5 w-3.5" /></button>
+        </div>
+      )}
 
       <Tabs aria-label="案件研判" selectedKey={tab} onSelectionChange={(k) => setTab(k as string)} variant="underlined" color="primary" classNames={{ tabList: "gap-6 p-0 mb-5", cursor: "w-full", tab: "px-0 h-9 max-w-fit", tabContent: "text-[13px] font-semibold" }}>
         <Tab key="desk" title="研判工作台" />

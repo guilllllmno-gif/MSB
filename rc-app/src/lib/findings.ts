@@ -35,10 +35,10 @@ export const STEP = {
 export type StepKey = keyof typeof STEP;
 export const STEP_FLOW: Record<FState, StepKey[]> = {
   new: ["claim"],
-  progress: ["reqinfo", "escalate", "fp"],
-  pending: ["resume", "fp"],
-  escalated: ["fp"],
-  tracing: ["str", "case"], // ⑧ 追溯中 → 终态;规则回填(⑨)为独立动作
+  progress: ["case", "reqinfo", "escalate", "fp"],   // 可「确认可疑→追溯」,也可直接「转案件」深查(已看清需多主体调查时免走单条命中追溯)
+  pending: ["case", "resume", "fp"],
+  escalated: ["case", "fp"],
+  tracing: ["case"], // ⑧ 追溯中 →(评估追回/损失后)转案件;STR 由案件统一起草(不再直连转报送)
   closed_fp: [], closed_str: [], closed_case: [],
 };
 export const CAN_CONFIRM: FState[] = ["progress", "pending", "escalated"]; // 可「确认可疑」→ 追溯中
