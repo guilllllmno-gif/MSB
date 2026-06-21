@@ -5,9 +5,9 @@ import { FileText, Eye, Clock, Download, AlertTriangle, FileSignature, Search, U
 import { Shell, PageHead } from "@/components/Shell";
 import { Pill, Initials, SoftChip } from "@/components/bits";
 import { ReportDrawer } from "@/components/ReportDrawer";
-import { REPORTS, RTYPE, RSTATE, MLRO, finStrDefault, type Report, type RType, type RState } from "@/lib/reports";
-import { FINDINGS } from "@/lib/findings";
-import { findingStore, reportStore, useReportVersion, useFindingVersion } from "@/lib/store";
+import { REPORTS, RTYPE, RSTATE, MLRO, caseStrState, type Report, type RType, type RState } from "@/lib/reports";
+import { CASES, type CState } from "@/lib/cases";
+import { caseStore, reportStore, useReportVersion, useCaseVersion } from "@/lib/store";
 import type { Person } from "@/lib/data";
 
 const ME: Person = { i: "JL", n: "James Liu", c: "var(--brand)" };
@@ -31,26 +31,35 @@ const TYPES: { f: string; label: string }[] = [
 export default function ReportFiling() {
   const nav = useNavigate();
   useReportVersion();
-  useFindingVersion();
+  useCaseVersion();
   const [filter, setFilter] = useState("all");
   const [type, setType] = useState("all");
   const [q, setQ] = useState("");
   const [sel, setSel] = useState<Report | null>(null);
   const [open, setOpen] = useState(false);
 
-  // 事后监控「转报送」(closed_str)的命中实时派生为 STR 报告 —— 让事后 → 报送闭环可见
-  const finReports: Report[] = FINDINGS
-    .filter((f) => findingStore.statusOf(f.id, f.status) === "closed_str")
-    .map((f) => ({
-      id: `STR-${f.id}`, type: "STR" as RType, status: finStrDefault(f.status),
-      src: "事后监控", srcId: f.id, to: `/finding?id=${f.id}`,
-      subject: f.subject, sub: `事后 · ${f.pattern}`, amount: f.amount, summary: f.hit,
-      officer: findingStore.ownerOf(f.id, f.owner) || ME,
-      mlro: f.status === "closed_str" ? MLRO : null,
-      due: f.status === "closed_str" ? { text: "已报送", tone: "grey" as const } : { text: "待复核 · 剩 28d", tone: "amber" as const },
-    }));
+  // 案件管理 = STR 唯一发起点:案件进入 起草/评估/报送 后实时派生为 STR 报告汇入此处
+  // (制裁规避走 TPR 直连,不在此派生)
+  const STR_STATES = ["str_draft", "mlro", "queued", "filed"];
+  const caseReports: Report[] = [...caseStore.created(), ...CASES]
+    .filter((c) => STR_STATES.includes(caseStore.stateOf(c.id, c.state)) && c.risk !== "制裁规避")
+    .map((c) => {
+      const cs = caseStore.stateOf(c.id, c.state) as CState;
+      const rs = caseStrState(cs);
+      const filed = rs === "filed";
+      return {
+        id: `STR-${c.id}`, type: "STR" as RType, status: rs,
+        src: "案件管理", srcId: c.id, to: `/case?id=${c.id}`,
+        subject: c.subject, sub: `案件 · ${c.type}`, amount: c.amount,
+        summary: `${c.risk} —— ${c.type};经案件研判确认可疑,起草 STR 上报 FINTRAC。`,
+        officer: caseStore.ownerOf(c.id, c.owner) || ME,
+        mlro: rs === "draft" ? null : MLRO,
+        due: rs === "draft" ? { text: "起草中", tone: "grey" as const } : rs === "review" ? { text: "待复核 · 剩 28d", tone: "amber" as const } : rs === "queued" ? { text: "待报送", tone: "blue" as const } : { text: "已报送", tone: "grey" as const },
+        filedAt: filed ? "2026-06-19 16:40" : undefined,
+      };
+    });
 
-  const all: Report[] = [...finReports, ...REPORTS];
+  const all: Report[] = [...caseReports, ...REPORTS];
   const stOf = (r: Report) => reportStore.statusOf(r.id, r.status) as RState;
 
   const count = (key: string) => all.filter((r) => key === "all" || stOf(r) === key).length;
@@ -73,7 +82,7 @@ export default function ReportFiling() {
     <Shell crumb={["治理与合规", "报告报送"]} wide>
       <PageHead
         title="报告报送"
-        sub="FINTRAC 合规上报工作台(MLRO 视图)—— 告警研判「转合规」、事后监控「转报送」、团伙「转案件」、制裁筛查命中,在此起草、复核、报送 STR / LVCTR / TPR,并跟踪 FINTRAC 受理回执。"
+        sub="FINTRAC 合规上报工作台(MLRO 视图)—— STR 一律由「案件管理」确认可疑后派生(单一发起点);LVCTR 系统按客观阈值自动归集、TPR 制裁命中即时上报。在此复核、报送并跟踪 FINTRAC 受理回执。"
         actions={<Button size="sm" radius="full" variant="flat" className="bg-default-100" startContent={<Download className="h-3.5 w-3.5" />}>导出报送台账</Button>}
       />
 

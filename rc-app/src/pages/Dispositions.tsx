@@ -6,7 +6,8 @@ import { Shell, PageHead } from "@/components/Shell";
 import { Pill, Initials, KvRow } from "@/components/bits";
 import { alerts, RC_STATES, type Person, type Tone } from "@/lib/data";
 import { FINDINGS } from "@/lib/findings";
-import { alertStore, useAlertVersion, findingStore, useFindingVersion } from "@/lib/store";
+import { CASES } from "@/lib/cases";
+import { alertStore, useAlertVersion, findingStore, useFindingVersion, caseStore, useCaseVersion } from "@/lib/store";
 
 const ME: Person = { i: "JL", n: "James Liu", c: "var(--brand)" };
 type Outcome = "released" | "rejected" | "watch" | "compliance" | "fp";
@@ -53,6 +54,7 @@ export default function Dispositions() {
   const nav = useNavigate();
   useAlertVersion();
   useFindingVersion();
+  useCaseVersion();
   const [filter, setFilter] = useState("all");
   const [q, setQ] = useState("");
   const [rec, setRec] = useState<DispRecord | null>(null);
@@ -77,7 +79,16 @@ export default function Dispositions() {
       const outcome: Outcome = st === "closed_fp" ? "fp" : "compliance"; // 转报送/转案件 → 转合规·STR/案件
       return { id: f.id, to: `/finding?id=${f.id}`, src: "事后监控", merchant: f.subject, type: "事后", amount: f.amount, rule: f.rule, outcome, by: findingStore.ownerOf(f.id, f.owner) || ME, reason: f.hit, time: f.batch };
     });
-  const records = [...live, ...fin, ...RECORDS];
+  // 案件管理已结案的案件也归档进来(案件 = 调查与处置闭环的容器)
+  const caseRecs: DispRecord[] = [...caseStore.created(), ...CASES]
+    .filter((c) => caseStore.stateOf(c.id, c.state) === "closed")
+    .map((c) => {
+      const evs = caseStore.eventsOf(c.id);
+      const last = evs[evs.length - 1];
+      const fp = evs.some((e) => /误报/.test(e.text));
+      return { id: c.id, to: `/case?id=${c.id}`, src: "案件管理", merchant: c.subject, type: c.type, amount: c.amount, rule: c.risk, outcome: (fp ? "fp" : "compliance") as Outcome, by: caseStore.ownerOf(c.id, c.owner) || ME, reason: last?.reason || last?.text || "案件结案归档", time: c.submitted };
+    });
+  const records = [...live, ...fin, ...caseRecs, ...RECORDS];
 
   const count = (f: string) => (f === "all" ? records.length : records.filter((r) => r.outcome === f).length);
   const rows = records.filter((r) => {

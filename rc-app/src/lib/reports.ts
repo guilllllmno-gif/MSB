@@ -92,26 +92,12 @@ const EZ: Person = { i: "EZ", n: "Emma Zhang", c: "var(--success)" }; // MLRO
 const SYS: Person = { i: "⚙", n: "系统自动", c: "var(--chip-fg)" };
 export const MLRO: Person = EZ;
 
-// 静态报告样本(覆盖各类型 / 各状态 / 各来源)。事后监控转报送的 STR 由 findings 实时派生(见 page)。
+// 静态报告样本。STR 一律由案件管理派生(案件 = STR 唯一发起点,见 page);
+// 此处只保留 非可疑判定 的客观报告:LVCTR(系统阈值)/ TPR(制裁即时,历史已接收)。
 export const REPORTS: Report[] = [
-  { id: "STR-20260619-0231", type: "STR", status: "review", src: "团伙识别", srcId: "RING-2026-031", to: "/ring?id=RING-2026-031",
-    subject: "众包养卡关联团伙", sub: "RapidPay 等 6 主体 · 设备群聚类", amount: "CAD 38,400", summary: "设备 / IP 共享聚类成团,资金分层归集后集中出金,确认可疑团伙,转报送 STR。",
-    officer: SC, mlro: null, due: { text: "剩 22d", tone: "blue" } },
-  { id: "STR-20260618-0207", type: "STR", status: "filed", src: "告警研判", srcId: "ALT-50231", to: "/alert?id=ALT-50231",
-    subject: "NovaPay Technologies Ltd.", sub: "充值 · 混币器关联", amount: "CAD 8,200", summary: "链上溯源 92% 入金资产可溯源至 Tornado Cash(OFAC 制裁混币器),驳回并冻结,转合规上报。",
-    officer: JL, mlro: EZ, due: { text: "今日报送", tone: "amber" }, filedAt: "2026-06-19 16:40" },
-  { id: "STR-20260615-0188", type: "STR", status: "ack", src: "告警研判", srcId: "WD-20260317-188",
-    subject: "GlobalRemit Ltd.", sub: "提现 · 大额分层归集", amount: "CAD 48,000", summary: "多笔分层归集特征,升级 MLRO 评估后确认可疑,已上报 FINTRAC。",
-    officer: EZ, mlro: EZ, due: { text: "已报送", tone: "grey" }, filedAt: "2026-06-15 11:20", ref: "FINTRAC #STR-CA-2206-77431" },
   { id: "TPR-20260313-0021", type: "TPR", status: "ack", src: "制裁筛查", srcId: "ALT-50218", to: "/alert?id=ALT-50218",
-    subject: "OffshoreFX Ltd. · 0x7F4a…9c21", sub: "提现 · OFAC SDN 直接命中", amount: "CAD 11,900", summary: "收款地址直接命中 OFAC SDN 制裁名单,资金已自动冻结,按制裁财产立即上报。",
+    subject: "OffshoreFX Ltd. · 0x7F4a…9c21", sub: "提现 · OFAC SDN 直接命中", amount: "CAD 11,900", summary: "收款地址直接命中 OFAC SDN 制裁名单,资金已自动冻结,按制裁财产立即上报(无需可疑判定)。",
     officer: DW, mlro: EZ, due: { text: "已报送", tone: "grey" }, filedAt: "2026-03-13 07:05", ref: "FINTRAC #TPR-CA-2603-10882" },
-  { id: "STR-20260619-0240", type: "STR", status: "draft", src: "告警研判", srcId: "ALT-50229", to: "/alert?id=ALT-50229",
-    subject: "BlockTrade Corp.", sub: "提现 · KYW 评分超阈值", amount: "CAD 21,400", summary: "收款钱包 KYW 评分 88、关联高风险辖区交易所,商户未能说明用途,起草中。",
-    officer: SC, mlro: null, due: { text: "剩 5d", tone: "amber" } },
-  { id: "STR-20260612-0156", type: "STR", status: "returned", src: "事后监控", srcId: "PM-2026-020", to: "/finding?id=PM-2026-020",
-    subject: "归集地址 0x71Be…F0", sub: "事后 · 扇入归集网络", amount: "CAD 124,000", summary: "FINTRAC 退回:受益所有人字段缺失、链上地址簇需补充逐笔明细,需补正后重报。",
-    officer: SC, mlro: EZ, due: { text: "退回 · 需补正", tone: "red" } },
   { id: "LVCTR-20260619-0143", type: "LVCTR", status: "queued", src: "系统自动", subject: "大额虚拟货币交易批次", sub: "06-18 当日 · 12 笔 ≥ CAD 10,000",
     amount: "CAD 246,800", summary: "系统自动归集当日 ≥ CAD 10,000 虚拟货币交易,客观阈值触发,无需可疑判定,批量报送。",
     officer: SYS, mlro: null, due: { text: "剩 2 工作日", tone: "amber" } },
@@ -122,6 +108,6 @@ export const REPORTS: Report[] = [
 
 export const reportOf = (id?: string) => REPORTS.find((r) => r.id === id);
 
-// 事后监控「转报送」(closed_str)的命中 → 派生 STR 报告(让事后 → 报送闭环可见)。
-// 历史已结案的(静态 closed_str)默认已接收;本会话新转报送的进 MLRO 复核队列。
-export const finStrDefault = (originalStatus: string): RState => (originalStatus === "closed_str" ? "ack" : "review");
+// 案件 → STR 报告状态映射(案件管理 = STR 唯一发起点;在 ReportFiling 实时派生)。
+export const caseStrState = (cs: string): RState =>
+  cs === "str_draft" ? "draft" : cs === "mlro" ? "review" : cs === "queued" ? "queued" : cs === "filed" ? "filed" : "ack";
