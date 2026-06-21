@@ -4,7 +4,6 @@ import { Button, Tooltip, Table, TableHeader, TableColumn, TableBody, TableRow, 
 import { Eye, Clock, Search, UserRound, UserPlus, ClipboardCheck, Plus, ExternalLink } from "lucide-react";
 import { Shell, PageHead } from "@/components/Shell";
 import { Pill, Initials } from "@/components/bits";
-import { CaseReviewDrawer } from "@/components/CaseReviewDrawer";
 import { NewCaseDrawer } from "@/components/NewCaseDrawer";
 import { CASES, CSTATE, strLabel, PRIO_TONE, RISK_TYPES, type Case, type CState } from "@/lib/cases";
 import { caseStore, useCaseVersion } from "@/lib/store";
@@ -27,8 +26,6 @@ export default function CaseList() {
   const [filter, setFilter] = useState("all");
   const [risk, setRisk] = useState("all");
   const [q, setQ] = useState("");
-  const [sel, setSel] = useState<Case | null>(null);
-  const [open, setOpen] = useState(false);
   const [newOpen, setNewOpen] = useState(false);
 
   const all: Case[] = [...caseStore.created(), ...CASES];
@@ -42,7 +39,7 @@ export default function CaseList() {
     return okF && okR && okQ;
   });
 
-  const review = (c: Case) => { setSel(c); setOpen(true); };
+  const review = (c: Case) => nav(`/case?id=${c.id}`);
 
   return (
     <Shell crumb={["调查", "案件管理"]} wide>
@@ -118,7 +115,6 @@ export default function CaseList() {
         </TableBody>
       </Table>
 
-      <CaseReviewDrawer caseItem={sel} open={open} onOpenChange={setOpen} />
       <NewCaseDrawer open={newOpen} onOpenChange={setNewOpen} />
     </Shell>
   );
