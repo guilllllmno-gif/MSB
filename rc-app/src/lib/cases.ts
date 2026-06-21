@@ -1,6 +1,6 @@
 // 案件管理:事中冻结/驳回·告警升级·事后转案件·团伙转案件 形成的合规案件 + 案件状态机。
 // 状态/owner/事件存 store.ts 的 caseStore(内存)。结案·转报送喂入报告报送。
-import { FileText, FilePen, UserCheck, Send, CheckCircle2, GitMerge, FolderPlus, Inbox, ShieldQuestion, ShieldCheck, FileQuestion, Snowflake } from "lucide-react";
+import { FileText, FilePen, UserCheck, Send, CheckCircle2, GitMerge, FolderPlus, Inbox, ShieldQuestion, ShieldCheck, FileQuestion, Snowflake, AlertCircle, XCircle, PlayCircle, HelpCircle, Flag, Share2, Link2 } from "lucide-react";
 import type { Tone, Person } from "./data";
 
 export type CState = "investigating" | "str_draft" | "mlro" | "queued" | "filed" | "closed" | "merged";
@@ -127,6 +127,31 @@ export const DECIDE: DecideAction[] = [
 ];
 const toDecide = (a: CaseAction): DecideAction => ({ k: a.k, label: a.label, desc: a.tip, icon: a.icon, to: a.to, tone: a.tone || "grey", perm: a.to === "queued" || a.to === "filed" ? "MLRO / 报送" : "L1 可执行", needMerge: a.k === "merge" });
 export const decideActions = (st: CState): DecideAction[] => (st === "investigating" ? DECIDE : CFLOW[st].map(toDecide));
+
+// ── 审核抽屉操作集(分组:处置决定 / 流程操作 / 案件管理)—— 与 ReviewDialog / FindingReviewDialog 同款 ──
+export interface CaseOp { k: string; label: string; icon: typeof Send; to?: CState; tone: Tone; impact: string; archive?: boolean; dual?: boolean; merge?: boolean; materials?: boolean; reasonReq?: boolean }
+export const CASE_OP_GROUPS: { title: string; ops: CaseOp[] }[] = [
+  { title: "处置决定", ops: [
+    { k: "suspicious", label: "确认可疑", icon: AlertCircle, to: "str_draft", tone: "amber", impact: "定性为可疑交易(合理怀疑即可),生成 STR 草稿并转 MLRO 评估;案件状态转「STR 草稿」。", reasonReq: true },
+    { k: "violation", label: "确认违规", icon: XCircle, to: "str_draft", tone: "red", impact: "已坐实违规:起草 STR 的同时对涉案主体止损(限制 / 列名单);案件状态转「STR 草稿」。", reasonReq: true },
+    { k: "fp", label: "误报放行", icon: PlayCircle, to: "closed", tone: "green", impact: "排除可疑,案件结案放行;误报放行需双签(L1 + L2)复核。", dual: true, archive: true, reasonReq: true },
+  ] },
+  { title: "流程操作", ops: [
+    { k: "reqinfo", label: "请求信息", icon: HelpCircle, tone: "blue", impact: "向涉案主体 / 商户发起补充材料请求,案件维持调查中,SLA 暂缓;资料回补后重新研判。", materials: true },
+    { k: "l2", label: "升级至 L2", icon: Flag, tone: "violet", impact: "移交 L2 高级审核员复核,L1 结论与依据一并提交,由 L2 作出最终结论。" },
+    { k: "mlro", label: "转 MLRO", icon: Share2, to: "mlro", tone: "violet", impact: "升级 MLRO 评估(超出 L1 权限);案件状态转「MLRO 评估」。" },
+  ] },
+  { title: "案件管理", ops: [
+    { k: "archive", label: "结案归档", icon: CheckCircle2, to: "closed", tone: "grey", impact: "在定性结论执行完成后将案件归档,状态转为「已结案」。", archive: true, reasonReq: true },
+    { k: "merge", label: "合并案件", icon: GitMerge, to: "merged", tone: "grey", impact: "将本案并入同主体 / 同团伙的在办案件,本案转「已合并」,后续在主案统一处置。", merge: true, reasonReq: true },
+    { k: "relate", label: "关联案件", icon: Link2, tone: "grey", impact: "不合并、仅建立交叉引用:各案仍独立审核。具体在页面「关联案件 · 串并」卡中就地纳入 / 解除。" },
+  ] },
+];
+export const CASE_OPS: CaseOp[] = CASE_OP_GROUPS.flatMap((g) => g.ops);
+export const ARCHIVE_REASONS = ["已放行(误报)· 结案", "已上报 STR · 结案归档", "无需报送 · 调查排除可疑", "已移交执法 · 结案", "其它(见备注)"];
+export const MATERIALS = ["KYB 主体证明", "资金来源证明", "交易用途说明", "受益所有人(UBO)信息", "银行流水 / 对账单"];
+// 系统建议 rec.disp → 审核操作 key 映射
+export const recToOp: Record<string, string> = { draft: "suspicious", restrict: "reqinfo", freeze: "violation", mlro: "mlro", merge: "merge", fp: "fp" };
 
 // ── 案卷(研判工作台证据)—— 支撑四问事实 + 决策支持 + 系统建议处置 ──
 export interface CasePathHop { label: string; role: string; tone: Tone; meta?: string }

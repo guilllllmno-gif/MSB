@@ -1,17 +1,18 @@
 import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
-import { Button, Tabs, Tab, Select, SelectItem, Textarea, Checkbox } from "@heroui/react";
+import { Button, Tabs, Tab, Textarea } from "@heroui/react";
 import {
   ArrowLeft, ChevronLeft, ChevronRight, ChevronDown, UserPlus, ExternalLink, ArrowUpRight, Link2, Plus,
   Lightbulb, Check, X, ArrowRight, ArrowDownToLine, GitMerge, ArrowLeftRight, Shuffle, Waypoints, CircleOff, Coins,
-  Gauge, ShieldAlert, CheckCircle2, Wallet, Landmark, BellRing, FileText, Eye, Download, FileSignature, Save, Send,
+  Gauge, ShieldAlert, CheckCircle2, Wallet, Landmark, BellRing, FileText, Eye, Download, FileSignature, Save, Send, ClipboardCheck,
 } from "lucide-react";
 import { Shell } from "@/components/Shell";
 import { Pill } from "@/components/bits";
 import { Timeline } from "@/components/Timeline";
 import { CaseFundGraph } from "@/components/CaseFundGraph";
-import { CASES, CSTATE, PRIO_TONE, SUBJ_TONE, decideActions, dossierOf, factorContrib, caseScore, type Case, type CState, type SubjType } from "@/lib/cases";
+import { CASES, CSTATE, PRIO_TONE, SUBJ_TONE, recToOp, dossierOf, factorContrib, caseScore, type Case, type CState, type SubjType } from "@/lib/cases";
+import { CaseReviewDrawer } from "@/components/CaseReviewDrawer";
 import { FINDINGS, FDIM, dimSubjType } from "@/lib/findings";
 import { caseStore, findingStore, useCaseVersion, useFindingVersion } from "@/lib/store";
 import type { Person } from "@/lib/data";
@@ -61,11 +62,8 @@ export default function CaseDetail() {
   useCaseVersion();
   useFindingVersion();
   const [tab, setTab] = useState("desk");
-  const [choice, setChoice] = useState<string | null>(null);
-  const [note, setNote] = useState("");
-  const [mergeTo, setMergeTo] = useState("");
-  const [dual, setDual] = useState(false);
-  const [err, setErr] = useState<Set<string>>(new Set());
+  const [reviewOpen, setReviewOpen] = useState(sp.get("rev") === "1");
+  const [preselect, setPreselect] = useState<string | null>(null);
   const [recResp, setRecResp] = useState<null | "agree" | "overturn">(null);
   const [recReason, setRecReason] = useState("");
   const [openF, setOpenF] = useState<Set<string>>(new Set());
@@ -81,8 +79,7 @@ export default function CaseDetail() {
   const events = caseStore.eventsOf(c.id);
   const d = dossierOf(c);
   const score = caseScore(d);
-  const actions = decideActions(st);
-  const action = actions.find((a) => a.k === choice) || null;
+  const recOp = recToOp[d.rec.disp] || d.rec.disp;
 
   const idx = CASES.findIndex((x) => x.id === c.id);
   const prev = idx > 0 ? CASES[idx - 1] : null;
@@ -101,31 +98,14 @@ export default function CaseDetail() {
   const claim = () => { caseStore.set(c.id, st, { owner: ME, event: "认领案件 · 开始调查" }); toast.success(`${c.id} · 已认领`); };
   const agreeRec = () => {
     setRecResp("agree");
-    if (actions.some((a) => a.k === d.rec.disp)) { setChoice(d.rec.disp); setErr(new Set()); }
     caseStore.set(c.id, st, { owner: owner || ME, event: `同意系统建议 · ${d.rec.label}` });
-    toast.success("已采纳系统建议 · 已预选处置动作");
+    setPreselect(recOp); setReviewOpen(true);
   };
   const overturnRec = () => {
     if (!recReason.trim()) { toast.error("推翻建议需填写理由"); return; }
     setRecResp("overturn");
     caseStore.set(c.id, st, { owner: owner || ME, event: "推翻系统建议", reason: recReason.trim() });
     toast.success("已记录推翻理由 · 请在下方自行选择处置");
-  };
-
-  const submit = () => {
-    if (!action) { toast.error("请选择处置动作"); return; }
-    const e = new Set<string>();
-    if (action.needMerge && !mergeTo) e.add("merge");
-    if (action.dualSign && !dual) e.add("dual");
-    if ((action.k === "fp" || action.dualSign) && !note.trim()) e.add("note");
-    setErr(e);
-    if (e.size) { toast.error("请补全所需信息"); return; }
-    const extra = action.needMerge ? ` → ${mergeTo}` : "";
-    const to = action.to || st;
-    caseStore.set(c.id, to, { owner: owner || ME, event: `${action.label}${extra}${action.dualSign ? " · 双签" : ""}`, reason: note.trim() });
-    toast.success(`${c.id} · ${action.label}`);
-    if (to === "queued" || to === "filed") toast("已联动报告报送 · STR 流程");
-    setChoice(null); setNote(""); setMergeTo(""); setDual(false);
   };
 
   // 关联案件富卡(显式 or 从简版 rings/relatedCases 派生)+ 证据材料 + STR 草稿
@@ -157,7 +137,6 @@ export default function CaseDetail() {
     else toast("当前状态无需提交 MLRO");
   };
 
-  const otherCases = CASES.filter((x) => x.id !== c.id && x.state !== "merged" && x.state !== "closed");
   const scoreTone = score >= 80 ? "red" : score >= 60 ? "amber" : "blue";
   // 瀑布累计
   let cum = 0;
@@ -185,7 +164,9 @@ export default function CaseDetail() {
           <div className="mt-2.5 text-[13px] text-default-500">{c.type} · {c.risk} · 涉及 <b className="text-foreground">{c.amount}</b> · 分配给 {owner ? <b className="text-foreground">{owner.n}</b> : <span className="text-default-400">未分配</span>} · SLA {c.sla.text} · 来源 {c.linkTo ? <button onClick={() => nav(c.linkTo!)} className="text-primary hover:opacity-80">{c.src}</button> : c.src}</div>
         </div>
         <div className="flex items-center gap-2">
-          {sd.active && !owner && <Button size="sm" color="primary" startContent={<UserPlus className="h-4 w-4" />} onPress={claim}>认领案件</Button>}
+          {sd.active && (owner
+            ? <Button size="sm" color="primary" startContent={<ClipboardCheck className="h-4 w-4" />} onPress={() => { setPreselect(null); setReviewOpen(true); }}>审核</Button>
+            : <Button size="sm" color="primary" startContent={<UserPlus className="h-4 w-4" />} onPress={claim}>认领案件</Button>)}
           <Button size="sm" variant="bordered" startContent={<ExternalLink className="h-4 w-4" />} onPress={() => nav("/reports")}>STR 报送</Button>
         </div>
       </div>
@@ -540,48 +521,21 @@ export default function CaseDetail() {
             </Card>
           )}
 
-          {/* 做出决定 · 处置(混合:弱建议在顶,处置区按状态/角色自适应) */}
+          {/* 做出决定 · 处置(收入审核抽屉,与告警研判 / 事后监控一致) */}
           <Card icon={ShieldAlert} title="做出决定 · 处置">
-            <p className="mb-3 text-[11.5px] text-default-500">把上面的信号收敛成一个处置动作。{recResp === "agree" ? "已采纳系统建议,处置已预选——核对后提交。" : recResp === "overturn" ? "已推翻系统建议,请自行选择处置。" : "可先看顶部系统建议,再决定。"}</p>
+            <p className="mb-3 text-[11.5px] text-default-500">所有处置动作(处置决定 / 流程操作 / 案件管理)统一收入<b className="text-default-600">审核抽屉</b>,与告警研判、事后监控一致。{recResp === "agree" ? "已采纳系统建议并打开审核抽屉、预选对应动作。" : recResp === "overturn" ? "已推翻系统建议,打开审核自行选择处置。" : "点「审核」打开,可先看顶部系统建议再决定。"}</p>
             {!sd.active ? (
               <div className="rounded-xl border border-divider bg-default-50 p-3 text-[12.5px] text-default-500">本案件已 <b className="text-foreground">{sd.label}</b>,无需进一步处置。</div>
             ) : !owner ? (
               <div className="flex items-center justify-between rounded-xl border border-divider bg-default-50 p-3 text-[12.5px] text-default-500"><span>案件未认领 —— 认领后方可处置。</span><Button size="sm" color="primary" startContent={<UserPlus className="h-4 w-4" />} onPress={claim}>认领案件</Button></div>
-            ) : actions.length === 0 ? (
-              <div className="rounded-xl border border-divider bg-default-50 p-3 text-[12.5px] text-default-500">当前状态无可用推进动作。</div>
             ) : (
-              <>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
-                  {actions.map((a) => { const AI = a.icon; const on = choice === a.k; const isRec = a.k === d.rec.disp; return (
-                    <button key={a.k} onClick={() => { setChoice(on ? null : a.k); setErr(new Set()); }}
-                      className="relative flex flex-col items-center gap-1.5 rounded-xl border-[1.5px] px-1.5 py-3 text-[11.5px] font-semibold transition-colors"
-                      style={on ? { borderColor: "var(--brand)", background: "var(--brand-soft)", color: "var(--brand)" } : { borderColor: "var(--line)", color: "var(--text-2)" }}>
-                      {isRec && <span className="absolute -top-1.5 right-1.5 rounded-full px-1.5 py-px text-[8.5px] font-bold" style={{ background: "var(--brand)", color: "#fff" }}>建议</span>}
-                      <AI className="h-[18px] w-[18px]" />{a.label}
-                    </button>
-                  ); })}
-                </div>
-                {action && <div className="mt-3 rounded-xl border border-divider bg-default-100 p-3 text-[12px] leading-relaxed text-default-600"><b className="text-foreground">{action.label}</b> —— {action.desc}。权限:<b className="text-primary">{action.perm}</b>。记入案件审计日志。{action.to === "queued" || action.to === "filed" ? "并联动报告报送 STR 流程。" : ""}</div>}
-                {action?.needMerge && (
-                  <Select size="sm" className="mt-3" label="合并目标案件" labelPlacement="outside" placeholder="选择在办案件…" isRequired aria-label="合并目标案件"
-                    selectedKeys={mergeTo ? [mergeTo] : []} isInvalid={err.has("merge")}
-                    onSelectionChange={(k) => { setMergeTo(Array.from(k as Set<string>)[0] ?? ""); setErr(new Set()); }}>
-                    {otherCases.map((x) => <SelectItem key={x.id}>{x.id} · {x.subject}</SelectItem>)}
-                  </Select>
-                )}
-                {action?.dualSign && (
-                  <label className={`mt-3 flex cursor-pointer items-start gap-2 rounded-xl border p-2.5 text-[12px] ${err.has("dual") ? "border-danger" : "border-divider"}`}>
-                    <Checkbox isSelected={dual} onValueChange={(v) => { setDual(v); setErr(new Set()); }} size="sm" />
-                    <span className="text-default-600"><b className="text-foreground">双签确认</b> —— 误报放行需第二名审核员(L2)复核签字,确认排除可疑后方可结案放行。</span>
-                  </label>
-                )}
-                {action && <Textarea size="sm" className="mt-3" label={action.k === "fp" ? "结案理由(必填 · 记入审计)" : "处置说明"} labelPlacement="outside" value={note} onValueChange={(v) => { setNote(v); setErr(new Set()); }} minRows={2} isInvalid={err.has("note")} placeholder="调查结论、证据与下一步…(记入审计日志)" />}
-                <div className="mt-4 flex justify-end"><Button color="primary" isDisabled={!action} onPress={submit}>提交处置决定</Button></div>
-              </>
+              <Button color="primary" startContent={<ClipboardCheck className="h-4 w-4" />} onPress={() => { setPreselect(null); setReviewOpen(true); }}>打开审核 · 处置案件</Button>
             )}
           </Card>
         </div>
       )}
+
+      <CaseReviewDrawer caseItem={c} open={reviewOpen} onOpenChange={setReviewOpen} preselect={preselect} recOp={recOp} />
     </Shell>
   );
 }
