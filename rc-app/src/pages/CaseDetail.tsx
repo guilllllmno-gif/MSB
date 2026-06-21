@@ -72,6 +72,7 @@ export default function CaseDetail() {
   const [unlinked, setUnlinked] = useState<Set<string>>(new Set());
   const [narr, setNarr] = useState<string | null>(null);
   const [subjIdx, setSubjIdx] = useState(0);
+  const [mergedIn, setMergedIn] = useState<Set<string>>(new Set());
 
   const c = resolve(sp.get("id"));
   const st = caseStore.stateOf(c.id, c.state) as CState;
@@ -141,6 +142,15 @@ export default function CaseDetail() {
   const str = d.str || { type: "STR(可疑交易报告)", indicators: d.factors.slice(0, 2).map((f) => f.label).join(" · "), drafter: (owner || ME).n, narrative: `${c.subject}:${d.evidence.join(";")}。建议作为可疑交易上报 FINTRAC。` };
   const narrative = narr ?? str.narrative;
   const unlink = (id: string) => { setUnlinked((p) => new Set(p).add(id)); caseStore.set(c.id, st, { event: `解除关联 ${id}` }); toast.success(`已解除关联 ${id}`); };
+  // 并入本案:高置信关联 → 合为一个主案,一次审核、一份 STR;被并案件转「已合并」不再单独处置
+  const mergeIn = (r: { id: string; subject: string; relType: string; conf: string; amount: string }) => {
+    const type: SubjType = /0x|bc1|地址|钱包/.test(r.subject) ? "链上地址" : "商户";
+    caseStore.addSubject(c.id, { name: r.subject, type, role: `并入关联案件 ${r.id}（${r.relType} · ${r.conf}）`, amount: r.amount !== "—" ? r.amount : undefined });
+    if (CASES.some((x) => x.id === r.id)) caseStore.set(r.id, "merged", { event: `并入主案 ${c.id}` });
+    caseStore.set(c.id, st, { event: `并入关联案件 ${r.id}（${r.relType} · ${r.conf}）· 统一审核` });
+    setMergedIn((p) => new Set(p).add(r.id));
+    toast.success(`已并入 ${r.id} · 统一审核、一份 STR`);
+  };
   const submitMLRO = () => {
     if (st === "str_draft") { caseStore.set(c.id, "mlro", { owner: owner || ME, event: "提交 MLRO 评估 · STR 草稿" }); toast.success("已提交 MLRO 评估"); }
     else if (st === "investigating") toast("请先在下方「定性可疑 · 起草 STR」提交,再提交 MLRO 评估");
@@ -420,20 +430,40 @@ export default function CaseDetail() {
                 <div key={k} className="rounded-xl border border-divider p-2.5"><div className="text-[10.5px] text-default-400">{k}</div><div className="mt-0.5 text-[15px] font-extrabold tnum">{v}</div></div>
               ))}
             </div>
+            <div className="mb-2.5 rounded-lg border border-dashed border-default-300 bg-default-50 p-2.5 text-[11px] leading-snug text-default-500">
+              <b className="text-default-600">关联 ≠ 合并:</b>高置信 · 同团伙 建议 <b className="text-[var(--brand)]">并入本案</b>(一次审核、一份 STR,被并案件不再单独处置);中 / 低置信默认 <b className="text-default-600">仅关联</b>(互为研判佐证,<b className="text-default-600">各自仍独立审核</b>),确认同伙再升级并入。
+            </div>
             <div className="flex flex-col gap-2">
-              {relatedRich.length ? relatedRich.map((r) => (
-                <div key={r.id} className="rounded-xl border border-divider p-3">
+              {relatedRich.length ? relatedRich.map((r) => { const merged = mergedIn.has(r.id); const high = r.conf === "高置信"; return (
+                <div key={r.id} className="rounded-xl border p-3" style={{ borderColor: merged ? "var(--success-bd)" : "var(--line)", background: merged ? "var(--success-bg)" : undefined }}>
                   <div className="flex flex-wrap items-center gap-2">
                     <button onClick={() => nav(r.id.startsWith("CASE") ? `/case?id=${r.id}` : r.id.startsWith("RING") ? `/ring?id=${r.id}` : "/cases")} className="text-[13px] font-bold text-primary hover:opacity-80">{r.id}</button>
                     <Pill tone={r.relTone} dot={false}>{r.relType}</Pill>
                     {r.conf !== "—" && <span className="rounded-md px-1.5 py-0.5 text-[10px] font-semibold" style={{ background: tbg(r.relTone), color: tc(r.relTone) }}>{r.conf}</span>}
                     <span className="ml-auto text-[11.5px] text-default-500">主体 <b className="text-foreground">{r.subject}</b>{r.state !== "—" ? ` · 状态 ${r.state}` : ""}{r.amount !== "—" ? ` · 金额 ${r.amount}` : ""}{r.score ? ` · 风险分 ${r.score}` : ""}</span>
-                    {sd.active && <button onClick={() => unlink(r.id)} className="shrink-0 rounded-full border border-divider px-2 py-0.5 text-[11px] font-semibold text-default-500 hover:bg-default-100">解除关联</button>}
                   </div>
                   <div className="mt-2 flex items-start gap-1.5 rounded-lg bg-default-50 p-2 text-[11.5px] leading-snug text-default-600"><Link2 className="mt-0.5 h-3 w-3 shrink-0 text-default-400" /><span><b className="text-default-700">关联依据:</b>{r.basis}</span></div>
-                  {r.at && <div className="mt-1.5 text-[10.5px] text-default-400">{r.by} · {r.at}</div>}
+                  {/* 处置:并入本案(一次审核) vs 保留关联(各自审核) */}
+                  <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                    {merged ? (
+                      <span className="inline-flex items-center gap-1 text-[11.5px] font-bold" style={{ color: "var(--success)" }}><CheckCircle2 className="h-3.5 w-3.5" />已并入本案 · 统一审核、一份 STR</span>
+                    ) : (
+                      <>
+                        {high
+                          ? <span className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10.5px] font-semibold" style={{ background: "var(--danger-bg)", color: "var(--danger)" }}>建议并案 · 同一团伙</span>
+                          : <span className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10.5px] font-semibold" style={{ background: "var(--chip-bg)", color: "var(--chip-fg)" }}>仅关联 · 各自审核</span>}
+                        {r.at && <span className="text-[10.5px] text-default-400">{r.by} · {r.at}</span>}
+                        {sd.active && owner && (
+                          <span className="ml-auto flex items-center gap-1.5">
+                            <button onClick={() => mergeIn(r)} className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold" style={high ? { background: "var(--brand)", color: "#fff" } : { background: "var(--brand-soft)", color: "var(--brand)" }}><GitMerge className="h-3 w-3" />并入本案</button>
+                            <button onClick={() => unlink(r.id)} className="rounded-full border border-divider px-2 py-1 text-[11px] font-semibold text-default-500 hover:bg-default-100">解除关联</button>
+                          </span>
+                        )}
+                      </>
+                    )}
+                  </div>
                 </div>
-              )) : <p className="text-[11.5px] text-default-400">未发现关联案件 / 团伙。</p>}
+              ); }) : <p className="text-[11.5px] text-default-400">未发现关联案件 / 团伙。</p>}
             </div>
             {sd.active && candidates.length > 0 && (
               <div className="mt-3 rounded-xl border p-2.5" style={{ borderColor: "var(--brand-bd)", background: "var(--brand-softer)" }}>
