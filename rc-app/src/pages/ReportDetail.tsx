@@ -2,11 +2,11 @@ import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { Button } from "@heroui/react";
-import { ArrowLeft, Clock, Eye, FileSignature, Send, Check, Info, ExternalLink, FileText, ClipboardList } from "lucide-react";
+import { ArrowLeft, Clock, Eye, FileSignature, Send, Check, Info, ExternalLink, FileText, ClipboardList, Landmark, Coins, Users, ShieldAlert, ArrowDownToLine, ArrowUpFromLine } from "lucide-react";
 import { Shell } from "@/components/Shell";
 import { Pill, Initials, toneVar } from "@/components/bits";
 import { ReportDrawer } from "@/components/ReportDrawer";
-import { RTYPE, RSTATE, RSTEPS, reportStep, reportDetail, type Report, type RType, type RState } from "@/lib/reports";
+import { RTYPE, RSTATE, RSTEPS, reportStep, reportDetail, type Report, type RType, type RState, type StrDoc, type KV } from "@/lib/reports";
 import { findReport, liveStatus } from "@/lib/reportsAll";
 import { reportStore, useReportVersion, useCaseVersion } from "@/lib/store";
 import type { Person, Tone } from "@/lib/data";
@@ -199,21 +199,23 @@ export default function ReportDetail() {
             </Card>
           )}
 
-          {/* FINTRAC 报文预览 */}
-          <Card icon={FileText} title="FINTRAC 报文预览" extra={d.preview.format}>
-            <div className="overflow-hidden rounded-xl border border-divider">
-              <div className="flex items-center justify-between gap-2 px-4 py-2.5 text-white" style={{ background: "#0f172a" }}>
-                <span className="inline-flex items-center gap-2 text-[12.5px] font-semibold"><FileText className="h-4 w-4" />{d.preview.title}</span>
-                <span className="text-[11px] text-white/60">{d.preview.format}</span>
+          {/* FINTRAC 报文预览 —— STR 走完整分部报文,LVCTR/TPR 走简版键值 */}
+          <Card icon={FileText} title="FINTRAC 报文预览" extra={r.type === "STR" && d.strDoc ? `F2-R · 报告参考 ${d.strDoc.reportRef}` : d.preview.format}>
+            {r.type === "STR" && d.strDoc ? <StrPreview doc={d.strDoc} /> : (
+              <div className="overflow-hidden rounded-xl border border-divider">
+                <div className="flex items-center justify-between gap-2 px-4 py-2.5 text-white" style={{ background: "#0f172a" }}>
+                  <span className="inline-flex items-center gap-2 text-[12.5px] font-semibold"><FileText className="h-4 w-4" />{d.preview.title}</span>
+                  <span className="text-[11px] text-white/60">{d.preview.format}</span>
+                </div>
+                <div className="px-4 py-1">
+                  {d.preview.rows.map((row) => (
+                    <div key={row.k} className="flex items-baseline gap-4 border-b border-dashed border-default-200 py-2.5 text-[12.5px] last:border-0">
+                      <span className="w-[160px] shrink-0 text-default-400">{row.k}</span><span className="font-semibold">{row.v}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
-              <div className="px-4 py-1">
-                {d.preview.rows.map((row) => (
-                  <div key={row.k} className="flex items-baseline gap-4 border-b border-dashed border-default-200 py-2.5 text-[12.5px] last:border-0">
-                    <span className="w-[160px] shrink-0 text-default-400">{row.k}</span><span className="font-semibold">{row.v}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
+            )}
           </Card>
         </div>
 
@@ -272,5 +274,91 @@ function LogRow({ item, last }: { item: LogItem; last: boolean }) {
         {item.note && <div className="mt-1.5 rounded-lg bg-default-50 px-2.5 py-1.5 text-[11.5px] text-default-600">{item.note}</div>}
       </div>
     </li>
+  );
+}
+
+// ── 完整 FINTRAC STR 分部报文预览 ──────────────────────────────────────────
+const flagColor = (t?: KV["flag"]) => (t ? toneVar(t) : undefined);
+
+function KvGrid({ rows }: { rows: KV[] }) {
+  return (
+    <div className="grid grid-cols-1 gap-x-6 sm:grid-cols-2">
+      {rows.map((f, i) => (
+        <div key={i} className="flex items-baseline justify-between gap-3 border-b border-dashed border-default-200 py-2 text-[12px]">
+          <span className="shrink-0 text-default-400">{f.k}<span className="ml-1 text-[10px] text-default-300">{f.en}</span></span>
+          <span className="text-right font-semibold" style={{ color: flagColor(f.flag) }}>{f.v}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function Part({ no, title, en, icon: Icon, children }: { no: string; title: string; en: string; icon: typeof FileText; children: React.ReactNode }) {
+  return (
+    <section className="px-4 py-3.5">
+      <div className="mb-2.5 flex items-center gap-2">
+        <span className="flex h-5 items-center rounded-md bg-default-100 px-1.5 text-[10.5px] font-bold tracking-wide text-default-500">PART {no}</span>
+        <Icon className="h-4 w-4 text-default-500" strokeWidth={1.9} />
+        <span className="text-[13px] font-bold">{title}</span>
+        <span className="text-[10.5px] text-default-300">{en}</span>
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function StrPreview({ doc }: { doc: StrDoc }) {
+  return (
+    <div className="overflow-hidden rounded-xl border border-divider">
+      {/* FINTRAC 文档抬头 */}
+      <div className="flex items-center justify-between gap-2 px-4 py-2.5 text-white" style={{ background: "#0f172a" }}>
+        <span className="inline-flex items-center gap-2 text-[12.5px] font-semibold"><FileText className="h-4 w-4" />Suspicious Transaction Report (STR)</span>
+        <span className="text-[11px] text-white/60">FINTRAC F2-R · {doc.reportRef}</span>
+      </div>
+
+      <div className="divide-y divide-default-100">
+        <Part no="A" title="报告与报送机构" en="Report & Reporting Entity" icon={Landmark}><KvGrid rows={doc.header} /></Part>
+
+        <Part no="B" title="交易明细 · 虚拟货币" en="Transaction Information" icon={Coins}>
+          <div className="flex flex-col gap-2.5">
+            {doc.txns.map((t) => (
+              <div key={t.ref} className="rounded-xl border border-divider bg-default-50 p-3">
+                <div className="mb-2 flex items-center gap-2">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-lg" style={{ background: t.dir === "存入" ? "var(--success-bg)" : "var(--warning-bg)", color: t.dir === "存入" ? "var(--success)" : "var(--warning)" }}>
+                    {t.dir === "存入" ? <ArrowDownToLine className="h-3.5 w-3.5" /> : <ArrowUpFromLine className="h-3.5 w-3.5" />}
+                  </span>
+                  <span className="text-[12.5px] font-bold">{t.dir} · {t.dirEn}</span>
+                  <span className="ml-auto text-[10.5px] text-default-400">{t.ref}</span>
+                </div>
+                <KvGrid rows={t.fields} />
+              </div>
+            ))}
+          </div>
+        </Part>
+
+        <Part no="C" title="账户 / 处置" en="Account Information" icon={Landmark}><KvGrid rows={doc.account} /></Part>
+
+        <Part no="D" title="涉事主体" en="Persons & Entities Involved" icon={Users}>
+          <div className="flex flex-col gap-2.5">
+            {doc.parties.map((p) => (
+              <div key={p.name} className="rounded-xl border border-divider bg-default-50 p-3">
+                <div className="mb-2 flex items-center gap-2">
+                  <Pill tone={p.kind === "实体" ? "blue" : "amber"} dot={false}>{p.role}</Pill>
+                  <span className="text-[12.5px] font-bold">{p.name}</span>
+                  <span className="ml-auto text-[10.5px] text-default-400">{p.roleEn}</span>
+                </div>
+                <KvGrid rows={p.fields} />
+              </div>
+            ))}
+          </div>
+        </Part>
+
+        <Part no="F" title="可疑理由 · 合理怀疑" en="Grounds for Suspicion" icon={ShieldAlert}>
+          <p className="rounded-xl border border-divider bg-white p-3 text-[12.5px] leading-relaxed text-default-700 dark:bg-default-50">{doc.grounds}</p>
+        </Part>
+
+        <Part no="G" title="已采取措施" en="Action Taken" icon={Check}><KvGrid rows={doc.action} /></Part>
+      </div>
+    </div>
   );
 }

@@ -121,10 +121,28 @@ export const reportStep = (s: RState): number =>
 // ── 详情正文(按类型自适应)──
 export interface PvRow { k: string; v: string }                       // FINTRAC 报文键值
 export interface LvctrTxn { id: string; party: string; kind: string; time: string; amount: string } // LVCTR 批次逐笔
+
+// ── 真实 FINTRAC STR(可疑交易报告)报文结构(加密 MSB 口径)──
+// 对标 FINTRAC 升级版 STR / F2-R:分部填报 Part A 报告与机构 → B 交易(含虚拟货币明细)
+// → C 账户 → D/E 涉事主体 → F 可疑理由叙述 → G 已采取措施。
+export interface KV { k: string; en: string; v: string; flag?: Tone } // 字段:中文标签 / 英文标签 / 值 / 风险高亮
+export interface StrTxn { ref: string; dir: "存入" | "提出"; dirEn: string; fields: KV[] } // 单笔交易(虚拟货币)
+export interface StrParty { role: string; roleEn: string; kind: "实体" | "个人"; name: string; fields: KV[] } // 涉事主体
+export interface StrDoc {
+  reportRef: string;                  // 报告参考号
+  header: KV[];                       // Part A:报告 + 报送机构
+  txns: StrTxn[];                     // Part B:虚拟货币交易明细
+  account: KV[];                      // Part C:账户 / 处置
+  parties: StrParty[];                // Part D/E:涉事主体(实体 + UBO)
+  grounds: string;                    // Part F:可疑理由叙述(合理怀疑)
+  action: KV[];                       // Part G:已采取措施
+}
+
 export interface ReportDetail {
   reason?: { src: string; body: string; tags: { label: string; tone: Tone }[] }; // STR / TPR:可疑/依据叙述 + 风险标签
   batch?: { count: number; shown: number; total: string; window: string; threshold: string; trigger: string; txns: LvctrTxn[]; note: string }; // LVCTR:批次归集
-  preview: { title: string; format: string; rows: PvRow[] };          // FINTRAC 报文预览
+  preview: { title: string; format: string; rows: PvRow[] };          // FINTRAC 报文预览(LVCTR/TPR 用简版键值)
+  strDoc?: StrDoc;                    // STR 专用:完整 FINTRAC 分部报文
 }
 
 // 报文主体(机构信息),全站统一
@@ -146,6 +164,73 @@ export const RDETAIL: Record<string, ReportDetail> = {
         { k: "Amount (CAD)", v: "8,200.00" }, { k: "Virtual Currency", v: "0.21 BTC → USDT" },
         { k: "Suspicion Grounds", v: "Mixer exposure (Tornado Cash); layering; rapid pass-through" },
         { k: "Related Case", v: "CASE-20260318-001" },
+      ],
+    },
+    strDoc: {
+      reportRef: "STR-2026-0312",
+      header: [
+        { k: "报告类型", en: "Report Type", v: "STR — Suspicious Transaction Report" },
+        { k: "报送机构", en: "Reporting Entity", v: "Future Pay CA Inc." },
+        { k: "MSB 注册号", en: "FINTRAC MSB Registration", v: "M2024xxxx" },
+        { k: "机构类别", en: "RE Sector", v: "Money Services Business — Dealing in Virtual Currency" },
+        { k: "报告参考号", en: "Report Reference", v: "STR-2026-0312" },
+        { k: "责任合规官", en: "Compliance Officer (MLRO)", v: "David Wu · +1 604-555-0142" },
+        { k: "报送时限", en: "Reporting Deadline", v: "确定可疑后 30 日内 · 剩 6 天", flag: "amber" },
+      ],
+      txns: [
+        { ref: "TXN-1 · DEP-20260315-001", dir: "存入", dirEn: "Incoming / Deposit", fields: [
+          { k: "交易日期时间", en: "Date & Time (UTC)", v: "2026-03-01 09:30:15" },
+          { k: "交易方式", en: "Method", v: "线上 · 虚拟货币转入(非面对面)" },
+          { k: "虚拟货币类型", en: "Virtual Currency", v: "USDT (ERC-20)" },
+          { k: "虚拟货币数量", en: "VC Amount", v: "8,180.00 USDT" },
+          { k: "CAD 折算", en: "CAD Equivalent", v: "8,200.00" },
+          { k: "折算汇率", en: "Exchange Rate", v: "1 USDT = 1.0024 CAD (2026-03-01)" },
+          { k: "发送地址", en: "Sending Address", v: "0x5078…Ec8c · Tornado Cash 关联(溯源 92%)", flag: "red" },
+          { k: "接收地址", en: "Receiving Address", v: "0x91Ad…77F2(本机构托管钱包)" },
+          { k: "交易哈希", en: "Transaction Hash", v: "0x9b3c…a01f" },
+          { k: "确认数", en: "Confirmations", v: "32 / 32" },
+        ] },
+        { ref: "TXN-2 · WD-20260315-007", dir: "提出", dirEn: "Outgoing / Withdrawal", fields: [
+          { k: "交易日期时间", en: "Date & Time (UTC)", v: "2026-03-01 09:44:01(入金后 14 分钟)", flag: "amber" },
+          { k: "交易方式", en: "Method", v: "线上 · 虚拟货币转出(非面对面)" },
+          { k: "虚拟货币类型", en: "Virtual Currency", v: "USDT (ERC-20)" },
+          { k: "虚拟货币数量", en: "VC Amount", v: "8,150.00 USDT" },
+          { k: "CAD 折算", en: "CAD Equivalent", v: "8,170.00" },
+          { k: "发送地址", en: "Sending Address", v: "0x91Ad…77F2(本机构托管钱包)" },
+          { k: "接收地址", en: "Receiving Address", v: "bc1q…7h2k(外部非托管地址)", flag: "amber" },
+          { k: "交易哈希", en: "Transaction Hash", v: "0x4f22…b80c" },
+        ] },
+      ],
+      account: [
+        { k: "账户主体", en: "Account Holder", v: "NovaPay Technologies Ltd." },
+        { k: "账户编号", en: "Account Number", v: "ACC-NP-88421" },
+        { k: "账户类型", en: "Account Type", v: "企业 / 商户" },
+        { k: "开户日期", en: "Account Opened", v: "2026-02-24(交易前 5 天)", flag: "amber" },
+        { k: "账户状态", en: "Account Status", v: "已限制 · 提现冻结" },
+      ],
+      parties: [
+        { role: "交易实施主体", roleEn: "Conducting Entity", kind: "实体", name: "NovaPay Technologies Ltd.", fields: [
+          { k: "实体类型", en: "Entity Type", v: "公司(Corporation)" },
+          { k: "注册号 / 辖区", en: "Incorporation / Jurisdiction", v: "US-DE-7741920 · 美国(特拉华)" },
+          { k: "经营性质", en: "Nature of Business", v: "支付服务 / VASP" },
+          { k: "注册地址", en: "Registered Address", v: "1209 Orange St, Wilmington, DE 19801, US" },
+          { k: "身份核验", en: "Identification", v: "KYB 未完成", flag: "red" },
+          { k: "与机构关系", en: "Relationship to RE", v: "客户(商户)" },
+        ] },
+        { role: "受益所有人", roleEn: "Beneficial Owner (>25%)", kind: "个人", name: "Andrei Petrov", fields: [
+          { k: "出生日期", en: "Date of Birth", v: "1989-07-12" },
+          { k: "国籍", en: "Nationality", v: "塞浦路斯 / 俄罗斯(双重)" },
+          { k: "持股", en: "Ownership", v: "100%(唯一 UBO)" },
+          { k: "身份核验", en: "Identification", v: "护照(部分核验)", flag: "amber" },
+          { k: "PEP", en: "PEP Status", v: "否" },
+        ] },
+      ],
+      grounds: "本机构于 2026-03-01 监测到客户 NovaPay Technologies Ltd.(开户仅 5 日)托管钱包 0x91Ad…77F2 接收来自地址 0x5078…Ec8c 的 8,180 USDT;链上溯源显示该发送地址与混币器 Tornado Cash 高度关联(命中度 92%)。资金到账后 14 分钟内即被全额(8,150 USDT)提现至外部非托管地址 bc1q…7h2k,资金在本机构停留极短、无实际业务用途,呈典型分层(layering)与过水(pass-through)特征。本笔金额较该客户历史基线偏离约 7 倍,且 KYB 尚未完成、UBO 身份仅部分核验。综合混币器接触、快进快出、主体新近开户及关联团伙线索(疑似团伙 G-2026-014),本机构形成「合理怀疑」,依据 PCMLTFA 第 7 条作为可疑交易报告(STR)报送 FINTRAC。",
+      action: [
+        { k: "账户措施", en: "Account Action", v: "已限制提现 · 待二次核验" },
+        { k: "资金处置", en: "Funds Disposition", v: "下游冻结请求已发出(部分可追溯)", flag: "amber" },
+        { k: "内部升级", en: "Internal Escalation", v: "案件 CASE-20260318-001 · 关联团伙 G-2026-014" },
+        { k: "报送机关", en: "Reported To", v: "FINTRAC(STR)· 抄送内部 MLRO 存档" },
       ],
     },
   },
@@ -205,6 +290,49 @@ export function reportDetail(r: Report): ReportDetail {
   return {
     reason: { src: r.type === "TPR" ? "制裁筛查命中 · 法定即时上报" : "由案件研判定性 · 人工撰写", body: r.summary, tags: [{ label: r.sub, tone }] },
     preview: { title: r.type === "TPR" ? "Sanctions / Terrorist Property Report (TPR)" : "Suspicious Transaction Report (STR)", format: r.type === "TPR" ? "FINTRAC TPR" : "FINTRAC F2-R / JSON", rows: [{ k: "Report Type", v: r.type }, { k: "Reporting Entity", v: REPORTING_ENTITY }, { k: "Subject", v: r.subject }, { k: "Amount (CAD)", v: r.amount.replace(/[^0-9.,]/g, "") }, ...(r.srcId ? [{ k: "Source", v: r.srcId }] : [])] },
+    strDoc: r.type === "STR" ? synthStrDoc(r) : undefined,
+  };
+}
+
+// 兜底:为任意 STR(案件派生 / 手动)按报告字段合成一份 FINTRAC 分部报文,保证每条 STR 都有结构化预览
+const amtCAD = (s: string) => s.replace(/[^0-9.,]/g, "");
+function synthStrDoc(r: Report): StrDoc {
+  return {
+    reportRef: r.id,
+    header: [
+      { k: "报告类型", en: "Report Type", v: "STR — Suspicious Transaction Report" },
+      { k: "报送机构", en: "Reporting Entity", v: "Future Pay CA Inc." },
+      { k: "MSB 注册号", en: "FINTRAC MSB Registration", v: "M2024xxxx" },
+      { k: "机构类别", en: "RE Sector", v: "Money Services Business — Dealing in Virtual Currency" },
+      { k: "报告参考号", en: "Report Reference", v: r.id },
+      { k: "责任合规官", en: "Compliance Officer (MLRO)", v: "David Wu · +1 604-555-0142" },
+      ...(r.srcId ? [{ k: "来源案件", en: "Source Case", v: r.srcId }] : []),
+    ],
+    txns: [
+      { ref: r.srcId || "TXN-1", dir: "存入", dirEn: "Incoming / Deposit", fields: [
+        { k: "交易方式", en: "Method", v: "线上 · 虚拟货币(非面对面)" },
+        { k: "虚拟货币类型", en: "Virtual Currency", v: "USDT / BTC(见明细)" },
+        { k: "CAD 折算", en: "CAD Equivalent", v: amtCAD(r.amount) },
+        { k: "对手地址", en: "Counterparty Address", v: "见案件链上溯源" },
+      ] },
+    ],
+    account: [
+      { k: "账户主体", en: "Account Holder", v: r.subject },
+      { k: "账户类型", en: "Account Type", v: "企业 / 商户" },
+      { k: "账户状态", en: "Account Status", v: "调查中 · 视结论限制" },
+    ],
+    parties: [
+      { role: "交易实施主体", roleEn: "Conducting Entity", kind: "实体", name: r.subject, fields: [
+        { k: "经营性质", en: "Nature of Business", v: "支付服务 / VASP" },
+        { k: "与机构关系", en: "Relationship to RE", v: "客户" },
+        { k: "身份核验", en: "Identification", v: "见 KYC / KYB 档案" },
+      ] },
+    ],
+    grounds: r.summary,
+    action: [
+      { k: "内部升级", en: "Internal Escalation", v: r.srcId ? `案件 ${r.srcId}` : "案件研判" },
+      { k: "报送机关", en: "Reported To", v: "FINTRAC(STR)" },
+    ],
   };
 }
 
