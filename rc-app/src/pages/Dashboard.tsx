@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { Shell, PageHead } from "@/components/Shell";
 import { SectionLabel, Initials } from "@/components/bits";
+import { PipelineMap } from "@/components/PipelineMap";
 import { rings, RING_STATES, confTone, type RingStateKey } from "@/lib/rings";
 import { ringStore, useRingVersion } from "@/lib/store";
 
@@ -427,6 +428,9 @@ export default function Dashboard() {
           </>
         }
       />
+
+      {/* 风控流水线总览 — 给第一次用的人一张流程地图 */}
+      <PipelineMap />
 
       {/* 需立即处理 — single red accent for urgency */}
       <div className="card mb-5 flex flex-wrap items-center gap-x-4 gap-y-2 border-l-[3px] p-3.5 pl-4" style={{ borderLeftColor: "var(--danger)" }}>
