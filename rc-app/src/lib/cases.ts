@@ -130,12 +130,18 @@ export const decideActions = (st: CState): DecideAction[] => (st === "investigat
 
 // ── 案卷(研判工作台证据)—— 支撑四问事实 + 决策支持 + 系统建议处置 ──
 export interface CasePathHop { label: string; role: string; tone: Tone; meta?: string }
+// 加权评分因子:raw 为该因子 0–100 原始分,weight 为权重(同团伙识别口径),contrib = raw×weight
+export interface ScoreFactor { key: string; label: string; cat: string; weight: number; raw: number; tone: Tone; evidence: string[] }
+export interface BaselinePair { label: string; norm: string; current: string; abnormal?: boolean }
+export interface CaseAlert { id: string; sev: Tone; sevLabel: string; desc: string; rule: string; time: string }
 export interface CaseDossier {
-  // Q1 这案子有多可疑
-  score: number; scoreParts: { label: string; pts: number; tone: Tone }[]; hitRules: { name: string; detail: string }[]; evidence: string[];
-  // Q2 主体什么来头
-  kyc: { country: string; kyb: string; registered: string; ubo: string };
-  baseline: { label: string; value: string; critical?: boolean }[]; priorDisp: string;
+  // Q1 这案子有多可疑(加权瀑布评分 + 硬规则托底 + 关联告警)
+  factors: ScoreFactor[]; floor?: { label: string; bonus: number; note: string }; evidence: string[]; alerts: CaseAlert[];
+  // 交易 / 资金状态
+  tx: { id: string; network: string; type: string; frozen: string; destination: string; duration: string };
+  // Q2 主体什么来头(商户画像 + 行为基线本次 vs 历史)
+  profile: { kyc: string; country: string; sanctions: string; pep: string; vol30: string; limit: string; tier: Tone };
+  baseline: BaselinePair[]; priorDisp: string;
   // Q3 钱从哪到哪
   path?: CasePathHop[]; chainRisk: string[]; fundNature: string;
   // Q4 有没有同伙
@@ -145,26 +151,31 @@ export interface CaseDossier {
   // 系统建议处置(弱建议)—— 收敛信号成决策起点;分析师同意 / 推翻并留痕
   rec: { disp: string; label: string; risk: Tone; riskLabel: string; basis: string[] };
 }
+export const factorContrib = (f: ScoreFactor) => Math.round(f.raw * f.weight * 10) / 10;
+export const caseScore = (d: CaseDossier) => Math.round((d.factors.reduce((a, f) => a + factorContrib(f), 0) + (d.floor?.bonus || 0)) * 10) / 10;
 
 export const CASE_DOSSIER: Record<string, CaseDossier> = {
   "CASE-20260318-001": {
-    score: 92,
-    scoreParts: [
-      { label: "链上溯源 · 混币器接触", pts: 35, tone: "red" },
-      { label: "大额偏离基线(5.5×)", pts: 22, tone: "amber" },
-      { label: "KYB 未完成 · 新商户", pts: 18, tone: "amber" },
-      { label: "制裁实体间接命中", pts: 17, tone: "red" },
+    factors: [
+      { key: "mixer", label: "混币器接触", cat: "KYW · 链上", weight: 0.40, raw: 95, tone: "red", evidence: ["92% 入金资产溯源至 Tornado Cash(OFAC 制裁混币器)", "KYW 风险评分 95 / 100", "资金 ≤2 跳触及制裁混币器"] },
+      { key: "passthrough", label: "过水模式", cat: "行为", weight: 0.30, raw: 82, tone: "red", evidence: ["入账后 14 分钟内即发起全额提现", "经 3 个中转地址 36h 内归集", "快进快出 layering 特征"] },
+      { key: "sanction", label: "制裁关联", cat: "名单", weight: 0.20, raw: 70, tone: "amber", evidence: ["间接命中 OFAC(经混币器)", "对手地址历史关联制裁实体"] },
+      { key: "history", label: "账户历史", cat: "账户库", weight: 0.10, raw: 45, tone: "grey", evidence: ["商户注册 5 天 · KYB 未完成", "首充无历史基线", "网络内关联 3 笔历史违规"] },
     ],
-    hitRules: [
-      { name: "混币器关联", detail: "资金 ≤2 跳触及制裁地址 → Tornado Cash" },
-      { name: "大额充值监控", detail: "单笔 ≥ CAD 5,000 → 命中 CAD 8,200" },
-    ],
+    floor: { label: "混币器硬指标托底", bonus: 5.9, note: "命中混币器硬指标触发托底规则(最低 85),累计 81.1 追加 +5.9,最终 87。" },
     evidence: ["92% 入金资产链上可溯源至 Tornado Cash(OFAC 制裁混币器)", "经 3 个中转地址在 36h 内归集 —— 典型过水分层", "商户首充且 KYB 未完成,主体未充分核验"],
-    kyc: { country: "美国", kyb: "未完成", registered: "5 天(新商户)", ubo: "未申报" },
+    alerts: [
+      { id: "ALT-50231", sev: "red", sevLabel: "高", desc: "充值地址与混币器 Tornado Cash 存在 1 跳关联,链上来源极近混币器。涉 0.21 BTC(约 CAD 8,200)。", rule: "R-CHAIN-07", time: "2026-03-15 09:30" },
+      { id: "ALT-50231", sev: "amber", sevLabel: "中", desc: "入金到账后 14 分钟内即发起全额提现,呈典型「过水」模式(转入即兑换即提现)。", rule: "R-XSYS-03", time: "2026-03-15 09:44" },
+    ],
+    tx: { id: "DEP-20260315-001", network: "ERC-20", type: "充值", frozen: "8,180 USDT · CAD 8,200", destination: "0x7a…dE2(外部)", duration: "1d 18h · 自动暂缓" },
+    profile: { kyc: "高风险", country: "🇺🇸 美国", sanctions: "间接命中(经混币器)", pep: "非 PEP", vol30: "CAD 8,200", limit: "CAD 5,000", tier: "red" },
     baseline: [
-      { label: "单笔金额", value: "CAD 8,200 · 商户均值 5.5×", critical: true },
-      { label: "充值频率", value: "首笔充值 · 无历史基线" },
-      { label: "资金来源", value: "新建地址 · 混币器 ≤2 跳" },
+      { label: "单笔金额", norm: "均值 CAD 1,150", current: "CAD 8,200(×7)", abnormal: true },
+      { label: "常用对手方", norm: "Coinbase / Kraken", current: "全新混币关联地址", abnormal: true },
+      { label: "活跃时段", norm: "09:00–18:00 EST", current: "22:10 · 异常", abnormal: true },
+      { label: "历史交易(90天)", norm: "18 笔", current: "首充" },
+      { label: "历史处置", norm: "2 次告警 · 均放行无前科", current: "本次首违" },
     ],
     priorDisp: "关联 3 笔历史违规(同网络其它商户)· 本商户无前科",
     path: [
@@ -180,22 +191,20 @@ export const CASE_DOSSIER: Record<string, CaseDossier> = {
     rec: { disp: "draft", label: "定性可疑 · 起草 STR(转 MLRO)", risk: "red", riskLabel: "高风险", basis: ["链上溯源 92% 触及 Tornado Cash 制裁混币器", "资金经 3 跳 36h 过水归集 —— 典型分层", "同类案件 71% 最终上报 STR"] },
   },
   "CASE-20260317-009": {
-    score: 76,
-    scoreParts: [
-      { label: "收款钱包 KYW 评分 88", pts: 34, tone: "red" },
-      { label: "大额提现偏离(7×)", pts: 24, tone: "amber" },
-      { label: "高风险辖区对手", pts: 18, tone: "amber" },
-    ],
-    hitRules: [
-      { name: "KYW 评分超阈值", detail: "收款钱包 KYW > 70 → 命中 88" },
-      { name: "大额提现监控", detail: "单笔 ≥ CAD 3,000 → 命中 CAD 21,400" },
+    factors: [
+      { key: "kyw", label: "KYW 超阈值", cat: "评分", weight: 0.40, raw: 88, tone: "red", evidence: ["收款钱包 KYW 88 > 阈值 70", "关联高风险辖区交易所"] },
+      { key: "amount", label: "大额偏离", cat: "金额", weight: 0.30, raw: 72, tone: "amber", evidence: ["单笔 CAD 21,400 为限额 7×"] },
+      { key: "counterparty", label: "对手风险", cat: "行为", weight: 0.20, raw: 64, tone: "amber", evidence: ["新对手地址 · FATF 灰名单辖区"] },
+      { key: "history", label: "账户历史", cat: "账户库", weight: 0.10, raw: 20, tone: "green", evidence: ["342 笔无违规 · 信誉良好"] },
     ],
     evidence: ["收款钱包 KYW 风险评分 88,远超阈值 70", "关联高风险司法管辖区交易所(FATF 灰名单)", "单笔 CAD 21,400,为限额 7×"],
-    kyc: { country: "美国", kyb: "完成", registered: "1.2 年", ubo: "已核验" },
+    alerts: [{ id: "ALT-50229", sev: "red", sevLabel: "高", desc: "出金收款钱包 KYW 风险评分 88,超阈值 70,关联高风险辖区交易所。", rule: "R-SCORE-02", time: "2026-03-14 08:54" }],
+    tx: { id: "WD-20260314-058", network: "BTC", type: "提现", frozen: "0.34 BTC · CAD 21,400", destination: "bc1q…7h2k(外部)", duration: "出金暂缓" },
+    profile: { kyc: "中风险", country: "🇺🇸 美国", sanctions: "未命中", pep: "非 PEP", vol30: "CAD 96,000", limit: "CAD 3,000", tier: "amber" },
     baseline: [
-      { label: "单笔金额", value: "CAD 21,400 · 限额 7×", critical: true },
-      { label: "历史记录", value: "342 笔无违规 · 信誉良好" },
-      { label: "收款对手", value: "新对手 · KYW 88" },
+      { label: "单笔金额", norm: "限额 CAD 3,000", current: "CAD 21,400(×7)", abnormal: true },
+      { label: "收款对手", norm: "历史固定地址", current: "全新 · KYW 88", abnormal: true },
+      { label: "历史记录", norm: "342 笔无违规", current: "信誉良好" },
     ],
     priorDisp: "商户历史 342 笔无违规 —— 主体信誉良好,风险集中在本笔对手",
     path: [
@@ -210,23 +219,20 @@ export const CASE_DOSSIER: Record<string, CaseDossier> = {
     rec: { disp: "restrict", label: "限制 / 补材料(要求用途说明)", risk: "amber", riskLabel: "中风险", basis: ["商户历史良好(342 笔无违规),非惯犯", "风险集中于单笔对手 KYW,可经补料澄清", "同类 41% 补充说明后放行"] },
   },
   "CASE-20260316-021": {
-    score: 90,
-    scoreParts: [
-      { label: "扇入归集图聚类", pts: 32, tone: "red" },
-      { label: "多商户协同", pts: 24, tone: "amber" },
-      { label: "归集后集中出金", pts: 20, tone: "amber" },
-      { label: "跨主体金额异常", pts: 14, tone: "amber" },
-    ],
-    hitRules: [
-      { name: "多主体扇入同一地址", detail: "事后回溯 6 商户 → 1 归集地址" },
-      { name: "分层归集", detail: "归集后经 2 中转分发 3 出口" },
+    factors: [
+      { key: "fanin", label: "扇入聚类", cat: "统计聚合", weight: 0.40, raw: 90, tone: "red", evidence: ["6 商户 → 1 归集地址", "扇入图聚类显著"] },
+      { key: "collusion", label: "多商户协同", cat: "行为", weight: 0.30, raw: 85, tone: "amber", evidence: ["6 商户此前互无关联突现协同", "72h 内集中归集"] },
+      { key: "layering", label: "分层归集", cat: "链上", weight: 0.20, raw: 80, tone: "amber", evidence: ["归集后 2 中转分发 3 出口"] },
+      { key: "amount", label: "金额异常", cat: "金额", weight: 0.10, raw: 70, tone: "amber", evidence: ["归集 CAD 124,000"] },
     ],
     evidence: ["6 商户分散入金 → 同一归集地址 0x71Be(CAD 124,000)", "归集后经 2 中转分发 3 出口 —— 分层混淆", "6 商户此前互无关联,突现协同扇入"],
-    kyc: { country: "多辖区", kyb: "3 商户均完成", registered: "商户 8 个月–2 年", ubo: "疑似共同 UBO 待查" },
+    alerts: [{ id: "PM-2026-020", sev: "red", sevLabel: "高", desc: "事后回溯:6 商户分散入金归集至同一地址 0x71Be,归集后分层分发,疑似第三方资金集中过账。", rule: "R-AGG-05", time: "2026-03-16 10:33" }],
+    tx: { id: "PM-2026-020", network: "多链", type: "事后回溯", frozen: "CAD 124,000(归集)", destination: "出口地址 ×3", duration: "已出账 · 追溯中" },
+    profile: { kyc: "网络主体", country: "多辖区", sanctions: "未命中", pep: "—", vol30: "CAD 124,000", limit: "—", tier: "red" },
     baseline: [
-      { label: "扇入主体数", value: "6 商户 → 1 地址", critical: true },
-      { label: "归集金额", value: "CAD 124,000" },
-      { label: "时间窗", value: "72h 内集中归集" },
+      { label: "扇入主体数", norm: "独立商户各自入金", current: "6 商户 → 1 地址", abnormal: true },
+      { label: "归集时间窗", norm: "分散随机", current: "72h 内集中", abnormal: true },
+      { label: "商户关联", norm: "互无关联", current: "突现协同", abnormal: true },
     ],
     priorDisp: "PM-2026-020 事后命中转入本案 · 商户个体此前无单独违规",
     path: [
@@ -243,19 +249,20 @@ export const CASE_DOSSIER: Record<string, CaseDossier> = {
     rec: { disp: "draft", label: "定性可疑 · 起草 STR + 关联并案", risk: "red", riskLabel: "高风险", basis: ["6 商户扇入同一归集地址,协同特征显著", "归集后分层出金 —— 典型洗钱结构", "同类案件 78% 上报 STR、22% 并入团伙"] },
   },
   "CASE-20260318-018": {
-    score: 99,
-    scoreParts: [
-      { label: "OFAC SDN 直接命中", pts: 60, tone: "red" },
-      { label: "离岸高风险商户", pts: 22, tone: "amber" },
-      { label: "出金即冻结", pts: 17, tone: "red" },
+    factors: [
+      { key: "sdn", label: "OFAC SDN 直接命中", cat: "名单", weight: 0.50, raw: 100, tone: "red", evidence: ["收款地址 0x7F4a 直接命中 OFAC SDN", "制裁实体 · 禁止交易"] },
+      { key: "offshore", label: "离岸高风险商户", cat: "账户库", weight: 0.30, raw: 78, tone: "amber", evidence: ["离岸高风险 · 历史 2 笔违规", "离岸结构不透明"] },
+      { key: "frozen", label: "出金即冻结", cat: "行为", weight: 0.20, raw: 70, tone: "red", evidence: ["系统自动冻结 · 已阻断"] },
     ],
-    hitRules: [{ name: "制裁地址命中", detail: "收款地址命中 OFAC SDN → 自动冻结" }],
+    floor: { label: "制裁直接命中托底", bonus: 11.6, note: "OFAC SDN 直接命中触发强制托底(最低 99),累计 87.4 追加 +11.6,最终 99。" },
     evidence: ["收款地址 0x7F4a 直接命中 OFAC SDN 制裁名单", "系统已自动冻结资金", "离岸高风险商户,历史 2 笔违规"],
-    kyc: { country: "离岸", kyb: "完成", registered: "4 个月", ubo: "离岸结构 · 不透明" },
+    alerts: [{ id: "ALT-50218", sev: "red", sevLabel: "高", desc: "出金收款地址 0x7F4a 直接命中 OFAC SDN 制裁名单,系统已自动冻结并升级 MLRO。", rule: "R-LIST-01", time: "2026-03-13 06:20" }],
+    tx: { id: "WD-20260313-021", network: "ERC-20", type: "提现", frozen: "0.19 BTC · CAD 11,900", destination: "0x7F4a…9c21(OFAC · 已冻结)", duration: "已冻结" },
+    profile: { kyc: "高风险", country: "离岸", sanctions: "直接命中 OFAC SDN", pep: "未知", vol30: "CAD 88,000", limit: "CAD 3,000", tier: "red" },
     baseline: [
-      { label: "制裁命中", value: "OFAC SDN 直接命中", critical: true },
-      { label: "商户风险", value: "离岸 · 高风险" },
-      { label: "历史记录", value: "2 笔违规" },
+      { label: "制裁命中", norm: "无", current: "OFAC SDN 直接", abnormal: true },
+      { label: "商户风险", norm: "—", current: "离岸 · 高风险", abnormal: true },
+      { label: "历史记录", norm: "2 笔违规", current: "惯犯特征" },
     ],
     priorDisp: "已按制裁财产立即上报 FINTRAC(TPR)· 案件报送结案中",
     path: [
@@ -269,23 +276,20 @@ export const CASE_DOSSIER: Record<string, CaseDossier> = {
     rec: { disp: "draft", label: "已制裁命中 · 上报并结案", risk: "red", riskLabel: "高风险", basis: ["收款地址直接命中 OFAC SDN", "资金已自动冻结阻断", "制裁命中无放行空间,强制上报"] },
   },
   "CASE-20260315-007": {
-    score: 88,
-    scoreParts: [
-      { label: "设备 / IP 共享聚类", pts: 30, tone: "red" },
-      { label: "多商户共同 UBO", pts: 24, tone: "amber" },
-      { label: "资金分层归集", pts: 20, tone: "amber" },
-      { label: "关注名单关联", pts: 14, tone: "amber" },
-    ],
-    hitRules: [
-      { name: "设备指纹聚类", detail: "3 商户共享设备群 #D7 与 IP 段" },
-      { name: "共同受益所有人", detail: "Chen Wei(疑控)/ Li Ming(共同 UBO)" },
+    factors: [
+      { key: "device", label: "设备 / IP 聚类", cat: "设备", weight: 0.40, raw: 90, tone: "red", evidence: ["3 商户共享设备群 #D7 与 IP 段"] },
+      { key: "ubo", label: "共同 UBO", cat: "主体", weight: 0.30, raw: 82, tone: "amber", evidence: ["Chen Wei 疑控 · Li Ming 共同 UBO"] },
+      { key: "layering", label: "资金分层归集", cat: "链上", weight: 0.20, raw: 78, tone: "amber", evidence: ["分层归集后集中出金 CAD 38,400"] },
+      { key: "watchlist", label: "关注名单关联", cat: "名单", weight: 0.10, raw: 60, tone: "amber", evidence: ["关联关注名单群组"] },
     ],
     evidence: ["3 商户共享设备指纹群 #D7 与 IP 段", "Chen Wei 疑为实际控制人,Li Ming 为共同 UBO", "资金分层归集后集中出金 CAD 38,400"],
-    kyc: { country: "多辖区", kyb: "3 商户完成", registered: "商户均 <1 年", ubo: "Chen Wei(疑)/ Li Ming(共同)" },
+    alerts: [{ id: "RING-2026-031", sev: "red", sevLabel: "高", desc: "团伙识别:3 商户共享设备 / IP 聚类成团,存在共同受益所有人,资金分层归集集中出金。", rule: "R-RING-01", time: "2026-03-15 16:30" }],
+    tx: { id: "RING-2026-031", network: "多链", type: "团伙归集", frozen: "CAD 38,400", destination: "集中出金", duration: "调查中" },
+    profile: { kyc: "团伙主体", country: "多辖区", sanctions: "未命中", pep: "Chen Wei 待查", vol30: "CAD 38,400", limit: "—", tier: "red" },
     baseline: [
-      { label: "设备共享", value: "3 商户 → 设备群 #D7", critical: true },
-      { label: "UBO 重叠", value: "2 共同受益人" },
-      { label: "注册时间", value: "集中于近期" },
+      { label: "设备指纹", norm: "各商户独立设备", current: "3 商户 → 设备群 #D7", abnormal: true },
+      { label: "受益所有人", norm: "各自独立 UBO", current: "2 共同受益人", abnormal: true },
+      { label: "注册时间", norm: "分散", current: "集中于近期", abnormal: true },
     ],
     priorDisp: "RING-2026-031 团伙识别转入 · 关注名单群组关联",
     path: [
@@ -306,22 +310,23 @@ export const CASE_DOSSIER: Record<string, CaseDossier> = {
 export function dossierOf(c: Case): CaseDossier {
   const ex = CASE_DOSSIER[c.id];
   if (ex) return ex;
-  const score = c.priority === "高" ? 82 : c.priority === "中" ? 61 : 43;
+  const hi = c.priority === "高";
+  const raw = hi ? 84 : c.priority === "中" ? 62 : 44;
   const isChain = c.sub.includes("链上") || c.sub.includes("网络");
   return {
-    score,
-    scoreParts: [
-      { label: c.type, pts: Math.round(score * 0.5), tone: c.priority === "高" ? "red" : "amber" },
-      { label: c.risk, pts: Math.round(score * 0.3), tone: "amber" },
-      { label: "主体 / 对手风险", pts: score - Math.round(score * 0.5) - Math.round(score * 0.3), tone: "blue" },
+    factors: [
+      { key: "main", label: c.type, cat: "主因子", weight: 0.5, raw, tone: hi ? "red" : "amber", evidence: [c.risk, `来源 ${c.src}`] },
+      { key: "risk", label: c.risk, cat: "风险类型", weight: 0.3, raw: Math.max(0, raw - 10), tone: "amber", evidence: [`涉及 ${c.amount}`] },
+      { key: "subject", label: "主体 / 对手", cat: "账户库", weight: 0.2, raw: Math.max(0, raw - 20), tone: "blue", evidence: [`关联 ${c.linkIds}`] },
     ],
-    hitRules: [{ name: c.type, detail: `${c.risk} · 来源 ${c.src}` }],
     evidence: [`${c.type} —— ${c.risk}`, `涉及金额 ${c.amount} · 关联 ${c.linkIds}`, `来源:${c.src}`],
-    kyc: { country: c.sub.split(" · ")[0] || "—", kyb: isChain ? "—" : "完成", registered: "—", ubo: "待核验" },
+    alerts: [{ id: c.linkIds.split(" ")[0] || c.id, sev: hi ? "red" : "amber", sevLabel: hi ? "高" : "中", desc: `${c.type} —— ${c.risk}。来源 ${c.src}。`, rule: "—", time: c.submitted }],
+    tx: { id: c.linkIds.split(" · ")[0] || c.id, network: "—", type: "—", frozen: c.amount, destination: "—", duration: c.sla.text },
+    profile: { kyc: isChain ? "链上主体" : "商户", country: c.sub.split(" · ")[0] || "—", sanctions: "未评估", pep: "—", vol30: c.amount, limit: "—", tier: hi ? "red" : "amber" },
     baseline: [
-      { label: "涉及金额", value: c.amount, critical: true },
-      { label: "关联项", value: c.linkIds },
-      { label: "风险类型", value: c.risk },
+      { label: "涉及金额", norm: "—", current: c.amount, abnormal: true },
+      { label: "关联项", norm: "—", current: c.linkIds },
+      { label: "风险类型", norm: "—", current: c.risk },
     ],
     priorDisp: `来源 ${c.src} · 经研判转入本案`,
     chainRisk: [c.type, c.risk],
