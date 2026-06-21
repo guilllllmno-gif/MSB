@@ -114,6 +114,11 @@ export const CASES: Case[] = [
 export const caseOf = (id?: string) => CASES.find((c) => c.id === id);
 export const CASE_ICON = { FileText, FolderPlus, ShieldQuestion };
 
+// 各来源动作 → 生成案件(案件管理 = 调查与 STR 唯一漏斗)。seq 由 caseStore.created().length+1 传入,保证唯一。
+export function mkCase(seq: number, o: { subject: string; sub: string; type: string; risk: string; amount: string; src: string; linkIds: string; linkTo?: string; priority?: Priority; subjects?: CaseSubject[] }): Case {
+  return { id: `CASE-20260621-${String(900 + seq).padStart(3, "0")}`, subject: o.subject, sub: o.sub, type: o.type, risk: o.risk, priority: o.priority || "高", amount: o.amount, links: o.subjects?.length || 1, linkIds: o.linkIds, linkTo: o.linkTo, state: "investigating", owner: null, sla: { text: "剩 3d", tone: "amber" }, submitted: "2026-06-21 10:00", src: o.src, subjects: o.subjects };
+}
+
 // ── Layer-3 决策动作集(可处置动作 + 权限约束)—— 把分散信号收敛成一个处置 ──
 // investigating 态用这套六动作;后续态(STR草稿 / MLRO / 待报送 / 已报送)回退到 CFLOW。
 export interface DecideAction { k: string; label: string; desc: string; icon: typeof Send; to?: CState; tone: Tone; perm: string; dualSign?: boolean; needMerge?: boolean }

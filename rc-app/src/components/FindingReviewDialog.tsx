@@ -4,7 +4,8 @@ import { Drawer, DrawerContent, DrawerHeader, DrawerBody, DrawerFooter, Button, 
 import { ShieldAlert, Link2 as LinkIcon } from "lucide-react";
 import { Initials, SectionLabel, toneVar } from "./bits";
 import { findingOf, STEP, STEP_FLOW, CAN_CONFIRM, FSTATES, FREASONS, TRACE, traceTier, traceRecovery, type FState, type StepKey } from "@/lib/findings";
-import { findingStore, useFindingVersion } from "@/lib/store";
+import { mkCase } from "@/lib/cases";
+import { findingStore, caseStore, useFindingVersion } from "@/lib/store";
 
 const ME = { i: "JL", n: "James Liu", c: "var(--brand)" };
 
@@ -14,13 +15,13 @@ const offStyle = { borderColor: "var(--line)", color: "var(--text-2)" };
 
 // 确认可疑 is a synthetic choice alongside the step keys
 type Choice = StepKey | "confirm";
-const DECISION: Choice[] = ["confirm", "str", "case", "fp"]; // 处置结论(终态 / 进入追溯)
+const DECISION: Choice[] = ["confirm", "case", "fp"]; // 处置结论;STR 一律经案件管理,事后确认可疑 → 转案件(不再直连转报送)
 const PROCESS: StepKey[] = ["reqinfo", "resume", "escalate"]; // 流程操作(流转,不结案)
 const LABEL: Record<Choice, string> = { confirm: "确认可疑", str: STEP.str.label, case: STEP.case.label, fp: STEP.fp.label, reqinfo: STEP.reqinfo.label, resume: STEP.resume.label, escalate: STEP.escalate.label, claim: STEP.claim.label };
 const IMPACT: Record<Choice, string> = {
-  confirm: "资金已出账 —— 转入「追溯中」:评估能否追回、是否上报已发生损失,再决定转报送 / 转案件。",
+  confirm: "资金已出账 —— 转入「追溯中」:评估能否追回、是否上报已发生损失,再转案件。",
   str: "确认可疑 · 补 STR 报送,结案并喂入报告报送(来源 = 事后检测)。",
-  case: "并入案件深查,结案并喂入案件管理(来源 = 事后检测)。",
+  case: "确认可疑 · 转案件:在案件管理生成案件深查,STR 由案件统一起草(案件 = 唯一发起点)。",
   fp: "判定误报关闭(当时放行无误),归档至处置记录。",
   reqinfo: "向主体 / 商户发起 RFI,状态转「待补充材料」,SLA 暂停计时。",
   resume: "材料已回,恢复调查,状态转「处理中」。",
@@ -65,6 +66,12 @@ export function FindingReviewDialog({ findingId, open, onOpenChange, onDone }: {
       const c = STEP[choice];
       findingStore.set(f.id, { status: c.to, owner: choice === "claim" ? ME : undefined, event: `${c.label}${reason ? " · " + reason : ""}${note.trim() ? " · " + note.trim() : ""}` });
       toast.success(`${f.id} · ${c.label}`);
+      // 转案件 → 在案件管理生成案件(STR 由案件统一起草)
+      if (choice === "case") {
+        const nc = mkCase(caseStore.created().length + 1, { subject: f.subject, sub: `事后 · ${f.pattern}`, type: f.pattern, risk: "可疑洗钱", amount: f.amount, src: "事后转案件", linkIds: f.id, linkTo: `/finding?id=${f.id}` });
+        caseStore.add(nc);
+        toast(`已转案件 ${nc.id} · 在案件管理起草 STR`);
+      }
     }
     onOpenChange(false); onDone?.();
   };

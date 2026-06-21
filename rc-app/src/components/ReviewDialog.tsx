@@ -4,7 +4,8 @@ import { Drawer, DrawerContent, DrawerHeader, DrawerBody, DrawerFooter, Button, 
 import { Check, FolderOpen, Shield, FileQuestion, ArrowUpCircle, Ban, Send } from "lucide-react";
 import { Initials, SectionLabel } from "./bits";
 import { alerts, RC_STATES, GATE_STATES, DISP, PROC, GATE_DISP, GATE_PROC, REASONS, IMPACT, FIELDS, SUBMIT, aiRec } from "@/lib/data";
-import { alertStore } from "@/lib/store";
+import { mkCase } from "@/lib/cases";
+import { alertStore, caseStore } from "@/lib/store";
 
 const L1 = { i: "JL", n: "James Liu", c: "var(--brand)" };
 const DISP_ICON: Record<string, typeof Check> = { release: Check, case: FolderOpen, watch: Shield, reject: Ban };
@@ -54,6 +55,13 @@ export function ReviewDialog({ alertId, open, onOpenChange, onDone }: { alertId:
     const summary = (FIELDS[choice] || []).map((fd) => { const v = fieldVals[fd.k] || []; return v.length ? `${fd.label}：${v.join("、")}` : ""; }).filter(Boolean).join(" · ");
     alertStore.set(a.id, cfg.state, { assignee: L1, event: `${cfg.label}（L1 ${L1.n}）`, reason: [reason, summary, basis.trim()].filter(Boolean).join(" · ") });
     toast.success("已提交 · " + cfg.label);
+    // 建案 / 拒绝 → 汇入案件管理(案件 = 调查与 STR 唯一漏斗;事中驳回 = 事中,建案 = 告警升级)
+    if (choice === "case" || choice === "reject") {
+      const risk = a.sanctions.status === "直接命中" ? "制裁规避" : a.sanctions.status === "间接命中" ? "可疑洗钱" : "可疑洗钱";
+      const nc = mkCase(caseStore.created().length + 1, { subject: a.merchant, sub: `${a.country} · 商户`, type: a.title, risk, amount: a.amount, src: gate ? "事中驳回" : "告警升级", linkIds: `${a.id} · ${a.order}`, linkTo: `/alert?id=${a.id}` });
+      caseStore.add(nc);
+      toast(`已建案 ${nc.id} · 在案件管理确认可疑后起草 STR`);
+    }
     onOpenChange(false); onDone?.();
   };
 

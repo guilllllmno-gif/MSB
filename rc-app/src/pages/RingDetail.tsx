@@ -8,7 +8,8 @@ import { Pill, Initials, SectionLabel } from "@/components/bits";
 import { RingBasis } from "@/components/RingBasis";
 import { Timeline } from "@/components/Timeline";
 import { ringOf, caseRefFor, DIM_META, DIM_ORDER, confTone, confLabel, RING_FIELDS, RING_STATES, DISP_STATE, ringActions, type RingDim, type Ring, type RingEdge, type RingStateKey } from "@/lib/rings";
-import { ringStore, useRingVersion } from "@/lib/store";
+import { ringStore, caseStore, useRingVersion } from "@/lib/store";
+import type { CaseSubject } from "@/lib/cases";
 
 const ME = { i: "JL", n: "James Liu", c: "var(--brand)" };
 
@@ -213,6 +214,12 @@ export default function RingDetail() {
     const newCaseRef = disp === "case" ? caseRefFor(ring) : undefined;
     ringStore.set(ring.id, DISP_STATE[disp], undefined, `${d?.label ?? "提交研判"}${newCaseRef ? ` · ${newCaseRef}` : ""}`, newCaseRef);
     toast.success(`${ring.id} · ${d?.msg ?? "已提交研判"}${newCaseRef ? ` · ${newCaseRef}` : ""}`);
+    // 转案件 → 在案件管理生成案件(案件 = STR 唯一漏斗),涉案主体取团伙成员
+    if (disp === "case" && newCaseRef && !caseStore.created().some((x) => x.id === newCaseRef)) {
+      const subjects: CaseSubject[] = ring.members.slice(0, 8).map((m) => ({ name: m.name, type: m.kind === "商户" ? "商户" : "链上地址", role: m.role }));
+      caseStore.add({ id: newCaseRef, subject: ring.name, sub: `团伙 · ${ring.members.length} 主体`, type: ring.typology, risk: "团伙网络", priority: "高", amount: ring.amount, links: ring.members.length, linkIds: `${ring.id} · ${ring.members.length} 主体`, linkTo: `/ring?id=${ring.id}`, state: "investigating", owner: null, sla: { text: "剩 2d", tone: "amber" }, submitted: "2026-06-21 10:00", src: "团伙转案件", subjects });
+      toast(`已聚案 ${newCaseRef} · 在案件管理确认可疑后起草 STR`);
+    }
     setOpen(false);
   };
 
