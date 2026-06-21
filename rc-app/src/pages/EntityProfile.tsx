@@ -16,7 +16,8 @@ const MOD_ICON: Record<string, typeof Bell> = { alerts: Bell, findings: History,
 const MOD_LABEL: Record<string, string> = { alerts: "告警", findings: "事后", rings: "团伙", cases: "案件", reports: "报送" };
 
 // ── 模块覆盖点阵(目录 + 横幅共用)──
-function ModDots({ on }: { on: Record<string, number> }) {
+type ModCount = { alerts: number; findings: number; rings: number; cases: number; reports: number };
+function ModDots({ on }: { on: ModCount }) {
   return (
     <div className="flex items-center gap-1">
       {(["alerts", "findings", "rings", "cases", "reports"] as const).map((m) => {
