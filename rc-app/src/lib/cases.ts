@@ -130,6 +130,19 @@ export const decideActions = (st: CState): DecideAction[] => (st === "investigat
 
 // ── 案卷(研判工作台证据)—— 支撑四问事实 + 决策支持 + 系统建议处置 ──
 export interface CasePathHop { label: string; role: string; tone: Tone; meta?: string }
+// 资金链路网络图(分层有向:源头→分散→多跳→归集→平台→出口;dividerAfter 列后为法币世界)
+export type GNodeKind = "mixer" | "mule" | "hub" | "platform" | "exit" | "normal";
+export interface GraphNode { id: string; label: string; sub?: string; col: number; kind: GNodeKind }
+export interface GraphEdge { from: string; to: string; w?: string }
+export interface CaseGraph { cols: string[]; dividerAfter: number; nodes: GraphNode[]; edges: GraphEdge[]; stats: { label: string; value: string }[] }
+export const GKIND: Record<GNodeKind, { tone: Tone; glyph: string; label: string }> = {
+  mixer: { tone: "red", glyph: "🌀", label: "高危源头 / 混币器" },
+  mule: { tone: "amber", glyph: "👤", label: "中转 mule" },
+  hub: { tone: "red", glyph: "🎯", label: "归集节点" },
+  platform: { tone: "blue", glyph: "🏦", label: "平台账户" },
+  exit: { tone: "grey", glyph: "↗", label: "外部出口" },
+  normal: { tone: "green", glyph: "✓", label: "正常 / 已核实" },
+};
 // 加权评分因子:raw 为该因子 0–100 原始分,weight 为权重(同团伙识别口径),contrib = raw×weight
 export interface ScoreFactor { key: string; label: string; cat: string; weight: number; raw: number; tone: Tone; evidence: string[] }
 export interface RelatedCase { id: string; subject: string; relType: string; relTone: Tone; conf: string; state: string; amount: string; score: number; basis: string; by: string; at: string }
@@ -152,6 +165,7 @@ export interface CaseDossier {
   // 证据材料 + STR 草稿(⑦ 证据与留痕)
   files?: { name: string; ext: string; size: string; note: string }[];
   str?: { type: string; indicators: string; drafter: string; narrative: string };
+  graph?: CaseGraph;
   // ⑤ 决策锚点(相似案件处置基准)
   anchor: { similar: number; release: number; strRate: number; note: string };
   // 系统建议处置(弱建议)—— 收敛信号成决策起点;分析师同意 / 推翻并留痕
@@ -196,6 +210,36 @@ export const CASE_DOSSIER: Record<string, CaseDossier> = {
       { name: "OFAC 名单筛查记录", ext: "DOCX", size: "0.32 MB", note: "来源地址簇与 OFAC SDN 名单的间接关联比对结果" },
     ],
     str: { type: "STR(可疑交易报告)", indicators: "混币器接触 · 过水模式", drafter: "Sarah Chen(风控)", narrative: "本案账户于 2026-03-15 接收来自混币器 Tornado Cash 钱包地址的 0.21 BTC,经层跳中转后入金平台并即时兑换为 CAD 8,200,且于 14 分钟内发起全额提现,符合分层(layering)与过水特征。建议作为可疑交易上报。" },
+    graph: {
+      cols: ["源头", "分散", "多跳中转", "归集", "平台", "出口"], dividerAfter: 3,
+      nodes: [
+        { id: "mx1", label: "混币器源头 A", sub: "bc1q…3r5", col: 0, kind: "mixer" },
+        { id: "mx2", label: "混币器源头 B", sub: "bc1p…mk2", col: 0, kind: "mixer" },
+        { id: "mA", label: "mule A", sub: "1A9x…c2", col: 1, kind: "mule" },
+        { id: "mB", label: "mule B", sub: "1A9x…c2", col: 1, kind: "mule" },
+        { id: "mC", label: "mule C", sub: "1A9x…c2", col: 1, kind: "mule" },
+        { id: "mD", label: "mule D", sub: "1A9x…c2", col: 1, kind: "mule" },
+        { id: "mE", label: "mule E", sub: "1A9x…c2", col: 1, kind: "mule" },
+        { id: "h1", label: "mule · 2 跳", sub: "1A9x…c2", col: 2, kind: "mule" },
+        { id: "h2", label: "mule · 2 跳", sub: "1A9x…c2", col: 2, kind: "mule" },
+        { id: "hub", label: "归集节点", sub: "3FZbgi…7Ax", col: 3, kind: "hub" },
+        { id: "plat", label: "平台入金", sub: "NovaPay 托管", col: 4, kind: "platform" },
+        { id: "ex1", label: "出口 · 连结", sub: "0x7a…dE2", col: 5, kind: "exit" },
+        { id: "ex2", label: "出口 · 直结", sub: "1A9x…c2", col: 5, kind: "exit" },
+      ],
+      edges: [
+        { from: "mx1", to: "mA", w: "0.06" }, { from: "mx1", to: "mB", w: "0.02" }, { from: "mx1", to: "mC" },
+        { from: "mx2", to: "mC", w: "0.13" }, { from: "mx2", to: "mD", w: "0.09" }, { from: "mx2", to: "mE" },
+        { from: "mA", to: "h1" }, { from: "mB", to: "h1" }, { from: "mC", to: "h1" }, { from: "mD", to: "h2" }, { from: "mE", to: "h2" },
+        { from: "h1", to: "hub" }, { from: "h2", to: "hub" },
+        { from: "hub", to: "plat", w: "0.41 BTC" },
+        { from: "plat", to: "ex1" }, { from: "plat", to: "ex2" },
+      ],
+      stats: [
+        { label: "节点总数", value: "13" }, { label: "入金总额", value: "0.41 BTC ≈ CAD 16,000" },
+        { label: "归集节点", value: "1" }, { label: "出口", value: "2 · CAD 5,000" }, { label: "距离 ≤2 跳高危", value: "5" },
+      ],
+    },
     path: [
       { label: "Tornado Cash", role: "来源", tone: "red", meta: "92% 溯源命中" },
       { label: "中转地址 ×3", role: "中转", tone: "amber", meta: "36h 内归集" },

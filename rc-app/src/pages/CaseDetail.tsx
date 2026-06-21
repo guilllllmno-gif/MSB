@@ -10,6 +10,7 @@ import {
 import { Shell } from "@/components/Shell";
 import { Pill } from "@/components/bits";
 import { Timeline } from "@/components/Timeline";
+import { CaseFundGraph } from "@/components/CaseFundGraph";
 import { CASES, CSTATE, PRIO_TONE, SUBJ_TONE, decideActions, dossierOf, factorContrib, caseScore, type Case, type CState, type SubjType } from "@/lib/cases";
 import { FINDINGS, FDIM, dimSubjType } from "@/lib/findings";
 import { caseStore, findingStore, useCaseVersion, useFindingVersion } from "@/lib/store";
@@ -423,8 +424,12 @@ export default function CaseDetail() {
             </Card>
           </div>
 
-          {/* 资金路径(线性 · Commit 3 升级为网络图) */}
-          {d.path && (
+          {/* 资金链路分析(有图用分层网络图,否则线性逐跳) */}
+          {d.graph ? (
+            <Card icon={Waypoints} title="资金链路分析">
+              <CaseFundGraph graph={d.graph} />
+            </Card>
+          ) : d.path && (
             <Card icon={Waypoints} title="资金链路">
               <div className="flex items-start gap-1 overflow-x-auto no-scrollbar pb-1">
                 {d.path.map((n, i) => {
