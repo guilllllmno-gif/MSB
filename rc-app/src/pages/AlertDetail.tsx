@@ -2,13 +2,15 @@ import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { Card, CardHeader, CardBody, Button, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell } from "@heroui/react";
-import { ArrowLeft, ClipboardCheck, Clock, Info, Network, ArrowRight } from "lucide-react";
+import { ArrowLeft, ClipboardCheck, Clock, Info, Network, ArrowRight, Link2 } from "lucide-react";
 import { Shell } from "@/components/Shell";
 import { Timeline } from "@/components/Timeline";
 import { Pill, SoftChip, Initials, RiskBadge } from "@/components/bits";
 import { ReviewDialog } from "@/components/ReviewDialog";
 import { alerts, RC_STATES, GATE_STATES, sevMeta, type Tone } from "@/lib/data";
 import { ringsForMerchant, DIM_META, DIM_ORDER, confTone, confLabel } from "@/lib/rings";
+import { FINDINGS, FDIM } from "@/lib/findings";
+import { CASES } from "@/lib/cases";
 import { alertStore, useAlertVersion } from "@/lib/store";
 
 const ME = { i: "JL", n: "你 (JL)", c: "var(--brand)" };
@@ -46,6 +48,10 @@ export default function AlertDetail() {
   const tl = a.timeline.concat(events.map((e) => [e.t, e.text + (e.reason ? "：" + e.reason : ""), "done"] as [string, string, string]));
   const crr = a.rules.reduce((s, r) => s + (parseInt(r.weight.replace(/[^0-9-]/g, ""), 10) || 0), 0);
   const ring = ringsForMerchant(a.merchant)[0];
+  // 跨模块关联线索:同主体在事后监控 / 案件管理的命中
+  const mkey = a.merchant.split(" ")[0];
+  const relFindings = FINDINGS.filter((f) => f.subject.includes(mkey) || f.sub.includes(mkey)).slice(0, 3);
+  const relCases = CASES.filter((c) => c.subject.includes(mkey) || (c.subjects || []).some((s) => s.name.includes(mkey))).slice(0, 3);
 
   const claim = () => { alertStore.set(a.id, "progress", { assignee: ME, event: "认领工单" }); toast.success("已认领工单"); };
   const reopen = () => { alertStore.set(a.id, "progress", { assignee: assignee || ME, event: "重新打开告警" }); toast.success("已重新打开"); };
@@ -171,6 +177,31 @@ export default function AlertDetail() {
               ) : (
                 <div className="text-[12.5px] text-default-400">未发现关联团伙 · 该主体当前无超阈值多维关联。</div>
               )}
+            </CardBody>
+          </Card>
+
+          {/* 关联线索 · 跨模块(事后命中 / 案件)*/}
+          <Card shadow="none" className="card"><CardHeader><div className="flex items-center gap-2 text-[15px] font-bold"><Link2 className="h-4 w-4 text-default-400" />关联线索 · 跨模块</div></CardHeader>
+            <CardBody className="pt-0">
+              {(relFindings.length || relCases.length) ? (
+                <div className="flex flex-col gap-2">
+                  {relFindings.map((f) => (
+                    <button key={f.id} onClick={() => nav(`/finding?id=${f.id}`)} className="flex items-center gap-2.5 rounded-xl border border-divider p-2.5 text-left transition-colors hover:bg-default-50">
+                      <Pill tone="violet" dot={false}>事后命中</Pill>
+                      <div className="min-w-0 flex-1"><div className="truncate text-[12.5px] font-semibold">{f.pattern} · {f.subject}</div><div className="text-[11px] text-default-400">{f.id} · {FDIM[f.dim].label}</div></div>
+                      <ArrowRight className="h-4 w-4 shrink-0 text-default-300" />
+                    </button>
+                  ))}
+                  {relCases.map((c) => (
+                    <button key={c.id} onClick={() => nav("/cases")} className="flex items-center gap-2.5 rounded-xl border border-divider p-2.5 text-left transition-colors hover:bg-default-50">
+                      <Pill tone="amber" dot={false}>案件</Pill>
+                      <div className="min-w-0 flex-1"><div className="truncate text-[12.5px] font-semibold">{c.type} · {c.subject}</div><div className="text-[11px] text-default-400">{c.id} · {c.src}</div></div>
+                      <ArrowRight className="h-4 w-4 shrink-0 text-default-300" />
+                    </button>
+                  ))}
+                  <p className="text-[11px] leading-relaxed text-default-400">同主体在事后监控 / 案件管理也有线索 —— 研判时一并考虑;<b className="text-default-600">升级 / 转研判 / 建案</b>可并入同一案件,避免重复立案与重复 STR。</p>
+                </div>
+              ) : <div className="text-[12.5px] text-default-400">未发现跨模块关联线索 · 该主体在事后 / 案件无其它命中。</div>}
             </CardBody>
           </Card>
         </div>
