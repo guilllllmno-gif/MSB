@@ -5,7 +5,7 @@ import { Button, Tabs, Tab, Textarea } from "@heroui/react";
 import {
   ArrowLeft, ChevronLeft, ChevronRight, ChevronDown, UserPlus, ExternalLink, ArrowUpRight, Link2, Plus,
   Lightbulb, Check, X, ArrowRight, ArrowDownToLine, GitMerge, ArrowLeftRight, Shuffle, Waypoints, CircleOff, Coins,
-  Gauge, ShieldAlert, CheckCircle2, Wallet, Landmark, BellRing, FileText, Eye, Download, FileSignature, Save, Send, ClipboardCheck,
+  Gauge, ShieldAlert, CheckCircle2, Wallet, Landmark, BellRing, FileText, Eye, Download, FileSignature, Save, Send, ClipboardCheck, Fingerprint,
 } from "lucide-react";
 import { Shell } from "@/components/Shell";
 import { Pill } from "@/components/bits";
@@ -354,6 +354,7 @@ export default function CaseDetail() {
                   <span className="text-[15px] font-bold">{sel?.name}</span>
                   <Pill tone={SUBJ_TONE[sel?.type || "商户"]} dot={false}>{sel?.type}</Pill>
                   <span className="text-[12px] text-default-400">{sel?.role}</span>
+                  {sel?.name && <button onClick={() => nav(`/entity?name=${encodeURIComponent(sel.name)}`)} className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-brand hover:underline"><Fingerprint className="h-3.5 w-3.5" />主体360</button>}
                   {sel?.amount && <span className="ml-auto text-[13px] font-semibold tnum">{sel.amount}</span>}
                 </div>
 

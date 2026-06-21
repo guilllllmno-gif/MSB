@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from "react";
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import { Button } from "@heroui/react";
-import { LayoutDashboard, Bell, Search, ListChecks, SlidersHorizontal, Shield, FolderOpen, FileText, Clock, ChevronDown, ChevronsLeft, ChevronsRight, HelpCircle, LogOut, Network, FileCheck, History } from "lucide-react";
+import { LayoutDashboard, Bell, Search, ListChecks, SlidersHorizontal, Shield, FolderOpen, FileText, Clock, ChevronDown, ChevronsLeft, ChevronsRight, HelpCircle, LogOut, Network, FileCheck, History, Fingerprint } from "lucide-react";
 import { Initials, ThemeToggle } from "./bits";
 
 type Item = { to: string; label: string; icon: typeof Bell; tag?: string };
@@ -12,6 +12,7 @@ const NAV: ({ group: string } | Item)[] = [
   { to: "/post-monitoring", label: "事后监控", icon: History },
   { to: "/alerts", label: "告警研判", icon: Bell, tag: "128" },
   { to: "/dispositions", label: "处置记录", icon: FileCheck },
+  { to: "/entity", label: "主体档案", icon: Fingerprint },
   { group: "检测策略" },
   { to: "/rings", label: "团伙识别", icon: Network },
   { to: "/rules", label: "监控规则", icon: ListChecks },
@@ -25,6 +26,7 @@ const NAV: ({ group: string } | Item)[] = [
 
 export function Shell({ crumb, wide, children }: { crumb: string[]; wide?: boolean; children: ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
+  const nav = useNavigate();
   return (
     <div className="flex h-screen overflow-hidden bg-[var(--page)]">
       <aside className={`flex shrink-0 flex-col overflow-y-auto overflow-x-hidden px-3 py-4 transition-[width] duration-300 ease-in-out ${collapsed ? "w-[78px]" : "w-[252px]"}`}>
@@ -79,7 +81,7 @@ export function Shell({ crumb, wide, children }: { crumb: string[]; wide?: boole
             ))}
           </div>
           <div className="ml-auto flex items-center gap-2">
-            <Button isIconOnly size="sm" radius="full" variant="flat" className="bg-default-100"><Search className="h-[18px] w-[18px] text-default-500" strokeWidth={1.9} /></Button>
+            <Button isIconOnly size="sm" radius="full" variant="flat" className="bg-default-100" aria-label="主体档案 360" onPress={() => nav("/entity")}><Search className="h-[18px] w-[18px] text-default-500" strokeWidth={1.9} /></Button>
             <Button isIconOnly size="sm" radius="full" variant="flat" className="relative bg-default-100"><Bell className="h-[18px] w-[18px] text-default-500" strokeWidth={1.9} /><span className="absolute right-1.5 top-1.5 h-[7px] w-[7px] rounded-full ring-2 ring-content1" style={{ background: "var(--danger)" }} /></Button>
             <ThemeToggle />
             <Button size="sm" radius="full" variant="flat" className="bg-default-100" endContent={<ChevronDown className="h-3.5 w-3.5" />}>风控 · L1</Button>

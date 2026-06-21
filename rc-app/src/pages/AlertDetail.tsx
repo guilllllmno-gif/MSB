@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { Card, CardHeader, CardBody, Button, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell } from "@heroui/react";
-import { ArrowLeft, ClipboardCheck, Clock, Info, Network, ArrowRight, Link2 } from "lucide-react";
+import { ArrowLeft, ClipboardCheck, Clock, Info, Network, ArrowRight, Link2, Fingerprint } from "lucide-react";
 import { Shell } from "@/components/Shell";
 import { Timeline } from "@/components/Timeline";
 import { Pill, SoftChip, Initials, RiskBadge } from "@/components/bits";
@@ -119,7 +119,7 @@ export default function AlertDetail() {
                 <Kv label="提交时间"><span className="tnum">{a.submitted}</span></Kv><Kv label="告警ID">{a.id}</Kv>
               </div></CardBody>
             </Card>
-            <Card shadow="none" className="card"><CardHeader><div className="text-[15px] font-bold">商户 / 客户画像</div></CardHeader><CardBody className="flex flex-col gap-2 pt-0 text-[12.5px]">
+            <Card shadow="none" className="card"><CardHeader className="flex items-center justify-between gap-2"><div className="text-[15px] font-bold">商户 / 客户画像</div><Button size="sm" variant="light" className="h-7 min-w-0 px-2 text-[12px] text-brand" startContent={<Fingerprint className="h-3.5 w-3.5" />} onPress={() => nav(`/entity?name=${encodeURIComponent(a.merchant)}`)}>主体360</Button></CardHeader><CardBody className="flex flex-col gap-2 pt-0 text-[12.5px]">
               <div className="flex items-baseline justify-between gap-3 border-b border-dashed border-default-200 py-2"><span className="text-default-500">商户</span><span className="font-semibold">{a.merchant} <span className="font-normal text-default-400">· {a.country}</span></span></div>
               <div className="flex items-baseline justify-between gap-3 border-b border-dashed border-default-200 py-2"><span className="text-default-500">分级</span><Pill tone={a.merchantTier[1]}>{a.merchantTier[0]}</Pill></div>
               <div className="flex items-baseline justify-between gap-3 border-b border-dashed border-default-200 py-2"><span className="text-default-500">KYB</span><span className="font-semibold">{a.kyb} · 账龄 {a.accountAge}</span></div>
