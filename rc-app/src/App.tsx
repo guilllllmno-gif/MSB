@@ -23,6 +23,7 @@ const EntityProfile = lazy(() => import("@/pages/EntityProfile"));
 const ReportDetail = lazy(() => import("@/pages/ReportDetail"));
 const ListsPage = lazy(() => import("@/pages/ListsPage"));
 const ListDetail = lazy(() => import("@/pages/ListDetail"));
+const StrategyPage = lazy(() => import("@/pages/StrategyPage"));
 const Placeholder = lazy(() => import("@/pages/Placeholder"));
 
 const STUBS = ["/strategy", "/audit"];
@@ -44,6 +45,7 @@ export default function App() {
             <Route path="/report" element={<ReportDetail />} />
             <Route path="/lists" element={<ListsPage />} />
             <Route path="/list-entry" element={<ListDetail />} />
+            <Route path="/strategy" element={<StrategyPage />} />
             <Route path="/rules" element={<RulesPage />} />
             <Route path="/rule" element={<RuleDetail />} />
             <Route path="/cases" element={<CaseList />} />
