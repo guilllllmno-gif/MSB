@@ -3,8 +3,8 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { Button } from "@heroui/react";
 import { LayoutDashboard, Bell, Search, ListChecks, SlidersHorizontal, Shield, FolderOpen, FileText, Clock, ChevronDown, ChevronsLeft, ChevronsRight, HelpCircle, LogOut, Network, FileCheck, History, Fingerprint } from "lucide-react";
 import { Initials, ThemeToggle } from "./bits";
-import logoIcon from "@/assets/logo-icon.png";
-import logoFull from "@/assets/logo-full.png";
+import logoIcon from "@/assets/logo-icon.svg";
+import logoFull from "@/assets/logo-full.svg";
 
 type Item = { to: string; label: string; icon: typeof Bell; tag?: string };
 const NAV: ({ group: string } | Item)[] = [
