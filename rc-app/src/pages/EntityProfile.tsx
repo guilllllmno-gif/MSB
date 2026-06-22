@@ -2,10 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Button, Input, Select, SelectItem, Popover, PopoverTrigger, PopoverContent } from "@heroui/react";
-import { Fingerprint, Search, Bell, History, Network, FolderOpen, FileText, ArrowUpRight, ShieldAlert, Store, Link2, Layers, Building2, Lock, AlertOctagon, TrendingUp, TrendingDown, Minus, UserPlus, Send, Clock3, Sparkles, GitMerge } from "lucide-react";
+import { Search, Bell, Network, FolderOpen, ArrowUpRight, ArrowLeft, ShieldAlert, Store, Layers, Building2, Lock, AlertOctagon, TrendingUp, TrendingDown, Minus, UserPlus, Send, Clock3, Sparkles, GitMerge, Globe, IdCard } from "lucide-react";
 import { Shell, PageHead } from "@/components/Shell";
-import { Pill, SoftChip, SectionLabel, Initials, toneVar } from "@/components/bits";
-import { directory, footprint, totalExposure, fmtCAD, entityType, ENTITY_TONE, sameEntity, linkedAddresses, type DirEntry, type Pending } from "@/lib/entity360";
+import { Pill, SoftChip, Initials, toneVar } from "@/components/bits";
+import { Timeline } from "@/components/Timeline";
+import { directory, footprint, totalExposure, fmtCAD, entityType, sameEntity, linkedAddresses, type DirEntry, type Pending } from "@/lib/entity360";
 import { RC_STATES, type Tone } from "@/lib/data";
 import { FSTATES, FDIM } from "@/lib/findings";
 import { CSTATE, type CState } from "@/lib/cases";
@@ -13,32 +14,9 @@ import { RSTATE } from "@/lib/reports";
 import { RING_STATES } from "@/lib/rings";
 import { alertStore, useAlertVersion, findingStore, useFindingVersion, caseStore, useCaseVersion, reportStore, useReportVersion, ringStore, useRingVersion } from "@/lib/store";
 
-const MOD_ICON: Record<string, typeof Bell> = { alerts: Bell, findings: History, rings: Network, cases: FolderOpen, reports: FileText };
 const MOD_LABEL: Record<string, string> = { alerts: "告警", findings: "事后", rings: "团伙", cases: "案件", reports: "报送" };
-
-// ── 模块命中(中性、带计数:命中=深灰填充 chip,未命中=淡灰)──
 type ModCount = { alerts: number; findings: number; rings: number; cases: number; reports: number };
-function ModCoverage({ on }: { on: ModCount }) {
-  return (
-    <div className="flex flex-wrap items-center gap-1">
-      {(["alerts", "findings", "rings", "cases", "reports"] as const).map((m) => {
-        const n = on[m] || 0; const lit = n > 0;
-        return (
-          <span key={m} className="inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-[11px] font-medium"
-            style={lit ? { background: "var(--track)", color: "var(--text-2)" } : { color: "var(--text-3)" }}>
-            {MOD_LABEL[m]}<span className="tnum font-bold">{lit ? n : "–"}</span>
-          </span>
-        );
-      })}
-    </div>
-  );
-}
-
-// 统一足迹列表里的模块标签(全部视图用,标明该条来自哪个模块)
-function ModTag({ mod }: { mod: string }) {
-  const Icon = MOD_ICON[mod];
-  return <span className="inline-flex items-center gap-1 rounded-md bg-default-100 px-1.5 py-0.5 text-[10.5px] font-semibold text-default-500"><Icon className="h-3 w-3" />{MOD_LABEL[mod]}</span>;
-}
+type ModKey = keyof ModCount;
 
 // 案件推进度序(取最推进的在办案件作串并主案)
 const CASE_ORDER: Record<string, number> = { investigating: 0, str_draft: 1, mlro: 2, queued: 3, filed: 4 };
@@ -71,205 +49,260 @@ function Profile({ name }: { name: string }) {
   };
   useEffect(() => { if (params.get("merge") === "1" && mergeable) setTimeout(() => document.getElementById("merge-banner")?.scrollIntoView({ behavior: "smooth", block: "center" }), 80); }, [params, mergeable]);
 
-  // 综合风险标签 —— 由跨模块足迹推导(有案件/团伙=高,纯告警/事后=中)
-  const hasCase = fp.cases.some((c) => CSTATE[(caseStore.stateOf(c.id, c.state)) as CState]?.active);
-  const hasRing = fp.rings.length > 0;
-  const sanc = fp.alerts.some((a) => a.sanctions?.status?.includes("命中")) || fp.cases.some((c) => /制裁/.test(c.risk + c.type));
-  const riskTone: Tone = sanc || hasCase ? "red" : hasRing ? "amber" : "blue";
-  const riskLabel = sanc ? "制裁关联 · 高风险" : hasCase ? "在办案件 · 高风险" : hasRing ? "团伙关联 · 关注" : fp.alerts.length || fp.findings.length ? "有命中 · 观察" : "暂无命中";
+  // 账户状态 / 风险词 / 商户号 / 注册地 —— 复用目录派生(directory),保持与总览口径一致
+  const dir = useMemo(() => directory().find((e) => sameEntity(e.name, name)), [name]);
+  const riskNum = dir?.risk ?? 0;
+  const riskWord = riskNum >= 80 ? "高风险" : riskNum >= 60 ? "中风险" : "低风险";
+  const riskTone: Tone = riskNum >= 80 ? "red" : riskNum >= 60 ? "amber" : "green";
 
   const modCount = { alerts: fp.alerts.length, findings: fp.findings.length, rings: fp.rings.length, cases: fp.cases.length, reports: fp.reports.length };
   const strCount = fp.cases.filter((c) => ["str_draft", "mlro", "queued", "filed"].includes(caseStore.stateOf(c.id, c.state))).length + fp.reports.length;
 
-  // 画像信息 —— 从最丰富的来源拼(告警 merchantTier/kyb/accountAge,否则案件/事后)
+  // 画像信息 —— 取自最丰富来源(告警 merchantTier/kyb/accountAge),缺则合成
   const a0 = fp.alerts[0];
-  const TypeIcon = type === "链上地址" ? Link2 : type === "团伙" ? Network : Store;
+  const merchantNo = dir?.merchantNo ?? "—";
+  const country = a0?.country ?? dir?.country ?? "—";
+  const vol30 = a0?.custHistory?.vol30 ?? dir?.vol30 ?? "—";
 
-  // 关联商户 —— 同团伙成员 + 同案件涉案主体里的「其它商户」(主体=商户维度,地址不作关联主体,见下方属性卡)
+  // 关联主体(带关联强度 + 依据)—— 同团伙成员 + 同案商户子主体
   const related = useMemo(() => {
-    const set = new Map<string, { name: string; via: string }>();
-    const add = (n: string, via: string) => { if (!sameEntity(n, name) && entityType(n) === "商户") set.set(n, { name: n, via }); };
-    fp.rings.forEach((rh) => rh.ring.members.forEach((m) => { if (m.kind !== "群组") add(m.name, `同团伙 ${rh.ring.id}`); }));
-    // 案件子主体只取声明为「商户」的(剔除 Tornado Cash 等链上地址 / 个人 / UBO,它们不作关联主体)
-    fp.cases.forEach((c) => (c.subjects || []).forEach((s) => { if (s.type === "商户") add(s.name, `同案 ${c.id}`); }));
-    return [...set.values()].slice(0, 12);
+    const set = new Map<string, { name: string; strength: string; tone: Tone; detail: string }>();
+    const add = (n: string, strength: string, tone: Tone, detail: string) => { if (!sameEntity(n, name) && entityType(n) === "商户" && !set.has(n)) set.set(n, { name: n, strength, tone, detail }); };
+    fp.rings.forEach((rh) => { const [s, t]: [string, Tone] = rh.ring.confidence >= 80 ? ["强", "red"] : rh.ring.confidence >= 60 ? ["中", "amber"] : ["弱", "grey"]; rh.ring.members.forEach((m) => { if (m.kind !== "群组") add(m.name, s, t, `同伙 · ${rh.ring.typology}`); }); });
+    fp.cases.forEach((c) => (c.subjects || []).forEach((s) => { if (s.type === "商户") add(s.name, "中", "amber", `同案 ${c.id}`); }));
+    return [...set.values()].slice(0, 8);
   }, [fp, name]);
 
   // 商户 → 关联链上地址(从告警交易对手反推:托管钱包 + 入金来源 / 出金去向对手)
   const addrs = useMemo(() => (type === "商户" ? linkedAddresses(name) : []), [name, type]);
 
-  // 跨模块足迹 → 统一列表项(每条带 mod,可按 tab 过滤;模块标签是该行唯一图标,记录列纯文本)
-  type FI = { mod: "alerts" | "findings" | "rings" | "cases" | "reports"; key: string; to: string; title: React.ReactNode; sub: React.ReactNode; right: React.ReactNode };
-  const footItems: FI[] = [
-    ...fp.alerts.map((a): FI => { const st = RC_STATES[alertStore.stateOf(a.id, a.state)] || RC_STATES.new; return { mod: "alerts", key: a.id, to: `/alert?id=${a.id}`, title: <><span>{a.title}</span><span className="text-default-400">· {a.id}</span></>, sub: `评分 ${a.score} · ${a.type} · ${a.amount}`, right: <Pill tone={st.cls} dot={false}>{st.label}</Pill> }; }),
-    ...fp.findings.map((f): FI => { const st = FSTATES[findingStore.statusOf(f.id, f.status) as keyof typeof FSTATES] || FSTATES.new; return { mod: "findings", key: f.id, to: `/finding?id=${f.id}`, title: <><span>{f.pattern}</span><span className="text-default-400">· {f.id}</span></>, sub: `${FDIM[f.dim].label} · ${f.hit}`, right: <Pill tone={st.tone} dot={false}>{st.label}</Pill> }; }),
-    ...fp.rings.map(({ ring, member }): FI => { const st = RING_STATES[ringStore.stateOf(ring.id, ring.state) as keyof typeof RING_STATES]; return { mod: "rings", key: ring.id, to: `/ring?id=${ring.id}`, title: <><span>{ring.name}</span><span className="text-default-400">· {ring.id}</span></>, sub: `本主体角色:${member.role} · ${ring.typology} · ${ring.members.length} 主体`, right: st ? <Pill tone={st.tone} dot={false}>{st.label}</Pill> : null }; }),
-    ...fp.cases.map((c): FI => { const cs = caseStore.stateOf(c.id, c.state) as CState; const st = CSTATE[cs]; return { mod: "cases", key: c.id, to: `/case?id=${c.id}`, title: <><span>{c.type}</span><span className="text-default-400">· {c.id}</span></>, sub: `${c.risk} · ${c.amount} · 来源 ${c.src}`, right: <Pill tone={st.tone} dot={false}>{st.label}</Pill> }; }),
-    ...fp.reports.map((r): FI => { const st = RSTATE[reportStore.statusOf(r.id, r.status) as keyof typeof RSTATE]; return { mod: "reports", key: r.id, to: r.to || "/reports", title: <><SoftChip net>{r.type}</SoftChip><span>{r.summary.slice(0, 24)}…</span><span className="text-default-400">· {r.id}</span></>, sub: `${r.sub} · ${r.amount}`, right: st ? <Pill tone={st.tone} dot={false}>{st.label}</Pill> : null }; }),
-  ];
-  const [tab, setTab] = useState<string>("all");
-  useEffect(() => { setTab("all"); }, [name]); // 切换主体时回到全部
-  const shown = tab === "all" || tab === "profile" ? footItems : footItems.filter((i) => i.mod === tab);
+  // 完整事件记录 —— 跨模块统一事件流(类型 / 事件 / 记录·单号 / 时间 / 状态)
+  type EV = { mod: ModKey; key: string; to: string; event: string; recLabel: string; recId: string; time: string; right: React.ReactNode };
+  const events: EV[] = [
+    ...fp.alerts.map((a): EV => { const st = RC_STATES[alertStore.stateOf(a.id, a.state)] || RC_STATES.new; return { mod: "alerts", key: a.id, to: `/alert?id=${a.id}`, event: `${a.title}(评分 ${a.score})`, recLabel: `${a.type} · 命中 ${a.ruleShort}`, recId: a.id, time: evtTime(a.id), right: <Pill tone={st.cls} dot>{st.label}</Pill> }; }),
+    ...fp.findings.map((f): EV => { const st = FSTATES[findingStore.statusOf(f.id, f.status) as keyof typeof FSTATES] || FSTATES.new; return { mod: "findings", key: f.id, to: `/finding?id=${f.id}`, event: f.hit, recLabel: `${f.pattern} · ${FDIM[f.dim].label}`, recId: f.id, time: evtTime(f.id), right: <Pill tone={st.tone} dot>{st.label}</Pill> }; }),
+    ...fp.rings.map(({ ring, member }): EV => { const st = RING_STATES[ringStore.stateOf(ring.id, ring.state) as keyof typeof RING_STATES]; return { mod: "rings", key: ring.id, to: `/ring?id=${ring.id}`, event: `与 ${ring.members.length} 个主体共享标识聚类成团 · ${ring.typology}`, recLabel: `本主体角色 ${member.role}`, recId: ring.id, time: evtTime(ring.id), right: st ? <Pill tone={st.tone} dot>{st.label}</Pill> : null }; }),
+    ...fp.cases.map((c): EV => { const cs = caseStore.stateOf(c.id, c.state) as CState; const st = CSTATE[cs]; return { mod: "cases", key: c.id, to: `/case?id=${c.id}`, event: `${c.risk} · 来源 ${c.src}`, recLabel: c.type, recId: c.id, time: evtTime(c.id), right: <Pill tone={st.tone} dot>{st.label}</Pill> }; }),
+    ...fp.reports.map((r): EV => { const st = RSTATE[reportStore.statusOf(r.id, r.status) as keyof typeof RSTATE]; return { mod: "reports", key: r.id, to: r.to || "/reports", event: r.summary, recLabel: `${r.type} · ${r.sub}`, recId: r.id, time: evtTime(r.id), right: st ? <Pill tone={st.tone} dot>{st.label}</Pill> : null }; }),
+  ].sort((x, y) => y.time.localeCompare(x.time)); // 时间倒序
 
-  const FOOT_TABS = ([["alerts", modCount.alerts], ["findings", modCount.findings], ["rings", modCount.rings], ["cases", modCount.cases], ["reports", modCount.reports]] as const).filter(([, n]) => n > 0);
+  const [tab, setTab] = useState<"info" | "log">("info");
+  const [evFilter, setEvFilter] = useState<string>("all");
+  useEffect(() => { setTab("info"); setEvFilter("all"); }, [name]);
+  const evShown = evFilter === "all" ? events : events.filter((e) => e.mod === evFilter);
+  const EV_TABS = ([["alerts", modCount.alerts], ["findings", modCount.findings], ["rings", modCount.rings], ["cases", modCount.cases], ["reports", modCount.reports]] as const).filter(([, n]) => n > 0);
+
+  const acctPill = dir?.acct && dir.acct.key !== "normal" ? dir.acct : null;
+  const uboCount = 1 + (avHash(name + "ubo") % 3);
 
   return (
-    <Shell crumb={["主体档案", name]} wide>
-      <PageHead title={name} sub="商户主体360 · 一个商户(法律实体)在 事中 / 事后 / 告警 / 团伙 / 案件 / 报送 的全部足迹聚到一张视图。地址 / 行为是该商户名下的属性与记录,不另作主体。" actions={
-        <Button size="sm" variant="flat" className="bg-default-100" startContent={<Fingerprint className="h-4 w-4" />} onPress={() => nav("/entity")}>主体目录</Button>
-      } />
+    <Shell crumb={["风控", "主体档案", name]} wide>
+      <button onClick={() => nav("/entity")} className="mb-3.5 inline-flex items-center gap-1.5 text-[13px] font-medium text-default-500 hover:text-foreground"><ArrowLeft className="h-4 w-4" />返回主体档案</button>
 
-      {/* 风险横幅 —— 两行:① 类型/风险 + 累计敞口 ② 模块命中(中性) */}
-      <div className="card mb-5 border-l-[3px] p-4" style={{ borderLeftColor: toneVar(riskTone) }}>
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><TypeIcon className="h-[18px] w-[18px]" strokeWidth={2} /></span>
-          <Pill tone={ENTITY_TONE[type]} dot={false}>{type}</Pill>
-          <Pill tone={riskTone} icon={<ShieldAlert className="h-3 w-3" />}>{riskLabel}</Pill>
-          <span className="ml-auto text-[12px] text-default-500">累计涉及 <b style={{ color: toneVar(riskTone) }}>{fmtCAD(exposure)}</b></span>
-        </div>
-        <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1.5 border-t border-default-100 pt-3">
-          <span className="text-[11px] font-semibold text-default-400">模块命中</span>
-          <ModCoverage on={modCount} />
-          <span className="ml-auto text-[11px] text-default-400">跨 <b className="text-default-600">{Object.values(modCount).filter((n) => n > 0).length}</b>/5 模块{strCount ? <> · STR/报送 <b className="text-default-600">{strCount}</b></> : null}</span>
-        </div>
+      {/* 页头 */}
+      <div className="mb-5">
+        <h1 className="flex flex-wrap items-center gap-2.5 text-[23px] font-bold tracking-tight">
+          {name}
+          {acctPill && <Pill tone={acctPill.tone} dot={false}>{acctPill.label}</Pill>}
+          <Pill tone={riskTone} dot={false}>{riskWord}</Pill>
+        </h1>
+        <div className="mt-2 text-[13px] text-default-500">商户号 <span className="tnum">{merchantNo}</span> · 注册国家 {country} · 入网时间 {synthReg(name)}</div>
       </div>
 
-      {/* 串并横幅 —— 同商户多个在办案件 = 重复立案 / 可串并(从总览 ·N案 直达) */}
-      {mergeable && (
-        <div id="merge-banner" className="card mb-5 border-l-[3px] p-4" style={{ borderLeftColor: "var(--violet)" }}>
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ background: "var(--violet-bg)", color: "var(--violet)" }}><GitMerge className="h-[18px] w-[18px]" /></span>
-            <div>
-              <div className="text-[14px] font-bold">疑似重复立案 · 该商户有 {activeCases.length} 个在办案件</div>
-              <div className="text-[11.5px] text-default-400">案件 = 单一容器。建议串并为一案,一次审核、一份 STR,消除重复立案 / 重复 STR。</div>
-            </div>
-            <Button size="sm" color="secondary" className="ml-auto" startContent={<GitMerge className="h-4 w-4" />} onPress={doMerge}>一键串并到 {primary.c.id}</Button>
-          </div>
-          <div className="mt-3 flex flex-col gap-1.5">
-            {activeCases.map(({ c, st }) => (
-              <button key={c.id} onClick={() => nav(`/case?id=${c.id}`)} className="card-hover group flex items-center gap-2 rounded-xl border border-default-200 px-3 py-2 text-left">
-                <span className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ background: "var(--violet-bg)", color: "var(--violet)" }}><FolderOpen className="h-[15px] w-[15px]" /></span>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 text-[12.5px] font-semibold"><span className="truncate">{c.type}</span><span className="text-default-400">· {c.id}</span>{c.id === primary.c.id && <Pill tone="violet" dot={false}>主案</Pill>}</div>
-                  <div className="truncate text-[11.5px] text-default-400">{c.risk} · {c.amount} · 来源 {c.src}</div>
-                </div>
-                <Pill tone={CSTATE[st].tone} dot={false}>{CSTATE[st].label}</Pill>
-                <ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-default-300 group-hover:text-brand" />
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* tabs */}
+      <div className="mb-5 flex items-center gap-6 border-b border-divider">
+        {([["info", "基本信息"], ["log", "活动日志"]] as const).map(([k, label]) => (
+          <button key={k} onClick={() => setTab(k)} className={`relative -mb-px pb-3 text-[14px] font-semibold transition-colors ${tab === k ? "text-foreground" : "text-default-400 hover:text-default-600"}`}>
+            {label}{tab === k && <span className="absolute inset-x-0 bottom-0 h-0.5 rounded-full bg-primary" />}
+          </button>
+        ))}
+      </div>
 
-      {/* 跨模块足迹 —— 整合为单卡 + tab 切换;全部足迹为统一列表(每行带模块标签) */}
-      <div className="card overflow-hidden">
-        <div className="flex flex-wrap items-center gap-1.5 border-b border-default-100 px-4 pt-4">
-          {([["all", "全部足迹", footItems.length], ...FOOT_TABS.map(([k, n]) => [k, MOD_LABEL[k], n] as [string, string, number]), ["profile", "画像与关联", null]] as [string, string, number | null][]).map(([k, label, n]) => {
-            const on = tab === k;
-            return (
-              <button key={k} onClick={() => setTab(k)} className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[13px] font-semibold transition-colors ${on ? "" : "text-default-500 hover:bg-default-50"}`} style={on ? { background: "var(--brand-soft)", color: "var(--brand)" } : undefined}>
-                {label}{n != null && <span className="tnum rounded-full px-1.5 text-[10.5px] font-bold" style={on ? { background: "color-mix(in srgb,var(--brand) 16%,transparent)", color: "var(--brand)" } : { background: "var(--track)", color: "var(--text-3)" }}>{n}</span>}
-              </button>
-            );
-          })}
+      {tab === "log" ? (
+        <div className="card p-5">
+          <div className="mb-3 text-[15px] font-bold">活动日志 · 全部事件时间线</div>
+          <Timeline items={events.map((e) => ({ time: e.time, text: `[${MOD_LABEL[e.mod]}] ${e.event} · ${e.recId}`, done: true }))} />
         </div>
-
-        {tab === "profile" ? (
-          <div className="flex flex-col gap-5 p-4">
-              <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-                <div>
-                  <SectionLabel>主体画像</SectionLabel>
-                  <div className="flex flex-col gap-2 text-[12.5px]">
-                    <KV label="类型">{type}</KV>
-                    {a0 && <KV label="注册地">{a0.country}</KV>}
-                    {a0 && <KV label="商户分级"><Pill tone={a0.merchantTier[1]} dot={false}>{a0.merchantTier[0]}</Pill></KV>}
-                    {a0 && <KV label="KYB">{a0.kyb}</KV>}
-                    {a0 && <KV label="账龄">{a0.accountAge}</KV>}
-                    {a0?.sanctions && <KV label="制裁筛查"><span style={{ color: a0.sanctions.status.includes("命中") ? "var(--danger)" : undefined }}>{a0.sanctions.status}</span></KV>}
-                    {a0?.custHistory && <KV label="30日交易额">{a0.custHistory.vol30}</KV>}
-                    {!a0 && <div className="py-2 text-[11.5px] text-default-400">该主体未在事中告警出现,画像取自事后 / 案件维度。</div>}
-                  </div>
-                </div>
-                <div className="flex flex-col gap-5">
-                  {addrs.length > 0 && (
-                    <div>
-                      <SectionLabel>关联链上地址 · 该商户属性</SectionLabel>
-                      <div className="flex flex-col gap-1.5">
-                        {addrs.map((a) => (
-                          <div key={a.addr} className="flex items-center gap-2 rounded-lg border border-default-200 px-2.5 py-2">
-                            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg" style={{ background: "var(--violet-bg)", color: "var(--violet)" }}><Link2 className="h-3.5 w-3.5" /></span>
-                            <span className="min-w-0 flex-1 truncate text-[12px] font-semibold">{a.addr}</span>
-                            <Pill tone={a.role === "商户托管" ? "blue" : "violet"} dot={false}>{a.role}</Pill>
-                            <span className="shrink-0 text-[10.5px] text-default-400">{a.dir}</span>
-                          </div>
-                        ))}
-                      </div>
-                      <p className="mt-2 text-[11px] leading-relaxed text-default-400">从该商户告警 sender / receiver 反推,作商户<b>属性</b>展示(地址不另作主体)。<b>商户托管</b>=本方钱包,<b>交易对手</b>=入金来源 / 出金去向。</p>
-                    </div>
-                  )}
-                  {related.length > 0 && (
-                    <div>
-                      <SectionLabel>关联主体 · 同团伙 / 同案</SectionLabel>
-                      <div className="flex flex-col gap-1.5">
-                        {related.map((r) => (
-                          <button key={r.name} onClick={() => nav(`/entity?name=${encodeURIComponent(r.name)}`)} className="card-hover group flex items-center gap-2 rounded-lg border border-default-200 px-2.5 py-2 text-left">
-                            <Pill tone={ENTITY_TONE[entityType(r.name)]} dot={false}>{entityType(r.name)}</Pill>
-                            <span className="min-w-0 flex-1 truncate text-[12px] font-semibold">{r.name}</span>
-                            <span className="shrink-0 text-[10.5px] text-default-400">{r.via}</span>
-                            <ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-default-300 group-hover:text-brand" />
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
+      ) : (
+      <div className="flex flex-col gap-5">
+        {/* 串并横幅 —— 同商户多个在办案件 = 重复立案 / 可串并 */}
+        {mergeable && (
+          <div id="merge-banner" className="card border-l-[3px] p-4" style={{ borderLeftColor: "var(--violet)" }}>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ background: "var(--violet-bg)", color: "var(--violet)" }}><GitMerge className="h-[18px] w-[18px]" /></span>
+              <div>
+                <div className="text-[14px] font-bold">疑似重复立案 · 该商户有 {activeCases.length} 个在办案件</div>
+                <div className="text-[11.5px] text-default-400">案件 = 单一容器。建议串并为一案,一次审核、一份 STR,消除重复立案 / 重复 STR。</div>
               </div>
-              <p className="flex items-start gap-1.5 rounded-xl border-l-[3px] border-l-brand bg-default-50 p-3 text-[12px] leading-relaxed text-default-500">
-                <Layers className="mt-px h-4 w-4 shrink-0 text-default-400" />同一主体常被事中、事后、团伙、案件各自命中一次,分散在不同队列里看不全。主体360 按归一化键把它们聚到一起 —— 一眼看清全部敞口、是否已立案、有没有重复 STR,支撑「并案而非重复立案」。
-              </p>
+              <Button size="sm" color="secondary" className="ml-auto" startContent={<GitMerge className="h-4 w-4" />} onPress={doMerge}>一键串并到 {primary.c.id}</Button>
             </div>
-        ) : shown.length === 0 ? (
-          <div className="flex flex-col items-center justify-center gap-2 px-4 py-16 text-center">
-              <Layers className="h-7 w-7 text-default-300" />
-              <div className="text-[13px] font-semibold text-default-500">{footItems.length === 0 ? "该主体暂无跨模块命中记录" : "该模块下无记录"}</div>
-              <div className="text-[11.5px] text-default-400">{footItems.length === 0 ? "名字写法可能与各模块不一致,可回主体目录选取已聚合的主体。" : "切到「全部足迹」查看其它模块。"}</div>
+            <div className="mt-3 flex flex-col gap-1.5">
+              {activeCases.map(({ c, st }) => (
+                <button key={c.id} onClick={() => nav(`/case?id=${c.id}`)} className="card-hover group flex items-center gap-2 rounded-xl border border-default-200 px-3 py-2 text-left">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ background: "var(--violet-bg)", color: "var(--violet)" }}><FolderOpen className="h-[15px] w-[15px]" /></span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 text-[12.5px] font-semibold"><span className="truncate">{c.type}</span><span className="text-default-400">· {c.id}</span>{c.id === primary.c.id && <Pill tone="violet" dot={false}>主案</Pill>}</div>
+                    <div className="truncate text-[11.5px] text-default-400">{c.risk} · {c.amount} · 来源 {c.src}</div>
+                  </div>
+                  <Pill tone={CSTATE[st].tone} dot={false}>{CSTATE[st].label}</Pill>
+                  <ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-default-300 group-hover:text-brand" />
+                </button>
+              ))}
             </div>
-        ) : (
+          </div>
+        )}
+
+        {/* KPI */}
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+          <MiniKpi label="累计涉及金额" value={fmtCAD(exposure)} tone={riskTone} />
+          <MiniKpi label="累计告警" value={modCount.alerts} />
+          <MiniKpi label="事后命中" value={modCount.findings} />
+          <MiniKpi label="立案调查" value={modCount.cases} tone={modCount.cases ? "violet" : undefined} />
+          <MiniKpi label="STR / 报送" value={strCount} tone={strCount ? "red" : undefined} />
+          <MiniKpi label="关联团伙" value={modCount.rings} tone={modCount.rings ? "amber" : undefined} />
+        </div>
+
+        {/* 主体档案 + 关联网络 */}
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+          {/* 主体档案 */}
+          <div className="card p-5">
+            <div className="mb-4 flex items-center gap-2 text-[15px] font-bold"><IdCard className="h-[18px] w-[18px] text-default-400" />主体档案</div>
+            <div className="flex items-center gap-3 border-b border-default-100 pb-4">
+              <Initials p={{ i: initialsOf(name), c: AV_COLORS[avHash(name) % AV_COLORS.length] }} size={44} />
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-[15px] font-bold">{name}</div>
+                <div className="tnum text-[12px] text-default-400">{merchantNo}</div>
+              </div>
+              <Button size="sm" variant="bordered" endContent={<ArrowUpRight className="h-3.5 w-3.5" />} onPress={() => a0 && nav(`/alert?id=${a0.id}`)}>尽调档案</Button>
+            </div>
+            <div className="mt-4 grid grid-cols-2 gap-x-6 gap-y-4">
+              <Field label="KYC 分级">{a0?.merchantTier?.[0] ?? "—"}</Field>
+              <Field label="注册地">{country}</Field>
+              <Field label="类型">企业 (Corp.) · 货币服务</Field>
+              <Field label="账户年龄">{a0?.accountAge ?? "—"}</Field>
+              <Field label="制裁 / PEP" danger={!!a0?.sanctions?.status?.includes("命中")}>{a0?.sanctions?.status ?? "主体未命中"}</Field>
+              <Field label="UBO">{uboCount} 人</Field>
+              <Field label="30 日交易额">{vol30}</Field>
+              <Field label="KYB">{a0?.kyb ?? "—"}</Field>
+            </div>
+          </div>
+
+          {/* 关联网络 */}
+          <div className="card p-5">
+            <div className="mb-4 flex items-center gap-2 text-[15px] font-bold"><Network className="h-[18px] w-[18px] text-default-400" />关联网络</div>
+            {addrs.length > 0 && (
+              <>
+                <div className="mb-2 text-[12px] font-semibold text-default-400">关联链上地址</div>
+                <div className="flex flex-col gap-2">
+                  {addrs.map((a) => (
+                    <div key={a.addr} className="flex items-center gap-2.5 rounded-xl border border-default-200 px-3 py-2.5">
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" style={{ background: "var(--track)", color: "var(--text-3)" }}><Globe className="h-4 w-4" /></span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5 text-[12.5px] font-semibold"><span className="tnum">{a.addr}</span><span style={{ color: a.role === "商户托管" ? "var(--brand)" : "var(--violet)" }}>· {a.role}</span></div>
+                        <div className="text-[11px] text-default-400">{a.dir}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+            {related.length > 0 && (
+              <>
+                <div className="mb-2 mt-4 text-[12px] font-semibold text-default-400">关联主体 · 同团伙 / 同案</div>
+                <div className="flex flex-col gap-2">
+                  {related.map((r) => (
+                    <button key={r.name} onClick={() => nav(`/entity?name=${encodeURIComponent(r.name)}`)} className="card-hover group flex items-center gap-2.5 rounded-xl border border-default-200 px-3 py-2.5 text-left">
+                      <Initials p={{ i: initialsOf(r.name), c: AV_COLORS[avHash(r.name) % AV_COLORS.length] }} size={32} />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5 text-[12.5px] font-semibold"><span className="truncate">{r.name}</span><span className="shrink-0" style={{ color: toneVar(r.tone) }}>· {r.strength}</span></div>
+                        <div className="truncate text-[11px] text-default-400">{r.detail}</div>
+                      </div>
+                      <ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-default-300 group-hover:text-brand" />
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+            {addrs.length === 0 && related.length === 0 && <div className="py-8 text-center text-[12px] text-default-400">暂无关联地址 / 关联主体</div>}
+          </div>
+        </div>
+
+        {/* 完整事件记录 */}
+        <div className="card overflow-hidden">
+          <div className="flex flex-wrap items-center justify-between gap-2 px-5 pt-4">
+            <div className="flex items-center gap-2 text-[15px] font-bold"><Layers className="h-[18px] w-[18px] text-default-400" />完整事件记录</div>
+            <div className="text-[12px] text-default-400">按时间倒序 · 共 {events.length} 条</div>
+          </div>
+          <div className="flex flex-wrap items-center gap-1.5 px-5 pb-3 pt-3">
+            {([["all", "全部", events.length], ...EV_TABS.map(([k, n]) => [k, MOD_LABEL[k], n] as [string, string, number])] as [string, string, number][]).map(([k, label, n]) => {
+              const on = evFilter === k;
+              return (
+                <button key={k} onClick={() => setEvFilter(k)} className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-[12.5px] font-semibold transition-colors ${on ? "" : "text-default-500 hover:bg-default-100"}`} style={on ? { background: "var(--brand-soft)", color: "var(--brand)" } : { background: "var(--track)" }}>
+                  {label} {n}
+                </button>
+              );
+            })}
+          </div>
+          {evShown.length === 0 ? (
+            <div className="px-5 py-12 text-center text-[12.5px] text-default-400">该类型下无事件</div>
+          ) : (
           <table className="w-full table-fixed">
             <thead>
               <tr className="border-y border-default-100 text-[11px] font-bold uppercase tracking-wider text-default-400">
-                <th className="w-[88px] px-4 py-2.5 text-left font-bold">模块</th>
-                <th className="w-[34%] px-3 py-2.5 text-left font-bold">记录</th>
-                <th className="px-3 py-2.5 text-left font-bold">详情</th>
-                <th className="w-[132px] px-3 py-2.5 text-left font-bold">状态</th>
-                <th className="w-[44px] px-4 py-2.5"></th>
+                <th className="w-[88px] px-5 py-2.5 text-left font-bold">类型</th>
+                <th className="px-3 py-2.5 text-left font-bold">事件</th>
+                <th className="w-[28%] px-3 py-2.5 text-left font-bold">记录 / 关联单号</th>
+                <th className="w-[148px] px-3 py-2.5 text-left font-bold">时间</th>
+                <th className="w-[112px] px-5 py-2.5 text-left font-bold">状态</th>
               </tr>
             </thead>
             <tbody>
-              {shown.map((i) => (
-                <tr key={`${i.mod}-${i.key}`} onClick={() => nav(i.to)} className="cursor-pointer border-b border-default-50 align-middle transition-colors hover:bg-default-50">
-                  <td className="px-4 py-3"><ModTag mod={i.mod} /></td>
-                  <td className="truncate px-3 py-3 text-[12.5px] font-semibold">{i.title}</td>
-                  <td className="truncate px-3 py-3 text-[12px] text-default-500">{i.sub}</td>
-                  <td className="px-3 py-3"><div className="flex flex-wrap items-center gap-1.5">{i.right}</div></td>
-                  <td className="px-4 py-3 text-right"><ArrowUpRight className="ml-auto h-4 w-4 text-default-300" /></td>
+              {evShown.map((e) => (
+                <tr key={`${e.mod}-${e.key}`} onClick={() => nav(e.to)} className="cursor-pointer border-b border-default-50 align-top transition-colors hover:bg-default-50">
+                  <td className="px-5 py-3.5"><span className="inline-block rounded-md bg-default-100 px-2 py-0.5 text-[11px] font-medium text-default-600">{MOD_LABEL[e.mod]}</span></td>
+                  <td className="px-3 py-3.5 text-[12.5px] leading-snug text-default-700">{e.event}</td>
+                  <td className="px-3 py-3.5"><div className="truncate text-[12px] font-semibold">{e.recLabel}</div><div className="tnum text-[11px] text-default-400">{e.recId}</div></td>
+                  <td className="tnum px-3 py-3.5 text-[12px] text-default-500">{e.time}</td>
+                  <td className="px-5 py-3.5">{e.right}</td>
                 </tr>
               ))}
             </tbody>
           </table>
-        )}
+          )}
+        </div>
       </div>
+      )}
     </Shell>
   );
 }
 
-function KV({ label, children }: { label: string; children: React.ReactNode }) {
-  return <div className="flex items-baseline justify-between gap-3 border-b border-dashed border-default-200 py-1.5"><span className="text-default-500">{label}</span><span className="text-right font-semibold">{children}</span></div>;
+// KPI 小卡(基本信息顶部)
+function MiniKpi({ label, value, tone }: { label: string; value: React.ReactNode; tone?: Tone }) {
+  return (
+    <div className="rounded-xl border border-default-200 p-3.5">
+      <div className="text-[11.5px] font-medium text-default-400">{label}</div>
+      <div className="mt-1.5 text-[20px] font-extrabold leading-none tracking-tight" style={tone ? { color: toneVar(tone) } : undefined}>{value}</div>
+    </div>
+  );
+}
+
+// 档案字段(标签在上、值在下)
+function Field({ label, children, danger }: { label: string; children: React.ReactNode; danger?: boolean }) {
+  return (
+    <div>
+      <div className="text-[11.5px] text-default-400">{label}</div>
+      <div className="mt-1 text-[13px] font-semibold" style={danger ? { color: "var(--danger)" } : undefined}>{children}</div>
+    </div>
+  );
 }
 
 // ── 商户头像(确定性配色 + 缩写)──
 const AV_COLORS = ["var(--brand)", "var(--violet)", "var(--success)", "var(--warning)", "#e1556d", "#0ea5e9", "#8b5cf6"];
 function avHash(s: string): number { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+const pad2 = (n: number) => String(n).padStart(2, "0");
+// 确定性合成:入网时间 / 事件时间戳(刷新稳定)
+function synthReg(name: string): string { const h = avHash(name + "reg"); return `2026-${pad2(1 + (h % 11))}-${pad2(1 + ((h >> 4) % 27))}`; }
+function evtTime(key: string): string { const h = avHash(key + "ts"); return `2026-${pad2(2 + (h % 4))}-${pad2(1 + ((h >> 3) % 27))} ${pad2((h >> 6) % 24)}:${pad2((h >> 11) % 60)}`; }
 function initialsOf(name: string): string {
   const toks = name.replace(/[（(].*$/, "").trim().split(/[\s\-]+|(?<=[a-z])(?=[A-Z])/).filter(Boolean);
   const s = toks.length >= 2 ? (toks[0][0] || "") + (toks[1][0] || "") : (toks[0] || name).slice(0, 2);
