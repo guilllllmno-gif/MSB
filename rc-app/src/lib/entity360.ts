@@ -1,7 +1,7 @@
 // 主体360 · 跨模块聚合。把同一主体(商户 / 链上地址)在 事中·事后·告警·团伙·案件·报送 的全部足迹
 // 按归一化键聚到一起 —— 解决「同主体跨模块」却名字写法不一(NovaPay Technologies Ltd. vs NovaPay Technologies)的对齐问题。
 // 纯派生(只读静态数据 + 不依赖 store);页面用各 store 的 version hook 叠加实时状态。
-import { alerts, type Alert } from "./data";
+import { alerts, type Alert, type Tone } from "./data";
 import { FINDINGS, type Finding } from "./findings";
 import { rings, type Ring, type RingMember } from "./rings";
 import { CASES, type Case, strLabel, type CState } from "./cases";
@@ -113,40 +113,106 @@ export const caseStr = (s: CState) => strLabel(s);
 
 // --- 主体目录(动态派生,非手工维护)----------------------------------------
 // 扫描 告警 / 事后 / 团伙成员 / 案件主体 的全部名字,按归一化键聚合;
-// 同键取最完整(最长)的名字作展示名;按「模块覆盖广度」降序 → 总命中降序。
+// 同键取最完整(最长)的名字作展示名。每个商户进一步派生 风险分 / 状态 / 商户号 /
+// 30日交易额 / 注册地 / 最近事件,组成「商户风险总览」。少量干净 / 白名单 / 观察商户
+// 由种子补入(DIR_SEED),让总览覆盖完整风险谱(不只问题主体)。
+export interface DirStatus { key: string; label: string; tone: Tone }
 export interface DirEntry {
   key: string; name: string; type: EntityType;
-  alerts: number; findings: number; rings: number; cases: number; reports: number;
+  merchantNo: string; country: string;
+  alerts: number; findings: number; rings: number; cases: number; reports: number; str: number;
   span: number; total: number;
+  risk: number; status: DirStatus; vol30: string;
+  lastEvent: { label: string; date: string };
+}
+
+// FNV-1a → 稳定数字种子(刷新不变);用于合成商户号 / 日期 / 交易额
+function hashNum(s: string): number { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+function synthMerchantNo(key: string): string { const tail = String(hashNum(key) % 100000).padStart(5, "0"); return "178905678900000" + tail; }
+function synthDate(key: string): string { const h = hashNum(key + "d"); const mm = 2 + (h % 3); const dd = 1 + ((h >>> 4) % 28); return `${String(mm).padStart(2, "0")}-${String(dd).padStart(2, "0")}`; }
+function synthVol(key: string): string { const h = hashNum(key + "v"); const v = (3 + (h % 280)) + (h % 10) / 10; return `CAD ${v.toFixed(1)}K`; }
+
+const TONE_BY_KEY: Record<string, Tone> = { frozen: "red", restricted: "red", report: "amber", case: "amber", info: "amber", watch: "blue", white: "green", normal: "green" };
+const LABEL_BY_KEY: Record<string, string> = { frozen: "提现冻结", restricted: "受限 · 团伙", report: "待报送", case: "调查中", info: "待补材料", watch: "名单观察", white: "正常 · 白名单", normal: "正常" };
+const mkStatus = (key: string): DirStatus => ({ key, label: LABEL_BY_KEY[key], tone: TONE_BY_KEY[key] });
+
+// 干净 / 白名单 / 观察商户种子 —— 仅当其键未被记录派生命中时补入,凑齐风险总览的低风险段
+interface Seed { name: string; country: string; risk: number; statusKey: string; vol30: string; lastEvent: [string, string]; alerts?: number }
+const DIR_SEED: Seed[] = [
+  { name: "SwiftX Ltd", country: "美国", risk: 38, statusKey: "normal", vol30: "CAD 18.5K", lastEvent: ["误报关闭", "02-28"], alerts: 3 },
+  { name: "Maple Store Inc.", country: "加拿大", risk: 14, statusKey: "normal", vol30: "CAD 142K", lastEvent: ["误报关闭", "04-12"], alerts: 2 },
+  { name: "Kraken-U Exchange", country: "加拿大", risk: 9, statusKey: "white", vol30: "CAD 320K", lastEvent: ["—", ""] },
+  { name: "Harbor Pay Co.", country: "新加坡", risk: 24, statusKey: "watch", vol30: "CAD 64K", lastEvent: ["名单观察", "03-02"], alerts: 1 },
+  { name: "Lumen Capital", country: "英国", risk: 17, statusKey: "normal", vol30: "CAD 88K", lastEvent: ["—", ""] },
+  { name: "Vertex Pay", country: "加拿大", risk: 11, statusKey: "white", vol30: "CAD 51K", lastEvent: ["—", ""] },
+  { name: "Cedar Remit", country: "加拿大", risk: 29, statusKey: "watch", vol30: "CAD 33K", lastEvent: ["名单观察", "03-09"] },
+];
+
+interface Acc {
+  names: string[]; alerts: number; findings: number; rings: number; cases: number; reports: number;
+  maxScore: number; sanction: boolean; ring: boolean; caseActive: boolean; reportOpen: boolean;
+  vol30?: string; country?: string; lastLabel?: string;
 }
 
 export function directory(): DirEntry[] {
-  const map = new Map<string, { names: string[]; rec: DirEntry }>();
-  const touch = (name: string, mod: keyof Pick<DirEntry, "alerts" | "findings" | "rings" | "cases" | "reports">) => {
-    for (const k of entityKeys(name)) {
-      if (k.startsWith("#") || /ring-/.test(k)) continue; // 跳过设备群组 / 团伙号本身作为主体
-      let e = map.get(k);
-      if (!e) { e = { names: [], rec: { key: k, name, type: entityType(name), alerts: 0, findings: 0, rings: 0, cases: 0, reports: 0, span: 0, total: 0 } }; map.set(k, e); }
-      e.names.push(name);
-      e.rec[mod]++;
-    }
-  };
-  alerts.forEach((a) => touch(a.merchant, "alerts"));
-  FINDINGS.forEach((f) => touch(f.subject, "findings"));
-  rings.forEach((r) => r.members.filter((m) => m.kind !== "群组").forEach((m) => touch(m.name, "rings")));
-  CASES.forEach((c) => { touch(c.subject, "cases"); (c.subjects || []).forEach((s) => touch(s.name, "cases")); });
-  REPORTS.forEach((r) => touch(r.subject, "reports"));
+  const map = new Map<string, Acc>();
+  const get = (name: string): Acc[] => entityKeys(name)
+    .filter((k) => !(k.startsWith("#") || /ring-/.test(k)))
+    .map((k) => { let e = map.get(k); if (!e) { e = { names: [], alerts: 0, findings: 0, rings: 0, cases: 0, reports: 0, maxScore: 0, sanction: false, ring: false, caseActive: false, reportOpen: false }; map.set(k, e); } e.names.push(name); return e; });
+
+  alerts.forEach((a) => get(a.merchant).forEach((e) => {
+    e.alerts++; e.maxScore = Math.max(e.maxScore, a.score);
+    if (a.sanctions?.status?.includes("命中")) e.sanction = true;
+    if (!e.vol30 && a.custHistory?.vol30) e.vol30 = a.custHistory.vol30;
+    if (!e.country) e.country = a.country;
+    if (!e.lastLabel) e.lastLabel = a.score >= 80 ? "事中拦截" : "告警研判";
+  }));
+  FINDINGS.forEach((f) => get(f.subject).forEach((e) => { e.findings++; if (!e.lastLabel) e.lastLabel = "事后命中"; }));
+  rings.forEach((r) => r.members.filter((m) => m.kind !== "群组").forEach((m) => get(m.name).forEach((e) => { e.rings++; e.ring = true; })));
+  CASES.forEach((c) => {
+    const active = CASE_ACTIVE.has(c.state);
+    const touch = (n: string) => get(n).forEach((e) => { e.cases++; if (active) e.caseActive = true; if (/制裁/.test(c.risk + c.type)) e.sanction = true; e.lastLabel = active ? "立案调查" : e.lastLabel; });
+    touch(c.subject);
+    // 子主体只纳入「商户」—— 链上地址 / 个人 / UBO(如制裁混币器 Tornado Cash)是商户名下属性或外部实体,不另作主体行
+    (c.subjects || []).forEach((s) => { if (s.type === "商户") touch(s.name); });
+  });
+  REPORTS.forEach((r) => get(r.subject).forEach((e) => { e.reports++; if (!["filed", "ack", "void"].includes(r.status)) e.reportOpen = true; if (!e.lastLabel) e.lastLabel = "STR 报送"; }));
 
   const out: DirEntry[] = [];
-  for (const { names, rec } of map.values()) {
-    // 展示名 = 最长的那个写法(信息最全)
-    rec.name = names.reduce((a, b) => (b.length > a.length ? b : a));
-    rec.type = entityType(rec.name);
-    rec.span = [rec.alerts, rec.findings, rec.rings, rec.cases, rec.reports].filter((n) => n > 0).length;
-    rec.total = rec.alerts + rec.findings + rec.rings + rec.cases + rec.reports;
-    out.push(rec);
+  for (const [key, e] of map.entries()) {
+    const name = e.names.reduce((a, b) => (b.length > a.length ? b : a));
+    if (entityType(name) !== "商户") continue; // 主体 = 商户维度;地址 / 团伙不作独立行
+    const str = e.reports + Math.min(e.cases, e.caseActive ? e.cases : 0);
+    let risk = e.maxScore;
+    if (e.sanction) risk = Math.max(risk, 88);
+    if (e.caseActive) risk = Math.max(risk, 82);
+    if (e.ring) risk = Math.max(risk, 72);
+    if (!risk && e.findings) risk = 56;
+    if (!risk) risk = 12 + (hashNum(key) % 18);
+    const statusKey = e.sanction ? "frozen" : e.ring ? "restricted" : e.reportOpen ? "report" : e.caseActive ? "case" : e.alerts && risk >= 60 ? "info" : "normal";
+    out.push({
+      key, name, type: "商户", merchantNo: synthMerchantNo(key), country: e.country || "—",
+      alerts: e.alerts, findings: e.findings, rings: e.rings, cases: e.cases, reports: e.reports, str,
+      span: [e.alerts, e.findings, e.rings, e.cases, e.reports].filter((n) => n > 0).length,
+      total: e.alerts + e.findings + e.rings + e.cases + e.reports,
+      risk: Math.min(99, risk), status: mkStatus(statusKey), vol30: e.vol30 || synthVol(key),
+      lastEvent: { label: e.lastLabel || "—", date: e.lastLabel ? synthDate(key) : "" },
+    });
   }
-  // 主体 = 商户(法律实体)维度。地址 / 团伙不作独立主体:地址是商户的属性(见 linkedAddresses)、
-  // 无归属外部地址归 名单管理 / 案件子主体;团伙有 /ring 模块。
-  return out.filter((e) => e.type === "商户").sort((a, b) => b.span - a.span || b.total - a.total);
+  // 补入干净 / 白名单 / 观察商户种子(键未命中时)
+  for (const s of DIR_SEED) {
+    const k = entityKeys(s.name)[0] || s.name.toLowerCase();
+    if (map.has(k)) continue;
+    out.push({
+      key: k, name: s.name, type: "商户", merchantNo: synthMerchantNo(k), country: s.country,
+      alerts: s.alerts || 0, findings: 0, rings: 0, cases: 0, reports: 0, str: 0,
+      span: s.alerts ? 1 : 0, total: s.alerts || 0,
+      risk: s.risk, status: mkStatus(s.statusKey), vol30: s.vol30,
+      lastEvent: { label: s.lastEvent[0], date: s.lastEvent[1] },
+    });
+  }
+  return out.sort((a, b) => b.risk - a.risk || b.total - a.total);
 }
+
+// 案件「在办」状态集(派生风险分 / 状态用,与 cases.ts 的 active 口径一致)
+const CASE_ACTIVE = new Set<string>(["investigating", "str_draft", "mlro", "queued", "filed"]);

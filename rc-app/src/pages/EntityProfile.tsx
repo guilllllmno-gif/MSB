@@ -1,10 +1,10 @@
 import { useMemo, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { Button, Input } from "@heroui/react";
-import { Fingerprint, Search, Bell, History, Network, FolderOpen, FileText, ArrowUpRight, ShieldAlert, Store, Link2, Layers } from "lucide-react";
+import { Button, Input, Select, SelectItem } from "@heroui/react";
+import { Fingerprint, Search, Bell, History, Network, FolderOpen, FileText, ArrowUpRight, ShieldAlert, Store, Link2, Layers, Building2, Lock, AlertOctagon } from "lucide-react";
 import { Shell, PageHead } from "@/components/Shell";
 import { Pill, SoftChip, SectionLabel, Initials, RiskBadge, toneVar } from "@/components/bits";
-import { directory, footprint, totalExposure, fmtCAD, entityType, ENTITY_TONE, caseStr, sameEntity, linkedAddresses } from "@/lib/entity360";
+import { directory, footprint, totalExposure, fmtCAD, entityType, ENTITY_TONE, caseStr, sameEntity, linkedAddresses, type DirEntry } from "@/lib/entity360";
 import { RC_STATES, type Tone } from "@/lib/data";
 import { FSTATES, FDIM } from "@/lib/findings";
 import { CSTATE, type CState } from "@/lib/cases";
@@ -270,59 +270,182 @@ function KV({ label, children }: { label: string; children: React.ReactNode }) {
   return <div className="flex items-baseline justify-between gap-3 border-b border-dashed border-default-200 py-1.5"><span className="text-default-500">{label}</span><span className="text-right font-semibold">{children}</span></div>;
 }
 
-// ── 主体目录(无 name 参数)──
+// ── 商户头像(确定性配色 + 缩写)──
+const AV_COLORS = ["var(--brand)", "var(--violet)", "var(--success)", "var(--warning)", "#e1556d", "#0ea5e9", "#8b5cf6"];
+function avHash(s: string): number { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+function initialsOf(name: string): string {
+  const toks = name.replace(/[（(].*$/, "").trim().split(/[\s\-]+|(?<=[a-z])(?=[A-Z])/).filter(Boolean);
+  const s = toks.length >= 2 ? (toks[0][0] || "") + (toks[1][0] || "") : (toks[0] || name).slice(0, 2);
+  return s.toUpperCase();
+}
+
+// ── KPI 卡 ──
+function Kpi({ icon: Icon, label, value, sub, tone }: { icon: typeof Store; label: string; value: React.ReactNode; sub: string; tone?: Tone }) {
+  return (
+    <div className="card flex flex-col gap-3 p-5">
+      <div className="flex items-center gap-2 text-[12.5px] font-semibold text-default-500">
+        <span className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ background: tone ? toneSoft(tone) : "var(--track)", color: tone ? toneVar(tone) : "var(--text-3)" }}><Icon className="h-[15px] w-[15px]" strokeWidth={2} /></span>
+        {label}
+      </div>
+      <div className="text-[30px] font-extrabold leading-none tracking-tight" style={tone ? { color: toneVar(tone) } : undefined}>{value}</div>
+      <div className="text-[11.5px] text-default-400">{sub}</div>
+    </div>
+  );
+}
+const toneSoft = (t: Tone) => `color-mix(in srgb, ${toneVar(t)} 14%, transparent)`;
+
+// ── 风险分徽标 ──
+function RiskNum({ n }: { n: number }) {
+  const tone: Tone = n >= 80 ? "red" : n >= 60 ? "amber" : "green";
+  return <span className="tnum inline-flex h-7 min-w-[34px] items-center justify-center rounded-lg px-2 text-[13px] font-extrabold" style={{ background: toneSoft(tone), color: toneVar(tone) }}>{n}</span>;
+}
+
+// ── 犯事记录 chips ──
+function RecordChips({ e }: { e: DirEntry }) {
+  if (e.total === 0) return <span className="text-[12px] text-default-300">无记录</span>;
+  const clean = e.cases === 0 && e.str === 0 && e.rings === 0 && e.findings === 0 && e.alerts > 0 && e.risk < 50;
+  if (clean) return <span className="text-[11.5px] text-default-400">告警 {e.alerts} · 均误报</span>;
+  const chip = (label: string, n: number, tone: Tone) => n > 0 && (
+    <span key={label} className="rounded-md px-1.5 py-0.5 text-[11px] font-semibold" style={{ background: toneSoft(tone), color: toneVar(tone) }}>{label} {n}</span>
+  );
+  return <div className="flex flex-wrap items-center gap-1.5">{chip("告警", e.alerts, "amber")}{chip("案件", e.cases, "violet")}{chip("STR", e.str, "red")}{chip("团伙", e.rings, "blue")}</div>;
+}
+
+// ── 主体目录 · 商户风险总览(无 name 参数)──
+const DIR_TABS = [
+  { k: "all", label: "全部" },
+  { k: "high", label: "高风险" },
+  { k: "cases", label: "有在办案件" },
+  { k: "restricted", label: "受限 / 冻结" },
+  { k: "watch", label: "名单观察" },
+] as const;
+type DirTab = (typeof DIR_TABS)[number]["k"];
+const inTab = (tab: DirTab, e: DirEntry): boolean =>
+  tab === "all" ? true
+    : tab === "high" ? e.risk >= 80
+    : tab === "cases" ? e.cases > 0
+    : tab === "restricted" ? e.status.key === "frozen" || e.status.key === "restricted"
+    : /* watch */ e.status.key === "watch";
+
 function Directory() {
-  useAlertVersion(); useFindingVersion(); useCaseVersion(); useRingVersion();
+  useAlertVersion(); useFindingVersion(); useCaseVersion(); useRingVersion(); useReportVersion();
   const nav = useNavigate();
-  const [q, setQ] = useState("");
   const all = useMemo(() => directory(), []);
-  const list = all.filter((e) => !q.trim() || e.name.toLowerCase().includes(q.toLowerCase()));
-  const crossMod = all.filter((e) => e.span >= 2).length;
+  const [q, setQ] = useState("");
+  const [tab, setTab] = useState<DirTab>("all");
+  const [risk, setRisk] = useState("all");   // all | high(≥80) | mid(60-79) | low(<60)
+  const [stat, setStat] = useState("all");
+  const [country, setCountry] = useState("all");
+
+  const countries = useMemo(() => [...new Set(all.map((e) => e.country).filter((c) => c && c !== "—"))], [all]);
+  const tabCount = (k: DirTab) => all.filter((e) => inTab(k, e)).length;
+
+  const list = all.filter((e) => {
+    if (!inTab(tab, e)) return false;
+    if (q.trim()) { const s = q.toLowerCase(); if (!e.name.toLowerCase().includes(s) && !e.merchantNo.includes(q.trim())) return false; }
+    if (risk === "high" && e.risk < 80) return false;
+    if (risk === "mid" && (e.risk < 60 || e.risk >= 80)) return false;
+    if (risk === "low" && e.risk >= 60) return false;
+    if (stat !== "all" && e.status.key !== stat) return false;
+    if (country !== "all" && e.country !== country) return false;
+    return true;
+  });
+
+  const restricted = all.filter((e) => e.status.key === "frozen" || e.status.key === "restricted").length;
+  const active = all.length - restricted;
+  const highRisk = all.filter((e) => e.risk >= 80).length;
+  const caseSubj = all.filter((e) => e.cases > 0).length;
+  const caseTotal = all.reduce((n, e) => n + e.cases, 0);
 
   return (
     <Shell crumb={["主体档案"]} wide>
-      <PageHead title="主体档案 · 360" sub="主体 = 商户(法律实体)维度。按归一化键聚合每个商户在 告警 / 事后 / 团伙 / 案件 / 报送 的全部足迹;地址 / 行为是商户名下属性与记录,不另作主体。点任一商户进 360 视图。" />
-      <div className="card mb-4 flex flex-wrap items-center gap-x-6 gap-y-2 p-4">
-        <Stat label="商户主体" value={all.length} />
-        <Stat label="跨 ≥2 模块" value={crossMod} tone="amber" />
-        <Stat label="在办案件主体" value={all.filter((e) => e.cases > 0).length} tone="violet" />
-        <div className="ml-auto w-full max-w-[280px]">
-          <Input size="sm" radius="lg" placeholder="搜索商户名" value={q} onValueChange={setQ}
-            startContent={<Search className="h-4 w-4 text-default-400" />} classNames={{ inputWrapper: "bg-default-100 shadow-none" }} />
-        </div>
+      <PageHead title="商户总览" sub="全部商户主体的风险总览 · 点击任意商户进入其 360° 档案(查看该商户所有告警、案件、报送、冻结记录)。" />
+
+      {/* KPI */}
+      <div className="mb-5 grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <Kpi icon={Building2} label="总商户数" value={all.length.toLocaleString()} sub={`活跃 ${active} · 受限 ${restricted}`} />
+        <Kpi icon={AlertOctagon} label="高风险主体" value={highRisk} sub="风险分 ≥ 80" tone="red" />
+        <Kpi icon={FolderOpen} label="有在办案件" value={caseTotal} sub={`涉及 ${caseSubj} 个主体`} tone="violet" />
+        <Kpi icon={Lock} label="当前受限 / 冻结" value={restricted} sub="提现或交易受限" tone="amber" />
       </div>
 
       <div className="card overflow-hidden">
-        <table className="w-full text-[12.5px]">
+        {/* tabs */}
+        <div className="flex flex-wrap items-center gap-1.5 border-b border-default-100 px-4 pt-4">
+          {DIR_TABS.map((t) => {
+            const on = tab === t.k;
+            return (
+              <button key={t.k} onClick={() => setTab(t.k)}
+                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[13px] font-semibold transition-colors ${on ? "" : "text-default-500 hover:bg-default-50"}`}
+                style={on ? { background: "var(--brand-soft)", color: "var(--brand)" } : undefined}>
+                {t.label}
+                <span className="tnum rounded-full px-1.5 text-[10.5px] font-bold" style={on ? { background: "color-mix(in srgb, var(--brand) 16%, transparent)", color: "var(--brand)" } : { background: "var(--track)", color: "var(--text-3)" }}>{tabCount(t.k)}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* filters */}
+        <div className="flex flex-wrap items-center gap-2.5 px-4 py-3.5">
+          <div className="min-w-[240px] flex-1">
+            <Input size="sm" radius="lg" placeholder="搜索商户名 / 商户号…" value={q} onValueChange={setQ}
+              startContent={<Search className="h-4 w-4 text-default-400" />} classNames={{ inputWrapper: "bg-default-100 shadow-none" }} />
+          </div>
+          <Select size="sm" radius="lg" aria-label="风险分" selectedKeys={[risk]} className="w-[130px]" classNames={{ trigger: "bg-default-100 shadow-none" }}
+            onSelectionChange={(k) => setRisk([...k][0] as string)} renderValue={() => <span className="text-[12.5px]">{({ all: "风险分", high: "≥ 80", mid: "60–79", low: "< 60" } as Record<string, string>)[risk]}</span>}>
+            <SelectItem key="all">全部风险分</SelectItem><SelectItem key="high">≥ 80 高风险</SelectItem><SelectItem key="mid">60–79 中</SelectItem><SelectItem key="low">&lt; 60 低</SelectItem>
+          </Select>
+          <Select size="sm" radius="lg" aria-label="状态" selectedKeys={[stat]} className="w-[130px]" classNames={{ trigger: "bg-default-100 shadow-none" }}
+            onSelectionChange={(k) => setStat([...k][0] as string)} renderValue={() => <span className="text-[12.5px]">{stat === "all" ? "状态" : ({ frozen: "提现冻结", restricted: "受限·团伙", report: "待报送", case: "调查中", info: "待补材料", watch: "名单观察", normal: "正常", white: "白名单" } as Record<string, string>)[stat]}</span>}>
+            {[["all", "全部状态"], ["frozen", "提现冻结"], ["restricted", "受限·团伙"], ["report", "待报送"], ["case", "调查中"], ["info", "待补材料"], ["watch", "名单观察"], ["normal", "正常"], ["white", "白名单"]].map(([k, l]) => <SelectItem key={k}>{l}</SelectItem>)}
+          </Select>
+          <Select size="sm" radius="lg" aria-label="注册地" selectedKeys={[country]} className="w-[120px]" classNames={{ trigger: "bg-default-100 shadow-none" }}
+            onSelectionChange={(k) => setCountry([...k][0] as string)} renderValue={() => <span className="text-[12.5px]">{country === "all" ? "注册地" : country}</span>}>
+            {[<SelectItem key="all">全部注册地</SelectItem>, ...countries.map((c) => <SelectItem key={c}>{c}</SelectItem>)]}
+          </Select>
+        </div>
+
+        {/* table */}
+        <table className="w-full">
           <thead>
-            <tr className="border-b border-default-100 text-[11px] font-bold uppercase tracking-wider text-default-400">
-              <th className="px-4 py-2.5 text-left">商户主体</th>
-              <th className="px-3 py-2.5 text-left">模块覆盖</th>
-              <th className="px-3 py-2.5 text-right">告警</th>
-              <th className="px-3 py-2.5 text-right">事后</th>
-              <th className="px-3 py-2.5 text-right">团伙</th>
-              <th className="px-3 py-2.5 text-right">案件</th>
-              <th className="px-3 py-2.5 text-right">报送</th>
-              <th className="px-4 py-2.5"></th>
+            <tr className="border-y border-default-100 text-[11px] font-bold uppercase tracking-wider text-default-400">
+              <th className="px-4 py-2.5 text-left font-bold">商户</th>
+              <th className="px-3 py-2.5 text-left font-bold">风险分</th>
+              <th className="px-3 py-2.5 text-left font-bold">状态</th>
+              <th className="px-3 py-2.5 text-left font-bold">犯事记录</th>
+              <th className="px-3 py-2.5 text-right font-bold">30 日交易额</th>
+              <th className="px-3 py-2.5 text-left font-bold">最近事件</th>
+              <th className="px-4 py-2.5 text-right font-bold">操作</th>
             </tr>
           </thead>
           <tbody>
             {list.map((e) => (
               <tr key={e.key} onClick={() => nav(`/entity?name=${encodeURIComponent(e.name)}`)}
                 className="cursor-pointer border-b border-default-50 transition-colors hover:bg-default-50">
-                <td className="px-4 py-3 font-semibold">{e.name}</td>
-                <td className="px-3 py-3"><div className="flex items-center gap-2"><ModDots on={e} /><span className="text-[11px] font-bold text-default-400">{e.span}/5</span></div></td>
-                <td className="px-3 py-3 text-right tabular-nums">{e.alerts || "—"}</td>
-                <td className="px-3 py-3 text-right tabular-nums">{e.findings || "—"}</td>
-                <td className="px-3 py-3 text-right tabular-nums">{e.rings || "—"}</td>
-                <td className="px-3 py-3 text-right tabular-nums font-bold" style={e.cases ? { color: "var(--violet)" } : undefined}>{e.cases || "—"}</td>
-                <td className="px-3 py-3 text-right tabular-nums">{e.reports || "—"}</td>
-                <td className="px-4 py-3 text-right"><ArrowUpRight className="ml-auto h-4 w-4 text-default-300" /></td>
+                <td className="px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    <Initials p={{ i: initialsOf(e.name), c: AV_COLORS[avHash(e.key) % AV_COLORS.length] }} size={38} />
+                    <div className="min-w-0">
+                      <div className="truncate text-[13.5px] font-bold">{e.name}</div>
+                      <div className="tnum text-[11px] text-default-400">{e.merchantNo}</div>
+                    </div>
+                  </div>
+                </td>
+                <td className="px-3 py-3"><RiskNum n={e.risk} /></td>
+                <td className="px-3 py-3"><Pill tone={e.status.tone}>{e.status.label}</Pill></td>
+                <td className="px-3 py-3"><RecordChips e={e} /></td>
+                <td className="px-3 py-3 text-right tnum text-[12.5px] font-semibold">{e.vol30}</td>
+                <td className="px-3 py-3 text-[12px] text-default-500">{e.lastEvent.label}{e.lastEvent.date && <span className="text-default-300"> · {e.lastEvent.date}</span>}</td>
+                <td className="px-4 py-3 text-right"><span className="inline-flex items-center gap-1 text-[12.5px] font-semibold" style={{ color: "var(--brand)" }}>查看档案<ArrowUpRight className="h-3.5 w-3.5" /></span></td>
               </tr>
             ))}
-            {list.length === 0 && <tr><td colSpan={8} className="py-12 text-center text-[12.5px] text-default-400">无匹配商户</td></tr>}
+            {list.length === 0 && <tr><td colSpan={7} className="py-12 text-center text-[12.5px] text-default-400">无匹配商户</td></tr>}
           </tbody>
         </table>
+
+        <p className="border-t border-default-100 px-4 py-3 text-[11.5px] leading-relaxed text-default-400">
+          「犯事记录」是该商户历史累计的 告警 / 案件 / STR 数量汇总,一眼判断案底厚薄。点击任意行进入主体 360° 档案查看完整事件记录。
+        </p>
       </div>
     </Shell>
   );
