@@ -4,7 +4,7 @@
 import { alerts, type Alert, type Tone } from "./data";
 import { FINDINGS, type Finding } from "./findings";
 import { rings, type Ring, type RingMember } from "./rings";
-import { CASES, type Case, strLabel, type CState } from "./cases";
+import { CASES, type Case, strLabel, type CState, CSTATE } from "./cases";
 import { REPORTS, type Report } from "./reports";
 import { LISTS } from "./lists";
 
@@ -130,7 +130,8 @@ export interface DirEntry {
   lastEvent: { label: string; date: string };
   // —— 两轴状态 ——
   acct: DirStatus;         // 账户状态:被采取了什么约束(动作的结果)—— 正常/受限/冻结/观察/白名单,来自名单库
-  flow: DirStatus;         // 处置进展:工作流走到哪一阶段 —— 待研判/调查中/待报送/已结
+  flow: DirStatus;         // 处置进展:复用真实案件状态机 CSTATE(取最推进的在办案件)+ 待研判/待报送/已结
+  activeCases: number;     // 在办案件数(>1 → 显「·N案」串并信号)
   pending: Pending | null; // 处置进展上的紧急待办(待认领 / SLA临期),作 flow 的角标
   // —— 分诊增强 ——
   factors: RiskFactor[];   // 风险驱动因素(解释 risk 为何这么高)
@@ -164,9 +165,15 @@ function accountState(name: string): string {
   return best || "normal";
 }
 
-const FLOW_LABEL: Record<string, string> = { triage: "待研判", case: "调查中", report: "待报送", done: "已结" };
-const FLOW_TONE: Record<string, Tone> = { triage: "amber", case: "amber", report: "red", done: "grey" };
-const flowOf = (key: string): DirStatus => ({ key, label: FLOW_LABEL[key], tone: FLOW_TONE[key] });
+// 处置进展 = 真实案件状态机 CSTATE(调查中/STR草稿/MLRO评估/待报送/已报送)+ 案件前后两端(待研判/待报送·报告/已结)
+const FLOW_EXTRA: Record<string, { label: string; tone: Tone }> = {
+  triage: { label: "待研判", tone: "amber" }, // 有告警未立案
+  report: { label: "待报送", tone: "amber" }, // 仅有报告记录、无案件
+  done: { label: "已结", tone: "grey" },
+};
+const flowOf = (key: string): DirStatus => { const d = (CSTATE as Record<string, { label: string; tone: Tone }>)[key] || FLOW_EXTRA[key]; return { key, label: d.label, tone: d.tone }; };
+// 案件推进度排序(取「最推进」的在办案件作主显示)
+const CASE_RANK: Record<string, number> = { investigating: 0, str_draft: 1, mlro: 2, queued: 3, filed: 4 };
 
 // 干净 / 白名单 / 观察商户种子 —— 仅当其键未被记录派生命中时补入,凑齐风险总览的低风险段
 interface Seed { name: string; country: string; risk: number; acctKey: string; vol30: string; lastEvent: [string, string]; alerts?: number }
@@ -184,6 +191,7 @@ interface Acc {
   names: string[]; alerts: number; findings: number; rings: number; cases: number; reports: number;
   maxScore: number; sanction: boolean; ring: boolean; caseActive: boolean; reportOpen: boolean;
   unclaimedCase: boolean; caseSlaUrgent: boolean; ringMates: number;
+  activeCases: { id: string; state: CState }[]; // 在办案件(去重),用于「最推进阶段」+「·N案」串并信号
   vol30?: string; country?: string; lastLabel?: string;
 }
 
@@ -191,7 +199,7 @@ export function directory(): DirEntry[] {
   const map = new Map<string, Acc>();
   const get = (name: string): Acc[] => entityKeys(name)
     .filter((k) => !(k.startsWith("#") || /ring-/.test(k)))
-    .map((k) => { let e = map.get(k); if (!e) { e = { names: [], alerts: 0, findings: 0, rings: 0, cases: 0, reports: 0, maxScore: 0, sanction: false, ring: false, caseActive: false, reportOpen: false, unclaimedCase: false, caseSlaUrgent: false, ringMates: 0 }; map.set(k, e); } e.names.push(name); return e; });
+    .map((k) => { let e = map.get(k); if (!e) { e = { names: [], alerts: 0, findings: 0, rings: 0, cases: 0, reports: 0, maxScore: 0, sanction: false, ring: false, caseActive: false, reportOpen: false, unclaimedCase: false, caseSlaUrgent: false, ringMates: 0, activeCases: [] }; map.set(k, e); } e.names.push(name); return e; });
 
   alerts.forEach((a) => get(a.merchant).forEach((e) => {
     e.alerts++; e.maxScore = Math.max(e.maxScore, a.score);
@@ -205,17 +213,24 @@ export function directory(): DirEntry[] {
     const mates = r.members.filter((m) => m.kind !== "群组" && entityType(m.name) === "商户").length; // 同团伙里的其它商户数(并案信号)
     r.members.filter((m) => m.kind !== "群组").forEach((m) => get(m.name).forEach((e) => { e.rings++; e.ring = true; e.ringMates = Math.max(e.ringMates, mates - 1); }));
   });
+  // 案件为中心:一个商户可能同时挂多个在办 case(如 RapidPay ∈ 扇入网络 + 养卡团伙)——
+  // 按 case 去重计入(同一 case 内商户作主体 + 子主体只算一次),记录全部在办案件供「最推进阶段 + ·N案」串并信号。
   CASES.forEach((c) => {
     const active = CASE_ACTIVE.has(c.state);
-    const touch = (n: string) => get(n).forEach((e) => {
+    const names = [c.subject, ...(c.subjects || []).filter((s) => s.type === "商户").map((s) => s.name)];
+    const seen = new Set<Acc>();
+    names.forEach((n) => get(n).forEach((e) => {
+      if (seen.has(e)) return; seen.add(e); // 同一 case 内同一商户只算一次
       e.cases++;
-      if (active) { e.caseActive = true; if (!c.owner) e.unclaimedCase = true; if (c.sla?.tone === "red") e.caseSlaUrgent = true; } // 只 red(真的快超时)才算临期,amber 是常态
       if (/制裁/.test(c.risk + c.type)) e.sanction = true;
-      e.lastLabel = active ? "立案调查" : e.lastLabel;
-    });
-    touch(c.subject);
-    // 子主体只纳入「商户」—— 链上地址 / 个人 / UBO(如制裁混币器 Tornado Cash)是商户名下属性或外部实体,不另作主体行
-    (c.subjects || []).forEach((s) => { if (s.type === "商户") touch(s.name); });
+      if (active) {
+        e.caseActive = true;
+        e.activeCases.push({ id: c.id, state: c.state });
+        if (!c.owner) e.unclaimedCase = true;
+        if (c.sla?.tone === "red") e.caseSlaUrgent = true; // 只 red(真的快超时)才算临期,amber 是常态
+        e.lastLabel = "立案调查";
+      }
+    }));
   });
   REPORTS.forEach((r) => get(r.subject).forEach((e) => { e.reports++; if (!["filed", "ack", "void"].includes(r.status)) e.reportOpen = true; if (!e.lastLabel) e.lastLabel = "STR 报送"; }));
 
@@ -236,8 +251,9 @@ export function directory(): DirEntry[] {
     // 账户状态(动作驱动)—— 名单库真实约束;确认制裁敞口(命中制裁名单 / 制裁溯源案件)→ 冻结,
     // 覆盖过期的白名单豁免(一个有在办制裁案件的商户,不该因旧白名单条目显示「白名单」)
     const acctKey = e.sanction ? "frozen" : accountState(name);
-    // 处置进展(工作流)—— 在哪一阶段;待报送 > 调查中 > 待研判 > 已结
-    const flowKey = e.reportOpen ? "report" : e.caseActive ? "case" : e.alerts && !e.caseActive && risk >= 60 ? "triage" : "done";
+    // 处置进展(工作流)—— 取「最推进」的在办案件状态(用户口径:显最新状态);无案件时用报告 / 待研判 / 已结
+    const topCase = e.activeCases.slice().sort((a, b) => CASE_RANK[b.state] - CASE_RANK[a.state])[0];
+    const flowKey = topCase ? topCase.state : e.reportOpen ? "report" : e.alerts && risk >= 60 ? "triage" : "done";
     // 处置进展上的紧急待办(作 flow 角标):待认领 / SLA临期
     const pending: Pending | null =
       e.unclaimedCase ? { label: "待认领", tone: "violet", urgent: true, kind: "claim" }
@@ -256,7 +272,8 @@ export function directory(): DirEntry[] {
     // 趋势:相对 30 天前的风险变化(确定性合成;低风险主体波动小)
     const raw = (hashNum(key + "t") % 27) - 11;
     const trend = risk < 40 ? Math.round(raw / 3) : raw;
-    const need = risk + (pending?.urgent ? 24 : 0) + (flowKey === "report" ? 14 : flowKey === "case" ? 8 : flowKey === "triage" ? 5 : 0) + Math.max(0, trend) * 0.7;
+    const FLOW_NEED: Record<string, number> = { queued: 16, report: 16, mlro: 13, str_draft: 11, investigating: 8, filed: 5, triage: 5, done: 0 };
+    const need = risk + (pending?.urgent ? 24 : 0) + (FLOW_NEED[flowKey] ?? 0) + (e.activeCases.length > 1 ? 6 : 0) + Math.max(0, trend) * 0.7;
     out.push({
       key, name, type: "商户", merchantNo: synthMerchantNo(key), country: e.country || "—",
       alerts: e.alerts, findings: e.findings, rings: e.rings, cases: e.cases, reports: e.reports, str,
@@ -264,7 +281,7 @@ export function directory(): DirEntry[] {
       total: e.alerts + e.findings + e.rings + e.cases + e.reports,
       risk, vol30: e.vol30 || synthVol(key),
       lastEvent: { label: e.lastLabel || "—", date: e.lastLabel ? synthDate(key) : "" },
-      acct: acctOf(acctKey), flow: flowOf(flowKey), pending,
+      acct: acctOf(acctKey), flow: flowOf(flowKey), activeCases: e.activeCases.length, pending,
       factors, trend, ringMates: e.ringMates, need,
     });
   }
@@ -279,7 +296,7 @@ export function directory(): DirEntry[] {
       span: s.alerts ? 1 : 0, total: s.alerts || 0,
       risk: s.risk, vol30: s.vol30,
       lastEvent: { label: s.lastEvent[0], date: s.lastEvent[1] },
-      acct: acctOf(s.acctKey), flow: flowOf(s.alerts && s.risk >= 60 ? "triage" : "done"),
+      acct: acctOf(s.acctKey), flow: flowOf(s.alerts && s.risk >= 60 ? "triage" : "done"), activeCases: 0,
       pending: null,
       factors: [{ label: s.acctKey === "white" ? "已核验 · 白名单豁免" : s.alerts ? `告警 ${s.alerts} 笔 · 均误报` : "无显著风险信号", tone: "green" }],
       trend, ringMates: 0, need: s.risk + Math.max(0, trend) * 0.7,

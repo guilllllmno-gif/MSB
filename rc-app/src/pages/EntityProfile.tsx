@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { Button, Input, Select, SelectItem, Popover, PopoverTrigger, PopoverContent } from "@heroui/react";
-import { Fingerprint, Search, Bell, History, Network, FolderOpen, FileText, ArrowUpRight, ShieldAlert, Store, Link2, Layers, Building2, Lock, AlertOctagon, TrendingUp, TrendingDown, Minus, UserPlus, Send, Clock3, Sparkles } from "lucide-react";
+import { Fingerprint, Search, Bell, History, Network, FolderOpen, FileText, ArrowUpRight, ShieldAlert, Store, Link2, Layers, Building2, Lock, AlertOctagon, TrendingUp, TrendingDown, Minus, UserPlus, Send, Clock3, Sparkles, GitMerge } from "lucide-react";
 import { Shell, PageHead } from "@/components/Shell";
 import { Pill, SoftChip, SectionLabel, Initials, RiskBadge, toneVar } from "@/components/bits";
 import { directory, footprint, totalExposure, fmtCAD, entityType, ENTITY_TONE, caseStr, sameEntity, linkedAddresses, type DirEntry, type Pending } from "@/lib/entity360";
@@ -353,6 +353,7 @@ function FlowCell({ e }: { e: DirEntry }) {
   return (
     <div className="flex flex-wrap items-center gap-1.5">
       {e.flow.key === "done" ? <span className="text-[12px] text-default-300">—</span> : <Pill tone={e.flow.tone}>{e.flow.label}</Pill>}
+      {e.activeCases > 1 && <span title={`在办 ${e.activeCases} 个案件 · 可串并`} className="inline-flex items-center gap-0.5 rounded-md px-1 py-0.5 text-[10px] font-bold" style={{ background: toneSoft("violet"), color: toneVar("violet") }}><GitMerge className="h-3 w-3" />{e.activeCases} 案</span>}
       {e.pending && (() => { const Icon = PEND_ICON[e.pending.kind]; return (
         <span className="inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[10.5px] font-bold" style={{ background: toneSoft(e.pending.tone), color: toneVar(e.pending.tone) }}>
           <span className="h-1.5 w-1.5 rounded-full" style={{ background: toneVar(e.pending.tone) }} /><Icon className="h-3 w-3" />{e.pending.label}
@@ -367,7 +368,7 @@ type PendFilter = "all" | "claim" | "str" | "sla" | "triage" | "rising";
 const matchPend = (k: PendFilter, e: DirEntry): boolean =>
   k === "claim" ? e.pending?.kind === "claim"
     : k === "sla" ? e.pending?.kind === "sla"
-    : k === "str" ? e.flow.key === "report"
+    : k === "str" ? e.flow.key === "queued" || e.flow.key === "report" // 待报送阶段(案件 queued / 仅报告)
     : k === "triage" ? e.flow.key === "triage"
     : k === "rising" ? e.trend >= 8
     : true;
