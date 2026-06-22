@@ -5,7 +5,7 @@ import { Button, Input, Select, SelectItem, Popover, PopoverTrigger, PopoverCont
 import { Fingerprint, Search, Bell, History, Network, FolderOpen, FileText, ArrowUpRight, ShieldAlert, Store, Link2, Layers, Building2, Lock, AlertOctagon, TrendingUp, TrendingDown, Minus, UserPlus, Send, Clock3, Sparkles, GitMerge } from "lucide-react";
 import { Shell, PageHead } from "@/components/Shell";
 import { Pill, SoftChip, SectionLabel, Initials, RiskBadge, toneVar } from "@/components/bits";
-import { directory, footprint, totalExposure, fmtCAD, entityType, ENTITY_TONE, caseStr, sameEntity, linkedAddresses, type DirEntry, type Pending } from "@/lib/entity360";
+import { directory, footprint, totalExposure, fmtCAD, entityType, ENTITY_TONE, sameEntity, linkedAddresses, type DirEntry, type Pending } from "@/lib/entity360";
 import { RC_STATES, type Tone } from "@/lib/data";
 import { FSTATES, FDIM } from "@/lib/findings";
 import { CSTATE, type CState } from "@/lib/cases";
@@ -16,19 +16,17 @@ import { alertStore, useAlertVersion, findingStore, useFindingVersion, caseStore
 const MOD_ICON: Record<string, typeof Bell> = { alerts: Bell, findings: History, rings: Network, cases: FolderOpen, reports: FileText };
 const MOD_LABEL: Record<string, string> = { alerts: "告警", findings: "事后", rings: "团伙", cases: "案件", reports: "报送" };
 
-// ── 模块覆盖点阵(目录 + 横幅共用)──
+// ── 模块命中(中性、带计数:命中=深灰填充 chip,未命中=淡灰)──
 type ModCount = { alerts: number; findings: number; rings: number; cases: number; reports: number };
-function ModDots({ on }: { on: ModCount }) {
+function ModCoverage({ on }: { on: ModCount }) {
   return (
-    <div className="flex items-center gap-1">
+    <div className="flex flex-wrap items-center gap-1">
       {(["alerts", "findings", "rings", "cases", "reports"] as const).map((m) => {
-        const Icon = MOD_ICON[m];
-        const lit = (on[m] || 0) > 0;
+        const n = on[m] || 0; const lit = n > 0;
         return (
-          <span key={m} title={`${MOD_LABEL[m]} · ${on[m] || 0}`}
-            className="flex h-6 w-6 items-center justify-center rounded-lg"
-            style={{ background: lit ? "var(--brand-soft)" : "var(--track)", color: lit ? "var(--brand)" : "var(--default-300, #c4c4c8)" }}>
-            <Icon className="h-[13px] w-[13px]" strokeWidth={2} />
+          <span key={m} className="inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-[11px] font-medium"
+            style={lit ? { background: "var(--track)", color: "var(--text-2)" } : { color: "var(--text-3)" }}>
+            {MOD_LABEL[m]}<span className="tnum font-bold">{lit ? n : "–"}</span>
           </span>
         );
       })}
@@ -40,30 +38,6 @@ function ModDots({ on }: { on: ModCount }) {
 function ModTag({ mod }: { mod: string }) {
   const Icon = MOD_ICON[mod];
   return <span className="inline-flex items-center gap-1 rounded-md bg-default-100 px-1.5 py-0.5 text-[10.5px] font-semibold text-default-500"><Icon className="h-3 w-3" />{MOD_LABEL[mod]}</span>;
-}
-
-function Stat({ label, value, tone }: { label: string; value: string | number; tone?: Tone }) {
-  return (
-    <div className="min-w-0">
-      <div className="text-[19px] font-extrabold leading-none tracking-tight" style={tone ? { color: toneVar(tone) } : undefined}>{value}</div>
-      <div className="mt-1 truncate text-[11px] font-medium text-default-400">{label}</div>
-    </div>
-  );
-}
-
-// 单条足迹行 —— 可点跳转
-function Row({ to, lead, title, sub, right }: { to: string; lead?: React.ReactNode; title: React.ReactNode; sub?: React.ReactNode; right?: React.ReactNode }) {
-  const nav = useNavigate();
-  return (
-    <button onClick={() => nav(to)} className="card-hover group flex w-full items-center gap-3 rounded-xl border border-default-200 px-3 py-2.5 text-left">
-      {lead}
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2 text-[12.5px] font-semibold">{title}</div>
-        {sub && <div className="mt-0.5 truncate text-[11.5px] text-default-400">{sub}</div>}
-      </div>
-      <div className="flex shrink-0 items-center gap-2">{right}<ArrowUpRight className="h-3.5 w-3.5 text-default-300 transition-colors group-hover:text-brand" /></div>
-    </button>
-  );
 }
 
 // 案件推进度序(取最推进的在办案件作串并主案)
@@ -128,9 +102,9 @@ function Profile({ name }: { name: string }) {
   type FI = { mod: "alerts" | "findings" | "rings" | "cases" | "reports"; key: string; to: string; lead: React.ReactNode; title: React.ReactNode; sub: React.ReactNode; right: React.ReactNode };
   const footItems: FI[] = [
     ...fp.alerts.map((a): FI => { const st = RC_STATES[alertStore.stateOf(a.id, a.state)] || RC_STATES.new; return { mod: "alerts", key: a.id, to: `/alert?id=${a.id}`, lead: <RiskBadge tone={a.sev === "high" ? "red" : a.sev === "mid" ? "amber" : "blue"}>{a.score}</RiskBadge>, title: <><span>{a.title}</span><span className="text-default-400">· {a.id}</span></>, sub: `${a.type} · ${a.amount} · ${a.ruleShort}`, right: <Pill tone={st.cls} dot={false}>{st.label}</Pill> }; }),
-    ...fp.findings.map((f): FI => { const st = FSTATES[findingStore.statusOf(f.id, f.status) as keyof typeof FSTATES] || FSTATES.new; return { mod: "findings", key: f.id, to: `/finding?id=${f.id}`, lead: <span className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ background: "var(--track)" }}><f.icon className="h-[15px] w-[15px] text-default-500" /></span>, title: <><span>{f.pattern}</span><span className="text-default-400">· {f.id}</span></>, sub: f.hit, right: <><SoftChip>{FDIM[f.dim].label}</SoftChip><Pill tone={st.tone} dot={false}>{st.label}</Pill></> }; }),
+    ...fp.findings.map((f): FI => { const st = FSTATES[findingStore.statusOf(f.id, f.status) as keyof typeof FSTATES] || FSTATES.new; return { mod: "findings", key: f.id, to: `/finding?id=${f.id}`, lead: <span className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ background: "var(--track)" }}><f.icon className="h-[15px] w-[15px] text-default-500" /></span>, title: <><span>{f.pattern}</span><span className="text-default-400">· {f.id}</span></>, sub: `${FDIM[f.dim].label} · ${f.hit}`, right: <Pill tone={st.tone} dot={false}>{st.label}</Pill> }; }),
     ...fp.rings.map(({ ring, member }): FI => { const st = RING_STATES[ringStore.stateOf(ring.id, ring.state) as keyof typeof RING_STATES]; return { mod: "rings", key: ring.id, to: `/ring?id=${ring.id}`, lead: <Initials p={{ i: member.i, c: member.c }} size={28} />, title: <><span>{ring.name}</span><span className="text-default-400">· {ring.id}</span></>, sub: `本主体角色:${member.role} · ${ring.typology} · ${ring.members.length} 主体`, right: st ? <Pill tone={st.tone} dot={false}>{st.label}</Pill> : null }; }),
-    ...fp.cases.map((c): FI => { const cs = caseStore.stateOf(c.id, c.state) as CState; const st = CSTATE[cs]; const str = caseStr(cs); return { mod: "cases", key: c.id, to: `/case?id=${c.id}`, lead: <span className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ background: "var(--violet-bg)", color: "var(--violet)" }}><FolderOpen className="h-[15px] w-[15px]" /></span>, title: <><span>{c.type}</span><span className="text-default-400">· {c.id}</span></>, sub: `${c.risk} · ${c.amount} · 来源 ${c.src}`, right: <><Pill tone={str.tone} dot={false}>STR {str.text}</Pill><Pill tone={st.tone} dot={false}>{st.label}</Pill></> }; }),
+    ...fp.cases.map((c): FI => { const cs = caseStore.stateOf(c.id, c.state) as CState; const st = CSTATE[cs]; return { mod: "cases", key: c.id, to: `/case?id=${c.id}`, lead: <span className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ background: "var(--violet-bg)", color: "var(--violet)" }}><FolderOpen className="h-[15px] w-[15px]" /></span>, title: <><span>{c.type}</span><span className="text-default-400">· {c.id}</span></>, sub: `${c.risk} · ${c.amount} · 来源 ${c.src}`, right: <Pill tone={st.tone} dot={false}>{st.label}</Pill> }; }),
     ...fp.reports.map((r): FI => { const st = RSTATE[reportStore.statusOf(r.id, r.status) as keyof typeof RSTATE]; return { mod: "reports", key: r.id, to: r.to || "/reports", lead: <SoftChip net>{r.type}</SoftChip>, title: <><span>{r.summary.slice(0, 28)}…</span><span className="text-default-400">· {r.id}</span></>, sub: `${r.sub} · ${r.amount}`, right: st ? <Pill tone={st.tone} dot={false}>{st.label}</Pill> : null }; }),
   ];
   const [tab, setTab] = useState<string>("all");
@@ -145,26 +119,19 @@ function Profile({ name }: { name: string }) {
         <Button size="sm" variant="flat" className="bg-default-100" startContent={<Fingerprint className="h-4 w-4" />} onPress={() => nav("/entity")}>主体目录</Button>
       } />
 
-      {/* 风险横幅 —— 综合标签 + 模块覆盖 + 关键统计 */}
-      <div className="card mb-5 border-l-[3px] p-4" style={{ borderLeftColor: toneVar(riskTone) }}>
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><TypeIcon className="h-[18px] w-[18px]" strokeWidth={2} /></span>
-          <div>
-            <div className="flex items-center gap-2">
-              <Pill tone={ENTITY_TONE[type]} dot={false}>{type}</Pill>
-              <Pill tone={riskTone} icon={<ShieldAlert className="h-3 w-3" />}>{riskLabel}</Pill>
-            </div>
-            <div className="mt-1 text-[11.5px] text-default-400">跨 {Object.values(modCount).filter((n) => n > 0).length} / 5 个模块出现</div>
+      {/* 风险横幅 —— 综合标签 + 累计敞口 + 模块命中(中性) */}
+      <div className="card mb-5 flex flex-wrap items-center gap-x-5 gap-y-3 border-l-[3px] p-4" style={{ borderLeftColor: toneVar(riskTone) }}>
+        <span className="flex h-9 w-9 items-center justify-center rounded-xl" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><TypeIcon className="h-[18px] w-[18px]" strokeWidth={2} /></span>
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <Pill tone={ENTITY_TONE[type]} dot={false}>{type}</Pill>
+            <Pill tone={riskTone} icon={<ShieldAlert className="h-3 w-3" />}>{riskLabel}</Pill>
           </div>
-          <div className="ml-auto"><ModDots on={modCount} /></div>
+          <div className="mt-1.5 text-[12px] text-default-500">累计涉及 <b style={{ color: toneVar(riskTone) }}>{fmtCAD(exposure)}</b> · 跨 <b className="text-foreground">{Object.values(modCount).filter((n) => n > 0).length}</b> / 5 个模块{strCount ? <> · STR/报送 <b className="text-foreground">{strCount}</b></> : null}</div>
         </div>
-        <div className="mt-4 grid grid-cols-3 gap-4 border-t border-default-100 pt-3.5 sm:grid-cols-6">
-          <Stat label="累计涉及金额" value={fmtCAD(exposure)} tone={riskTone} />
-          <Stat label="告警" value={modCount.alerts} />
-          <Stat label="事后命中" value={modCount.findings} />
-          <Stat label="关联团伙" value={modCount.rings} />
-          <Stat label="案件" value={modCount.cases} tone={hasCase ? "violet" : undefined} />
-          <Stat label="STR / 报送" value={strCount} tone={strCount ? "red" : undefined} />
+        <div className="ml-auto flex flex-col items-end gap-1">
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-default-300">模块命中</span>
+          <ModCoverage on={modCount} />
         </div>
       </div>
 
@@ -208,9 +175,8 @@ function Profile({ name }: { name: string }) {
           })}
         </div>
 
-        <div className="p-4">
-          {tab === "profile" ? (
-            <div className="flex flex-col gap-5">
+        {tab === "profile" ? (
+          <div className="flex flex-col gap-5 p-4">
               <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
                 <div>
                   <SectionLabel>主体画像</SectionLabel>
@@ -263,18 +229,36 @@ function Profile({ name }: { name: string }) {
                 <Layers className="mt-px h-4 w-4 shrink-0 text-default-400" />同一主体常被事中、事后、团伙、案件各自命中一次,分散在不同队列里看不全。主体360 按归一化键把它们聚到一起 —— 一眼看清全部敞口、是否已立案、有没有重复 STR,支撑「并案而非重复立案」。
               </p>
             </div>
-          ) : shown.length === 0 ? (
-            <div className="flex flex-col items-center justify-center gap-2 py-16 text-center">
+        ) : shown.length === 0 ? (
+          <div className="flex flex-col items-center justify-center gap-2 px-4 py-16 text-center">
               <Layers className="h-7 w-7 text-default-300" />
               <div className="text-[13px] font-semibold text-default-500">{footItems.length === 0 ? "该主体暂无跨模块命中记录" : "该模块下无记录"}</div>
               <div className="text-[11.5px] text-default-400">{footItems.length === 0 ? "名字写法可能与各模块不一致,可回主体目录选取已聚合的主体。" : "切到「全部足迹」查看其它模块。"}</div>
             </div>
-          ) : (
-            <div className="flex flex-col gap-1.5">
-              {shown.map((i) => <Row key={`${i.mod}-${i.key}`} to={i.to} lead={i.lead} title={i.title} sub={i.sub} right={<>{tab === "all" && <ModTag mod={i.mod} />}{i.right}</>} />)}
-            </div>
-          )}
-        </div>
+        ) : (
+          <table className="w-full">
+            <thead>
+              <tr className="border-y border-default-100 text-[11px] font-bold uppercase tracking-wider text-default-400">
+                <th className="px-4 py-2.5 text-left font-bold">模块</th>
+                <th className="px-3 py-2.5 text-left font-bold">记录</th>
+                <th className="px-3 py-2.5 text-left font-bold">详情</th>
+                <th className="px-3 py-2.5 text-left font-bold">状态</th>
+                <th className="px-4 py-2.5"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {shown.map((i) => (
+                <tr key={`${i.mod}-${i.key}`} onClick={() => nav(i.to)} className="cursor-pointer border-b border-default-50 align-middle transition-colors hover:bg-default-50">
+                  <td className="px-4 py-3"><ModTag mod={i.mod} /></td>
+                  <td className="px-3 py-3"><div className="flex items-center gap-2.5"><span className="shrink-0">{i.lead}</span><div className="min-w-0 text-[12.5px] font-semibold leading-tight">{i.title}</div></div></td>
+                  <td className="px-3 py-3 text-[12px] text-default-500">{i.sub}</td>
+                  <td className="px-3 py-3"><div className="flex flex-wrap items-center gap-1.5">{i.right}</div></td>
+                  <td className="px-4 py-3 text-right"><ArrowUpRight className="ml-auto h-4 w-4 text-default-300" /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
     </Shell>
   );
