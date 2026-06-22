@@ -1,10 +1,10 @@
 import { useMemo, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { Button, Input, Select, SelectItem } from "@heroui/react";
-import { Fingerprint, Search, Bell, History, Network, FolderOpen, FileText, ArrowUpRight, ShieldAlert, Store, Link2, Layers, Building2, Lock, AlertOctagon } from "lucide-react";
+import { Button, Input, Select, SelectItem, Popover, PopoverTrigger, PopoverContent } from "@heroui/react";
+import { Fingerprint, Search, Bell, History, Network, FolderOpen, FileText, ArrowUpRight, ShieldAlert, Store, Link2, Layers, Building2, Lock, AlertOctagon, TrendingUp, TrendingDown, Minus, UserPlus, Send, Clock3, Sparkles, GitMerge } from "lucide-react";
 import { Shell, PageHead } from "@/components/Shell";
 import { Pill, SoftChip, SectionLabel, Initials, RiskBadge, toneVar } from "@/components/bits";
-import { directory, footprint, totalExposure, fmtCAD, entityType, ENTITY_TONE, caseStr, sameEntity, linkedAddresses, type DirEntry } from "@/lib/entity360";
+import { directory, footprint, totalExposure, fmtCAD, entityType, ENTITY_TONE, caseStr, sameEntity, linkedAddresses, type DirEntry, type Pending } from "@/lib/entity360";
 import { RC_STATES, type Tone } from "@/lib/data";
 import { FSTATES, FDIM } from "@/lib/findings";
 import { CSTATE, type CState } from "@/lib/cases";
@@ -311,6 +311,88 @@ function RecordChips({ e }: { e: DirEntry }) {
   return <div className="flex flex-wrap items-center gap-1.5">{chip("告警", e.alerts, "amber")}{chip("案件", e.cases, "violet")}{chip("STR", e.str, "red")}{chip("团伙", e.rings, "blue")}</div>;
 }
 
+// ── 风险趋势 ▲▼(对比 30 天前)──
+function TrendTag({ n }: { n: number }) {
+  if (Math.abs(n) < 1) return <span className="inline-flex items-center gap-0.5 text-[10.5px] font-semibold text-default-300"><Minus className="h-3 w-3" />持平</span>;
+  const up = n > 0;
+  const Icon = up ? TrendingUp : TrendingDown;
+  return <span className="inline-flex items-center gap-0.5 text-[10.5px] font-bold" style={{ color: up ? "var(--danger)" : "var(--success)" }} title={`相对 30 天前${up ? "恶化" : "缓和"} ${Math.abs(n)} 分`}><Icon className="h-3 w-3" />{up ? "+" : ""}{n}</span>;
+}
+
+// ── 可解释风险分:点击展开「风险驱动因素」──
+function RiskCell({ e }: { e: DirEntry }) {
+  return (
+    <Popover placement="bottom-start" showArrow>
+      <PopoverTrigger>
+        <button onClick={(ev) => ev.stopPropagation()} className="flex items-center gap-2 rounded-lg outline-none transition-opacity hover:opacity-80">
+          <RiskNum n={e.risk} />
+          <TrendTag n={e.trend} />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="max-w-[268px] items-start p-3.5">
+        <div className="mb-2 flex items-center gap-1.5 text-[12.5px] font-bold"><Sparkles className="h-3.5 w-3.5 text-default-400" />风险驱动因素</div>
+        <div className="flex w-full flex-col gap-1.5">
+          {e.factors.map((f, i) => (
+            <div key={i} className="flex items-center gap-2 text-[12px]">
+              <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: toneVar(f.tone) }} />
+              <span className="text-default-600">{f.label}</span>
+            </div>
+          ))}
+        </div>
+        <div className="mt-2.5 w-full border-t border-default-100 pt-2 text-[11px] text-default-400">
+          趋势 {e.trend > 0 ? `恶化 +${e.trend}` : e.trend < 0 ? `缓和 ${e.trend}` : "持平"} · 对比 30 天前{e.ringMates > 0 && <> · <span style={{ color: "var(--warning)" }}>同团伙 {e.ringMates} 个商户,可并案</span></>}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+// ── 待处理徽标 ──
+const PEND_ICON: Record<Pending["kind"], typeof Bell> = { claim: UserPlus, str: Send, sla: Clock3, triage: Bell };
+function PendingBadge({ p }: { p: Pending | null }) {
+  if (!p) return <span className="text-[12px] text-default-300">—</span>;
+  const Icon = PEND_ICON[p.kind];
+  return (
+    <span className="inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-[11px] font-semibold" style={{ background: toneSoft(p.tone), color: toneVar(p.tone) }}>
+      {p.urgent && <span className="h-1.5 w-1.5 rounded-full" style={{ background: toneVar(p.tone) }} />}
+      <Icon className="h-3 w-3" />{p.label}
+    </span>
+  );
+}
+
+// ── 需关注分诊条:把待办紧迫的主体聚成一行可点筛选 ──
+type PendFilter = "all" | Pending["kind"] | "rising";
+function TriageStrip({ all, value, onPick }: { all: DirEntry[]; value: PendFilter; onPick: (k: PendFilter) => void }) {
+  const items: { k: PendFilter; label: string; n: number; icon: typeof Bell; tone: Tone }[] = [
+    { k: "claim", label: "待认领案件", n: all.filter((e) => e.pending?.kind === "claim").length, icon: UserPlus, tone: "violet" },
+    { k: "str", label: "STR 待报送", n: all.filter((e) => e.pending?.kind === "str").length, icon: Send, tone: "red" },
+    { k: "sla", label: "案件 SLA 临期", n: all.filter((e) => e.pending?.kind === "sla").length, icon: Clock3, tone: "amber" },
+    { k: "triage", label: "告警待研判", n: all.filter((e) => e.pending?.kind === "triage").length, icon: Bell, tone: "amber" },
+    { k: "rising", label: "风险恶化中", n: all.filter((e) => e.trend >= 8).length, icon: TrendingUp, tone: "red" },
+  ];
+  const shown = items.filter((i) => i.n > 0);
+  if (!shown.length) return null;
+  const total = all.filter((e) => e.pending?.urgent).length;
+  return (
+    <div className="card mb-4 flex flex-wrap items-center gap-2 p-3 pl-4">
+      <span className="mr-1 flex items-center gap-1.5 text-[12.5px] font-bold"><ShieldAlert className="h-4 w-4" style={{ color: "var(--danger)" }} />需关注<span className="text-default-400">· {total} 项待办</span></span>
+      {shown.map((i) => {
+        const on = value === i.k;
+        const Icon = i.icon;
+        return (
+          <button key={i.k} onClick={() => onPick(on ? "all" : i.k)}
+            className="inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[12px] font-semibold transition-colors"
+            style={on ? { borderColor: toneVar(i.tone), background: toneSoft(i.tone), color: toneVar(i.tone) } : { borderColor: "var(--line)", color: "var(--text-2)" }}>
+            <Icon className="h-3.5 w-3.5" style={{ color: toneVar(i.tone) }} />{i.label}
+            <span className="tnum rounded-full px-1.5 text-[10.5px] font-bold" style={{ background: toneSoft(i.tone), color: toneVar(i.tone) }}>{i.n}</span>
+          </button>
+        );
+      })}
+      {value !== "all" && <button onClick={() => onPick("all")} className="ml-auto text-[11.5px] font-medium text-default-400 hover:text-default-600">清除筛选 ✕</button>}
+    </div>
+  );
+}
+
 // ── 主体目录 · 商户风险总览(无 name 参数)──
 const DIR_TABS = [
   { k: "all", label: "全部" },
@@ -336,12 +418,14 @@ function Directory() {
   const [risk, setRisk] = useState("all");   // all | high(≥80) | mid(60-79) | low(<60)
   const [stat, setStat] = useState("all");
   const [country, setCountry] = useState("all");
+  const [pend, setPend] = useState<PendFilter>("all");
 
   const countries = useMemo(() => [...new Set(all.map((e) => e.country).filter((c) => c && c !== "—"))], [all]);
   const tabCount = (k: DirTab) => all.filter((e) => inTab(k, e)).length;
 
   const list = all.filter((e) => {
     if (!inTab(tab, e)) return false;
+    if (pend === "rising" ? e.trend < 8 : pend !== "all" && e.pending?.kind !== pend) return false;
     if (q.trim()) { const s = q.toLowerCase(); if (!e.name.toLowerCase().includes(s) && !e.merchantNo.includes(q.trim())) return false; }
     if (risk === "high" && e.risk < 80) return false;
     if (risk === "mid" && (e.risk < 60 || e.risk >= 80)) return false;
@@ -359,7 +443,10 @@ function Directory() {
 
   return (
     <Shell crumb={["主体档案"]} wide>
-      <PageHead title="商户总览" sub="全部商户主体的风险总览 · 点击任意商户进入其 360° 档案(查看该商户所有告警、案件、报送、冻结记录)。" />
+      <PageHead title="商户总览" sub="全部商户主体的风险总览 · 按「需关注度」(风险 × 待办 × 趋势)排序,优先顶上正在恶化、有待办的主体。点击任意商户进入其 360° 档案。" />
+
+      {/* 需关注分诊条 —— 谁需要我、为什么 */}
+      <TriageStrip all={all} value={pend} onPick={setPend} />
 
       {/* KPI */}
       <div className="mb-5 grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -410,8 +497,9 @@ function Directory() {
           <thead>
             <tr className="border-y border-default-100 text-[11px] font-bold uppercase tracking-wider text-default-400">
               <th className="px-4 py-2.5 text-left font-bold">商户</th>
-              <th className="px-3 py-2.5 text-left font-bold">风险分</th>
+              <th className="px-3 py-2.5 text-left font-bold">风险分 · 趋势</th>
               <th className="px-3 py-2.5 text-left font-bold">状态</th>
+              <th className="px-3 py-2.5 text-left font-bold">待处理</th>
               <th className="px-3 py-2.5 text-left font-bold">犯事记录</th>
               <th className="px-3 py-2.5 text-right font-bold">30 日交易额</th>
               <th className="px-3 py-2.5 text-left font-bold">最近事件</th>
@@ -431,15 +519,21 @@ function Directory() {
                     </div>
                   </div>
                 </td>
-                <td className="px-3 py-3"><RiskNum n={e.risk} /></td>
-                <td className="px-3 py-3"><Pill tone={e.status.tone}>{e.status.label}</Pill></td>
+                <td className="px-3 py-3"><RiskCell e={e} /></td>
+                <td className="px-3 py-3">
+                  <div className="flex items-center gap-1.5">
+                    <Pill tone={e.status.tone}>{e.status.label}</Pill>
+                    {e.ringMates > 0 && <span title={`同团伙 ${e.ringMates} 个商户 · 可并案`} className="inline-flex items-center gap-0.5 rounded-md px-1 py-0.5 text-[10px] font-bold" style={{ background: toneSoft("amber"), color: toneVar("amber") }}><GitMerge className="h-3 w-3" />可并案</span>}
+                  </div>
+                </td>
+                <td className="px-3 py-3"><PendingBadge p={e.pending} /></td>
                 <td className="px-3 py-3"><RecordChips e={e} /></td>
                 <td className="px-3 py-3 text-right tnum text-[12.5px] font-semibold">{e.vol30}</td>
                 <td className="px-3 py-3 text-[12px] text-default-500">{e.lastEvent.label}{e.lastEvent.date && <span className="text-default-300"> · {e.lastEvent.date}</span>}</td>
                 <td className="px-4 py-3 text-right"><span className="inline-flex items-center gap-1 text-[12.5px] font-semibold" style={{ color: "var(--brand)" }}>查看档案<ArrowUpRight className="h-3.5 w-3.5" /></span></td>
               </tr>
             ))}
-            {list.length === 0 && <tr><td colSpan={7} className="py-12 text-center text-[12.5px] text-default-400">无匹配商户</td></tr>}
+            {list.length === 0 && <tr><td colSpan={8} className="py-12 text-center text-[12.5px] text-default-400">无匹配商户</td></tr>}
           </tbody>
         </table>
 

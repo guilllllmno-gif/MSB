@@ -117,6 +117,8 @@ export const caseStr = (s: CState) => strLabel(s);
 // 30日交易额 / 注册地 / 最近事件,组成「商户风险总览」。少量干净 / 白名单 / 观察商户
 // 由种子补入(DIR_SEED),让总览覆盖完整风险谱(不只问题主体)。
 export interface DirStatus { key: string; label: string; tone: Tone }
+export interface RiskFactor { label: string; tone: Tone }
+export interface Pending { label: string; tone: Tone; urgent: boolean; kind: "claim" | "str" | "sla" | "triage" }
 export interface DirEntry {
   key: string; name: string; type: EntityType;
   merchantNo: string; country: string;
@@ -124,6 +126,12 @@ export interface DirEntry {
   span: number; total: number;
   risk: number; status: DirStatus; vol30: string;
   lastEvent: { label: string; date: string };
+  // —— 分诊增强:风险分可解释 + 趋势 + 待处理 ——
+  factors: RiskFactor[];   // 风险驱动因素(解释 risk 为何这么高)
+  trend: number;           // 风险趋势:相对 30 天前的变化(+ 恶化 / − 缓和)
+  pending: Pending | null; // 该商户当前主要待办(待认领 / STR临期 / SLA / 待研判)
+  ringMates: number;       // 同团伙里的其它商户数(>0 → 可并案信号)
+  need: number;            // 需关注度排序分 = 风险 × 待办 × 趋势
 }
 
 // FNV-1a → 稳定数字种子(刷新不变);用于合成商户号 / 日期 / 交易额
@@ -151,6 +159,7 @@ const DIR_SEED: Seed[] = [
 interface Acc {
   names: string[]; alerts: number; findings: number; rings: number; cases: number; reports: number;
   maxScore: number; sanction: boolean; ring: boolean; caseActive: boolean; reportOpen: boolean;
+  unclaimedCase: boolean; caseSlaUrgent: boolean; ringMates: number;
   vol30?: string; country?: string; lastLabel?: string;
 }
 
@@ -158,7 +167,7 @@ export function directory(): DirEntry[] {
   const map = new Map<string, Acc>();
   const get = (name: string): Acc[] => entityKeys(name)
     .filter((k) => !(k.startsWith("#") || /ring-/.test(k)))
-    .map((k) => { let e = map.get(k); if (!e) { e = { names: [], alerts: 0, findings: 0, rings: 0, cases: 0, reports: 0, maxScore: 0, sanction: false, ring: false, caseActive: false, reportOpen: false }; map.set(k, e); } e.names.push(name); return e; });
+    .map((k) => { let e = map.get(k); if (!e) { e = { names: [], alerts: 0, findings: 0, rings: 0, cases: 0, reports: 0, maxScore: 0, sanction: false, ring: false, caseActive: false, reportOpen: false, unclaimedCase: false, caseSlaUrgent: false, ringMates: 0 }; map.set(k, e); } e.names.push(name); return e; });
 
   alerts.forEach((a) => get(a.merchant).forEach((e) => {
     e.alerts++; e.maxScore = Math.max(e.maxScore, a.score);
@@ -168,10 +177,18 @@ export function directory(): DirEntry[] {
     if (!e.lastLabel) e.lastLabel = a.score >= 80 ? "事中拦截" : "告警研判";
   }));
   FINDINGS.forEach((f) => get(f.subject).forEach((e) => { e.findings++; if (!e.lastLabel) e.lastLabel = "事后命中"; }));
-  rings.forEach((r) => r.members.filter((m) => m.kind !== "群组").forEach((m) => get(m.name).forEach((e) => { e.rings++; e.ring = true; })));
+  rings.forEach((r) => {
+    const mates = r.members.filter((m) => m.kind !== "群组" && entityType(m.name) === "商户").length; // 同团伙里的其它商户数(并案信号)
+    r.members.filter((m) => m.kind !== "群组").forEach((m) => get(m.name).forEach((e) => { e.rings++; e.ring = true; e.ringMates = Math.max(e.ringMates, mates - 1); }));
+  });
   CASES.forEach((c) => {
     const active = CASE_ACTIVE.has(c.state);
-    const touch = (n: string) => get(n).forEach((e) => { e.cases++; if (active) e.caseActive = true; if (/制裁/.test(c.risk + c.type)) e.sanction = true; e.lastLabel = active ? "立案调查" : e.lastLabel; });
+    const touch = (n: string) => get(n).forEach((e) => {
+      e.cases++;
+      if (active) { e.caseActive = true; if (!c.owner) e.unclaimedCase = true; if (c.sla?.tone === "red" || c.sla?.tone === "amber") e.caseSlaUrgent = true; }
+      if (/制裁/.test(c.risk + c.type)) e.sanction = true;
+      e.lastLabel = active ? "立案调查" : e.lastLabel;
+    });
     touch(c.subject);
     // 子主体只纳入「商户」—— 链上地址 / 个人 / UBO(如制裁混币器 Tornado Cash)是商户名下属性或外部实体,不另作主体行
     (c.subjects || []).forEach((s) => { if (s.type === "商户") touch(s.name); });
@@ -190,28 +207,56 @@ export function directory(): DirEntry[] {
     if (!risk && e.findings) risk = 56;
     if (!risk) risk = 12 + (hashNum(key) % 18);
     const statusKey = e.sanction ? "frozen" : e.ring ? "restricted" : e.reportOpen ? "report" : e.caseActive ? "case" : e.alerts && risk >= 60 ? "info" : "normal";
+    risk = Math.min(99, risk);
+    // 风险驱动因素 —— 解释「为何这个分」,复用全站加权贡献语言
+    const factors: RiskFactor[] = [];
+    if (e.sanction) factors.push({ label: "制裁名单关联", tone: "red" });
+    if (e.caseActive) factors.push({ label: `${e.cases} 个在办案件`, tone: "violet" });
+    if (e.ring) factors.push({ label: `关联团伙${e.ringMates > 0 ? ` · 同伙 ${e.ringMates} 主体` : ""}`, tone: "amber" });
+    if (e.maxScore >= 80) factors.push({ label: `高分告警 ${e.maxScore}`, tone: "red" });
+    else if (e.maxScore >= 60) factors.push({ label: `告警最高分 ${e.maxScore}`, tone: "amber" });
+    if (e.findings) factors.push({ label: `${e.findings} 项事后命中`, tone: "amber" });
+    if (e.reportOpen) factors.push({ label: "STR 报送在途", tone: "red" });
+    if (!factors.length) factors.push({ label: e.alerts ? `告警 ${e.alerts} 笔 · 均未升级` : "无显著风险信号", tone: "green" });
+    // 趋势:相对 30 天前的风险变化(确定性合成;低风险主体波动小)
+    const raw = (hashNum(key + "t") % 27) - 11;
+    const trend = risk < 40 ? Math.round(raw / 3) : raw;
+    // 待处理:当前主要待办(优先级:待认领 > STR临期 > SLA临期 > 告警待研判)
+    const pending: Pending | null =
+      e.unclaimedCase ? { label: "待认领案件", tone: "violet", urgent: true, kind: "claim" }
+        : e.reportOpen ? { label: "STR 待报送", tone: "red", urgent: true, kind: "str" }
+        : e.caseSlaUrgent ? { label: "案件 SLA 临期", tone: "amber", urgent: true, kind: "sla" }
+        : e.alerts && !e.caseActive && risk >= 60 ? { label: `${e.alerts} 笔告警待研判`, tone: "amber", urgent: false, kind: "triage" }
+        : null;
+    const need = risk + (pending?.urgent ? 24 : pending ? 9 : 0) + Math.max(0, trend) * 0.7;
     out.push({
       key, name, type: "商户", merchantNo: synthMerchantNo(key), country: e.country || "—",
       alerts: e.alerts, findings: e.findings, rings: e.rings, cases: e.cases, reports: e.reports, str,
       span: [e.alerts, e.findings, e.rings, e.cases, e.reports].filter((n) => n > 0).length,
       total: e.alerts + e.findings + e.rings + e.cases + e.reports,
-      risk: Math.min(99, risk), status: mkStatus(statusKey), vol30: e.vol30 || synthVol(key),
+      risk, status: mkStatus(statusKey), vol30: e.vol30 || synthVol(key),
       lastEvent: { label: e.lastLabel || "—", date: e.lastLabel ? synthDate(key) : "" },
+      factors, trend, pending, ringMates: e.ringMates, need,
     });
   }
   // 补入干净 / 白名单 / 观察商户种子(键未命中时)
   for (const s of DIR_SEED) {
     const k = entityKeys(s.name)[0] || s.name.toLowerCase();
     if (map.has(k)) continue;
+    const trend = Math.round(((hashNum(k + "t") % 13) - 7) / 2); // 干净主体波动小
     out.push({
       key: k, name: s.name, type: "商户", merchantNo: synthMerchantNo(k), country: s.country,
       alerts: s.alerts || 0, findings: 0, rings: 0, cases: 0, reports: 0, str: 0,
       span: s.alerts ? 1 : 0, total: s.alerts || 0,
       risk: s.risk, status: mkStatus(s.statusKey), vol30: s.vol30,
       lastEvent: { label: s.lastEvent[0], date: s.lastEvent[1] },
+      factors: [{ label: s.statusKey === "white" ? "已核验 · 白名单豁免" : s.alerts ? `告警 ${s.alerts} 笔 · 均误报` : "无显著风险信号", tone: "green" }],
+      trend, pending: s.statusKey === "watch" ? { label: "名单观察中", tone: "blue", urgent: false, kind: "triage" } : null,
+      ringMates: 0, need: s.risk + Math.max(0, trend) * 0.7,
     });
   }
-  return out.sort((a, b) => b.risk - a.risk || b.total - a.total);
+  // 默认按「需关注度」降序 —— 不是纯风险排名,而是把 待办紧迫 / 正在恶化 的主体顶上来(分诊,而非排行)
+  return out.sort((a, b) => b.need - a.need || b.risk - a.risk);
 }
 
 // 案件「在办」状态集(派生风险分 / 状态用,与 cases.ts 的 active 口径一致)
