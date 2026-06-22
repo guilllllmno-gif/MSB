@@ -45,7 +45,11 @@ export function ringActions(state: RingStateKey): string[] {
   return []; // pending（先认领）/ terminal（已处置）
 }
 
-export interface RingMember { id: string; name: string; sub: string; kind: "商户" | "地址" | "群组"; i: string; c: string; alerts: number; role: string }
+// a cluster (kind:"群组") node collapses N concrete sub-members (addresses / wallets /
+// devices / merchants). `children` may be authored explicitly; otherwise they're
+// synthesized deterministically from the count embedded in name/sub (see clusterChildren).
+export interface ClusterChild { v: string; meta: string; tone: Tone }
+export interface RingMember { id: string; name: string; sub: string; kind: "商户" | "地址" | "群组"; i: string; c: string; alerts: number; role: string; children?: ClusterChild[] }
 export interface RingEdge { a: number; b: number; dims: RingDim[]; strength: number; note: string } // a,b = member index
 export interface SharedDim { dim: RingDim; count: number; contrib: number } // contrib = points toward confidence
 
@@ -103,7 +107,13 @@ export const rings: Ring[] = [
     ],
     members: [
       { id: "M1", name: "Eastwind Exchange", sub: "商户 · 新加坡", kind: "商户", i: "EE", c: "var(--brand)", alerts: 4, role: "收款商户" },
-      { id: "M2", name: "发送方群组 #A7", sub: "关注名单 · 5 地址", kind: "群组", i: "A7", c: "var(--warning)", alerts: 2, role: "拆分源" },
+      { id: "M2", name: "发送方群组 #A7", sub: "关注名单 · 5 地址", kind: "群组", i: "A7", c: "var(--warning)", alerts: 2, role: "拆分源", children: [
+        { v: "TLm8…3kPq", meta: "关注名单命中 · 拆分入金 5 笔", tone: "amber" },
+        { v: "TJ2x…7vBn", meta: "关注名单命中 · 拆分入金 4 笔", tone: "amber" },
+        { v: "TWd4…1cZf", meta: "拆分入金 4 笔 · 共享设备指纹 #A7", tone: "grey" },
+        { v: "TRb9…6hYt", meta: "拆分入金 3 笔 · 同出口 IP 段", tone: "grey" },
+        { v: "TKp1…0qMs", meta: "拆分入金 3 笔 · 24h 内集中转入", tone: "grey" },
+      ] },
       { id: "M3", name: "TQ5n…9wEx", sub: "发送方地址", kind: "地址", i: "TQ", c: "var(--violet)", alerts: 1, role: "拆分节点" },
     ],
     edges: [
@@ -188,7 +198,10 @@ export const rings: Ring[] = [
     members: [
       { id: "M1", name: "OffshoreFX Ltd.", sub: "商户 · 离岸", kind: "商户", i: "OF", c: "var(--brand)", alerts: 3, role: "高风险商户" },
       { id: "M2", name: "0x7F4a…9c21", sub: "OFAC SDN 制裁地址", kind: "地址", i: "0x", c: "var(--danger)", alerts: 2, role: "制裁实体" },
-      { id: "M3", name: "中转钱包 ×2", sub: "资金经 2 个钱包过账以规避制裁筛查", kind: "群组", i: "⛓", c: "var(--warning)", alerts: 1, role: "资金中转 · 规避" },
+      { id: "M3", name: "中转钱包 ×2", sub: "资金经 2 个钱包过账以规避制裁筛查", kind: "群组", i: "⛓", c: "var(--warning)", alerts: 1, role: "资金中转 · 规避", children: [
+        { v: "0x3Be1…A77c", meta: "OFAC 制裁地址下游 1 跳 · 过账 CAD 31,000", tone: "red" },
+        { v: "0xC09f…12Ed", meta: "2 跳过账后注入 OffshoreFX 托管钱包", tone: "amber" },
+      ] },
     ],
     edges: [
       { a: 0, b: 1, dims: ["funds", "address"], strength: 78, note: "资金 2 跳触及 OFAC SDN 制裁地址" },
@@ -296,6 +309,55 @@ export const rings: Ring[] = [
     hubNote: "已剔除超级节点：跨链桥接合约地址（网络内 9+ 主体共用，区分度低，不计入聚类）",
   },
 ];
+
+// ── cluster (群组) sub-member expansion ──
+// A 群组 node stands for N collapsed sub-members. The count is embedded in the
+// label ("中转钱包 ×3", "6 个拆分地址", "关注名单 · 5 地址"); we parse it and, when
+// no explicit `children` are authored, synthesize concrete members deterministically
+// (seeded on the parent name) so the same ring always expands to the same list.
+export function clusterCount(m: RingMember): number {
+  if (m.children?.length) return m.children.length;
+  const mx = m.name.match(/×\s*(\d+)/);
+  if (mx) return +mx[1];
+  const sx = (m.name + " " + m.sub).match(/(\d+)\s*(?:个|地址|设备|钱包|主体)/);
+  return sx ? +sx[1] : 0;
+}
+function clusterKind(m: RingMember): "device" | "merchant" | "wallet" | "address" {
+  const t = m.name + m.sub + m.role;
+  if (/设备/.test(t)) return "device";
+  if (/商户/.test(t)) return "merchant";
+  if (/钱包/.test(t)) return "wallet";
+  return "address";
+}
+// FNV-1a → small deterministic seed; LCG step for per-char hex
+function seedOf(s: string): number { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+function hexFrag(seed: number, n: number): string { const ch = "0123456789abcdef"; let x = seed >>> 0, out = ""; for (let i = 0; i < n; i++) { x = (Math.imul(x, 1103515245) + 12345) >>> 0; out += ch[(x >>> 16) & 15]; } return out; }
+const DEVICE_OS = ["Android 13 · Chrome", "iOS 17 · Safari", "Windows 11 · Edge", "Android 12 · WebView", "macOS · Safari", "Linux · Chrome"];
+// concrete sub-members of a cluster node — authored `children` if present, else synthesized
+export function clusterChildren(m: RingMember): ClusterChild[] {
+  if (m.children?.length) return m.children;
+  const n = clusterCount(m);
+  if (!n) return [];
+  const kind = clusterKind(m);
+  const watch = /名单/.test(m.sub) || /名单/.test(m.role);
+  const tag = m.name.match(/[#A-Z]+-?\d+|#[A-Z]\d+|DV-\d+|[A-Z]\d/)?.[0];
+  return Array.from({ length: n }, (_, i) => {
+    const s = seedOf(m.name + "::" + i);
+    if (kind === "device") {
+      const dv = m.name.match(/DV-\d+/)?.[0] ?? "DV";
+      return { v: `${dv}-${hexFrag(s, 5)}`, meta: `设备指纹 · ${DEVICE_OS[s % DEVICE_OS.length]}`, tone: "grey" as Tone };
+    }
+    if (kind === "merchant") {
+      return { v: `新注册商户 #${i + 1}`, meta: `KYB 审核中 · 注册 ${3 + (s % 12)} 天 · 首充待核`, tone: "amber" as Tone };
+    }
+    const v = `0x${hexFrag(s, 4)}…${hexFrag(s >>> 5, 4)}`;
+    const txn = 2 + (s % 7), hops = 1 + (s % 3);
+    const meta = watch
+      ? `关注名单命中 · 近 30 天 ${txn} 笔`
+      : `${m.role}${tag ? ` · ${tag}` : ""} · ${txn} 笔 / 过账 ${hops} 跳`;
+    return { v, meta, tone: watch ? ("amber" as Tone) : ("grey" as Tone) };
+  });
+}
 
 // per-disposition form fields for the 研判处置 drawer
 export interface RField { k: string; label: string; type: "select" | "multi"; required: boolean; options: string[] }

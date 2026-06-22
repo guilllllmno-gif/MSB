@@ -7,7 +7,7 @@ import { Shell } from "@/components/Shell";
 import { Pill, Initials, SectionLabel } from "@/components/bits";
 import { RingBasis } from "@/components/RingBasis";
 import { Timeline } from "@/components/Timeline";
-import { ringOf, caseRefFor, DIM_META, DIM_ORDER, confTone, confLabel, RING_FIELDS, RING_STATES, DISP_STATE, ringActions, type RingDim, type Ring, type RingEdge, type RingStateKey } from "@/lib/rings";
+import { ringOf, caseRefFor, clusterCount, clusterChildren, DIM_META, DIM_ORDER, confTone, confLabel, RING_FIELDS, RING_STATES, DISP_STATE, ringActions, type RingDim, type Ring, type RingEdge, type RingStateKey } from "@/lib/rings";
 import { ringStore, useRingVersion } from "@/lib/store";
 import { intakeCase } from "@/lib/caseIntake";
 import type { CaseSubject } from "@/lib/cases";
@@ -60,7 +60,7 @@ function forceLayout(n: number, edges: RingEdge[]): { x: number; y: number }[] {
 }
 
 // relationship graph — single circle for small rings, force-directed for large
-function Graph({ ring }: { ring: Ring }) {
+function Graph({ ring, expanded, onToggle }: { ring: Ring; expanded: Set<string>; onToggle: (id: string) => void }) {
   const n = ring.members.length;
   // adapt to member count so it stays legible as the ring grows
   const size = n <= 5 ? 50 : n <= 8 ? 42 : 34;
@@ -121,14 +121,29 @@ function Graph({ ring }: { ring: Ring }) {
           </div>
         );
       })}
-      {/* nodes */}
-      {ring.members.map((m, i) => (
-        <div key={m.id} className="absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center" style={{ left: pc(pos[i].x, W), top: pc(pos[i].y, H), width: labelW }}>
-          <Initials p={{ i: m.i, c: m.c }} size={size} />
-          <div className={`mt-1 max-w-full truncate text-center font-semibold leading-tight ${n <= 8 ? "text-[11.5px]" : "text-[10px]"}`}>{m.name}</div>
-          <div className="max-w-full truncate text-[10px] leading-tight text-default-400">{m.role}</div>
-        </div>
-      ))}
+      {/* nodes — 群组 (cluster) nodes are clickable to expand their sub-members */}
+      {ring.members.map((m, i) => {
+        const cluster = m.kind === "群组";
+        const cnt = cluster ? clusterCount(m) : 0;
+        const on = expanded.has(m.id);
+        return (
+          <div key={m.id} className="absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center" style={{ left: pc(pos[i].x, W), top: pc(pos[i].y, H), width: labelW }}>
+            <button type="button" disabled={!cluster} onClick={() => onToggle(m.id)} aria-label={cluster ? `展开群组 ${m.name} 的 ${cnt} 个子成员` : undefined}
+              className={`relative rounded-full transition ${cluster ? "cursor-pointer hover:brightness-95" : "cursor-default"}`}
+              style={on ? { boxShadow: "0 0 0 3px var(--content1), 0 0 0 5px var(--brand)" } : undefined}
+              title={cluster ? `${cnt} 个子成员 · 点击${on ? "收起" : "展开"}` : undefined}>
+              <Initials p={{ i: m.i, c: m.c }} size={size} />
+              {cluster && cnt > 0 && (
+                <span className="absolute -right-1.5 -top-1.5 flex items-center gap-px rounded-full border-2 border-content1 px-1 py-px text-[9px] font-bold leading-none text-white" style={{ background: "var(--brand)" }}>
+                  {cnt}<ChevronDown className={`h-2.5 w-2.5 transition-transform ${on ? "rotate-180" : ""}`} />
+                </span>
+              )}
+            </button>
+            <div className={`mt-1 max-w-full truncate text-center font-semibold leading-tight ${n <= 8 ? "text-[11.5px]" : "text-[10px]"}`}>{m.name}</div>
+            <div className="max-w-full truncate text-[10px] leading-tight text-default-400">{m.role}</div>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -183,6 +198,8 @@ export default function RingDetail() {
   const [fieldVals, setFieldVals] = useState<Record<string, string[]>>({});
   const [errs, setErrs] = useState<Set<string>>(new Set());
   const [expDim, setExpDim] = useState<RingDim | null>(null);
+  const [expClusters, setExpClusters] = useState<Set<string>>(new Set());
+  const toggleCluster = (id: string) => setExpClusters((p) => { const next = new Set(p); next.has(id) ? next.delete(id) : next.add(id); return next; });
   const [tab, setTab] = useState<"info" | "log">("info");
   const edges = [...ring.edges].sort((a, b) => b.strength - a.strength);
 
@@ -273,7 +290,8 @@ export default function RingDetail() {
             <div className="flex flex-wrap items-center gap-2.5">{DIM_ORDER.map((d) => <span key={d} className="flex items-center gap-1 text-[11px] text-default-500"><span className="h-2 w-2 rounded-full" style={{ background: DIM_META[d].color }} />{DIM_META[d].short}</span>)}</div>
           </CardHeader>
             <CardBody className="pt-0">
-              <Graph ring={ring} />
+              <Graph ring={ring} expanded={expClusters} onToggle={(id) => { toggleCluster(id); if (!expClusters.has(id)) setTimeout(() => document.getElementById(`cm-${id}`)?.scrollIntoView({ behavior: "smooth", block: "center" }), 60); }} />
+              {ring.members.some((m) => m.kind === "群组") && <div className="mt-2 text-center text-[11px] text-default-400">提示：带 <span className="font-semibold text-default-500">数字角标</span> 的为簇节点，点击可展开查看其下子成员（地址 / 钱包 / 设备）</div>}
               {/* evidence explains each edge above */}
               <div className="mt-5 border-t border-divider pt-4">
                 <div className="mb-3 flex flex-wrap items-baseline justify-between gap-1"><div className="text-[14px] font-bold">共享证据明细 · {edges.length} 条连线</div><div className="text-[12px] text-default-400">逐条解释上方每条连线（主体对）· 强度叠加形成置信度 · 可留痕</div></div>
@@ -356,14 +374,39 @@ export default function RingDetail() {
             <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
               {ring.members.map((m, idx) => {
                 const dims = Array.from(new Set(ring.edges.filter((e) => e.a === idx || e.b === idx).flatMap((e) => e.dims)));
+                const cluster = m.kind === "群组";
+                const cnt = cluster ? clusterCount(m) : 0;
+                const on = expClusters.has(m.id);
+                const children = on ? clusterChildren(m) : [];
                 return (
-                  <div key={m.id} className="flex items-center gap-3 rounded-xl border border-divider p-3">
-                    <Initials p={{ i: m.i, c: m.c }} size={36} />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2"><span className="truncate font-semibold">{m.name}</span><Pill tone="grey" dot={false}>{m.kind}</Pill></div>
-                      <div className="text-[11.5px] text-default-400">{m.sub} · {m.role} · 关联告警 {m.alerts} 条</div>
+                  <div key={m.id} id={`cm-${m.id}`} className={`rounded-xl border p-3 transition-colors ${cluster && on ? "border-primary/50 bg-primary/[0.03]" : "border-divider"} ${cluster ? "sm:col-span-2" : ""}`}>
+                    <div className="flex items-center gap-3">
+                      <Initials p={{ i: m.i, c: m.c }} size={36} />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2"><span className="truncate font-semibold">{m.name}</span><Pill tone={cluster ? "amber" : "grey"} dot={false}>{m.kind}</Pill>{cluster && cnt > 0 && <span className="rounded-full bg-default-100 px-1.5 text-[10px] font-semibold text-default-500">{cnt} 个子成员</span>}</div>
+                        <div className="text-[11.5px] text-default-400">{m.sub} · {m.role} · 关联告警 {m.alerts} 条</div>
+                      </div>
+                      {cluster && cnt > 0 ? (
+                        <button onClick={() => toggleCluster(m.id)} className="flex shrink-0 items-center gap-1 rounded-lg border border-divider px-2 py-1 text-[11.5px] font-semibold text-default-600 hover:bg-default-50">
+                          {on ? "收起" : "展开"}<ChevronDown className={`h-3.5 w-3.5 transition-transform ${on ? "rotate-180" : ""}`} />
+                        </button>
+                      ) : (
+                        <div className="flex shrink-0 gap-1">{DIM_ORDER.filter((d) => dims.includes(d)).map((d) => { const Icon = DIM_ICON[d]; return <span key={d} title={DIM_META[d].label} className="flex h-6 w-6 items-center justify-center rounded-lg" style={{ background: "color-mix(in srgb," + DIM_META[d].color + " 14%, transparent)", color: DIM_META[d].color }}><Icon className="h-3.5 w-3.5" /></span>; })}</div>
+                      )}
                     </div>
-                    <div className="flex shrink-0 gap-1">{DIM_ORDER.filter((d) => dims.includes(d)).map((d) => { const Icon = DIM_ICON[d]; return <span key={d} title={DIM_META[d].label} className="flex h-6 w-6 items-center justify-center rounded-lg" style={{ background: "color-mix(in srgb," + DIM_META[d].color + " 14%, transparent)", color: DIM_META[d].color }}><Icon className="h-3.5 w-3.5" /></span>; })}</div>
+                    {cluster && on && (
+                      <div className="mt-2.5 border-t border-divider pt-2.5">
+                        <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+                          {children.map((ch, ci) => (
+                            <div key={ci} className="flex items-center gap-2 rounded-lg bg-default-50 px-2.5 py-1.5">
+                              <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: toneCol(ch.tone) }} />
+                              <span className="tnum shrink-0 font-mono text-[12px] font-semibold">{ch.v}</span>
+                              <span className="min-w-0 flex-1 truncate text-[11px] text-default-400">{ch.meta}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })}
