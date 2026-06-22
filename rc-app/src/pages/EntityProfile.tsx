@@ -61,6 +61,7 @@ function Profile({ name }: { name: string }) {
   // 画像信息 —— 取自最丰富来源(告警 merchantTier/kyb/accountAge),缺则合成
   const a0 = fp.alerts[0];
   const merchantNo = dir?.merchantNo ?? "—";
+  const legalForm = name.match(/\b(Ltd|Inc|Corp|LLC|PLC|GmbH|Pte|Co)\b\.?/i)?.[1]; // 从名称派生法律形式(Ltd./Inc./Corp.…)
   const country = a0?.country ?? dir?.country ?? "—";
   const vol30 = a0?.custHistory?.vol30 ?? dir?.vol30 ?? "—";
 
@@ -93,6 +94,18 @@ function Profile({ name }: { name: string }) {
     ...fp.cases.map((c): EV => { const cs = caseStore.stateOf(c.id, c.state) as CState; const st = CSTATE[cs]; return { mod: "cases", key: c.id, to: `/case?id=${c.id}`, event: `${c.risk} · 来源 ${c.src}`, recLabel: c.type, recId: c.id, time: evtTime(c.id), right: <Pill tone={st.tone} dot>{st.label}</Pill> }; }),
     ...fp.reports.map((r): EV => { const st = RSTATE[reportStore.statusOf(r.id, r.status) as keyof typeof RSTATE]; return { mod: "reports", key: r.id, to: r.to || "/reports", event: r.summary, recLabel: `${r.type} · ${r.sub}`, recId: r.id, time: evtTime(r.id), right: st ? <Pill tone={st.tone} dot>{st.label}</Pill> : null }; }),
   ].sort((x, y) => y.time.localeCompare(x.time)); // 时间倒序
+
+  // 活动日志 = 真实操作审计轨迹(每条记录的生命周期基线 + 各 store 的实时操作事件:认领/处置/串并…)
+  const auditLog = useMemo(() => {
+    const items: { time: string; text: string; mod: ModKey }[] = [];
+    const push = (time: string, mod: ModKey, text: string) => items.push({ time, text, mod });
+    fp.alerts.forEach((a) => { push(evtTime(a.id), "alerts", `告警生成 · ${a.title} · 命中 ${a.ruleShort}`); alertStore.eventsOf(a.id).forEach((e) => push(e.t, "alerts", `${a.id} · ${e.text}`)); });
+    fp.findings.forEach((f) => { push(evtTime(f.id), "findings", `事后检测命中 · ${f.pattern}`); findingStore.eventsOf(f.id).forEach((e) => push(e.t, "findings", `${f.id} · ${e.text}`)); });
+    fp.rings.forEach(({ ring }) => { push(evtTime(ring.id), "rings", `系统聚类识别成团 · ${ring.typology} · 置信度 ${ring.confidence}%`); ringStore.eventsOf(ring.id).forEach((e) => push(e.t, "rings", `${ring.id} · ${e.text}`)); });
+    fp.cases.forEach((c) => { push(evtTime(c.id), "cases", `立案 · ${c.type} · 来源 ${c.src}`); caseStore.eventsOf(c.id).forEach((e) => push(e.t, "cases", `${c.id} · ${e.text}`)); });
+    fp.reports.forEach((r) => { push(evtTime(r.id), "reports", `报告起草 · ${r.type}`); reportStore.eventsOf(r.id).forEach((e) => push(e.t, "reports", `${r.id} · ${e.text}`)); });
+    return items.sort((a, b) => b.time.localeCompare(a.time));
+  }, [fp]);
 
   const [tab, setTab] = useState<"info" | "log">("info");
   const [evFilter, setEvFilter] = useState<string>("all");
@@ -128,8 +141,9 @@ function Profile({ name }: { name: string }) {
 
       {tab === "log" ? (
         <div className="card p-5">
-          <div className="mb-3 text-[15px] font-bold">活动日志 · 全部事件时间线</div>
-          <Timeline items={events.map((e) => ({ time: e.time, text: `[${MOD_LABEL[e.mod]}] ${e.event} · ${e.recId}`, done: true }))} />
+          <div className="mb-1 text-[15px] font-bold">活动日志 · 操作审计轨迹</div>
+          <div className="mb-3 text-[12px] text-default-400">记录生命周期 + 分析师操作(认领 / 处置 / 串并…),按时间倒序;与「完整事件记录」(记录清单)互补。</div>
+          <Timeline items={auditLog.map((e) => ({ time: e.time, text: `[${MOD_LABEL[e.mod]}] ${e.text}`, done: true }))} />
         </div>
       ) : (
       <div className="flex flex-col gap-5">
@@ -186,7 +200,7 @@ function Profile({ name }: { name: string }) {
             <div className="mt-4 grid grid-cols-2 gap-x-6 gap-y-4">
               <Field label="KYC 准入评级">{a0?.merchantTier?.[0] ?? "—"}</Field>
               <Field label="注册地">{country}</Field>
-              <Field label="类型">企业 (Corp.) · 货币服务</Field>
+              <Field label="类型">{legalForm ? `企业 (${legalForm}.)` : "企业法律实体"} · MSB</Field>
               <Field label="账户年龄">{a0?.accountAge ?? "—"}</Field>
               <Field label="制裁 / PEP" danger={!!a0?.sanctions?.status?.includes("命中")}>{a0?.sanctions?.status ?? "主体未命中"}</Field>
               <Field label="UBO">{uboCount} 人</Field>
