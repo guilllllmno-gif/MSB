@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 import { Button, Input, Select, SelectItem, Popover, PopoverTrigger, PopoverContent } from "@heroui/react";
 import { Fingerprint, Search, Bell, History, Network, FolderOpen, FileText, ArrowUpRight, ShieldAlert, Store, Link2, Layers, Building2, Lock, AlertOctagon, TrendingUp, TrendingDown, Minus, UserPlus, Send, Clock3, Sparkles, GitMerge } from "lucide-react";
 import { Shell, PageHead } from "@/components/Shell";
@@ -75,6 +76,9 @@ function Row({ to, lead, title, sub, right }: { to: string; lead?: React.ReactNo
   );
 }
 
+// 案件推进度序(取最推进的在办案件作串并主案)
+const CASE_ORDER: Record<string, number> = { investigating: 0, str_draft: 1, mlro: 2, queued: 3, filed: 4 };
+
 export default function EntityProfile() {
   const [params] = useSearchParams();
   const name = params.get("name") || "";
@@ -84,10 +88,24 @@ export default function EntityProfile() {
 function Profile({ name }: { name: string }) {
   useAlertVersion(); useFindingVersion(); useCaseVersion(); useReportVersion(); useRingVersion();
   const nav = useNavigate();
+  const [params] = useSearchParams();
 
   const fp = useMemo(() => footprint(name), [name]);
   const type = entityType(name);
   const exposure = totalExposure(fp);
+
+  // 在办案件(取实时状态)—— 同商户多个在办案件 = 重复立案 / 可串并信号
+  const activeCases = fp.cases.map((c) => ({ c, st: caseStore.stateOf(c.id, c.state) as CState })).filter((x) => CSTATE[x.st]?.active);
+  const mergeable = activeCases.length >= 2;
+  const primary = mergeable ? activeCases.reduce((a, b) => ((CASE_ORDER[b.st] ?? 0) > (CASE_ORDER[a.st] ?? 0) ? b : a)) : activeCases[0];
+  // 一键串并:被并案件转「已合并」,统一并入最推进的主案(消除重复立案 / 重复 STR)
+  const doMerge = () => {
+    let n = 0;
+    activeCases.forEach(({ c }) => { if (c.id !== primary.c.id) { caseStore.set(c.id, "merged", { event: `串并到主案 ${primary.c.id} · 主体360 发起` }); n++; } });
+    caseStore.set(primary.c.id, primary.st, { event: `串并并入 ${n} 个关联案件(主体360 发起)` });
+    toast.success(`已串并 ${n} 个案件到主案 ${primary.c.id}`);
+  };
+  useEffect(() => { if (params.get("merge") === "1" && mergeable) setTimeout(() => document.getElementById("merge-banner")?.scrollIntoView({ behavior: "smooth", block: "center" }), 80); }, [params, mergeable]);
 
   // 综合风险标签 —— 由跨模块足迹推导(有案件/团伙=高,纯告警/事后=中)
   const hasCase = fp.cases.some((c) => CSTATE[(caseStore.stateOf(c.id, c.state)) as CState]?.active);
@@ -143,6 +161,33 @@ function Profile({ name }: { name: string }) {
           <Stat label="STR / 报送" value={strCount} tone={strCount ? "red" : undefined} />
         </div>
       </div>
+
+      {/* 串并横幅 —— 同商户多个在办案件 = 重复立案 / 可串并(从总览 ·N案 直达) */}
+      {mergeable && (
+        <div id="merge-banner" className="card mb-5 border-l-[3px] p-4" style={{ borderLeftColor: "var(--violet)" }}>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ background: "var(--violet-bg)", color: "var(--violet)" }}><GitMerge className="h-[18px] w-[18px]" /></span>
+            <div>
+              <div className="text-[14px] font-bold">疑似重复立案 · 该商户有 {activeCases.length} 个在办案件</div>
+              <div className="text-[11.5px] text-default-400">案件 = 单一容器。建议串并为一案,一次审核、一份 STR,消除重复立案 / 重复 STR。</div>
+            </div>
+            <Button size="sm" color="secondary" className="ml-auto" startContent={<GitMerge className="h-4 w-4" />} onPress={doMerge}>一键串并到 {primary.c.id}</Button>
+          </div>
+          <div className="mt-3 flex flex-col gap-1.5">
+            {activeCases.map(({ c, st }) => (
+              <button key={c.id} onClick={() => nav(`/case?id=${c.id}`)} className="card-hover group flex items-center gap-2 rounded-xl border border-default-200 px-3 py-2 text-left">
+                <span className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ background: "var(--violet-bg)", color: "var(--violet)" }}><FolderOpen className="h-[15px] w-[15px]" /></span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 text-[12.5px] font-semibold"><span className="truncate">{c.type}</span><span className="text-default-400">· {c.id}</span>{c.id === primary.c.id && <Pill tone="violet" dot={false}>主案</Pill>}</div>
+                  <div className="truncate text-[11.5px] text-default-400">{c.risk} · {c.amount} · 来源 {c.src}</div>
+                </div>
+                <Pill tone={CSTATE[st].tone} dot={false}>{CSTATE[st].label}</Pill>
+                <ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-default-300 group-hover:text-brand" />
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_320px]">
         {/* 左:六模块足迹 */}
@@ -350,10 +395,11 @@ function RiskCell({ e }: { e: DirEntry }) {
 // ── 处置进展单元格:工作流阶段(flow)+ 紧急待办角标(pending)+ 可并案 ──
 const PEND_ICON: Record<Pending["kind"], typeof Bell> = { claim: UserPlus, sla: Clock3 };
 function FlowCell({ e }: { e: DirEntry }) {
+  const nav = useNavigate();
   return (
     <div className="flex flex-wrap items-center gap-1.5">
       {e.flow.key === "done" ? <span className="text-[12px] text-default-300">—</span> : <Pill tone={e.flow.tone}>{e.flow.label}</Pill>}
-      {e.activeCases > 1 && <span title={`在办 ${e.activeCases} 个案件 · 可串并`} className="inline-flex items-center gap-0.5 rounded-md px-1 py-0.5 text-[10px] font-bold" style={{ background: toneSoft("violet"), color: toneVar("violet") }}><GitMerge className="h-3 w-3" />{e.activeCases} 案</span>}
+      {e.activeCases > 1 && <button onClick={(ev) => { ev.stopPropagation(); nav(`/entity?name=${encodeURIComponent(e.name)}&merge=1`); }} title={`在办 ${e.activeCases} 个案件 · 点击串并`} className="inline-flex items-center gap-0.5 rounded-md px-1 py-0.5 text-[10px] font-bold transition-opacity hover:opacity-75" style={{ background: toneSoft("violet"), color: toneVar("violet") }}><GitMerge className="h-3 w-3" />{e.activeCases} 案</button>}
       {e.pending && (() => { const Icon = PEND_ICON[e.pending.kind]; return (
         <span className="inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[10.5px] font-bold" style={{ background: toneSoft(e.pending.tone), color: toneVar(e.pending.tone) }}>
           <span className="h-1.5 w-1.5 rounded-full" style={{ background: toneVar(e.pending.tone) }} /><Icon className="h-3 w-3" />{e.pending.label}
