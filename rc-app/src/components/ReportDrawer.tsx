@@ -37,6 +37,8 @@ export function ReportDrawer({ report, open, onOpenChange, onDone }: { report: R
   const allChecked = checked.size === fields.length;
   // 签发 / 报送是法定动作 —— 需先核齐必填字段 + 勾选签发声明
   const needsSignoff = !!action && (action.to === "queued" || action.to === "filed");
+  // 负向动作(作废 / 退回起草人 / FINTRAC 退回补正)需填理由留痕
+  const needsReason = !!action && (action.to === "void" || action.to === "draft" || action.to === "returned");
   const isStr = report.type === "STR";
 
   const toggle = (label: string) => setChecked((p) => { const n = new Set(p); n.has(label) ? n.delete(label) : n.add(label); return n; });
@@ -45,6 +47,7 @@ export function ReportDrawer({ report, open, onOpenChange, onDone }: { report: R
     if (!action) { toast.error("请选择处置动作"); return; }
     if (needsSignoff && !allChecked) { toast.error("仍有必填字段未核实,建议「退回起草人」补正后再签发"); return; }
     if (needsSignoff && !attested) { toast.error("签发前请勾选法定签发声明"); return; }
+    if (needsReason && !note.trim()) { toast.error(`「${action.label}」需填写理由`); return; }
     const filing = action.to === "filed" || action.to === "ack";
     const newRef = action.to === "filed" && !ref ? `FINTRAC #${report.type}-CA-RCPT-${report.id.slice(-4)}` : undefined;
     reportStore.set(report.id, action.to, {
@@ -150,13 +153,15 @@ export function ReportDrawer({ report, open, onOpenChange, onDone }: { report: R
                 </button>
               )}
 
-              <Textarea label="复核意见 / 备注" labelPlacement="outside" value={note} onValueChange={setNote} minRows={3} placeholder="复核结论、补正要求或报送说明…(记入审计日志)" />
+              <Textarea label={needsReason ? `${action.label} 理由` : "复核意见 / 备注"} isRequired={needsReason} labelPlacement="outside" value={note} onValueChange={setNote} minRows={3}
+                isInvalid={needsReason && !note.trim()} errorMessage={needsReason && !note.trim() ? "此动作需填写理由(记入审计日志)" : undefined}
+                placeholder={needsReason ? (action.to === "void" ? "说明作废原因(嫌疑排除 / 无需报送…)…" : "说明退回原因与需补正的字段…") : "复核结论、补正要求或报送说明…(记入审计日志)"} />
             </>
           )}
         </DrawerBody>
         <DrawerFooter className="border-t border-divider">
           <Button variant="bordered" onPress={() => onOpenChange(false)}>取消</Button>
-          {sd.active && <Button color="primary" isDisabled={!action || (needsSignoff && (!allChecked || !attested))} onPress={submit}>{needsSignoff ? "签发 · 提交" : "提交"}</Button>}
+          {sd.active && <Button color="primary" isDisabled={!action || (needsSignoff && (!allChecked || !attested)) || (needsReason && !note.trim())} onPress={submit}>{needsSignoff ? "签发 · 提交" : "提交"}</Button>}
         </DrawerFooter>
       </DrawerContent>
     </Drawer>
