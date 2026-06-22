@@ -347,32 +347,42 @@ function RiskCell({ e }: { e: DirEntry }) {
   );
 }
 
-// ── 待处理徽标 ──
-const PEND_ICON: Record<Pending["kind"], typeof Bell> = { claim: UserPlus, str: Send, sla: Clock3, triage: Bell };
-function PendingBadge({ p }: { p: Pending | null }) {
-  if (!p) return <span className="text-[12px] text-default-300">—</span>;
-  const Icon = PEND_ICON[p.kind];
+// ── 处置进展单元格:工作流阶段(flow)+ 紧急待办角标(pending)+ 可并案 ──
+const PEND_ICON: Record<Pending["kind"], typeof Bell> = { claim: UserPlus, sla: Clock3 };
+function FlowCell({ e }: { e: DirEntry }) {
   return (
-    <span className="inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-[11px] font-semibold" style={{ background: toneSoft(p.tone), color: toneVar(p.tone) }}>
-      {p.urgent && <span className="h-1.5 w-1.5 rounded-full" style={{ background: toneVar(p.tone) }} />}
-      <Icon className="h-3 w-3" />{p.label}
-    </span>
+    <div className="flex flex-wrap items-center gap-1.5">
+      {e.flow.key === "done" ? <span className="text-[12px] text-default-300">—</span> : <Pill tone={e.flow.tone}>{e.flow.label}</Pill>}
+      {e.pending && (() => { const Icon = PEND_ICON[e.pending.kind]; return (
+        <span className="inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[10.5px] font-bold" style={{ background: toneSoft(e.pending.tone), color: toneVar(e.pending.tone) }}>
+          <span className="h-1.5 w-1.5 rounded-full" style={{ background: toneVar(e.pending.tone) }} /><Icon className="h-3 w-3" />{e.pending.label}
+        </span>
+      ); })()}
+      {e.ringMates > 0 && <span title={`同团伙 ${e.ringMates} 个商户 · 可并案`} className="inline-flex items-center gap-0.5 rounded-md px-1 py-0.5 text-[10px] font-bold" style={{ background: toneSoft("amber"), color: toneVar("amber") }}><GitMerge className="h-3 w-3" />可并案</span>}
+    </div>
   );
 }
 
 // ── 需关注分诊条:把待办紧迫的主体聚成一行可点筛选 ──
-type PendFilter = "all" | Pending["kind"] | "rising";
+type PendFilter = "all" | "claim" | "str" | "sla" | "triage" | "rising";
+const matchPend = (k: PendFilter, e: DirEntry): boolean =>
+  k === "claim" ? e.pending?.kind === "claim"
+    : k === "sla" ? e.pending?.kind === "sla"
+    : k === "str" ? e.flow.key === "report"
+    : k === "triage" ? e.flow.key === "triage"
+    : k === "rising" ? e.trend >= 8
+    : true;
 function TriageStrip({ all, value, onPick }: { all: DirEntry[]; value: PendFilter; onPick: (k: PendFilter) => void }) {
   const items: { k: PendFilter; label: string; n: number; icon: typeof Bell; tone: Tone }[] = [
-    { k: "claim", label: "待认领案件", n: all.filter((e) => e.pending?.kind === "claim").length, icon: UserPlus, tone: "violet" },
-    { k: "str", label: "STR 待报送", n: all.filter((e) => e.pending?.kind === "str").length, icon: Send, tone: "red" },
-    { k: "sla", label: "案件 SLA 临期", n: all.filter((e) => e.pending?.kind === "sla").length, icon: Clock3, tone: "amber" },
-    { k: "triage", label: "告警待研判", n: all.filter((e) => e.pending?.kind === "triage").length, icon: Bell, tone: "amber" },
-    { k: "rising", label: "风险恶化中", n: all.filter((e) => e.trend >= 8).length, icon: TrendingUp, tone: "red" },
+    { k: "claim", label: "待认领案件", n: all.filter((e) => matchPend("claim", e)).length, icon: UserPlus, tone: "violet" },
+    { k: "str", label: "STR 待报送", n: all.filter((e) => matchPend("str", e)).length, icon: Send, tone: "red" },
+    { k: "sla", label: "案件 SLA 临期", n: all.filter((e) => matchPend("sla", e)).length, icon: Clock3, tone: "amber" },
+    { k: "triage", label: "告警待研判", n: all.filter((e) => matchPend("triage", e)).length, icon: Bell, tone: "amber" },
+    { k: "rising", label: "风险恶化中", n: all.filter((e) => matchPend("rising", e)).length, icon: TrendingUp, tone: "red" },
   ];
   const shown = items.filter((i) => i.n > 0);
   if (!shown.length) return null;
-  const total = all.filter((e) => e.pending?.urgent).length;
+  const total = all.filter((e) => e.pending?.urgent || e.flow.key === "report").length;
   return (
     <div className="card mb-4 flex flex-wrap items-center gap-2 p-3 pl-4">
       <span className="mr-1 flex items-center gap-1.5 text-[12.5px] font-bold"><ShieldAlert className="h-4 w-4" style={{ color: "var(--danger)" }} />需关注<span className="text-default-400">· {total} 项待办</span></span>
@@ -406,8 +416,8 @@ const inTab = (tab: DirTab, e: DirEntry): boolean =>
   tab === "all" ? true
     : tab === "high" ? e.risk >= 80
     : tab === "cases" ? e.cases > 0
-    : tab === "restricted" ? e.status.key === "frozen" || e.status.key === "restricted"
-    : /* watch */ e.status.key === "watch";
+    : tab === "restricted" ? e.acct.key === "frozen" || e.acct.key === "restricted"
+    : /* watch */ e.acct.key === "watch";
 
 function Directory() {
   useAlertVersion(); useFindingVersion(); useCaseVersion(); useRingVersion(); useReportVersion();
@@ -425,17 +435,17 @@ function Directory() {
 
   const list = all.filter((e) => {
     if (!inTab(tab, e)) return false;
-    if (pend === "rising" ? e.trend < 8 : pend !== "all" && e.pending?.kind !== pend) return false;
+    if (pend !== "all" && !matchPend(pend, e)) return false;
     if (q.trim()) { const s = q.toLowerCase(); if (!e.name.toLowerCase().includes(s) && !e.merchantNo.includes(q.trim())) return false; }
     if (risk === "high" && e.risk < 80) return false;
     if (risk === "mid" && (e.risk < 60 || e.risk >= 80)) return false;
     if (risk === "low" && e.risk >= 60) return false;
-    if (stat !== "all" && e.status.key !== stat) return false;
+    if (stat !== "all" && e.acct.key !== stat) return false;
     if (country !== "all" && e.country !== country) return false;
     return true;
   });
 
-  const restricted = all.filter((e) => e.status.key === "frozen" || e.status.key === "restricted").length;
+  const restricted = all.filter((e) => e.acct.key === "frozen" || e.acct.key === "restricted").length;
   const active = all.length - restricted;
   const highRisk = all.filter((e) => e.risk >= 80).length;
   const caseSubj = all.filter((e) => e.cases > 0).length;
@@ -482,9 +492,9 @@ function Directory() {
             onSelectionChange={(k) => setRisk([...k][0] as string)} renderValue={() => <span className="text-[12.5px]">{({ all: "风险分", high: "≥ 80", mid: "60–79", low: "< 60" } as Record<string, string>)[risk]}</span>}>
             <SelectItem key="all">全部风险分</SelectItem><SelectItem key="high">≥ 80 高风险</SelectItem><SelectItem key="mid">60–79 中</SelectItem><SelectItem key="low">&lt; 60 低</SelectItem>
           </Select>
-          <Select size="sm" radius="lg" aria-label="状态" selectedKeys={[stat]} className="w-[130px]" classNames={{ trigger: "bg-default-100 shadow-none" }}
-            onSelectionChange={(k) => setStat([...k][0] as string)} renderValue={() => <span className="text-[12.5px]">{stat === "all" ? "状态" : ({ frozen: "提现冻结", restricted: "受限·团伙", report: "待报送", case: "调查中", info: "待补材料", watch: "名单观察", normal: "正常", white: "白名单" } as Record<string, string>)[stat]}</span>}>
-            {[["all", "全部状态"], ["frozen", "提现冻结"], ["restricted", "受限·团伙"], ["report", "待报送"], ["case", "调查中"], ["info", "待补材料"], ["watch", "名单观察"], ["normal", "正常"], ["white", "白名单"]].map(([k, l]) => <SelectItem key={k}>{l}</SelectItem>)}
+          <Select size="sm" radius="lg" aria-label="账户状态" selectedKeys={[stat]} className="w-[130px]" classNames={{ trigger: "bg-default-100 shadow-none" }}
+            onSelectionChange={(k) => setStat([...k][0] as string)} renderValue={() => <span className="text-[12.5px]">{stat === "all" ? "账户状态" : ({ frozen: "冻结", restricted: "受限", watch: "观察", white: "白名单", normal: "正常" } as Record<string, string>)[stat]}</span>}>
+            {[["all", "全部账户状态"], ["frozen", "冻结"], ["restricted", "受限"], ["watch", "观察"], ["white", "白名单"], ["normal", "正常"]].map(([k, l]) => <SelectItem key={k}>{l}</SelectItem>)}
           </Select>
           <Select size="sm" radius="lg" aria-label="注册地" selectedKeys={[country]} className="w-[120px]" classNames={{ trigger: "bg-default-100 shadow-none" }}
             onSelectionChange={(k) => setCountry([...k][0] as string)} renderValue={() => <span className="text-[12.5px]">{country === "all" ? "注册地" : country}</span>}>
@@ -498,8 +508,8 @@ function Directory() {
             <tr className="border-y border-default-100 text-[11px] font-bold uppercase tracking-wider text-default-400">
               <th className="px-4 py-2.5 text-left font-bold">商户</th>
               <th className="px-3 py-2.5 text-left font-bold">风险分 · 趋势</th>
-              <th className="px-3 py-2.5 text-left font-bold">状态</th>
-              <th className="px-3 py-2.5 text-left font-bold">待处理</th>
+              <th className="px-3 py-2.5 text-left font-bold">账户状态</th>
+              <th className="px-3 py-2.5 text-left font-bold">处置进展</th>
               <th className="px-3 py-2.5 text-left font-bold">犯事记录</th>
               <th className="px-3 py-2.5 text-right font-bold">30 日交易额</th>
               <th className="px-3 py-2.5 text-left font-bold">最近事件</th>
@@ -520,13 +530,8 @@ function Directory() {
                   </div>
                 </td>
                 <td className="px-3 py-3"><RiskCell e={e} /></td>
-                <td className="px-3 py-3">
-                  <div className="flex items-center gap-1.5">
-                    <Pill tone={e.status.tone}>{e.status.label}</Pill>
-                    {e.ringMates > 0 && <span title={`同团伙 ${e.ringMates} 个商户 · 可并案`} className="inline-flex items-center gap-0.5 rounded-md px-1 py-0.5 text-[10px] font-bold" style={{ background: toneSoft("amber"), color: toneVar("amber") }}><GitMerge className="h-3 w-3" />可并案</span>}
-                  </div>
-                </td>
-                <td className="px-3 py-3"><PendingBadge p={e.pending} /></td>
+                <td className="px-3 py-3"><Pill tone={e.acct.tone}>{e.acct.label}</Pill></td>
+                <td className="px-3 py-3"><FlowCell e={e} /></td>
                 <td className="px-3 py-3"><RecordChips e={e} /></td>
                 <td className="px-3 py-3 text-right tnum text-[12.5px] font-semibold">{e.vol30}</td>
                 <td className="px-3 py-3 text-[12px] text-default-500">{e.lastEvent.label}{e.lastEvent.date && <span className="text-default-300"> · {e.lastEvent.date}</span>}</td>

@@ -6,6 +6,7 @@ import { FINDINGS, type Finding } from "./findings";
 import { rings, type Ring, type RingMember } from "./rings";
 import { CASES, type Case, strLabel, type CState } from "./cases";
 import { REPORTS, type Report } from "./reports";
+import { LISTS } from "./lists";
 
 // --- 归一化键 ---------------------------------------------------------------
 // 一个名字可能含多个可匹配的「身份」(如报告主体「OffshoreFX Ltd. · 0x7F4a…9c21」= 商户 + 地址),
@@ -118,20 +119,24 @@ export const caseStr = (s: CState) => strLabel(s);
 // 由种子补入(DIR_SEED),让总览覆盖完整风险谱(不只问题主体)。
 export interface DirStatus { key: string; label: string; tone: Tone }
 export interface RiskFactor { label: string; tone: Tone }
-export interface Pending { label: string; tone: Tone; urgent: boolean; kind: "claim" | "str" | "sla" | "triage" }
+// 待办 = 当前需要分析师做的「动作」(并进「处置进展」列作紧急角标,不再单列)
+export interface Pending { label: string; tone: Tone; urgent: boolean; kind: "claim" | "sla" }
 export interface DirEntry {
   key: string; name: string; type: EntityType;
   merchantNo: string; country: string;
   alerts: number; findings: number; rings: number; cases: number; reports: number; str: number;
   span: number; total: number;
-  risk: number; status: DirStatus; vol30: string;
+  risk: number; vol30: string;
   lastEvent: { label: string; date: string };
-  // —— 分诊增强:风险分可解释 + 趋势 + 待处理 ——
+  // —— 两轴状态 ——
+  acct: DirStatus;         // 账户状态:被采取了什么约束(动作的结果)—— 正常/受限/冻结/观察/白名单,来自名单库
+  flow: DirStatus;         // 处置进展:工作流走到哪一阶段 —— 待研判/调查中/待报送/已结
+  pending: Pending | null; // 处置进展上的紧急待办(待认领 / SLA临期),作 flow 的角标
+  // —— 分诊增强 ——
   factors: RiskFactor[];   // 风险驱动因素(解释 risk 为何这么高)
   trend: number;           // 风险趋势:相对 30 天前的变化(+ 恶化 / − 缓和)
-  pending: Pending | null; // 该商户当前主要待办(待认领 / STR临期 / SLA / 待研判)
   ringMates: number;       // 同团伙里的其它商户数(>0 → 可并案信号)
-  need: number;            // 需关注度排序分 = 风险 × 待办 × 趋势
+  need: number;            // 需关注度排序分 = 风险 + 待办紧迫 + 趋势
 }
 
 // FNV-1a → 稳定数字种子(刷新不变);用于合成商户号 / 日期 / 交易额
@@ -140,20 +145,39 @@ function synthMerchantNo(key: string): string { const tail = String(hashNum(key)
 function synthDate(key: string): string { const h = hashNum(key + "d"); const mm = 2 + (h % 3); const dd = 1 + ((h >>> 4) % 28); return `${String(mm).padStart(2, "0")}-${String(dd).padStart(2, "0")}`; }
 function synthVol(key: string): string { const h = hashNum(key + "v"); const v = (3 + (h % 280)) + (h % 10) / 10; return `CAD ${v.toFixed(1)}K`; }
 
-const TONE_BY_KEY: Record<string, Tone> = { frozen: "red", restricted: "red", report: "amber", case: "amber", info: "amber", watch: "blue", white: "green", normal: "green" };
-const LABEL_BY_KEY: Record<string, string> = { frozen: "提现冻结", restricted: "受限 · 团伙", report: "待报送", case: "调查中", info: "待补材料", watch: "名单观察", white: "正常 · 白名单", normal: "正常" };
-const mkStatus = (key: string): DirStatus => ({ key, label: LABEL_BY_KEY[key], tone: TONE_BY_KEY[key] });
+// 账户状态(动作驱动)—— 来自名单库 lists.ts 的真实约束动作,而非从「有没有告警」反推。
+//   制裁名单 → 冻结(法定硬拦截);内部黑名单 → 受限(确认欺诈/洗钱,拦截);
+//   关注名单 → 观察(升级监控、不拦);白名单 → 白名单(已核验豁免);其余 → 正常。
+// 只认 status==="active" 的生效名单项,按商户名归一化匹配(故只命中「商户」类名单项)。
+const ACCT_LABEL: Record<string, string> = { frozen: "冻结", restricted: "受限", watch: "观察", white: "白名单", normal: "正常" };
+const ACCT_TONE: Record<string, Tone> = { frozen: "red", restricted: "red", watch: "blue", white: "green", normal: "green" };
+const acctOf = (key: string): DirStatus => ({ key, label: ACCT_LABEL[key], tone: ACCT_TONE[key] });
+const CAT_RANK: Record<string, number> = { sanctions: 4, block: 3, watch: 2, allow: 1 };
+const CAT_ACCT: Record<string, string> = { sanctions: "frozen", block: "restricted", watch: "watch", allow: "white" };
+function accountState(name: string): string {
+  let best = ""; let rank = 0;
+  for (const le of LISTS) {
+    if (le.status !== "active") continue;
+    if (!sameEntity(le.value, name)) continue;
+    if ((CAT_RANK[le.cat] || 0) > rank) { rank = CAT_RANK[le.cat]; best = CAT_ACCT[le.cat]; }
+  }
+  return best || "normal";
+}
+
+const FLOW_LABEL: Record<string, string> = { triage: "待研判", case: "调查中", report: "待报送", done: "已结" };
+const FLOW_TONE: Record<string, Tone> = { triage: "amber", case: "amber", report: "red", done: "grey" };
+const flowOf = (key: string): DirStatus => ({ key, label: FLOW_LABEL[key], tone: FLOW_TONE[key] });
 
 // 干净 / 白名单 / 观察商户种子 —— 仅当其键未被记录派生命中时补入,凑齐风险总览的低风险段
-interface Seed { name: string; country: string; risk: number; statusKey: string; vol30: string; lastEvent: [string, string]; alerts?: number }
+interface Seed { name: string; country: string; risk: number; acctKey: string; vol30: string; lastEvent: [string, string]; alerts?: number }
 const DIR_SEED: Seed[] = [
-  { name: "SwiftX Ltd", country: "美国", risk: 38, statusKey: "normal", vol30: "CAD 18.5K", lastEvent: ["误报关闭", "02-28"], alerts: 3 },
-  { name: "Maple Store Inc.", country: "加拿大", risk: 14, statusKey: "normal", vol30: "CAD 142K", lastEvent: ["误报关闭", "04-12"], alerts: 2 },
-  { name: "Kraken-U Exchange", country: "加拿大", risk: 9, statusKey: "white", vol30: "CAD 320K", lastEvent: ["—", ""] },
-  { name: "Harbor Pay Co.", country: "新加坡", risk: 24, statusKey: "watch", vol30: "CAD 64K", lastEvent: ["名单观察", "03-02"], alerts: 1 },
-  { name: "Lumen Capital", country: "英国", risk: 17, statusKey: "normal", vol30: "CAD 88K", lastEvent: ["—", ""] },
-  { name: "Vertex Pay", country: "加拿大", risk: 11, statusKey: "white", vol30: "CAD 51K", lastEvent: ["—", ""] },
-  { name: "Cedar Remit", country: "加拿大", risk: 29, statusKey: "watch", vol30: "CAD 33K", lastEvent: ["名单观察", "03-09"] },
+  { name: "SwiftX Ltd", country: "美国", risk: 38, acctKey: "normal", vol30: "CAD 18.5K", lastEvent: ["误报关闭", "02-28"], alerts: 3 },
+  { name: "Maple Store Inc.", country: "加拿大", risk: 14, acctKey: "normal", vol30: "CAD 142K", lastEvent: ["误报关闭", "04-12"], alerts: 2 },
+  { name: "Kraken-U Exchange", country: "加拿大", risk: 9, acctKey: "white", vol30: "CAD 320K", lastEvent: ["—", ""] },
+  { name: "Harbor Pay Co.", country: "新加坡", risk: 24, acctKey: "watch", vol30: "CAD 64K", lastEvent: ["名单观察", "03-02"], alerts: 1 },
+  { name: "Lumen Capital", country: "英国", risk: 17, acctKey: "normal", vol30: "CAD 88K", lastEvent: ["—", ""] },
+  { name: "Vertex Pay", country: "加拿大", risk: 11, acctKey: "white", vol30: "CAD 51K", lastEvent: ["—", ""] },
+  { name: "Cedar Remit", country: "加拿大", risk: 29, acctKey: "watch", vol30: "CAD 33K", lastEvent: ["名单观察", "03-09"] },
 ];
 
 interface Acc {
@@ -197,8 +221,10 @@ export function directory(): DirEntry[] {
 
   const out: DirEntry[] = [];
   for (const [key, e] of map.entries()) {
-    const name = e.names.reduce((a, b) => (b.length > a.length ? b : a));
-    if (entityType(name) !== "商户") continue; // 主体 = 商户维度;地址 / 团伙不作独立行
+    // 展示名 = 最长的「商户写法」变体 —— 跳过带地址的报告写法(如「OffshoreFX Ltd. · 0x7F4a…9c21」会被误判为链上地址)
+    const merchantForm = e.names.filter((n) => entityType(n) === "商户");
+    if (!merchantForm.length) continue; // 该键从无商户写法 → 不是商户主体(纯地址 / 团伙)
+    const name = merchantForm.reduce((a, b) => (b.length > a.length ? b : a));
     const str = e.reports + Math.min(e.cases, e.caseActive ? e.cases : 0);
     let risk = e.maxScore;
     if (e.sanction) risk = Math.max(risk, 88);
@@ -206,8 +232,17 @@ export function directory(): DirEntry[] {
     if (e.ring) risk = Math.max(risk, 72);
     if (!risk && e.findings) risk = 56;
     if (!risk) risk = 12 + (hashNum(key) % 18);
-    const statusKey = e.sanction ? "frozen" : e.ring ? "restricted" : e.reportOpen ? "report" : e.caseActive ? "case" : e.alerts && risk >= 60 ? "info" : "normal";
     risk = Math.min(99, risk);
+    // 账户状态(动作驱动)—— 名单库真实约束;确认制裁敞口(命中制裁名单 / 制裁溯源案件)→ 冻结,
+    // 覆盖过期的白名单豁免(一个有在办制裁案件的商户,不该因旧白名单条目显示「白名单」)
+    const acctKey = e.sanction ? "frozen" : accountState(name);
+    // 处置进展(工作流)—— 在哪一阶段;待报送 > 调查中 > 待研判 > 已结
+    const flowKey = e.reportOpen ? "report" : e.caseActive ? "case" : e.alerts && !e.caseActive && risk >= 60 ? "triage" : "done";
+    // 处置进展上的紧急待办(作 flow 角标):待认领 / SLA临期
+    const pending: Pending | null =
+      e.unclaimedCase ? { label: "待认领", tone: "violet", urgent: true, kind: "claim" }
+        : e.caseSlaUrgent ? { label: "SLA临期", tone: "amber", urgent: true, kind: "sla" }
+        : null;
     // 风险驱动因素 —— 解释「为何这个分」,复用全站加权贡献语言
     const factors: RiskFactor[] = [];
     if (e.sanction) factors.push({ label: "制裁名单关联", tone: "red" });
@@ -221,22 +256,16 @@ export function directory(): DirEntry[] {
     // 趋势:相对 30 天前的风险变化(确定性合成;低风险主体波动小)
     const raw = (hashNum(key + "t") % 27) - 11;
     const trend = risk < 40 ? Math.round(raw / 3) : raw;
-    // 待处理:当前主要待办(优先级:待认领 > STR临期 > SLA临期 > 告警待研判)
-    const pending: Pending | null =
-      e.unclaimedCase ? { label: "待认领案件", tone: "violet", urgent: true, kind: "claim" }
-        : e.reportOpen ? { label: "STR 待报送", tone: "red", urgent: true, kind: "str" }
-        : e.caseSlaUrgent ? { label: "案件 SLA 临期", tone: "amber", urgent: true, kind: "sla" }
-        : e.alerts && !e.caseActive && risk >= 60 ? { label: `${e.alerts} 笔告警待研判`, tone: "amber", urgent: false, kind: "triage" }
-        : null;
-    const need = risk + (pending?.urgent ? 24 : pending ? 9 : 0) + Math.max(0, trend) * 0.7;
+    const need = risk + (pending?.urgent ? 24 : 0) + (flowKey === "report" ? 14 : flowKey === "case" ? 8 : flowKey === "triage" ? 5 : 0) + Math.max(0, trend) * 0.7;
     out.push({
       key, name, type: "商户", merchantNo: synthMerchantNo(key), country: e.country || "—",
       alerts: e.alerts, findings: e.findings, rings: e.rings, cases: e.cases, reports: e.reports, str,
       span: [e.alerts, e.findings, e.rings, e.cases, e.reports].filter((n) => n > 0).length,
       total: e.alerts + e.findings + e.rings + e.cases + e.reports,
-      risk, status: mkStatus(statusKey), vol30: e.vol30 || synthVol(key),
+      risk, vol30: e.vol30 || synthVol(key),
       lastEvent: { label: e.lastLabel || "—", date: e.lastLabel ? synthDate(key) : "" },
-      factors, trend, pending, ringMates: e.ringMates, need,
+      acct: acctOf(acctKey), flow: flowOf(flowKey), pending,
+      factors, trend, ringMates: e.ringMates, need,
     });
   }
   // 补入干净 / 白名单 / 观察商户种子(键未命中时)
@@ -248,11 +277,12 @@ export function directory(): DirEntry[] {
       key: k, name: s.name, type: "商户", merchantNo: synthMerchantNo(k), country: s.country,
       alerts: s.alerts || 0, findings: 0, rings: 0, cases: 0, reports: 0, str: 0,
       span: s.alerts ? 1 : 0, total: s.alerts || 0,
-      risk: s.risk, status: mkStatus(s.statusKey), vol30: s.vol30,
+      risk: s.risk, vol30: s.vol30,
       lastEvent: { label: s.lastEvent[0], date: s.lastEvent[1] },
-      factors: [{ label: s.statusKey === "white" ? "已核验 · 白名单豁免" : s.alerts ? `告警 ${s.alerts} 笔 · 均误报` : "无显著风险信号", tone: "green" }],
-      trend, pending: s.statusKey === "watch" ? { label: "名单观察中", tone: "blue", urgent: false, kind: "triage" } : null,
-      ringMates: 0, need: s.risk + Math.max(0, trend) * 0.7,
+      acct: acctOf(s.acctKey), flow: flowOf(s.alerts && s.risk >= 60 ? "triage" : "done"),
+      pending: null,
+      factors: [{ label: s.acctKey === "white" ? "已核验 · 白名单豁免" : s.alerts ? `告警 ${s.alerts} 笔 · 均误报` : "无显著风险信号", tone: "green" }],
+      trend, ringMates: 0, need: s.risk + Math.max(0, trend) * 0.7,
     });
   }
   // 默认按「需关注度」降序 —— 不是纯风险排名,而是把 待办紧迫 / 正在恶化 的主体顶上来(分诊,而非排行)
