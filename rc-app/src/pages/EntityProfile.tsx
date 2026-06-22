@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { Button, Input, Select, SelectItem, Popover, PopoverTrigger, PopoverContent } from "@heroui/react";
-import { Fingerprint, Search, Bell, History, Network, FolderOpen, FileText, ArrowUpRight, ShieldAlert, Store, Link2, Layers, Building2, Lock, AlertOctagon, TrendingUp, TrendingDown, Minus, UserPlus, Send, Clock3, Sparkles, GitMerge } from "lucide-react";
+import { Fingerprint, Search, Bell, History, Network, FolderOpen, FileText, ArrowUpRight, ShieldAlert, Store, Link2, Layers, Building2, Lock, AlertOctagon, TrendingUp, TrendingDown, Minus, UserPlus, Send, Clock3, Sparkles } from "lucide-react";
 import { Shell, PageHead } from "@/components/Shell";
 import { Pill, SoftChip, SectionLabel, Initials, RiskBadge, toneVar } from "@/components/bits";
 import { directory, footprint, totalExposure, fmtCAD, entityType, ENTITY_TONE, caseStr, sameEntity, linkedAddresses, type DirEntry, type Pending } from "@/lib/entity360";
@@ -358,7 +358,6 @@ function FlowCell({ e }: { e: DirEntry }) {
           <span className="h-1.5 w-1.5 rounded-full" style={{ background: toneVar(e.pending.tone) }} /><Icon className="h-3 w-3" />{e.pending.label}
         </span>
       ); })()}
-      {e.ringMates > 0 && <span title={`同团伙 ${e.ringMates} 个商户 · 可并案`} className="inline-flex items-center gap-0.5 rounded-md px-1 py-0.5 text-[10px] font-bold" style={{ background: toneSoft("amber"), color: toneVar("amber") }}><GitMerge className="h-3 w-3" />可并案</span>}
     </div>
   );
 }

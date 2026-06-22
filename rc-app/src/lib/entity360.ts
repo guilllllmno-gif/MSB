@@ -209,7 +209,7 @@ export function directory(): DirEntry[] {
     const active = CASE_ACTIVE.has(c.state);
     const touch = (n: string) => get(n).forEach((e) => {
       e.cases++;
-      if (active) { e.caseActive = true; if (!c.owner) e.unclaimedCase = true; if (c.sla?.tone === "red" || c.sla?.tone === "amber") e.caseSlaUrgent = true; }
+      if (active) { e.caseActive = true; if (!c.owner) e.unclaimedCase = true; if (c.sla?.tone === "red") e.caseSlaUrgent = true; } // 只 red(真的快超时)才算临期,amber 是常态
       if (/制裁/.test(c.risk + c.type)) e.sanction = true;
       e.lastLabel = active ? "立案调查" : e.lastLabel;
     });
