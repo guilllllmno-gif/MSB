@@ -64,12 +64,20 @@ function Profile({ name }: { name: string }) {
   const country = a0?.country ?? dir?.country ?? "—";
   const vol30 = a0?.custHistory?.vol30 ?? dir?.vol30 ?? "—";
 
-  // 关联主体(带关联强度 + 依据)—— 同团伙成员 + 同案商户子主体
+  // 关联主体(带关联强度 + 硬证据依据)—— 同团伙成员(取两者共享边的具体 note,即"凭什么是一伙")+ 同案商户子主体
   const related = useMemo(() => {
     const set = new Map<string, { name: string; strength: string; tone: Tone; detail: string }>();
     const add = (n: string, strength: string, tone: Tone, detail: string) => { if (!sameEntity(n, name) && entityType(n) === "商户" && !set.has(n)) set.set(n, { name: n, strength, tone, detail }); };
-    fp.rings.forEach((rh) => { const [s, t]: [string, Tone] = rh.ring.confidence >= 80 ? ["强", "red"] : rh.ring.confidence >= 60 ? ["中", "amber"] : ["弱", "grey"]; rh.ring.members.forEach((m) => { if (m.kind !== "群组") add(m.name, s, t, `同伙 · ${rh.ring.typology}`); }); });
-    fp.cases.forEach((c) => (c.subjects || []).forEach((s) => { if (s.type === "商户") add(s.name, "中", "amber", `同案 ${c.id}`); }));
+    fp.rings.forEach((rh) => {
+      const [s, t]: [string, Tone] = rh.ring.confidence >= 80 ? ["强", "red"] : rh.ring.confidence >= 60 ? ["中", "amber"] : ["弱", "grey"];
+      const i = rh.ring.members.indexOf(rh.member); // 本主体在团伙中的下标
+      rh.ring.members.forEach((m, j) => {
+        if (m.kind === "群组") return;
+        const edge = rh.ring.edges.find((e) => (e.a === i && e.b === j) || (e.a === j && e.b === i)); // 两者之间的共享边
+        add(m.name, s, t, edge ? `同伙 · ${edge.note}` : `同伙 · ${rh.ring.typology}`);
+      });
+    });
+    fp.cases.forEach((c) => (c.subjects || []).forEach((s) => { if (s.type === "商户") add(s.name, "中", "amber", `同案 · ${c.type}`); }));
     return [...set.values()].slice(0, 8);
   }, [fp, name]);
 
@@ -176,7 +184,7 @@ function Profile({ name }: { name: string }) {
               <Button size="sm" variant="bordered" endContent={<ArrowUpRight className="h-3.5 w-3.5" />} onPress={() => a0 && nav(`/alert?id=${a0.id}`)}>尽调档案</Button>
             </div>
             <div className="mt-4 grid grid-cols-2 gap-x-6 gap-y-4">
-              <Field label="KYC 分级">{a0?.merchantTier?.[0] ?? "—"}</Field>
+              <Field label="KYC 准入评级">{a0?.merchantTier?.[0] ?? "—"}</Field>
               <Field label="注册地">{country}</Field>
               <Field label="类型">企业 (Corp.) · 货币服务</Field>
               <Field label="账户年龄">{a0?.accountAge ?? "—"}</Field>
@@ -253,7 +261,7 @@ function Profile({ name }: { name: string }) {
                 <th className="px-3 py-2.5 text-left font-bold">事件</th>
                 <th className="w-[28%] px-3 py-2.5 text-left font-bold">记录 / 关联单号</th>
                 <th className="w-[148px] px-3 py-2.5 text-left font-bold">时间</th>
-                <th className="w-[112px] px-5 py-2.5 text-left font-bold">状态</th>
+                <th className="w-[116px] px-5 py-2.5 text-left font-bold">记录现状</th>
               </tr>
             </thead>
             <tbody>
