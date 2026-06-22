@@ -36,27 +36,17 @@ function ModDots({ on }: { on: ModCount }) {
   );
 }
 
+// 统一足迹列表里的模块标签(全部视图用,标明该条来自哪个模块)
+function ModTag({ mod }: { mod: string }) {
+  const Icon = MOD_ICON[mod];
+  return <span className="inline-flex items-center gap-1 rounded-md bg-default-100 px-1.5 py-0.5 text-[10.5px] font-semibold text-default-500"><Icon className="h-3 w-3" />{MOD_LABEL[mod]}</span>;
+}
+
 function Stat({ label, value, tone }: { label: string; value: string | number; tone?: Tone }) {
   return (
     <div className="min-w-0">
       <div className="text-[19px] font-extrabold leading-none tracking-tight" style={tone ? { color: toneVar(tone) } : undefined}>{value}</div>
       <div className="mt-1 truncate text-[11px] font-medium text-default-400">{label}</div>
-    </div>
-  );
-}
-
-// ── 足迹分区:一个模块一张卡 ──
-function FootSection({ icon: Icon, title, count, hint, children }: { icon: typeof Bell; title: string; count: number; hint?: string; children: React.ReactNode }) {
-  if (!count) return null;
-  return (
-    <div className="card p-4">
-      <div className="mb-3 flex items-center gap-2">
-        <span className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Icon className="h-[15px] w-[15px]" strokeWidth={2} /></span>
-        <h3 className="text-[14px] font-bold tracking-tight">{title}</h3>
-        <span className="rounded-full bg-default-100 px-[7px] py-px text-[10.5px] font-bold text-default-500">{count}</span>
-        {hint && <span className="ml-auto text-[11.5px] text-default-400">{hint}</span>}
-      </div>
-      <div className="flex flex-col gap-1.5">{children}</div>
     </div>
   );
 }
@@ -126,12 +116,28 @@ function Profile({ name }: { name: string }) {
     const set = new Map<string, { name: string; via: string }>();
     const add = (n: string, via: string) => { if (!sameEntity(n, name) && entityType(n) === "商户") set.set(n, { name: n, via }); };
     fp.rings.forEach((rh) => rh.ring.members.forEach((m) => { if (m.kind !== "群组") add(m.name, `同团伙 ${rh.ring.id}`); }));
-    fp.cases.forEach((c) => (c.subjects || []).forEach((s) => add(s.name, `同案 ${c.id}`)));
+    // 案件子主体只取声明为「商户」的(剔除 Tornado Cash 等链上地址 / 个人 / UBO,它们不作关联主体)
+    fp.cases.forEach((c) => (c.subjects || []).forEach((s) => { if (s.type === "商户") add(s.name, `同案 ${c.id}`); }));
     return [...set.values()].slice(0, 12);
   }, [fp, name]);
 
   // 商户 → 关联链上地址(从告警交易对手反推:托管钱包 + 入金来源 / 出金去向对手)
   const addrs = useMemo(() => (type === "商户" ? linkedAddresses(name) : []), [name, type]);
+
+  // 跨模块足迹 → 统一列表项(每条带 mod,可按 tab 过滤;全部视图显模块标签)
+  type FI = { mod: "alerts" | "findings" | "rings" | "cases" | "reports"; key: string; to: string; lead: React.ReactNode; title: React.ReactNode; sub: React.ReactNode; right: React.ReactNode };
+  const footItems: FI[] = [
+    ...fp.alerts.map((a): FI => { const st = RC_STATES[alertStore.stateOf(a.id, a.state)] || RC_STATES.new; return { mod: "alerts", key: a.id, to: `/alert?id=${a.id}`, lead: <RiskBadge tone={a.sev === "high" ? "red" : a.sev === "mid" ? "amber" : "blue"}>{a.score}</RiskBadge>, title: <><span>{a.title}</span><span className="text-default-400">· {a.id}</span></>, sub: `${a.type} · ${a.amount} · ${a.ruleShort}`, right: <Pill tone={st.cls} dot={false}>{st.label}</Pill> }; }),
+    ...fp.findings.map((f): FI => { const st = FSTATES[findingStore.statusOf(f.id, f.status) as keyof typeof FSTATES] || FSTATES.new; return { mod: "findings", key: f.id, to: `/finding?id=${f.id}`, lead: <span className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ background: "var(--track)" }}><f.icon className="h-[15px] w-[15px] text-default-500" /></span>, title: <><span>{f.pattern}</span><span className="text-default-400">· {f.id}</span></>, sub: f.hit, right: <><SoftChip>{FDIM[f.dim].label}</SoftChip><Pill tone={st.tone} dot={false}>{st.label}</Pill></> }; }),
+    ...fp.rings.map(({ ring, member }): FI => { const st = RING_STATES[ringStore.stateOf(ring.id, ring.state) as keyof typeof RING_STATES]; return { mod: "rings", key: ring.id, to: `/ring?id=${ring.id}`, lead: <Initials p={{ i: member.i, c: member.c }} size={28} />, title: <><span>{ring.name}</span><span className="text-default-400">· {ring.id}</span></>, sub: `本主体角色:${member.role} · ${ring.typology} · ${ring.members.length} 主体`, right: st ? <Pill tone={st.tone} dot={false}>{st.label}</Pill> : null }; }),
+    ...fp.cases.map((c): FI => { const cs = caseStore.stateOf(c.id, c.state) as CState; const st = CSTATE[cs]; const str = caseStr(cs); return { mod: "cases", key: c.id, to: `/case?id=${c.id}`, lead: <span className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ background: "var(--violet-bg)", color: "var(--violet)" }}><FolderOpen className="h-[15px] w-[15px]" /></span>, title: <><span>{c.type}</span><span className="text-default-400">· {c.id}</span></>, sub: `${c.risk} · ${c.amount} · 来源 ${c.src}`, right: <><Pill tone={str.tone} dot={false}>STR {str.text}</Pill><Pill tone={st.tone} dot={false}>{st.label}</Pill></> }; }),
+    ...fp.reports.map((r): FI => { const st = RSTATE[reportStore.statusOf(r.id, r.status) as keyof typeof RSTATE]; return { mod: "reports", key: r.id, to: r.to || "/reports", lead: <SoftChip net>{r.type}</SoftChip>, title: <><span>{r.summary.slice(0, 28)}…</span><span className="text-default-400">· {r.id}</span></>, sub: `${r.sub} · ${r.amount}`, right: st ? <Pill tone={st.tone} dot={false}>{st.label}</Pill> : null }; }),
+  ];
+  const [tab, setTab] = useState<string>("all");
+  useEffect(() => { setTab("all"); }, [name]); // 切换主体时回到全部
+  const shown = tab === "all" || tab === "profile" ? footItems : footItems.filter((i) => i.mod === tab);
+
+  const FOOT_TABS = ([["alerts", modCount.alerts], ["findings", modCount.findings], ["rings", modCount.rings], ["cases", modCount.cases], ["reports", modCount.reports]] as const).filter(([, n]) => n > 0);
 
   return (
     <Shell crumb={["主体档案", name]} wide>
@@ -189,122 +195,85 @@ function Profile({ name }: { name: string }) {
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_320px]">
-        {/* 左:六模块足迹 */}
-        <div className="flex flex-col gap-4">
-          {modCount.alerts + modCount.findings + modCount.rings + modCount.cases + modCount.reports === 0 && (
-            <div className="card flex flex-col items-center justify-center gap-2 py-16 text-center">
-              <Layers className="h-7 w-7 text-default-300" />
-              <div className="text-[13px] font-semibold text-default-500">该主体暂无跨模块命中记录</div>
-              <div className="text-[11.5px] text-default-400">名字写法可能与各模块不一致,可回主体目录选取已聚合的主体。</div>
-            </div>
-          )}
-
-          <FootSection icon={Bell} title="告警研判" count={modCount.alerts} hint="实时命中 → 研判车道">
-            {fp.alerts.map((a) => {
-              const st = RC_STATES[alertStore.stateOf(a.id, a.state)] || RC_STATES.new;
-              return <Row key={a.id} to={`/alert?id=${a.id}`} lead={<RiskBadge tone={a.sev === "high" ? "red" : a.sev === "mid" ? "amber" : "blue"}>{a.score}</RiskBadge>}
-                title={<><span>{a.title}</span><span className="text-default-400">· {a.id}</span></>} sub={`${a.type} · ${a.amount} · ${a.ruleShort}`}
-                right={<Pill tone={st.cls} dot={false}>{st.label}</Pill>} />;
-            })}
-          </FootSection>
-
-          <FootSection icon={History} title="事后监控命中" count={modCount.findings} hint="回溯 / 批量检测">
-            {fp.findings.map((f) => {
-              const st = FSTATES[findingStore.statusOf(f.id, f.status) as keyof typeof FSTATES] || FSTATES.new;
-              const dim = FDIM[f.dim];
-              return <Row key={f.id} to={`/finding?id=${f.id}`} lead={<span className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ background: "var(--track)" }}><f.icon className="h-[15px] w-[15px] text-default-500" /></span>}
-                title={<><span>{f.pattern}</span><span className="text-default-400">· {f.id}</span></>} sub={`${f.hit}`}
-                right={<><SoftChip>{dim.label}</SoftChip><Pill tone={st.tone} dot={false}>{st.label}</Pill></>} />;
-            })}
-          </FootSection>
-
-          <FootSection icon={Network} title="关联团伙" count={modCount.rings} hint="共享标识聚类">
-            {fp.rings.map(({ ring, member }) => {
-              const st = RING_STATES[ringStore.stateOf(ring.id, ring.state) as keyof typeof RING_STATES];
-              return <Row key={ring.id} to={`/ring?id=${ring.id}`} lead={<Initials p={{ i: member.i, c: member.c }} size={28} />}
-                title={<><span>{ring.name}</span><span className="text-default-400">· {ring.id}</span></>} sub={`本主体角色:${member.role} · ${ring.typology} · ${ring.members.length} 主体`}
-                right={st ? <Pill tone={st.tone} dot={false}>{st.label}</Pill> : null} />;
-            })}
-          </FootSection>
-
-          <FootSection icon={FolderOpen} title="关联案件" count={modCount.cases} hint="调查与 STR 唯一容器">
-            {fp.cases.map((c) => {
-              const cs = caseStore.stateOf(c.id, c.state) as CState;
-              const st = CSTATE[cs];
-              const str = caseStr(cs);
-              return <Row key={c.id} to={`/case?id=${c.id}`} lead={<span className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ background: "var(--violet-bg)", color: "var(--violet)" }}><FolderOpen className="h-[15px] w-[15px]" /></span>}
-                title={<><span>{c.type}</span><span className="text-default-400">· {c.id}</span></>} sub={`${c.risk} · ${c.amount} · 来源 ${c.src}`}
-                right={<><Pill tone={str.tone} dot={false}>STR {str.text}</Pill><Pill tone={st.tone} dot={false}>{st.label}</Pill></>} />;
-            })}
-          </FootSection>
-
-          <FootSection icon={FileText} title="报告报送" count={modCount.reports} hint="FINTRAC 合规上报">
-            {fp.reports.map((r) => {
-              const st = RSTATE[reportStore.statusOf(r.id, r.status) as keyof typeof RSTATE];
-              return <Row key={r.id} to={r.to || "/reports"} lead={<SoftChip net>{r.type}</SoftChip>}
-                title={<><span>{r.summary.slice(0, 28)}…</span><span className="text-default-400">· {r.id}</span></>} sub={`${r.sub} · ${r.amount}`}
-                right={st ? <Pill tone={st.tone} dot={false}>{st.label}</Pill> : null} />;
-            })}
-          </FootSection>
+      {/* 跨模块足迹 —— 整合为单卡 + tab 切换;全部足迹为统一列表(每行带模块标签) */}
+      <div className="card overflow-hidden">
+        <div className="flex flex-wrap items-center gap-1.5 border-b border-default-100 px-4 pt-4">
+          {([["all", "全部足迹", footItems.length], ...FOOT_TABS.map(([k, n]) => [k, MOD_LABEL[k], n] as [string, string, number]), ["profile", "画像与关联", null]] as [string, string, number | null][]).map(([k, label, n]) => {
+            const on = tab === k;
+            return (
+              <button key={k} onClick={() => setTab(k)} className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[13px] font-semibold transition-colors ${on ? "" : "text-default-500 hover:bg-default-50"}`} style={on ? { background: "var(--brand-soft)", color: "var(--brand)" } : undefined}>
+                {label}{n != null && <span className="tnum rounded-full px-1.5 text-[10.5px] font-bold" style={on ? { background: "color-mix(in srgb,var(--brand) 16%,transparent)", color: "var(--brand)" } : { background: "var(--track)", color: "var(--text-3)" }}>{n}</span>}
+              </button>
+            );
+          })}
         </div>
 
-        {/* 右:主体画像 + 关联主体 */}
-        <div className="flex flex-col gap-4">
-          <div className="card p-4">
-            <SectionLabel>主体画像</SectionLabel>
-            <div className="flex flex-col gap-2 text-[12.5px]">
-              <KV label="类型">{type}</KV>
-              {a0 && <KV label="注册地">{a0.country}</KV>}
-              {a0 && <KV label="商户分级"><Pill tone={a0.merchantTier[1]} dot={false}>{a0.merchantTier[0]}</Pill></KV>}
-              {a0 && <KV label="KYB">{a0.kyb}</KV>}
-              {a0 && <KV label="账龄">{a0.accountAge}</KV>}
-              {a0?.sanctions && <KV label="制裁筛查"><span style={{ color: a0.sanctions.status.includes("命中") ? "var(--danger)" : undefined }}>{a0.sanctions.status}</span></KV>}
-              {a0?.custHistory && <KV label="30日交易额">{a0.custHistory.vol30}</KV>}
-              {!a0 && <div className="py-2 text-[11.5px] text-default-400">该主体未在事中告警出现,画像取自事后 / 案件维度。{type === "链上地址" && "链上地址以行为标签为主。"}</div>}
-            </div>
-          </div>
-
-          {addrs.length > 0 && (
-            <div className="card p-4">
-              <SectionLabel>关联链上地址 · 该商户属性</SectionLabel>
-              <div className="flex flex-col gap-1.5">
-                {addrs.map((a) => (
-                  <div key={a.addr} className="flex items-center gap-2 rounded-lg border border-default-200 px-2.5 py-2">
-                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg" style={{ background: "var(--violet-bg)", color: "var(--violet)" }}><Link2 className="h-3.5 w-3.5" /></span>
-                    <span className="min-w-0 flex-1 truncate text-[12px] font-semibold">{a.addr}</span>
-                    <Pill tone={a.role === "商户托管" ? "blue" : "violet"} dot={false}>{a.role}</Pill>
-                    <span className="shrink-0 text-[10.5px] text-default-400">{a.dir}</span>
+        <div className="p-4">
+          {tab === "profile" ? (
+            <div className="flex flex-col gap-5">
+              <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                <div>
+                  <SectionLabel>主体画像</SectionLabel>
+                  <div className="flex flex-col gap-2 text-[12.5px]">
+                    <KV label="类型">{type}</KV>
+                    {a0 && <KV label="注册地">{a0.country}</KV>}
+                    {a0 && <KV label="商户分级"><Pill tone={a0.merchantTier[1]} dot={false}>{a0.merchantTier[0]}</Pill></KV>}
+                    {a0 && <KV label="KYB">{a0.kyb}</KV>}
+                    {a0 && <KV label="账龄">{a0.accountAge}</KV>}
+                    {a0?.sanctions && <KV label="制裁筛查"><span style={{ color: a0.sanctions.status.includes("命中") ? "var(--danger)" : undefined }}>{a0.sanctions.status}</span></KV>}
+                    {a0?.custHistory && <KV label="30日交易额">{a0.custHistory.vol30}</KV>}
+                    {!a0 && <div className="py-2 text-[11.5px] text-default-400">该主体未在事中告警出现,画像取自事后 / 案件维度。</div>}
                   </div>
-                ))}
+                </div>
+                <div className="flex flex-col gap-5">
+                  {addrs.length > 0 && (
+                    <div>
+                      <SectionLabel>关联链上地址 · 该商户属性</SectionLabel>
+                      <div className="flex flex-col gap-1.5">
+                        {addrs.map((a) => (
+                          <div key={a.addr} className="flex items-center gap-2 rounded-lg border border-default-200 px-2.5 py-2">
+                            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg" style={{ background: "var(--violet-bg)", color: "var(--violet)" }}><Link2 className="h-3.5 w-3.5" /></span>
+                            <span className="min-w-0 flex-1 truncate text-[12px] font-semibold">{a.addr}</span>
+                            <Pill tone={a.role === "商户托管" ? "blue" : "violet"} dot={false}>{a.role}</Pill>
+                            <span className="shrink-0 text-[10.5px] text-default-400">{a.dir}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <p className="mt-2 text-[11px] leading-relaxed text-default-400">从该商户告警 sender / receiver 反推,作商户<b>属性</b>展示(地址不另作主体)。<b>商户托管</b>=本方钱包,<b>交易对手</b>=入金来源 / 出金去向。</p>
+                    </div>
+                  )}
+                  {related.length > 0 && (
+                    <div>
+                      <SectionLabel>关联主体 · 同团伙 / 同案</SectionLabel>
+                      <div className="flex flex-col gap-1.5">
+                        {related.map((r) => (
+                          <button key={r.name} onClick={() => nav(`/entity?name=${encodeURIComponent(r.name)}`)} className="card-hover group flex items-center gap-2 rounded-lg border border-default-200 px-2.5 py-2 text-left">
+                            <Pill tone={ENTITY_TONE[entityType(r.name)]} dot={false}>{entityType(r.name)}</Pill>
+                            <span className="min-w-0 flex-1 truncate text-[12px] font-semibold">{r.name}</span>
+                            <span className="shrink-0 text-[10.5px] text-default-400">{r.via}</span>
+                            <ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-default-300 group-hover:text-brand" />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
-              <p className="mt-2 text-[11px] leading-relaxed text-default-400">从该商户告警 sender / receiver 反推,作为商户<b>属性</b>展示(地址不另作主体)。<b>商户托管</b>=本方钱包,<b>交易对手</b>=入金来源 / 出金去向。高风险外部地址归 <b>名单管理</b> / 案件子主体。</p>
+              <p className="flex items-start gap-1.5 rounded-xl border-l-[3px] border-l-brand bg-default-50 p-3 text-[12px] leading-relaxed text-default-500">
+                <Layers className="mt-px h-4 w-4 shrink-0 text-default-400" />同一主体常被事中、事后、团伙、案件各自命中一次,分散在不同队列里看不全。主体360 按归一化键把它们聚到一起 —— 一眼看清全部敞口、是否已立案、有没有重复 STR,支撑「并案而非重复立案」。
+              </p>
+            </div>
+          ) : shown.length === 0 ? (
+            <div className="flex flex-col items-center justify-center gap-2 py-16 text-center">
+              <Layers className="h-7 w-7 text-default-300" />
+              <div className="text-[13px] font-semibold text-default-500">{footItems.length === 0 ? "该主体暂无跨模块命中记录" : "该模块下无记录"}</div>
+              <div className="text-[11.5px] text-default-400">{footItems.length === 0 ? "名字写法可能与各模块不一致,可回主体目录选取已聚合的主体。" : "切到「全部足迹」查看其它模块。"}</div>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-1.5">
+              {shown.map((i) => <Row key={`${i.mod}-${i.key}`} to={i.to} lead={i.lead} title={i.title} sub={i.sub} right={<>{tab === "all" && <ModTag mod={i.mod} />}{i.right}</>} />)}
             </div>
           )}
-
-          {related.length > 0 && (
-            <div className="card p-4">
-              <SectionLabel>关联主体 · 同团伙 / 同案</SectionLabel>
-              <div className="flex flex-col gap-1.5">
-                {related.map((r) => (
-                  <button key={r.name} onClick={() => nav(`/entity?name=${encodeURIComponent(r.name)}`)}
-                    className="card-hover group flex items-center gap-2 rounded-lg border border-default-200 px-2.5 py-2 text-left">
-                    <Pill tone={ENTITY_TONE[entityType(r.name)]} dot={false}>{entityType(r.name)}</Pill>
-                    <span className="min-w-0 flex-1 truncate text-[12px] font-semibold">{r.name}</span>
-                    <span className="shrink-0 text-[10.5px] text-default-400">{r.via}</span>
-                    <ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-default-300 group-hover:text-brand" />
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div className="card border-l-[3px] border-l-brand p-4">
-            <SectionLabel>为什么要主体360</SectionLabel>
-            <p className="text-[12px] leading-relaxed text-default-500">
-              同一主体常被事中、事后、团伙、案件各自命中一次,分散在不同队列里看不全。这张视图按归一化键把它们聚到一起 —— 一眼看清该主体的全部敞口、是否已立案、有没有重复 STR,支撑「并案而非重复立案」的决策。
-            </p>
-          </div>
         </div>
       </div>
     </Shell>
