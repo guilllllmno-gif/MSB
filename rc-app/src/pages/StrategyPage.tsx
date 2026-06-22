@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { Switch } from "@heroui/react";
 import { Shield, ShieldCheck, Scale, Gauge, Database, Clock, Lock, Landmark, UserCheck, Power, AlertTriangle, GitBranch, ListChecks, Info } from "lucide-react";
 import { Shell, PageHead } from "@/components/Shell";
-import { Pill, toneVar } from "@/components/bits";
+import { toneVar } from "@/components/bits";
 import type { Tone } from "@/lib/data";
 
 // 区块容器
@@ -22,20 +22,22 @@ function Section({ icon: Icon, title, hint, children }: { icon: typeof Shield; t
   );
 }
 
-// 单条策略:名称 + 说明 + 当前取值,右侧为「法定锁定」徽标或可调开关
+// 单条策略:名称 + 当前取值 + 说明,右侧定宽列放「法定锁定」徽标或可调开关
+// 取值徽标只用 红(关键/硬约束)/ 黄(需谨慎)/ 中性 三色,避免花花绿绿
 function Policy({ title, desc, value, valueTone, locked, lockNote, on, onToggle }: { title: string; desc: string; value?: string; valueTone?: Tone; locked?: boolean; lockNote?: string; on?: boolean; onToggle?: () => void }) {
+  const tone = valueTone === "red" || valueTone === "amber" ? valueTone : undefined;
   return (
     <div className="flex items-start gap-3 border-b border-default-100 py-3 last:border-0">
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-[13px] font-semibold">{title}</span>
-          {value && <span className="rounded-md px-1.5 py-0.5 text-[11px] font-bold" style={{ background: valueTone ? `color-mix(in srgb, ${toneVar(valueTone)} 14%, transparent)` : "var(--track)", color: valueTone ? toneVar(valueTone) : "var(--text-2)" }}>{value}</span>}
+          {value && <span className="rounded-md px-1.5 py-0.5 text-[11px] font-semibold" style={tone ? { background: `color-mix(in srgb, ${toneVar(tone)} 13%, transparent)`, color: toneVar(tone) } : { background: "var(--track)", color: "var(--text-2)" }}>{value}</span>}
         </div>
         <p className="mt-1 text-[12px] leading-relaxed text-default-500">{desc}</p>
       </div>
-      <div className="shrink-0 pt-0.5">
+      <div className="flex w-[84px] shrink-0 justify-end pt-0.5">
         {locked ? (
-          <span className="inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-[10.5px] font-bold" style={{ background: "var(--chip-bg)", color: "var(--text-3)" }} title={lockNote}><Lock className="h-3 w-3" />法定锁定</span>
+          <span className="inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-[10.5px] font-bold" style={{ background: "var(--chip-bg)", color: "var(--text-3)" }} title={lockNote}><Lock className="h-3 w-3" />锁定</span>
         ) : onToggle ? (
           <Switch size="sm" isSelected={on} onValueChange={onToggle} aria-label={title} />
         ) : null}
@@ -79,17 +81,19 @@ export default function StrategyPage() {
         ))}
       </div>
 
-      {/* 当前姿态条 */}
-      <div className="card mb-5 flex flex-wrap items-center gap-x-6 gap-y-2 p-4">
-        <span className="text-[12px] font-bold text-default-400">当前运行姿态</span>
+      {/* 当前姿态条 —— 分隔迷你统计 */}
+      <div className="card mb-5 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
         {[
-          ["运行模式", circuitBreaker ? "标准(熔断已布防)" : "标准", "green"],
-          ["无规则命中默认", "按风险分矩阵", "blue"],
-          ["评分服务", "正常", "green"],
-          ["制裁名单源", "实时同步", "green"],
-          ["策略版本", "v2.4 · 2026-06-10", "grey"],
-        ].map(([k, v, tone]) => (
-          <span key={k as string} className="inline-flex items-center gap-1.5 text-[12.5px]"><span className="text-default-400">{k}</span><Pill tone={tone as Tone} dot={false}>{v}</Pill></span>
+          ["运行模式", circuitBreaker ? "标准 · 熔断布防" : "标准", true],
+          ["无规则命中", "按风险分矩阵", false],
+          ["评分服务", "正常", true],
+          ["制裁名单源", "实时同步", true],
+          ["策略版本", "v2.4 · 06-10", false],
+        ].map(([k, v, ok], i) => (
+          <div key={k as string} className={`px-4 py-3 ${i > 0 ? "border-l border-default-100" : ""} ${i >= 3 ? "max-lg:border-l-0" : ""}`}>
+            <div className="text-[11px] text-default-400">{k}</div>
+            <div className="mt-1 flex items-center gap-1.5 text-[13px] font-semibold">{ok && <span className="h-1.5 w-1.5 rounded-full" style={{ background: "var(--success)" }} />}{v}</div>
+          </div>
         ))}
       </div>
 
