@@ -35,14 +35,14 @@ export function Shell({ crumb, wide, children }: { crumb: string[]; wide?: boole
         {/* brand + collapse toggle */}
         {collapsed ? (
           <div className="flex flex-col items-center gap-2.5">
-            <img src={logoIcon} alt="FuturePayCA" className="h-11 w-auto" />
+            <img src={logoIcon} alt="FuturePayCA" className="h-[60px] w-auto" />
             <button onClick={() => setCollapsed(false)} aria-label="展开侧边栏" className="flex h-9 w-9 items-center justify-center rounded-xl text-default-400 transition-colors hover:bg-content1 hover:text-default-600"><ChevronsRight className="h-[18px] w-[18px]" /></button>
           </div>
         ) : (
-          <div className="flex items-center gap-2.5 px-2">
+          <div className="flex items-center gap-2.5 px-2.5">
             <div className="min-w-0 flex-1">
-              <img src={logoFull} alt="FuturePayCA" className="h-11 w-auto" />
-              <div className="mt-1.5 truncate pl-0.5 text-[11px] leading-tight text-default-400">风控控制台</div>
+              <img src={logoFull} alt="FuturePayCA" className="h-[60px] w-auto" />
+              <div className="mt-1.5 truncate text-[11px] leading-tight text-default-400">风控控制台</div>
             </div>
             <button onClick={() => setCollapsed(true)} aria-label="收起侧边栏" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-default-400 transition-colors hover:bg-content1 hover:text-default-600"><ChevronsLeft className="h-[18px] w-[18px]" /></button>
           </div>
