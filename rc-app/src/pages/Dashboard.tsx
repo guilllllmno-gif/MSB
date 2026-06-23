@@ -1,6 +1,4 @@
-import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { toast } from "sonner";
 import { Button, Select, SelectItem } from "@heroui/react";
 import {
   Download, AlertTriangle, Clock, Snowflake, SendHorizontal, ShieldX,
@@ -8,6 +6,8 @@ import {
 } from "lucide-react";
 import { Shell, PageHead } from "@/components/Shell";
 import { SectionLabel, Initials } from "@/components/bits";
+import { LineChart } from "@/components/charts";
+import { queueHealth, DAYS14 } from "@/lib/opsMetrics";
 import { PipelineMap } from "@/components/PipelineMap";
 import { rings, RING_STATES, confTone, type RingStateKey } from "@/lib/rings";
 import { alerts, INVESTIGATION_STATES } from "@/lib/data";
@@ -17,13 +17,12 @@ import { allReports, liveStatus } from "@/lib/reportsAll";
 import { RULES } from "@/lib/rules";
 import {
   ringStore, useRingVersion, alertStore, useAlertVersion,
-  caseStore, useCaseVersion, reportStore, useReportVersion,
+  caseStore, useCaseVersion, useReportVersion,
 } from "@/lib/store";
 
 const BRAND = "var(--brand)";
 const GREY = "var(--text-3)";
 const ME = { i: "JL", n: "James Liu", c: "var(--brand)" };
-const DAYS14 = ["13日前", "12日前", "11日前", "10日前", "9日前", "8日前", "7日前", "6日前", "5日前", "4日前", "3日前", "前天", "昨天", "今日"];
 
 // ── MSB business lines: every product the system runs, each with its own risk posture today ──
 const LINES: { name: string; en: string; flow: string; vol: number; amt: string; alerts: number; pass: number; risk: "red" | "amber" | "green"; note: string; to: string }[] = [
@@ -38,40 +37,6 @@ const LINES: { name: string; en: string; flow: string; vol: number; amt: string;
 const FLOW = {
   start: 13547, sanction: 64, hold: 712, auto: 12771, manualPass: 643, reqinfo: 47, reject: 22,
   releasedAmt: "CAD 16.5M", frozenAmt: "CAD 200K", frictionAmt: "CAD 117K",
-};
-
-// ── alert-queue health: the daily ops pulse an analyst opens first (backlog · aging · burn-down · load) ──
-const QUEUE = {
-  open: 218, newToday: 128, clearedToday: 141, // cleared > new ⇒ backlog shrinking by 13
-  sla: 94.5, slaDelta: "+1.2pt", mttr: "4.2h", mttrDelta: "−0.5h", // SLA 达成率 · 平均处理时长(MTTR)
-  trend: { // 14-day burn-down: daily inflow vs outflow
-    newD: [120, 132, 118, 126, 122, 130, 125, 119, 128, 124, 131, 121, 126, 128],
-    clearedD: [112, 120, 124, 118, 128, 122, 130, 126, 133, 129, 138, 132, 140, 141],
-  },
-  aging: [ // sums to open (218)
-    { k: "0–4h", n: 96, over: false },
-    { k: "4–24h", n: 74, over: false },
-    { k: "1–3d", n: 36, over: false },
-    { k: "超 SLA", n: 12, over: true },
-  ],
-  analysts: [ // open caseload vs target capacity (sorted in the UI; supports many)
-    { p: { i: "SC", n: "Sarah Chen", c: "var(--violet)" }, open: 52, cap: 45 },
-    { p: { i: "RA", n: "Raj Anand", c: "#0ea5e9" }, open: 49, cap: 45 },
-    { p: { i: "AL", n: "Ana Lopez", c: "var(--brand)" }, open: 47, cap: 45 },
-    { p: { i: "BT", n: "Bo Tan", c: "var(--success)" }, open: 46, cap: 45 },
-    { p: { i: "JL", n: "James Liu", c: "var(--brand)" }, open: 44, cap: 45 },
-    { p: { i: "MK", n: "Mae Koh", c: "var(--success)" }, open: 41, cap: 45 },
-    { p: { i: "CY", n: "Chen Yu", c: "var(--violet)" }, open: 39, cap: 45 },
-    { p: { i: "DN", n: "Dia Naidu", c: "#0ea5e9" }, open: 38, cap: 45 },
-    { p: { i: "EM", n: "Eli Moss", c: "var(--brand)" }, open: 36, cap: 45 },
-    { p: { i: "FK", n: "Fay Kim", c: "var(--success)" }, open: 34, cap: 45 },
-    { p: { i: "GP", n: "Gus Park", c: "var(--violet)" }, open: 32, cap: 45 },
-    { p: { i: "HW", n: "Hana Wu", c: "#0ea5e9" }, open: 30, cap: 45 },
-    { p: { i: "IV", n: "Ivo Reyes", c: "var(--brand)" }, open: 28, cap: 45 },
-    { p: { i: "JX", n: "Jo Xu", c: "var(--success)" }, open: 26, cap: 45 },
-    { p: { i: "KO", n: "Kit Ono", c: "var(--violet)" }, open: 24, cap: 45 },
-    { p: { i: "LZ", n: "Lev Zane", c: "#0ea5e9" }, open: 22, cap: 45 },
-  ],
 };
 
 // 14-day series for the two mandate charts
@@ -104,58 +69,6 @@ const OPPS: { lever: string; evidence: string; uplift: string; cta: string; to: 
 ];
 
 // ── multi-series line chart with hover tooltip (vertical guide + per-series dot + value popover) ──
-function LineChart({ series, labels, valueFmt }: { series: { data: number[]; color: string; name?: string }[]; labels?: string[]; valueFmt?: (n: number) => string }) {
-  const W = 320, H = 124, padT = 8, padB = 16;
-  const all = series.flatMap((s) => s.data);
-  const max = Math.max(...all), min = Math.min(...all), rng = max - min || 1;
-  const n = series[0].data.length;
-  const x = (i: number) => (i / (n - 1)) * W;
-  const y = (v: number) => padT + (1 - (v - min) / rng) * (H - padT - padB);
-  const yPct = (v: number) => (y(v) / H) * 100;
-  const xPct = (i: number) => (i / (n - 1)) * 100;
-  const fmt = valueFmt ?? ((v: number) => `${v}`);
-  const grid = [0, 0.5, 1];
-  const [hi, setHi] = useState<number | null>(null);
-  return (
-    <div className="relative w-full" style={{ height: H }}
-      onMouseLeave={() => setHi(null)}
-      onMouseMove={(e) => { const r = e.currentTarget.getBoundingClientRect(); const f = (e.clientX - r.left) / r.width; setHi(Math.max(0, Math.min(n - 1, Math.round(f * (n - 1))))); }}>
-      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="w-full" style={{ height: H }}>
-        {grid.map((g) => { const gy = padT + g * (H - padT - padB); return <line key={g} x1={0} x2={W} y1={gy} y2={gy} stroke="var(--line)" strokeWidth={1} vectorEffect="non-scaling-stroke" />; })}
-        {series.map((s, si) => {
-          const line = s.data.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(" ");
-          const li = s.data.length - 1;
-          return (
-            <g key={si}>
-              {si === 0 && <polygon points={`0,${H - padB} ${line} ${W},${H - padB}`} fill={s.color} opacity={0.07} />}
-              <polyline points={line} fill="none" stroke={s.color} strokeWidth={1.8} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-              <circle cx={x(li)} cy={y(s.data[li])} r={2.6} fill={s.color} vectorEffect="non-scaling-stroke" />
-            </g>
-          );
-        })}
-      </svg>
-      {hi !== null && (
-        <>
-          <div className="pointer-events-none absolute top-0 bottom-0 w-px bg-default-300" style={{ left: `${xPct(hi)}%` }} />
-          {series.map((s, si) => (
-            <div key={si} className="pointer-events-none absolute h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full ring-2 ring-content1" style={{ left: `${xPct(hi)}%`, top: `${yPct(s.data[hi])}%`, background: s.color }} />
-          ))}
-          <div className="pointer-events-none absolute top-0 z-10 -translate-x-1/2 rounded-lg border border-divider bg-content1 px-2 py-1 shadow-soft" style={{ left: `${Math.min(82, Math.max(18, xPct(hi)))}%` }}>
-            {labels && <div className="mb-0.5 text-[10px] font-semibold text-default-500">{labels[hi]}</div>}
-            {series.map((s, si) => (
-              <div key={si} className="flex items-center gap-1.5 whitespace-nowrap text-[10.5px]">
-                <span className="h-1.5 w-1.5 rounded-full" style={{ background: s.color }} />
-                {s.name && <span className="text-default-400">{s.name}</span>}
-                <span className="font-bold tnum">{fmt(s.data[hi])}</span>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
-
 // one mandate as a chart panel: headline numbers (legend) + trend lines + a slim secondary strip
 function Panel({ title, legend, series, foot, valueFmt }: {
   title: string;
@@ -302,77 +215,6 @@ function Funnel() {
         风控的价值不止于拦下 <b className="text-foreground">{blocked}</b> 笔风险,更在于让 <b className="text-foreground">{passRate}%</b> 的合规{verb}安全、快速放行 —— 误报越低、暂缓越少,被误伤 / 延迟的好客户就越少。
       </p>
     </div>
-  );
-}
-
-// analyst caseload vs capacity — vertical columns, top-N + overflow, hover popover for detail
-function AnalystLoad({ analysts }: { analysts: { p: { i: string; n: string; c: string }; open: number; cap: number }[] }) {
-  const [hi, setHi] = useState<number | null>(null);
-  const sorted = [...analysts].sort((a, b) => b.open - a.open);
-  const cap = analysts[0].cap;
-  const N = sorted.length;
-  const avg = Math.round(sorted.reduce((s, a) => s + a.open, 0) / N);
-  const overCnt = sorted.filter((a) => a.open > a.cap).length;
-  const TOP = 6;
-  const top = sorted.slice(0, TOP);
-  const rest = sorted.slice(TOP);
-  const restAvg = rest.length ? Math.round(rest.reduce((s, a) => s + a.open, 0) / rest.length) : 0;
-  const scaleMax = Math.max(...sorted.map((a) => a.open), cap) * 1.15;
-  const cols = top.length + (rest.length ? 1 : 0);
-  const expand = () => toast(`展开团队负荷 · 全部 ${N} 人`);
-  const tip = hi === null ? null
-    : hi < top.length
-      ? (() => { const a = top[hi]; const d = a.open - cap; return { left: ((hi + 0.5) / cols) * 100, over: d > 0, lines: [a.p.n, `手头 ${a.open} 件`, d > 0 ? `超出上限 ${d} 件 · 需分流` : `还能接 ${-d} 件`] }; })()
-      : { left: ((top.length + 0.5) / cols) * 100, over: false, lines: [`其余 ${rest.length} 人`, `人均手头 ${restAvg} 件`] };
-  return (
-    <>
-      <div className="mb-2 flex items-baseline justify-between gap-2">
-        <span className="text-[11px] font-bold uppercase tracking-wider text-default-400">分析师工作量</span>
-        <span className="text-[11px] text-default-400">团队 {N} 人 · 人均手头 {avg} 件 · <span style={{ color: "var(--danger)", fontWeight: 600 }}>{overCnt} 人忙不过来</span></span>
-      </div>
-      <div className="relative flex h-[104px] items-end gap-2">
-        <div className="pointer-events-none absolute inset-x-0 border-t border-dashed border-default-300" style={{ bottom: `${(cap / scaleMax) * 100}%` }}>
-          <span className="absolute -top-3.5 right-0 rounded bg-default-100 px-1 text-[9px] font-semibold text-default-500">正常上限 {cap}</span>
-        </div>
-        {top.map((a, i) => {
-          const isOver = a.open > a.cap;
-          const over = Math.max(0, a.open - a.cap), base = Math.min(a.open, a.cap);
-          return (
-            <div key={a.p.n} onMouseEnter={() => setHi(i)} onMouseLeave={() => setHi(null)} className="flex h-full flex-1 flex-col justify-end">
-              <span className="mb-1 text-center text-[10px] font-bold tnum" style={isOver ? { color: "var(--danger)" } : undefined}>{a.open}</span>
-              {over > 0 && <div className="w-full rounded-t-[3px]" style={{ height: `${(over / scaleMax) * 100}%`, background: "var(--danger)" }} />}
-              <div className={over > 0 ? "w-full" : "w-full rounded-t-[3px]"} style={{ height: `${(base / scaleMax) * 100}%`, background: isOver ? "color-mix(in srgb, var(--danger) 35%, var(--track))" : "var(--brand)" }} />
-            </div>
-          );
-        })}
-        {rest.length > 0 && (
-          <button onMouseEnter={() => setHi(top.length)} onMouseLeave={() => setHi(null)} onClick={expand} className="flex h-full flex-1 flex-col justify-end">
-            <span className="mb-1 text-center text-[10px] font-semibold tnum text-default-400">{restAvg}</span>
-            <div className="w-full rounded-t-[3px] bg-default-200" style={{ height: `${(restAvg / scaleMax) * 100}%` }} />
-          </button>
-        )}
-        {tip && (
-          <div className="pointer-events-none absolute top-0 z-10 -translate-x-1/2 rounded-lg border border-divider bg-content1 px-2 py-1 shadow-soft" style={{ left: `${Math.min(82, Math.max(18, tip.left))}%` }}>
-            {tip.lines.map((l, i) => <div key={i} className={`whitespace-nowrap text-[10.5px] ${i === 0 ? "font-bold" : "text-default-500"}`} style={i > 0 && tip.over ? { color: "var(--danger)" } : undefined}>{l}</div>)}
-          </div>
-        )}
-      </div>
-      <div className="mt-2 flex gap-2">
-        {top.map((a) => (
-          <div key={a.p.n} className="flex flex-1 flex-col items-center gap-1">
-            <Initials p={a.p} size={20} />
-            <span className="w-full truncate text-center text-[9.5px] text-default-400">{a.p.n.split(" ")[0]}</span>
-          </div>
-        ))}
-        {rest.length > 0 && (
-          <button onClick={expand} className="flex flex-1 flex-col items-center gap-1">
-            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-default-100 text-[9px] font-bold text-default-500">+{rest.length}</span>
-            <span className="text-[9.5px] text-default-400">其余</span>
-          </button>
-        )}
-      </div>
-      <p className="mt-2 text-[10.5px] leading-snug text-default-400">柱子越高 = 手头任务越多;虚线是正常上限,<b style={{ color: "var(--danger)" }}>冒红 = 忙不过来</b>,该把任务分给有余力的人。</p>
-    </>
   );
 }
 
@@ -584,48 +426,31 @@ export default function Dashboard() {
         <div className="lg:col-span-7"><ScoreDistribution /></div>
       </div>
 
-      {/* 告警队列健康度 — backlog · aging · burn-down · analyst load (the daily ops pulse) */}
+      {/* 告警队列健康度 — 一行摘要(完整图表见运营总览 /ops) */}
       {(() => {
-        const net = QUEUE.clearedToday - QUEUE.newToday; // >0 ⇒ backlog shrinking
-        const agingTotal = QUEUE.aging.reduce((s, a) => s + a.n, 0);
-        // true burn-down: remaining backlog per day, back-computed from today's open so it reconciles
-        const backlog = (() => {
-          const { newD, clearedD } = QUEUE.trend; const days = newD.length; const b = new Array(days);
-          b[days - 1] = QUEUE.open;
-          for (let i = days - 2; i >= 0; i--) b[i] = b[i + 1] - (newD[i + 1] - clearedD[i + 1]);
-          return b;
-        })();
-        const peak = Math.max(...backlog);
-        const overSla = QUEUE.aging.find((a) => a.over)?.n ?? 0;
-        const teamN = QUEUE.analysts.length;
-        const teamOver = QUEUE.analysts.filter((a) => a.open > a.cap).length;
+        const h = queueHealth();
         const toneC = (t: string) => (t === "red" ? "var(--danger)" : t === "amber" ? "var(--warning)" : "var(--success)");
-        const slaTone = QUEUE.sla >= 95 ? "green" : QUEUE.sla >= 90 ? "amber" : "red";
-        // one-line verdict synthesised from SLA + overload + backlog trend
-        const status = QUEUE.sla < 90 || teamOver / teamN > 0.4 ? { label: "超负荷", tone: "red" }
-          : overSla > 0 || teamOver / teamN > 0.2 ? { label: "偏紧", tone: "amber" }
-          : { label: "健康", tone: "green" };
-        const vitals = [
-          { k: "待处理积压", v: `${QUEUE.open}`, sub: `今日净 ${net > 0 ? "−" : "+"}${Math.abs(net)} · ${net > 0 ? "队列在消" : "队列在涨"}`, subTone: net > 0 ? "green" : "red" },
-          { k: "SLA 达成率", v: `${QUEUE.sla}%`, sub: `较昨日 ${QUEUE.slaDelta}`, subTone: slaTone },
-          { k: "平均处理时长", v: QUEUE.mttr, sub: `MTTR · ${QUEUE.mttrDelta}`, subTone: "green" },
-          { k: "超 SLA 待处理", v: `${overSla} 件`, sub: "需优先清理", subTone: overSla > 0 ? "red" : "green" },
+        const slaTone = h.sla >= 95 ? "green" : h.sla >= 90 ? "amber" : "red";
+        const cells = [
+          { k: "待处理积压", v: `${h.open}`, sub: `今日净 ${h.net > 0 ? "−" : "+"}${Math.abs(h.net)} · ${h.net > 0 ? "队列在消" : "队列在涨"}`, subTone: h.net > 0 ? "green" : "red" },
+          { k: "SLA 达成率", v: `${h.sla}%`, sub: "目标 95%", subTone: slaTone },
+          { k: "平均处理时长", v: h.mttr, sub: "MTTR", subTone: "green" },
+          { k: "超 SLA 待处理", v: `${h.overSla} 件`, sub: "需优先清理", subTone: h.overSla > 0 ? "red" : "green" },
+          { k: "团队负荷", v: `${h.teamOver}/${h.teamN}`, sub: h.teamOver > 0 ? "人忙不过来" : "全员有余力", subTone: h.teamOver > 0 ? "amber" : "green" },
         ];
         return (
-          <div className="card mb-5 p-5">
+          <button onClick={() => nav("/ops")} className="card mb-5 block w-full p-5 text-left transition-colors hover:border-default-300">
             <div className="mb-4 flex items-center justify-between gap-3">
               <div className="flex items-center gap-2.5">
                 <div className="text-[15px] font-bold">告警队列健康度</div>
-                <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11.5px] font-bold" style={{ background: `color-mix(in srgb, ${toneC(status.tone)} 14%, transparent)`, color: toneC(status.tone) }}>
-                  <span className="h-1.5 w-1.5 rounded-full" style={{ background: toneC(status.tone) }} />{status.label}
+                <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11.5px] font-bold" style={{ background: `color-mix(in srgb, ${toneC(h.status.tone)} 14%, transparent)`, color: toneC(h.status.tone) }}>
+                  <span className="h-1.5 w-1.5 rounded-full" style={{ background: toneC(h.status.tone) }} />{h.status.label}
                 </span>
               </div>
-              <button onClick={() => nav("/alerts")} className="inline-flex items-center gap-0.5 text-[12.5px] font-semibold text-primary hover:opacity-80">告警队列 <ArrowRight className="h-3.5 w-3.5" /></button>
+              <span className="inline-flex items-center gap-0.5 text-[12.5px] font-semibold text-primary">运营总览 <ArrowRight className="h-3.5 w-3.5" /></span>
             </div>
-
-            {/* vitals — the at-a-glance health read */}
-            <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
-              {vitals.map((m) => (
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+              {cells.map((m) => (
                 <div key={m.k} className="rounded-xl border border-divider p-3">
                   <div className="text-[11.5px] text-default-500">{m.k}</div>
                   <div className="mt-1 text-[22px] font-extrabold leading-none tnum">{m.v}</div>
@@ -633,51 +458,7 @@ export default function Dashboard() {
                 </div>
               ))}
             </div>
-
-            <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
-              {/* burn-down trend — daily inflow vs outflow over 14 days */}
-              <div className="lg:col-span-5">
-                <div className="flex items-center justify-between gap-2">
-                  <SectionLabel>燃尽趋势 · 积压余量(近 14 日)</SectionLabel>
-                  <span className="text-[11px] text-default-400">峰值 <b className="text-foreground tnum">{peak}</b> → 现 <b className="text-foreground tnum">{QUEUE.open}</b> · 已燃尽 <b className="tnum" style={{ color: "var(--success)" }}>−{peak - QUEUE.open}</b></span>
-                </div>
-                <div className="mt-2"><LineChart series={[{ data: backlog, color: BRAND, name: "积压余量" }]} labels={DAYS14} /></div>
-                <p className="mt-1.5 text-[10.5px] leading-snug text-default-400">线往下 = 积压在被消化(好);往上 = 越积越多。</p>
-              </div>
-              {/* aging — donut by time-in-queue (brand ramp, 超SLA red) */}
-              <div className="lg:col-span-3">
-                <SectionLabel>停留时长分布</SectionLabel>
-                <div className="flex items-center gap-3">
-                  <div className="relative h-[96px] w-[96px] shrink-0">
-                    <svg viewBox="0 0 120 120" className="h-full w-full -rotate-90">
-                      {(() => { let acc = 0; const C = 2 * Math.PI * 50; return QUEUE.aging.map((a, i) => {
-                        const f = a.n / agingTotal; const off = -acc * C; acc += f;
-                        return <circle key={a.k} cx={60} cy={60} r={50} fill="none" strokeWidth={16}
-                          stroke={a.over ? "var(--danger)" : `color-mix(in srgb, var(--brand) ${32 + i * 22}%, var(--track))`}
-                          strokeDasharray={`${f * C} ${C}`} strokeDashoffset={off}><title>{`${a.k} · ${a.n} 笔 · ${((a.n / agingTotal) * 100).toFixed(1)}%`}</title></circle>;
-                      }); })()}
-                    </svg>
-                    <div className="absolute inset-0 flex flex-col items-center justify-center">
-                      <span className="text-[18px] font-extrabold leading-none tnum">{agingTotal}</span>
-                      <span className="text-[9px] text-default-400">积压</span>
-                    </div>
-                  </div>
-                  <div className="flex flex-1 flex-col gap-1.5">
-                    {QUEUE.aging.map((a, i) => (
-                      <div key={a.k} className="flex items-center gap-1.5 text-[11px]">
-                        <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: a.over ? "var(--danger)" : `color-mix(in srgb, var(--brand) ${32 + i * 22}%, var(--track))` }} />
-                        <span className="flex-1" style={a.over ? { color: "var(--danger)", fontWeight: 600 } : undefined}>{a.k}</span>
-                        <span className="font-bold tnum">{a.n}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <p className="mt-2 text-[10.5px] leading-snug text-default-400">按等待时长把积压分段,<b style={{ color: "var(--danger)" }}>红色 = 已超时</b>,占比越大越糟。</p>
-              </div>
-              {/* analyst load — see AnalystLoad: columns + capacity line + hover popover */}
-              <div className="lg:col-span-4"><AnalystLoad analysts={QUEUE.analysts} /></div>
-            </div>
-          </div>
+          </button>
         );
       })()}
 

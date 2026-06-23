@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { Button } from "@heroui/react";
-import { LayoutDashboard, Bell, Search, ListChecks, SlidersHorizontal, Shield, FolderOpen, FileText, Clock, ChevronDown, ChevronsLeft, ChevronsRight, HelpCircle, LogOut, Network, FileCheck, History, Fingerprint } from "lucide-react";
+import { LayoutDashboard, Bell, Search, ListChecks, SlidersHorizontal, Shield, FolderOpen, FileText, Clock, ChevronDown, ChevronsLeft, ChevronsRight, HelpCircle, LogOut, Network, FileCheck, History, Fingerprint, Activity } from "lucide-react";
 import { Initials, ThemeToggle } from "./bits";
 import logoIcon from "@/assets/logo-icon.svg";
 import logoFull from "@/assets/logo-full.svg";
@@ -10,6 +10,7 @@ type Item = { to: string; label: string; icon: typeof Bell; tag?: string };
 const NAV: ({ group: string } | Item)[] = [
   { to: "/dashboard", label: "风控仪表盘", icon: LayoutDashboard },
   { group: "监控运营" },
+  { to: "/ops", label: "运营总览", icon: Activity },
   { to: "/monitoring", label: "事中监控", icon: Search, tag: "10" },
   { to: "/post-monitoring", label: "事后监控", icon: History },
   { to: "/alerts", label: "告警研判", icon: Bell, tag: "128" },

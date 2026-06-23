@@ -10,6 +10,7 @@ const AlertDetail = lazy(() => import("@/pages/AlertDetail"));
 const RingList = lazy(() => import("@/pages/RingList"));
 const RingDetail = lazy(() => import("@/pages/RingDetail"));
 const Dashboard = lazy(() => import("@/pages/Dashboard"));
+const OpsOverview = lazy(() => import("@/pages/OpsOverview"));
 const Monitoring = lazy(() => import("@/pages/Monitoring"));
 const PostMonitoring = lazy(() => import("@/pages/PostMonitoring"));
 const PostDetail = lazy(() => import("@/pages/PostDetail"));
@@ -37,6 +38,7 @@ export default function App() {
           <Routes>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/ops" element={<OpsOverview />} />
             <Route path="/monitoring" element={<Monitoring />} />
             <Route path="/post-monitoring" element={<PostMonitoring />} />
             <Route path="/finding" element={<PostDetail />} />
