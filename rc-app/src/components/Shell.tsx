@@ -31,7 +31,7 @@ export function Shell({ crumb, wide, children }: { crumb: string[]; wide?: boole
   const nav = useNavigate();
   return (
     <div className="flex h-screen overflow-hidden bg-[var(--page)]">
-      <aside className={`flex shrink-0 flex-col overflow-y-auto overflow-x-hidden px-3 py-4 transition-[width] duration-300 ease-in-out ${collapsed ? "w-[78px]" : "w-[252px]"}`}>
+      <aside className={`no-scrollbar flex shrink-0 flex-col overflow-y-auto overflow-x-hidden px-3 py-4 transition-[width] duration-300 ease-in-out ${collapsed ? "w-[78px]" : "w-[252px]"}`}>
         {/* brand + collapse toggle */}
         {collapsed ? (
           <div className="flex flex-col items-center gap-2.5">
