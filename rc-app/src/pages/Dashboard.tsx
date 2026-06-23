@@ -10,7 +10,15 @@ import { Shell, PageHead } from "@/components/Shell";
 import { SectionLabel, Initials } from "@/components/bits";
 import { PipelineMap } from "@/components/PipelineMap";
 import { rings, RING_STATES, confTone, type RingStateKey } from "@/lib/rings";
-import { ringStore, useRingVersion } from "@/lib/store";
+import { alerts, INVESTIGATION_STATES } from "@/lib/data";
+import { CASES, CSTATE, type CState } from "@/lib/cases";
+import { RSTATE } from "@/lib/reports";
+import { allReports, liveStatus } from "@/lib/reportsAll";
+import { RULES } from "@/lib/rules";
+import {
+  ringStore, useRingVersion, alertStore, useAlertVersion,
+  caseStore, useCaseVersion, reportStore, useReportVersion,
+} from "@/lib/store";
 
 const BRAND = "var(--brand)";
 const GREY = "var(--text-3)";
@@ -89,15 +97,8 @@ const EXSIGNALS: { name: string; desc: string; n: number; amt: string; tone: "re
   { name: "异常价差 · 套利对敲", desc: "偏离市价的单边大额交易,疑似对敲", n: 5, amt: "CAD 23K", tone: "blue" },
 ];
 
-const RULES: { name: string; hit: number; fp: number; leak: string; disp: string }[] = [
-  { name: "大额交易监控", hit: 312, fp: 38, leak: "CAD 41K", disp: "暂缓" },
-  { name: "新用户首笔交易", hit: 158, fp: 52, leak: "CAD 33K", disp: "人工" },
-  { name: "高频拆分交易", hit: 96, fp: 19, leak: "CAD 9K", disp: "补材料" },
-  { name: "混币器来源关联", hit: 47, fp: 4, leak: "CAD 1K", disp: "冻结+升级" },
-];
-
 const OPPS: { lever: string; evidence: string; uplift: string; cta: string; to: string; icon: typeof SlidersHorizontal }[] = [
-  { lever: "收紧「新用户首笔交易」规则条件", evidence: "误报率 52% · 全站最高 · 误伤合规交易约 CAD 33K/月", uplift: "FP 52%→30%,预计每月找回合规交易 ~CAD 18K · 首笔交易直通率 +9pt", cta: "去规则编辑器调优", to: "/rules", icon: SlidersHorizontal },
+  { lever: "收紧「新商户首充」规则条件", evidence: "误报率 26% · 全站最高 · 误伤合规交易约 CAD 33K/月", uplift: "FP 26%→16%,预计每月找回合规交易 ~CAD 18K · 首笔交易直通率 +9pt", cta: "去规则编辑器调优", to: "/rules", icon: SlidersHorizontal },
   { lever: "扩大「绿色通道」自动放行范围", evidence: "低危(评分<40)且来源为可信交易所热钱包的交易仍走人工", uplift: "纳入自动放行 → 直通率 +3.2pt · 人工工时 −15% · 好客户更快成交", cta: "配置全局策略", to: "/strategy", icon: Zap },
   { lever: "解除观察中团伙的误聚", evidence: "2 个正常商户因共享公共 IP 被弱关联聚入「观察中」", uplift: "判定误报 + 加白名单 → 减少正常交易被误拦 · 回流模型降噪", cta: "去团伙识别", to: "/rings", icon: Network },
 ];
@@ -377,8 +378,10 @@ function AnalystLoad({ analysts }: { analysts: { p: { i: string; n: string; c: s
 
 export default function Dashboard() {
   const nav = useNavigate();
-  useRingVersion();
+  // subscribe to every store so the dashboard reconciles live with the list pages
+  useRingVersion(); useAlertVersion(); useCaseVersion(); useReportVersion();
 
+  // ── 关联团伙 — live from ringStore ──
   const allRings = [...ringStore.created(), ...rings];
   const stOf = (id: string, base: string) => ringStore.stateOf(id, base) as RingStateKey;
   const ringPending = allRings.filter((r) => stOf(r.id, r.state) === "pending").length;
@@ -386,30 +389,70 @@ export default function Dashboard() {
   const ringHighConf = allRings.filter((r) => r.confidence >= 80).length;
   const topRings = [...allRings].sort((a, b) => b.confidence - a.confidence).slice(0, 3);
 
-  const urgent: { label: string; icon: typeof Clock; to: string }[] = [
-    { label: "2 笔告警超 SLA", icon: Clock, to: "/alerts" },
-    { label: "FINTRAC 报送临期 2 件", icon: SendHorizontal, to: "/reports" },
-    { label: "冻结资金待处置 6 笔", icon: Snowflake, to: "/cases" },
-    { label: `待认领团伙 ${ringPending} 个`, icon: Network, to: "/rings" },
-  ];
+  // ── live cross-module aggregates (mirror each list page's own predicates so the numbers match) ──
+  const allCases = [...caseStore.created(), ...CASES];
+  const caseStOf = (c: typeof allCases[number]) => caseStore.stateOf(c.id, c.state) as CState;
+  const reports = allReports();
 
-  // ── 待我处理 — the current analyst's (我 = James Liu) personal work queue ──
+  // 告警研判:调查车道里已超 SLA 的件(AlertList 同口径:INVESTIGATION_STATES + sla 红)
+  const alertsOverSla = alerts.filter((a) => INVESTIGATION_STATES.includes(alertStore.stateOf(a.id, a.state)) && a.sla.color === "red").length;
+  // 报告报送:待 MLRO 复核 + 被退回需补正(ReportFiling「需立即处理」同口径)
+  const reportsNeedAction = reports.filter((r) => ["review", "returned"].includes(liveStatus(r))).length;
+  // 案件管理:active 且未分配 = 待认领(CaseList 显「认领」的件)
+  const casesToClaim = allCases.filter((c) => CSTATE[caseStOf(c)].active && !caseStore.ownerOf(c.id, c.owner)).length;
+
+  // 需立即处理 — every count derives from a store; zero-count chips drop out
+  const urgent: { n: number; label: string; icon: typeof Clock; to: string }[] = [
+    { n: alertsOverSla, label: `${alertsOverSla} 笔告警超 SLA`, icon: Clock, to: "/alerts" },
+    { n: reportsNeedAction, label: `FINTRAC 报送待处理 ${reportsNeedAction} 件`, icon: SendHorizontal, to: "/reports" },
+    { n: casesToClaim, label: `案件待认领 ${casesToClaim} 件`, icon: Snowflake, to: "/cases" },
+    { n: ringPending, label: `待认领团伙 ${ringPending} 个`, icon: Network, to: "/rings" },
+  ].filter((u) => u.n > 0);
+
+  // ── 待我处理 — the current analyst's (我 = James Liu) personal queue, built from real records
+  //    (assigned to me OR unassigned & claimable) so every item deep-links to a live detail page ──
   type Task = { kind: string; subject: string; meta: string; due: string; overdue?: boolean; to: string; icon: typeof Clock };
-  // rings I own and still own an open disposition on — pulled live from the store
+  const mine = (p?: { n: string } | null) => !p || p.n === ME.n; // 已分配给我 或 未分配(待认领)
+
+  // 团伙:我拥有的、仍有未决处置的
   const myRings: Task[] = allRings
     .filter((r) => ringStore.ownerOf(r.id, r.owner)?.n === ME.n && ["pending", "investigating", "watching"].includes(stOf(r.id, r.state)))
     .map((r) => ({
       kind: "团伙", subject: r.name, meta: `${r.id} · ${r.members.length} 主体 · 置信 ${r.confidence}%`,
       due: r.sla?.text ?? "无时限", overdue: r.sla?.tone === "red", to: `/ring?id=${r.id}`, icon: Network,
     }));
-  const staticTasks: Task[] = [
-    { kind: "告警", subject: "RapidPay · Off-ramp 大额可疑提现", meta: "ALT-2418 · 评分 87 · 命中 4 规则", due: "超时 1.2h", overdue: true, to: "/alerts", icon: AlertTriangle },
-    { kind: "报送", subject: "STR 草稿待提交 · QuickWallet", meta: "RPT-0091 · MLRO 已退回补充", due: "临期 6h", to: "/reports", icon: SendHorizontal },
-    { kind: "告警", subject: "On-ramp 新用户首笔买币复核 · NovaPay", meta: "ALT-2451 · 评分 58 · 补材料已回", due: "剩 1d", to: "/alerts", icon: Clock },
-    { kind: "案件", subject: "冻结资金处置审批 · CASE-2026-014", meta: "CAD 58K · 待我确认放行 / 维持", due: "剩 18h", to: "/cases", icon: Snowflake },
-  ];
-  const myTasks = [...myRings, ...staticTasks];
+  // 告警:未结案、归我 / 待认领,深链到真实告警
+  const myAlerts: Task[] = alerts
+    .filter((a) => !alertStore.stateOf(a.id, a.state).startsWith("closed") && mine(alertStore.assigneeOf(a.id, a.assignee)))
+    .map((a) => ({
+      kind: "告警", subject: `${a.merchant} · ${a.title}`, meta: `${a.id} · 评分 ${a.score} · 命中 ${a.rules.length} 规则`,
+      due: a.sla.text, overdue: a.sla.color === "red", to: `/alert?id=${a.id}`,
+      icon: a.sev === "high" ? AlertTriangle : Clock,
+    }));
+  // 案件:active、归我 / 待认领
+  const myCases: Task[] = allCases
+    .filter((c) => CSTATE[caseStOf(c)].active && mine(caseStore.ownerOf(c.id, c.owner)))
+    .map((c) => ({
+      kind: "案件", subject: `${c.subject} · ${c.type}`, meta: `${c.id} · ${c.amount} · ${CSTATE[caseStOf(c)].label}`,
+      due: c.sla.text, overdue: c.sla.tone === "red", to: `/case?id=${c.id}`, icon: Snowflake,
+    }));
+  // 报送:active、由我起草,深链到真实报告
+  const myReports: Task[] = reports
+    .filter((r) => RSTATE[liveStatus(r)].active && r.officer.n === ME.n)
+    .map((r) => ({
+      kind: "报送", subject: `${r.type} · ${r.subject}`, meta: `${r.id} · ${RSTATE[liveStatus(r)].label}`,
+      due: r.due.text, overdue: liveStatus(r) === "returned", to: `/report?id=${r.id}`, icon: SendHorizontal,
+    }));
+  const myTasks = [...myRings, ...myAlerts, ...myCases, ...myReports]
+    .sort((a, b) => Number(b.overdue ?? false) - Number(a.overdue ?? false));
   const myOverdue = myTasks.filter((t) => t.overdue).length;
+
+  // ── Top 命中规则 — derived from the live rule library (/rules), sorted by 30-day hits ──
+  const fpNum = (s: string) => parseInt(s, 10) || 0;
+  const dispOf = (action: string) => { const parts = action.split("·").map((s) => s.trim()).filter(Boolean); return parts.length > 1 ? parts[parts.length - 1] : action.includes("拦截") ? "拦截" : "评分"; };
+  const liveRules = RULES.filter((r) => r.state === "live");
+  const topRules = [...liveRules].sort((a, b) => b.hits30 - a.hits30).slice(0, 4);
+  const worstFp = [...liveRules].sort((a, b) => fpNum(b.fp30) - fpNum(a.fp30))[0];
 
   return (
     <Shell crumb={["风控", "风控仪表盘"]} wide>
@@ -432,14 +475,20 @@ export default function Dashboard() {
       {/* 风控流水线总览 — 给第一次用的人一张流程地图 */}
       <PipelineMap />
 
-      {/* 需立即处理 — single red accent for urgency */}
-      <div className="card mb-5 flex flex-wrap items-center gap-x-4 gap-y-2 border-l-[3px] p-3.5 pl-4" style={{ borderLeftColor: "var(--danger)" }}>
-        <span className="flex items-center gap-1.5 text-[13px] font-bold"><AlertTriangle className="h-4 w-4 text-danger" />需立即处理</span>
-        {urgent.map((u) => (
-          <button key={u.label} onClick={() => nav(u.to)} className="inline-flex items-center gap-1.5 rounded-full bg-default-100 px-2.5 py-1 text-[12px] font-semibold text-default-600 transition-colors hover:bg-default-200">
-            <u.icon className="h-3.5 w-3.5 text-default-400" />{u.label}<ChevronRight className="h-3 w-3 text-default-400" />
-          </button>
-        ))}
+      {/* 需立即处理 — single red accent for urgency; green & calm when the queue is clear */}
+      <div className="card mb-5 flex flex-wrap items-center gap-x-4 gap-y-2 border-l-[3px] p-3.5 pl-4" style={{ borderLeftColor: urgent.length ? "var(--danger)" : "var(--success)" }}>
+        {urgent.length ? (
+          <>
+            <span className="flex items-center gap-1.5 text-[13px] font-bold"><AlertTriangle className="h-4 w-4 text-danger" />需立即处理</span>
+            {urgent.map((u) => (
+              <button key={u.label} onClick={() => nav(u.to)} className="inline-flex items-center gap-1.5 rounded-full bg-default-100 px-2.5 py-1 text-[12px] font-semibold text-default-600 transition-colors hover:bg-default-200">
+                <u.icon className="h-3.5 w-3.5 text-default-400" />{u.label}<ChevronRight className="h-3 w-3 text-default-400" />
+              </button>
+            ))}
+          </>
+        ) : (
+          <span className="flex items-center gap-1.5 text-[13px] font-semibold text-default-600"><CheckCircle2 className="h-4 w-4 text-success" />需立即处理项已全部清空 —— 暂无超时告警、待报送或待认领</span>
+        )}
       </div>
 
       {/* 业务线风控总览 — every MSB business line at a glance (the headline of an all-business dashboard) */}
@@ -672,24 +721,25 @@ export default function Dashboard() {
           </div>
           <table className="w-full text-[12.5px]">
             <thead><tr className="border-b border-divider text-[11.5px] text-default-400">
-              <th className="pb-2 text-left font-medium">规则</th><th className="pb-2 text-right font-medium">命中</th>
-              <th className="pb-2 text-right font-medium">误报率</th><th className="pb-2 text-right font-medium">误伤金额</th><th className="pb-2 text-right font-medium">处置</th>
+              <th className="pb-2 text-left font-medium">规则</th><th className="pb-2 text-right font-medium">近30天命中</th>
+              <th className="pb-2 text-right font-medium">误报率</th><th className="pb-2 text-right font-medium">命中处置</th>
             </tr></thead>
             <tbody>
-              {RULES.map((r) => (
-                <tr key={r.name} className="border-b border-default-100 last:border-0">
+              {topRules.map((r) => (
+                <tr key={r.id} className="cursor-pointer border-b border-default-100 transition-colors last:border-0 hover:bg-default-50" onClick={() => nav(`/rule?id=${r.id}`)}>
                   <td className="py-2.5 font-semibold">{r.name}</td>
-                  <td className="py-2.5 text-right tnum text-default-600">{r.hit}</td>
-                  <td className="py-2.5 text-right tnum font-semibold">{r.fp}%</td>
-                  <td className="py-2.5 text-right tnum text-default-600">{r.leak}</td>
-                  <td className="py-2.5 text-right"><span className="rounded-md bg-default-100 px-1.5 py-0.5 text-[10.5px] font-semibold text-default-500">{r.disp}</span></td>
+                  <td className="py-2.5 text-right tnum text-default-600">{r.hits30}</td>
+                  <td className="py-2.5 text-right tnum font-semibold" style={fpNum(r.fp30) >= 20 ? { color: "var(--danger)" } : undefined}>{r.fp30}</td>
+                  <td className="py-2.5 text-right"><span className="rounded-md bg-default-100 px-1.5 py-0.5 text-[10.5px] font-semibold text-default-500">{dispOf(r.action)}</span></td>
                 </tr>
               ))}
             </tbody>
           </table>
-          <p className="mt-3 flex items-start gap-1.5 rounded-xl border border-divider bg-default-50 p-2.5 text-[11.5px] leading-relaxed text-default-500">
-            <TrendingDown className="mt-px h-3.5 w-3.5 shrink-0 text-default-400" />「新用户首笔交易」误报 52% 最高 —— 收紧条件至 30%,预计每月找回合规交易 ~CAD 18K,把降噪变成创收。
-          </p>
+          {worstFp && (
+            <p className="mt-3 flex items-start gap-1.5 rounded-xl border border-divider bg-default-50 p-2.5 text-[11.5px] leading-relaxed text-default-500">
+              <TrendingDown className="mt-px h-3.5 w-3.5 shrink-0 text-default-400" />「{worstFp.name}」误报 {worstFp.fp30} 最高 —— 收紧条件,预计每月找回合规交易 ~CAD 18K,把降噪变成创收。
+            </p>
+          )}
         </div>
 
         <div className="card p-5">
