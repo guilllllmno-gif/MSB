@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button, Input, Textarea, Select, SelectItem, Checkbox, CheckboxGroup, Slider } from "@heroui/react";
-import { Zap, History, Layers, GripVertical, Trash2, Plus, Info, RefreshCw, Search, Bell, ListFilter, ShieldCheck, ArrowRight } from "lucide-react";
+import { Zap, History, Layers, Trash2, Plus, Info, RefreshCw, Search, Bell, ListFilter, ShieldCheck, ArrowRight } from "lucide-react";
 import {
   CATS, VENUE, venueOf, RULE_FIELDS, RULE_OPS, OP_LABEL, isAmountField, RULE_SCOPES, RULE_NETWORKS, RULE_ESCALATIONS, RULE_DISPOSITIONS, SEVERITIES,
   ruleFieldDiffs, ruleChangeSummary, type RuCat, type Venue, type Rule, type Clause, type RuleMode, type Severity, type Joiner,
@@ -197,7 +197,7 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
                       <div key={i}>
                         {i > 0 && <div className="mb-2 flex items-center gap-2"><span className="rounded bg-[var(--brand-soft)] px-1.5 py-0.5 text-[10px] font-bold text-[var(--brand)]">{joiner}</span><span className="h-px flex-1 bg-divider" /></div>}
                         <div className="flex items-center gap-1.5">
-                          <GripVertical className="h-4 w-4 shrink-0 cursor-grab text-default-300" />
+                          <span className="w-5 shrink-0 text-center text-[11px] font-bold text-default-300 tnum">{i + 1}</span>
                           <Select size="sm" aria-label="字段" placeholder="选择字段" selectedKeys={c.field ? [c.field] : []} className="flex-[2]" classNames={{ trigger: "h-9 min-h-9 bg-content1" }}
                             onSelectionChange={(k) => setClause(i, { field: Array.from(k as Set<string>)[0] ?? "" })}>
                             {RULE_FIELDS.map((fld) => <SelectItem key={fld}>{fld}</SelectItem>)}
