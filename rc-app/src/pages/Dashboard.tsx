@@ -1,13 +1,16 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Button, Select, SelectItem } from "@heroui/react";
+import { Button, Select, SelectItem, Slider } from "@heroui/react";
 import {
   Download, AlertTriangle, Clock, Snowflake, SendHorizontal, ShieldX,
   ArrowRight, CheckCircle2, Sparkles, TrendingUp, TrendingDown, SlidersHorizontal, Network, ChevronRight, Zap, BarChart3,
+  Stamp, Users, ShieldCheck, User,
 } from "lucide-react";
 import { Shell, PageHead } from "@/components/Shell";
 import { SectionLabel, Initials } from "@/components/bits";
-import { LineChart } from "@/components/charts";
-import { queueHealth, DAYS14 } from "@/lib/opsMetrics";
+import { LineChart, AnalystLoad } from "@/components/charts";
+import { AnalystQueueDrawer } from "@/components/AnalystQueueDrawer";
+import { queueHealth, DAYS14, QUEUE, type Analyst } from "@/lib/opsMetrics";
 import { PipelineMap } from "@/components/PipelineMap";
 import { rings, RING_STATES, confTone, type RingStateKey } from "@/lib/rings";
 import { alerts, INVESTIGATION_STATES } from "@/lib/data";
@@ -15,14 +18,17 @@ import { CASES, CSTATE, type CState } from "@/lib/cases";
 import { RSTATE } from "@/lib/reports";
 import { allReports, liveStatus } from "@/lib/reportsAll";
 import { RULES } from "@/lib/rules";
+import { LISTS } from "@/lib/lists";
 import {
   ringStore, useRingVersion, alertStore, useAlertVersion,
-  caseStore, useCaseVersion, useReportVersion,
+  caseStore, useCaseVersion, useReportVersion, listStore, useListVersion,
 } from "@/lib/store";
 
 const BRAND = "var(--brand)";
 const GREY = "var(--text-3)";
-const ME = { i: "JL", n: "James Liu", c: "var(--brand)" };
+const ME = { i: "JL", n: "James Liu", c: "var(--brand)" };           // 一线分析师视角
+const HEAD = { i: "EZ", n: "Emma Zhang", c: "var(--violet)" };       // 风控总管(兼 MLRO)视角
+type Role = "analyst" | "head";
 
 // ── MSB business lines: every product the system runs, each with its own risk posture today ──
 const LINES: { name: string; en: string; flow: string; vol: number; amt: string; alerts: number; pass: number; risk: "red" | "amber" | "green"; note: string; to: string }[] = [
@@ -103,21 +109,29 @@ function Panel({ title, legend, series, foot, valueFmt }: {
 
 // Stripe Radar–style risk score distribution: txns bucketed by score, shaded into
 // review-threshold bands. Surfaces the conversion ↔ risk tradeoff of where to set thresholds.
-function ScoreDistribution() {
-  const buckets = [760, 680, 520, 360, 240, 160, 110, 64, 30, 18]; // score 0–9 … 90–99
-  const total = buckets.reduce((a, b) => a + b, 0);
-  const max = Math.max(...buckets);
-  const zoneOf = (i: number) => (i < 4 ? "auto" : i < 7 ? "manual" : "block");
-  const zoneCol: Record<string, string> = {
-    auto: "color-mix(in srgb, var(--brand) 30%, var(--track))",
-    manual: "color-mix(in srgb, var(--brand) 62%, var(--track))",
-    block: "var(--brand)",
-  };
-  const sum = (lo: number, hi: number) => buckets.slice(lo, hi).reduce((a, b) => a + b, 0);
+// editable(总管):阈值双滑块可拖,实时重算三区占比 + 直通率;非 editable(分析师):只读。
+const SD_BUCKETS = [760, 680, 520, 360, 240, 160, 110, 64, 30, 18]; // score 0–9 … 90–99
+const SD_TOTAL = SD_BUCKETS.reduce((a, b) => a + b, 0);
+const SD_MAX = Math.max(...SD_BUCKETS);
+// 跨桶按比例插值:落在 [0,T) 的笔数(桶覆盖 [i*10, i*10+10))
+const countBelow = (T: number) =>
+  SD_BUCKETS.reduce((c, b, i) => { const lo = i * 10, hi = lo + 10; return c + (hi <= T ? b : lo >= T ? 0 : b * (T - lo) / 10); }, 0);
+
+function ScoreDistribution({ editable = false }: { editable?: boolean }) {
+  const [th, setTh] = useState<[number, number]>([40, 70]); // [自动放行阈值, 拦截阈值]
+  const [t0, t1] = th;
+  const autoN = countBelow(t0);
+  const blockN = SD_TOTAL - countBelow(t1);
+  const manualN = SD_TOTAL - autoN - blockN;
+  const passRate = (autoN / SD_TOTAL) * 100;
+  const basePass = (countBelow(40) / SD_TOTAL) * 100; // 基线阈值 40 的直通率,用于显示增量
+  const passDelta = passRate - basePass;
+  const zoneCol = { auto: "color-mix(in srgb, var(--brand) 30%, var(--track))", manual: "color-mix(in srgb, var(--brand) 62%, var(--track))", block: "var(--brand)" };
+  const zoneOfMid = (i: number) => { const m = i * 10 + 5; return m < t0 ? "auto" : m < t1 ? "manual" : "block"; };
   const zones = [
-    { k: "自动放行", range: "评分 < 40", n: sum(0, 4), flex: 4 },
-    { k: "人工审核", range: "40 – 70", n: sum(4, 7), flex: 3 },
-    { k: "拦截 · 升级", range: "≥ 70", n: sum(7, 10), flex: 3 },
+    { k: "自动放行", range: `评分 < ${t0}`, n: autoN, col: zoneCol.auto },
+    { k: "人工审核", range: `${t0} – ${t1}`, n: manualN, col: zoneCol.manual },
+    { k: "拦截 · 升级", range: `≥ ${t1}`, n: blockN, col: zoneCol.block },
   ];
   return (
     <div className="card p-5">
@@ -126,37 +140,61 @@ function ScoreDistribution() {
           <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-default-100 text-default-500"><BarChart3 className="h-4 w-4" /></span>
           <div>
             <div className="text-[15px] font-bold">风险评分分布</div>
-            <div className="text-[12px] text-default-400">今日全业务线交易按风险评分分桶 · 阈值决定放行 / 人工 / 拦截的分界</div>
+            <div className="text-[12px] text-default-400">今日全业务线交易按风险评分分桶 · {editable ? "拖动阈值即时预览放行 / 人工 / 拦截的变化" : "阈值决定放行 / 人工 / 拦截的分界"}</div>
           </div>
         </div>
-        <span className="text-[11.5px] text-default-400 tnum">共 {total.toLocaleString()} 笔</span>
+        <span className="text-[11.5px] text-default-400 tnum">共 {SD_TOTAL.toLocaleString()} 笔</span>
       </div>
 
-      {/* zone summary headers, widths proportional to score range */}
+      {/* zone summary headers, widths proportional to current thresholds */}
       <div className="mt-4 flex gap-1.5">
-        {zones.map((z) => (
-          <div key={z.k} style={{ flex: z.flex }} className="text-[11px]">
-            <div className="font-semibold text-default-600">{z.k} <span className="tnum text-default-400">{((z.n / total) * 100).toFixed(1)}%</span></div>
-            <div className="text-default-400">{z.range} · {z.n.toLocaleString()} 笔</div>
+        {zones.map((z, i) => (
+          <div key={z.k} style={{ flex: Math.max(0.6, (i === 0 ? t0 : i === 1 ? t1 - t0 : 100 - t1)) }} className="min-w-0 text-[11px]">
+            <div className="flex items-center gap-1 font-semibold text-default-600"><span className="h-2 w-2 shrink-0 rounded-full" style={{ background: z.col }} /><span className="truncate">{z.k}</span> <span className="tnum text-default-400">{((z.n / SD_TOTAL) * 100).toFixed(1)}%</span></div>
+            <div className="truncate text-default-400">{z.range} · {Math.round(z.n).toLocaleString()} 笔</div>
           </div>
         ))}
       </div>
 
-      {/* histogram */}
-      <div className="mt-2 flex h-[140px] items-stretch gap-1.5">
-        {buckets.map((b, i) => (
-          <div key={i} className="flex h-full flex-1 flex-col justify-end" title={`评分 ${i * 10}–${i * 10 + 9} · ${b.toLocaleString()} 笔`}>
-            <div className="w-full rounded-t-[3px]" style={{ height: `${Math.max(2, (b / max) * 100)}%`, background: zoneCol[zoneOf(i)] }} />
+      {/* histogram + threshold guide lines */}
+      <div className="relative mt-2 h-[140px]">
+        <div className="flex h-full items-stretch gap-1.5">
+          {SD_BUCKETS.map((b, i) => (
+            <div key={i} className="flex h-full flex-1 flex-col justify-end" title={`评分 ${i * 10}–${i * 10 + 9} · ${b.toLocaleString()} 笔`}>
+              <div className="w-full rounded-t-[3px] transition-colors" style={{ height: `${Math.max(2, (b / SD_MAX) * 100)}%`, background: zoneCol[zoneOfMid(i)] }} />
+            </div>
+          ))}
+        </div>
+        {[t0, t1].map((t, i) => (
+          <div key={i} className="pointer-events-none absolute top-0 bottom-0 border-l border-dashed border-default-400" style={{ left: `${t}%` }}>
+            <span className="absolute -top-0.5 ml-1 rounded bg-default-100 px-1 text-[9px] font-bold text-default-500 tnum">{t}</span>
           </div>
         ))}
       </div>
-      <div className="mt-1 flex justify-between text-[9.5px] text-default-300 tnum"><span>0</span><span>40</span><span>70</span><span>100</span></div>
-      <p className="mt-2 text-[10.5px] leading-snug text-default-400">横轴 = 可疑评分(0–100),越往右越可疑;柱子 = 该分数段的交易笔数。<b className="text-default-500">左段放行 · 中段人工 · 右段拦截</b>。</p>
+      <div className="mt-1 flex justify-between text-[9.5px] text-default-300 tnum"><span>0</span><span>50</span><span>100</span></div>
 
-      <p className="mt-3 flex items-start gap-1.5 rounded-xl border border-divider bg-default-50 p-2.5 text-[11.5px] leading-relaxed text-default-500">
-        <SlidersHorizontal className="mt-px h-3.5 w-3.5 shrink-0 text-default-400" />
-        自动放行阈值现设在 40。上调至 45 可让约 <b className="text-foreground">6%</b> 的中段低危交易转入直通,在风险敞口可控的前提下提升放行率 —— 阈值即转化与风险的权衡点。
-      </p>
+      {editable ? (
+        <div className="mt-3 rounded-xl border border-divider bg-default-50 p-3">
+          <div className="mb-1 flex items-center justify-between gap-2">
+            <span className="flex items-center gap-1.5 text-[12px] font-semibold text-default-600"><SlidersHorizontal className="h-3.5 w-3.5 text-default-400" />调整阈值</span>
+            <span className="text-[11px] text-default-400">自动放行 <b className="text-foreground tnum">{t0}</b> · 拦截 <b className="text-foreground tnum">{t1}</b></span>
+          </div>
+          <Slider aria-label="评分阈值" size="sm" minValue={0} maxValue={100} step={5} value={th}
+            onChange={(v) => { if (Array.isArray(v)) setTh([Math.min(v[0], v[1] - 5), Math.max(v[1], v[0] + 5)] as [number, number]); }}
+            classNames={{ track: "bg-default-200", filler: "bg-primary" }} />
+          <p className="mt-2 text-[11.5px] leading-relaxed text-default-500">
+            当前直通率 <b className="text-foreground tnum">{passRate.toFixed(1)}%</b>
+            {Math.abs(passDelta) >= 0.05 && <> · 较基线(40)<b style={{ color: passDelta > 0 ? "var(--success)" : "var(--danger)" }}>{passDelta > 0 ? "+" : ""}{passDelta.toFixed(1)}pt</b>(约 {Math.abs(Math.round(autoN - countBelow(40))).toLocaleString()} 笔{passDelta > 0 ? "转直通" : "转人工"})</>}
+            。阈值即转化与风险的权衡点 —— 放得越宽直通越多、敞口越大。
+            <button onClick={() => setTh([40, 70])} className="ml-1 font-semibold text-primary hover:opacity-80">重置</button>
+          </p>
+        </div>
+      ) : (
+        <p className="mt-3 flex items-start gap-1.5 rounded-xl border border-divider bg-default-50 p-2.5 text-[11.5px] leading-relaxed text-default-500">
+          <SlidersHorizontal className="mt-px h-3.5 w-3.5 shrink-0 text-default-400" />
+          横轴 = 可疑评分(0–100),越往右越可疑;柱子 = 该分段交易笔数。当前自动放行阈值 <b className="text-foreground tnum">{t0}</b>、拦截阈值 <b className="text-foreground tnum">{t1}</b>,直通率 <b className="text-foreground tnum">{passRate.toFixed(1)}%</b>。阈值调整由风控总管在「全局策略」操作。
+        </p>
+      )}
     </div>
   );
 }
@@ -220,8 +258,12 @@ function Funnel() {
 
 export default function Dashboard() {
   const nav = useNavigate();
+  const [role, setRole] = useState<Role>("analyst"); // 演示态:分析师 ↔ 风控总管,切换仪表盘视角
+  const [sel, setSel] = useState<Analyst | null>(null); // 总管下钻:某分析师的队列
+  const isHead = role === "head";
+  const who = isHead ? HEAD : ME;
   // subscribe to every store so the dashboard reconciles live with the list pages
-  useRingVersion(); useAlertVersion(); useCaseVersion(); useReportVersion();
+  useRingVersion(); useAlertVersion(); useCaseVersion(); useReportVersion(); useListVersion();
 
   // ── 关联团伙 — live from ringStore ──
   const allRings = [...ringStore.created(), ...rings];
@@ -243,13 +285,23 @@ export default function Dashboard() {
   // 案件管理:active 且未分配 = 待认领(CaseList 显「认领」的件)
   const casesToClaim = allCases.filter((c) => CSTATE[caseStOf(c)].active && !caseStore.ownerOf(c.id, c.owner)).length;
 
-  // 需立即处理 — every count derives from a store; zero-count chips drop out
-  const urgent: { n: number; label: string; icon: typeof Clock; to: string }[] = [
-    { n: alertsOverSla, label: `${alertsOverSla} 笔告警超 SLA`, icon: Clock, to: "/alerts" },
-    { n: reportsNeedAction, label: `FINTRAC 报送待处理 ${reportsNeedAction} 件`, icon: SendHorizontal, to: "/reports" },
-    { n: casesToClaim, label: `案件待认领 ${casesToClaim} 件`, icon: Snowflake, to: "/cases" },
-    { n: ringPending, label: `待认领团伙 ${ringPending} 个`, icon: Network, to: "/rings" },
-  ].filter((u) => u.n > 0);
+  // 需立即处理 — 团队级紧急,每项从 store 派生,零计数自动隐去。
+  // role-aware:总管版只留「需我亲自介入、且未被专门卡片覆盖」的项 —— 报送已在「待我审批」、待认领已并入「团队负荷·待派单」,
+  // 故总管横幅只保留团队 SLA 告急;分析师版为团队态势全量。
+  const urgentBase: { n: number; label: string; icon: typeof Clock; to: string }[] = isHead
+    ? [
+        { n: alertsOverSla, label: `${alertsOverSla} 笔告警超 SLA · 团队需介入`, icon: Clock, to: "/alerts" },
+      ]
+    : [
+        { n: alertsOverSla, label: `${alertsOverSla} 笔告警超 SLA`, icon: Clock, to: "/alerts" },
+        { n: reportsNeedAction, label: `FINTRAC 报送待处理 ${reportsNeedAction} 件`, icon: SendHorizontal, to: "/reports" },
+        { n: casesToClaim, label: `案件待认领 ${casesToClaim} 件`, icon: Snowflake, to: "/cases" },
+        { n: ringPending, label: `待认领团伙 ${ringPending} 个`, icon: Network, to: "/rings" },
+      ];
+  const urgent = urgentBase.filter((u) => u.n > 0);
+  const urgentClearMsg = isHead
+    ? "团队暂无超时告警 —— 待审批见下方「待我审批」,待派单见「团队负荷」"
+    : "需立即处理项已全部清空 —— 暂无超时告警、待报送或待认领";
 
   // ── 待我处理 — the current analyst's (我 = James Liu) personal queue, built from real records
   //    (assigned to me OR unassigned & claimable) so every item deep-links to a live detail page ──
@@ -289,6 +341,23 @@ export default function Dashboard() {
     .sort((a, b) => Number(b.overdue ?? false) - Number(a.overdue ?? false));
   const myOverdue = myTasks.filter((t) => t.overdue).length;
 
+  // ── 待我审批(总管专属)—— 只有风控总管能拍板的决策,四类全部从真实 store 派生,与各自列表页同口径 ──
+  const pendingRules = RULES.filter((r) => r.state === "pending");                                   // 规则:回测达标·提交审批
+  const reviewReports = reports.filter((r) => liveStatus(r) === "review");                            // 报送:待 MLRO 复核签发
+  const mlroCases = allCases.filter((c) => caseStOf(c) === "mlro");                                   // 案件:升级至 MLRO 评估
+  const allLists = [...listStore.created(), ...LISTS];
+  const pendingLists = allLists.filter((e) => listStore.statusOf(e.id, e.status) === "pending");      // 名单:待复核生效
+  const approvals: { kind: string; subject: string; meta: string; icon: typeof Clock; to: string }[] = [
+    ...pendingRules.map((r) => ({ kind: "规则上线", subject: r.name, meta: `${r.id} · 回测 ${r.backtest?.estFp ?? "—"} · ${r.owner.n} 提交`, icon: SlidersHorizontal, to: `/rule?id=${r.id}` })),
+    ...mlroCases.map((c) => ({ kind: "案件升级", subject: `${c.subject} · ${c.type}`, meta: `${c.id} · ${c.amount} · MLRO 评估`, icon: Snowflake, to: `/case?id=${c.id}` })),
+    ...reviewReports.map((r) => ({ kind: "报送签发", subject: `${r.type} · ${r.subject}`, meta: `${r.id} · 待 MLRO 复核签发`, icon: SendHorizontal, to: `/report?id=${r.id}` })),
+    ...pendingLists.map((e) => ({ kind: "名单复核", subject: `${e.value} · ${e.risk}`, meta: `${e.id} · 复核后纳入事中筛查`, icon: ShieldCheck, to: `/list-entry?id=${e.id}` })),
+  ];
+  // 团队负荷(总管):超载人数 + 待派单(待认领的件,需总管分配)
+  const teamOver = QUEUE.analysts.filter((a) => a.open > a.cap).length;
+  const unassignedAlerts = alerts.filter((a) => !alertStore.stateOf(a.id, a.state).startsWith("closed") && !alertStore.assigneeOf(a.id, a.assignee)).length;
+  const toAssign = unassignedAlerts + casesToClaim + ringPending;
+
   // ── Top 命中规则 — derived from the live rule library (/rules), sorted by 30-day hits ──
   const fpNum = (s: string) => parseInt(s, 10) || 0;
   const dispOf = (action: string) => { const parts = action.split("·").map((s) => s.trim()).filter(Boolean); return parts.length > 1 ? parts[parts.length - 1] : action.includes("拦截") ? "拦截" : "评分"; };
@@ -303,6 +372,15 @@ export default function Dashboard() {
         sub="全业务线风险总览 · 覆盖 On-ramp · Off-ramp · 虚拟货币兑换 · 充值 · 提现 · 风控的目标不止拦下风险,更在于在风险敞口可控的前提下,让合规交易放得更多、更快、误伤更少 —— 把风控做成增长引擎。"
         actions={
           <>
+            {/* 演示态角色切换 —— 同一仪表盘按角色换内容 */}
+            <div className="flex items-center rounded-full bg-default-100 p-0.5 text-[12.5px] font-semibold">
+              {([["analyst", "分析师", User], ["head", "风控总管", ShieldCheck]] as const).map(([k, label, Icon]) => (
+                <button key={k} onClick={() => setRole(k)} aria-pressed={role === k}
+                  className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 transition-colors ${role === k ? "bg-content1 text-foreground shadow-soft" : "text-default-500 hover:text-default-700"}`}>
+                  <Icon className="h-3.5 w-3.5" />{label}
+                </button>
+              ))}
+            </div>
             <Select aria-label="时间范围" size="sm" radius="full" defaultSelectedKeys={["today"]} className="w-[120px]"
               classNames={{ trigger: "bg-default-100 shadow-none h-9 min-h-9" }}>
               <SelectItem key="today">今日</SelectItem>
@@ -313,6 +391,20 @@ export default function Dashboard() {
           </>
         }
       />
+
+      {/* 职责分工条 —— 当前视角是谁、能做什么(随角色切换) */}
+      <div className="card mb-5 flex flex-wrap items-center gap-x-3 gap-y-1.5 border-l-[3px] p-3.5 pl-4" style={{ borderLeftColor: who.c }}>
+        <Initials p={who} size={28} />
+        <div className="flex items-center gap-2">
+          <span className="text-[13.5px] font-bold">{who.n}</span>
+          <span className="rounded-full px-2 py-0.5 text-[11px] font-bold" style={{ background: `color-mix(in srgb, ${who.c} 14%, transparent)`, color: who.c }}>{isHead ? "风控总管 · 兼 MLRO" : "一线分析师"}</span>
+        </div>
+        <span className="text-[12px] leading-snug text-default-500">
+          {isHead
+            ? "职责:团队派单与负荷管理 · 决策审批(规则上线 · 案件升级 MLRO 评估 · STR 复核签发 · 名单复核生效)· 规则与策略调整。可改派他人、调阈值、批规则、签报告、批名单。"
+            : "职责:研判归我 / 待认领的告警 · 案件 · 报送。团队风险态势可见,规则与策略仅供查看(只读,变更需总管审批)。"}
+        </span>
+      </div>
 
       {/* 风控流水线总览 — 给第一次用的人一张流程地图 */}
       <PipelineMap />
@@ -329,9 +421,42 @@ export default function Dashboard() {
             ))}
           </>
         ) : (
-          <span className="flex items-center gap-1.5 text-[13px] font-semibold text-default-600"><CheckCircle2 className="h-4 w-4 text-success" />需立即处理项已全部清空 —— 暂无超时告警、待报送或待认领</span>
+          <span className="flex items-center gap-1.5 text-[13px] font-semibold text-default-600"><CheckCircle2 className="h-4 w-4 text-success" />{urgentClearMsg}</span>
         )}
       </div>
+
+      {/* 待我审批 —— 总管专属:只有风控总管能拍板的决策(规则上线 / 报送签发) */}
+      {isHead && (
+        <div className="card mb-5 p-5">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ background: "color-mix(in srgb, var(--violet) 12%, transparent)", color: "var(--violet)" }}><Stamp className="h-4 w-4" /></span>
+              <span className="text-[15px] font-bold">待我审批</span>
+              <span className="rounded-full bg-default-100 px-2 py-0.5 text-[11.5px] font-semibold text-default-500 tnum">{approvals.length} 项待决策</span>
+            </div>
+            <span className="text-[11.5px] text-default-400">仅风控总管可处理 —— 分析师看不到此卡</span>
+          </div>
+          {approvals.length ? (
+            <div className="grid grid-cols-1 gap-2 lg:grid-cols-2">
+              {approvals.map((a, i) => (
+                <button key={i} onClick={() => nav(a.to)} className="flex items-center gap-2.5 rounded-xl border border-divider p-2.5 text-left transition-colors hover:bg-default-50">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-default-100 text-default-500"><a.icon className="h-3.5 w-3.5" /></span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="rounded-md px-1.5 py-0.5 text-[10px] font-bold" style={{ background: "color-mix(in srgb, var(--violet) 12%, transparent)", color: "var(--violet)" }}>{a.kind}</span>
+                      <span className="truncate text-[12.5px] font-semibold">{a.subject}</span>
+                    </div>
+                    <div className="mt-0.5 truncate text-[11px] text-default-400">{a.meta}</div>
+                  </div>
+                  <ChevronRight className="h-4 w-4 shrink-0 text-default-300" />
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 text-[13px] font-semibold text-default-600"><CheckCircle2 className="h-4 w-4 text-success" />暂无待审批事项 —— 规则变更与报送均已处理</div>
+          )}
+        </div>
+      )}
 
       {/* 业务线风控总览 — every MSB business line at a glance (the headline of an all-business dashboard) */}
       <div className="card mb-5 p-5">
@@ -396,34 +521,53 @@ export default function Dashboard() {
         />
       </div>
 
-      {/* 待我处理 (personal queue, compact) beside the risk-score distribution */}
+      {/* 个人队列(分析师)/ 团队负荷(总管)beside the risk-score distribution */}
       <div className="mb-5 grid grid-cols-1 gap-5 lg:grid-cols-12">
-        <div className="card flex flex-col p-5 lg:col-span-5">
-          <div className="mb-3 flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <Initials p={ME} size={24} />
-              <span className="text-[15px] font-bold">待我处理</span>
-              <span className="rounded-full bg-default-100 px-2 py-0.5 text-[11.5px] font-semibold text-default-500 tnum">{myTasks.length} 项{myOverdue > 0 ? ` · ${myOverdue} 超时` : ""}</span>
+        {isHead ? (
+          /* 团队负荷概览 + 下钻 —— 总管的派单视角,取代分析师的「待我处理」 */
+          <div className="card flex flex-col p-5 lg:col-span-5">
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-default-100 text-default-500"><Users className="h-4 w-4" /></span>
+                <span className="text-[15px] font-bold">团队负荷</span>
+                <span className="rounded-full px-2 py-0.5 text-[11.5px] font-semibold tnum" style={teamOver > 0 ? { background: "color-mix(in srgb, var(--danger) 12%, transparent)", color: "var(--danger)" } : { background: "color-mix(in srgb, var(--foreground) 8%, transparent)", color: "var(--text-3)" }}>{teamOver} 人超载 · 待派单 {toAssign}</span>
+              </div>
+              <button onClick={() => nav("/ops")} className="inline-flex items-center gap-0.5 text-[12.5px] font-semibold text-primary hover:opacity-80">运营总览 <ArrowRight className="h-3.5 w-3.5" /></button>
             </div>
-            <button onClick={() => nav("/alerts")} className="inline-flex items-center gap-0.5 text-[12.5px] font-semibold text-primary hover:opacity-80">我的工作台 <ArrowRight className="h-3.5 w-3.5" /></button>
+            <div className="flex-1">
+              <AnalystLoad analysts={QUEUE.analysts} onSelect={setSel} />
+            </div>
+            <p className="mt-3 text-[10.5px] leading-snug text-default-400">点任意柱 → 查看该分析师手头的件,把超载的人的活儿<b>改派</b>给有余力的同事。</p>
           </div>
-          <div className="flex flex-1 flex-col gap-2">
-            {myTasks.map((t, i) => (
-              <button key={i} onClick={() => nav(t.to)} className="flex items-center gap-2.5 rounded-xl border border-divider p-2.5 text-left transition-colors hover:bg-default-50">
-                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-default-100 text-default-500"><t.icon className="h-3.5 w-3.5" /></span>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1.5">
-                    <span className="rounded-md bg-default-100 px-1.5 py-0.5 text-[10px] font-bold text-default-500">{t.kind}</span>
-                    <span className="truncate text-[12.5px] font-semibold">{t.subject}</span>
+        ) : (
+          /* 待我处理(个人队列)—— 分析师视角 */
+          <div className="card flex flex-col p-5 lg:col-span-5">
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Initials p={ME} size={24} />
+                <span className="text-[15px] font-bold">待我处理</span>
+                <span className="rounded-full bg-default-100 px-2 py-0.5 text-[11.5px] font-semibold text-default-500 tnum">{myTasks.length} 项{myOverdue > 0 ? ` · ${myOverdue} 超时` : ""}</span>
+              </div>
+              <button onClick={() => nav("/alerts")} className="inline-flex items-center gap-0.5 text-[12.5px] font-semibold text-primary hover:opacity-80">我的工作台 <ArrowRight className="h-3.5 w-3.5" /></button>
+            </div>
+            <div className="flex flex-1 flex-col gap-2">
+              {myTasks.map((t, i) => (
+                <button key={i} onClick={() => nav(t.to)} className="flex items-center gap-2.5 rounded-xl border border-divider p-2.5 text-left transition-colors hover:bg-default-50">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-default-100 text-default-500"><t.icon className="h-3.5 w-3.5" /></span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="rounded-md bg-default-100 px-1.5 py-0.5 text-[10px] font-bold text-default-500">{t.kind}</span>
+                      <span className="truncate text-[12.5px] font-semibold">{t.subject}</span>
+                    </div>
+                    <div className="mt-0.5 truncate text-[11px] text-default-400">{t.meta}</div>
                   </div>
-                  <div className="mt-0.5 truncate text-[11px] text-default-400">{t.meta}</div>
-                </div>
-                <span className="shrink-0 text-[11.5px] font-semibold tnum" style={{ color: t.overdue ? "var(--danger)" : "var(--text-3)" }}>{t.due}</span>
-              </button>
-            ))}
+                  <span className="shrink-0 text-[11.5px] font-semibold tnum" style={{ color: t.overdue ? "var(--danger)" : "var(--text-3)" }}>{t.due}</span>
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
-        <div className="lg:col-span-7"><ScoreDistribution /></div>
+        )}
+        <div className="lg:col-span-7"><ScoreDistribution editable={isHead} /></div>
       </div>
 
       {/* 告警队列健康度 — 一行摘要(完整图表见运营总览 /ops) */}
@@ -605,6 +749,9 @@ export default function Dashboard() {
           </p>
         </div>
       </div>
+
+      {/* 总管下钻:某分析师的队列 + 改派 */}
+      <AnalystQueueDrawer analyst={sel} open={!!sel} onOpenChange={(o) => { if (!o) setSel(null); }} />
     </Shell>
   );
 }

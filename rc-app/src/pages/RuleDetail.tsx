@@ -2,13 +2,13 @@ import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { Button, Tabs, Tab, Dropdown, DropdownTrigger, DropdownMenu, DropdownItem, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter } from "@heroui/react";
-import { ArrowLeft, ChevronLeft, ChevronRight, MoreHorizontal, Pencil, FlaskConical, Copy, Power, Trash2, ArrowRight, Download, AlertTriangle } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, MoreHorizontal, Pencil, FlaskConical, Copy, Power, Trash2, ArrowRight, Download, AlertTriangle, History, RotateCcw } from "lucide-react";
 import { Shell } from "@/components/Shell";
-import { Pill } from "@/components/bits";
+import { Pill, Initials } from "@/components/bits";
 import { Timeline } from "@/components/Timeline";
 import { NewRuleDrawer } from "@/components/NewRuleDrawer";
 import { RuleBacktestDrawer } from "@/components/RuleBacktestDrawer";
-import { RULES, RUSTATE, CAT_ICON, VENUE, venueOf, bfrMeta, bfrDefault, condText, type Rule, type RuState } from "@/lib/rules";
+import { RULES, RUSTATE, CAT_ICON, VENUE, venueOf, bfrMeta, bfrDefault, condText, seedVersions, type Rule, type RuState, type RuleVersion } from "@/lib/rules";
 import { FINDINGS } from "@/lib/findings";
 import { findingStore, ruleStore, useRuleVersion, useFindingVersion } from "@/lib/store";
 import type { Person } from "@/lib/data";
@@ -62,6 +62,13 @@ export default function RuleDetail() {
   const sd = RUSTATE[st];
   const owner = ruleStore.ownerOf(rule.id, rule.owner);
   const events = ruleStore.eventsOf(rule.id);
+  // 版本历史:种子谱系(从 base 派生,稳定)懒初始化,叠加本会话回滚/变更;最新在前
+  const versions = ruleStore.ensureVersions(base.id, seedVersions(base));
+  const rollback = (ver: RuleVersion) => {
+    ruleStore.update(base.id, { cond: ver.fields.cond, weight: ver.fields.weight, action: ver.fields.action });
+    ruleStore.recordVersion(base.id, { by: ME, summary: `回滚到 v${ver.v} · ${ver.summary}`, fields: ver.fields });
+    toast.success(`已回滚到 v${ver.v}（${ver.summary}）`);
+  };
   const ven = VENUE[venueOf(rule)];
   const CIcon = CAT_ICON[rule.cat];
   const risk = riskOf(rule.weight);
@@ -136,6 +143,7 @@ export default function RuleDetail() {
 
       <Tabs aria-label="规则详情" selectedKey={tab} onSelectionChange={(k) => setTab(k as string)} variant="underlined" color="primary" classNames={{ tabList: "gap-6 p-0 mb-5", cursor: "w-full", tab: "px-0 h-9 max-w-fit", tabContent: "text-[13px] font-semibold" }}>
         <Tab key="basic" title="基本信息" />
+        <Tab key="version" title="版本历史" />
         <Tab key="log" title="活动日志" />
       </Tabs>
 
@@ -143,6 +151,58 @@ export default function RuleDetail() {
         <div className="card p-5">
           <div className="mb-3 text-[11px] font-bold uppercase tracking-wider text-default-400">活动日志</div>
           {events.length ? <Timeline items={[...events].reverse().map((e) => ({ time: e.t, text: e.text + (e.reason ? ` · ${e.reason}` : ""), done: true }))} /> : <p className="text-[12.5px] text-default-400">暂无变更记录。规则的禁用 / 启用 / 审批等变更将记入此处。</p>}
+        </div>
+      ) : tab === "version" ? (
+        <div className="card p-5">
+          <div className="mb-1 flex items-center gap-2">
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-default-100 text-default-500"><History className="h-4 w-4" /></span>
+            <span className="text-[15px] font-bold">版本历史</span>
+            <span className="rounded-full bg-default-100 px-2 py-0.5 text-[11.5px] font-semibold text-default-500 tnum">{versions.length} 个版本</span>
+          </div>
+          <p className="mb-4 text-[12px] text-default-400">规则内容(触发条件 / 命中权重 / 处置)的每次变更都留痕,可回滚到任一历史版本。回滚不影响上线状态。</p>
+          <div className="flex flex-col">
+            {versions.map((ver, i) => {
+              const prev = versions[i + 1]; // 更早的一版
+              const diffs: string[] = [];
+              if (prev) {
+                if (ver.fields.cond !== prev.fields.cond) diffs.push(`触发条件:${prev.fields.cond} → ${ver.fields.cond}`);
+                if (ver.fields.weight !== prev.fields.weight) diffs.push(`命中权重:${prev.fields.weight} → ${ver.fields.weight}`);
+                if (ver.fields.action !== prev.fields.action) diffs.push(`处置:${prev.fields.action} → ${ver.fields.action}`);
+              }
+              const isHead = i === 0;
+              return (
+                <div key={`${ver.v}-${ver.date}`} className="flex gap-3 border-b border-divider/60 py-3 last:border-0">
+                  {/* 版本节点 + 竖线 */}
+                  <div className="flex flex-col items-center pt-0.5">
+                    <span className="flex h-6 min-w-6 items-center justify-center rounded-full px-1.5 text-[10.5px] font-bold tnum" style={isHead ? { background: "var(--brand-soft)", color: "var(--brand)" } : { background: "var(--default-100)", color: "var(--text-3)" }}>v{ver.v}</span>
+                    {i < versions.length - 1 && <span className="mt-1 w-px flex-1 bg-divider" />}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <span className="text-[13px] font-bold">{ver.summary}</span>
+                      {isHead && <span className="rounded-full px-1.5 py-0.5 text-[10px] font-bold" style={{ background: "color-mix(in srgb, var(--success) 14%, transparent)", color: "var(--success)" }}>当前</span>}
+                      <span className="flex items-center gap-1 text-[11px] text-default-400"><Initials p={ver.by} size={16} />{ver.by.n} · {ver.date}</span>
+                    </div>
+                    {/* 该版本内容 */}
+                    <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-0.5 text-[11.5px] text-default-500">
+                      <span>条件 <b className="font-medium text-default-700">{ver.fields.cond}</b></span>
+                      <span>权重 <b className="font-medium text-default-700 tnum">{ver.fields.weight}</b></span>
+                    </div>
+                    {/* 相对上一版的变化 */}
+                    {diffs.length > 0 && (
+                      <div className="mt-1.5 flex flex-col gap-0.5">
+                        {diffs.map((d, j) => <div key={j} className="text-[11px] leading-snug text-default-400"><span className="text-[var(--brand)]">●</span> {d}</div>)}
+                      </div>
+                    )}
+                  </div>
+                  {/* 回滚 */}
+                  {!isHead && (
+                    <Button size="sm" variant="flat" radius="full" className="h-7 shrink-0 self-start bg-default-100 px-3 text-[11.5px] font-semibold" startContent={<RotateCcw className="h-3.5 w-3.5" />} onPress={() => rollback(ver)}>回滚到此版本</Button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
       ) : (
         <div className="flex flex-col gap-5">

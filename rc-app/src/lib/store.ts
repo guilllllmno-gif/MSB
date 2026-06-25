@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from "react";
 import type { Person } from "./data";
 import type { Ring } from "./rings";
-import type { Rule } from "./rules";
+import type { Rule, RuleVersion } from "./rules";
 import type { Report } from "./reports";
 import type { ListEntry } from "./lists";
 import type { Case, CaseSubject } from "./cases";
@@ -137,6 +137,7 @@ export function useReportVersion() {
 // ── 监控规则状态store(变更治理:回测 → 审批 → 上线 / 停用)──
 const ruleData: Record<string, { state?: string; owner?: Person | null; events?: { t: string; text: string; reason: string }[] }> = {};
 const ruleEdits: Record<string, Partial<Rule>> = {};
+const ruleHistory: Record<string, RuleVersion[]> = {};
 const ruleRemoved = new Set<string>();
 let ruleCreated: Rule[] = [];
 let ruleVersion = 0;
@@ -152,6 +153,13 @@ export const ruleStore = {
   eventsOf(id: string) { return ruleData[id]?.events || []; },
   editsOf(id: string) { return ruleEdits[id]; },
   isRemoved(id: string) { return ruleRemoved.has(id); },
+  // 版本历史:首次查看时用种子谱系懒初始化(不触发通知);回滚 / 变更追加新版本(最新在前,自动编号 + 时间戳)
+  ensureVersions(id: string, seed: RuleVersion[]) { if (!ruleHistory[id]) ruleHistory[id] = seed; return ruleHistory[id]; },
+  recordVersion(id: string, e: { by: Person; summary: string; fields: { cond?: string; weight?: string; action?: string } }) {
+    const nextV = (ruleHistory[id]?.[0]?.v ?? 0) + 1;
+    ruleHistory[id] = [{ v: nextV, date: "今天 " + now(), by: e.by, summary: e.summary, fields: e.fields }, ...(ruleHistory[id] || [])];
+    ruleNotify();
+  },
   add(r: Rule) { ruleCreated = [r, ...ruleCreated]; ruleNotify(); },
   update(id: string, patch: Partial<Rule>) { ruleEdits[id] = { ...(ruleEdits[id] || {}), ...patch }; ruleNotify(); },
   remove(id: string) { ruleRemoved.add(id); ruleNotify(); },

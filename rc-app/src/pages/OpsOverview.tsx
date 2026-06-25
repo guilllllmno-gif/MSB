@@ -1,15 +1,19 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowRight, Activity } from "lucide-react";
+import { ArrowRight, Activity, ChevronRight } from "lucide-react";
 import { Shell, PageHead } from "@/components/Shell";
 import { SectionLabel, Initials } from "@/components/bits";
 import { LineChart, AnalystLoad } from "@/components/charts";
-import { QUEUE, queueHealth, DAYS14 } from "@/lib/opsMetrics";
+import { AnalystQueueDrawer } from "@/components/AnalystQueueDrawer";
+import { QUEUE, queueHealth, DAYS14, type Analyst } from "@/lib/opsMetrics";
 
 const BRAND = "var(--brand)";
 const toneC = (t: string) => (t === "red" ? "var(--danger)" : t === "amber" ? "var(--warning)" : "var(--success)");
 
 export default function OpsOverview() {
   const nav = useNavigate();
+  const [sel, setSel] = useState<Analyst | null>(null);
+  const open = (a: Analyst) => setSel(a);
   const h = queueHealth();
   const net = h.net; // >0 ⇒ backlog shrinking
   const agingTotal = QUEUE.aging.reduce((s, a) => s + a.n, 0);
@@ -118,11 +122,14 @@ export default function OpsOverview() {
         </div>
       </div>
 
-      {/* analyst load — chart + full roster table */}
+      {/* analyst load — chart + full roster table; 点人下钻其队列 */}
       <div className="card mb-5 p-5">
-        <AnalystLoad analysts={QUEUE.analysts} />
+        <AnalystLoad analysts={QUEUE.analysts} onSelect={open} />
         <div className="mt-5 border-t border-divider pt-4">
-          <SectionLabel>全员负荷明细 · {roster.length} 人</SectionLabel>
+          <div className="flex items-center justify-between gap-2">
+            <SectionLabel>全员负荷明细 · {roster.length} 人</SectionLabel>
+            <span className="text-[11px] text-default-400">点任意人 → 查看其队列、改派</span>
+          </div>
           <div className="mt-2 overflow-x-auto">
             <table className="w-full text-[12.5px]">
               <thead>
@@ -132,6 +139,7 @@ export default function OpsOverview() {
                   <th className="pb-2 font-medium">上限</th>
                   <th className="w-[42%] pb-2 font-medium">利用率</th>
                   <th className="pb-2 text-right font-medium">状态</th>
+                  <th className="w-6 pb-2" />
                 </tr>
               </thead>
               <tbody>
@@ -140,7 +148,7 @@ export default function OpsOverview() {
                   const over = a.open > a.cap;
                   const barTone = over ? "var(--danger)" : util >= 0.9 ? "var(--warning)" : "var(--brand)";
                   return (
-                    <tr key={a.p.n} className="border-t border-divider/60">
+                    <tr key={a.p.n} onClick={() => open(a)} className="cursor-pointer border-t border-divider/60 transition-colors hover:bg-default-50">
                       <td className="py-2">
                         <div className="flex items-center gap-2"><Initials p={a.p} size={22} /><span className="font-medium">{a.p.n}</span></div>
                       </td>
@@ -157,6 +165,7 @@ export default function OpsOverview() {
                       <td className="py-2 text-right">
                         <span className="text-[11px] font-semibold" style={{ color: over ? "var(--danger)" : "var(--success)" }}>{over ? `超 ${a.open - a.cap} 件` : `余 ${a.cap - a.open} 件`}</span>
                       </td>
+                      <td className="py-2 text-right text-default-300"><ChevronRight className="ml-auto h-4 w-4" /></td>
                     </tr>
                   );
                 })}
@@ -165,6 +174,8 @@ export default function OpsOverview() {
           </div>
         </div>
       </div>
+
+      <AnalystQueueDrawer analyst={sel} open={!!sel} onOpenChange={(o) => { if (!o) setSel(null); }} />
     </Shell>
   );
 }

@@ -52,3 +52,47 @@ export function queueHealth() {
     : { label: "健康", tone: "green" };
   return { net, overSla, teamN, teamOver, status, open: QUEUE.open, sla: QUEUE.sla, mttr: QUEUE.mttr };
 }
+
+// ── 下钻:某分析师手头具体背着什么(总管派单视角)──
+// 注:演示态。这 16 人目前只有名字+在办数,未挂真实记录;此处按确定性种子编出可信的占位队列,
+// 接后端后应改为按 assignee 拉真实告警/案件/报送。生成是纯函数(同输入同输出),抽屉里 reassign 重渲染不会乱跳。
+export type Analyst = (typeof QUEUE.analysts)[number];
+export type QItem = { id: string; kind: "告警" | "案件" | "报送"; subject: string; meta: string; sla: string; tone: QueueTone };
+
+const A_SUBJ = ["NovaPay · 大额异动", "Eastwind · 快进快出", "BlockTrade · 链跳兑换", "Acme Pay · 新户首充", "PayBridge · 代付归集", "Coinhub · 隐私币兑换", "FastRamp · 拆分入金", "MetaPay · 异常提币", "SwiftEx · 跨境聚合", "ChainGo · 高频对敲"];
+const C_SUBJ = ["快进快出资金调查", "可疑资金归集", "结构化拆分入金", "制裁名单关联核查", "团伙资金链路梳理"];
+const R_SUBJ = ["STR · 可疑交易报告", "LCTR · 大额现金交易", "STR · 团伙上报"];
+const pick = <T,>(arr: T[], k: number) => arr[k % arr.length];
+const SLA_RED = ["超 SLA 2.1h", "超 SLA 40m", "超 SLA 5.6h", "超 SLA 1.3h"];
+const SLA_AMB = ["剩 1.2h", "剩 3.5h", "剩 48m"];
+const SLA_GRN = ["剩 1.8d", "剩 6.2h", "剩 1.1d", "无时限"];
+
+// 按种子生成某人的完整队列,红(超SLA)在前。over=超出上限的件,作为红件数;不超载者给 1–2 件临期黄。
+export function analystQueue(p: Analyst): QItem[] {
+  const seed = [...p.p.n].reduce((s, c) => s + c.charCodeAt(0), 0);
+  const over = Math.max(0, p.open - p.cap);
+  const redN = over > 0 ? over : 0;
+  const ambN = over > 0 ? 2 : Math.min(2, p.open);
+  const items: QItem[] = [];
+  for (let i = 0; i < p.open; i++) {
+    const r = (seed * 9301 + i * 49297) % 233280;
+    const f = r / 233280;
+    const kind: QItem["kind"] = f < 0.62 ? "告警" : f < 0.86 ? "案件" : "报送";
+    const tone: QueueTone = i < redN ? "red" : i < redN + ambN ? "amber" : "green";
+    const sla = tone === "red" ? pick(SLA_RED, seed + i) : tone === "amber" ? pick(SLA_AMB, seed + i) : pick(SLA_GRN, seed + i);
+    const id4 = 2400 + (seed % 400) + i;
+    if (kind === "告警") items.push({ id: `ALT-${id4}`, kind, subject: pick(A_SUBJ, seed + i), meta: `评分 ${60 + ((seed + i * 7) % 39)} · 命中 ${1 + ((seed + i) % 4)} 规则`, sla, tone });
+    else if (kind === "案件") items.push({ id: `CASE-${id4}`, kind, subject: pick(C_SUBJ, seed + i), meta: `CAD ${(0.3 + ((seed + i) % 28) / 10).toFixed(1)}M · 调查中`, sla, tone });
+    else items.push({ id: `STR-${id4}`, kind, subject: pick(R_SUBJ, seed + i), meta: `起草中 · 待提交 MLRO`, sla, tone });
+  }
+  const rank = { red: 0, amber: 1, green: 2 };
+  return items.sort((a, b) => rank[a.tone] - rank[b.tone]);
+}
+
+// 改派候选:有余力的人(open<cap),按空余量降序,排除指定人
+export function spareAnalysts(excludeName?: string): { name: string; spare: number; p: Analyst["p"] }[] {
+  return QUEUE.analysts
+    .filter((a) => a.p.n !== excludeName && a.open < a.cap)
+    .map((a) => ({ name: a.p.n, spare: a.cap - a.open, p: a.p }))
+    .sort((x, y) => y.spare - x.spare);
+}

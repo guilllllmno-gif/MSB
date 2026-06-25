@@ -56,8 +56,9 @@ export function LineChart({ series, labels, valueFmt }: { series: { data: number
   );
 }
 
-// analyst caseload vs capacity — vertical columns, top-N + overflow, hover popover for detail
-export function AnalystLoad({ analysts }: { analysts: { p: { i: string; n: string; c: string }; open: number; cap: number }[] }) {
+// analyst caseload vs capacity — vertical columns, top-N + overflow, hover popover for detail.
+// onSelect (optional): clicking a column drills into that analyst's queue (总管 view).
+export function AnalystLoad({ analysts, onSelect }: { analysts: { p: { i: string; n: string; c: string }; open: number; cap: number }[]; onSelect?: (a: { p: { i: string; n: string; c: string }; open: number; cap: number }) => void }) {
   const [hi, setHi] = useState<number | null>(null);
   const sorted = [...analysts].sort((a, b) => b.open - a.open);
   const cap = analysts[0].cap;
@@ -89,7 +90,7 @@ export function AnalystLoad({ analysts }: { analysts: { p: { i: string; n: strin
           const isOver = a.open > a.cap;
           const over = Math.max(0, a.open - a.cap), base = Math.min(a.open, a.cap);
           return (
-            <div key={a.p.n} onMouseEnter={() => setHi(i)} onMouseLeave={() => setHi(null)} className="flex h-full flex-1 flex-col justify-end">
+            <div key={a.p.n} onMouseEnter={() => setHi(i)} onMouseLeave={() => setHi(null)} onClick={() => onSelect?.(a)} className={`flex h-full flex-1 flex-col justify-end ${onSelect ? "cursor-pointer" : ""}`}>
               <span className="mb-1 text-center text-[10px] font-bold tnum" style={isOver ? { color: "var(--danger)" } : undefined}>{a.open}</span>
               {over > 0 && <div className="w-full rounded-t-[3px]" style={{ height: `${(over / scaleMax) * 100}%`, background: "var(--danger)" }} />}
               <div className={over > 0 ? "w-full" : "w-full rounded-t-[3px]"} style={{ height: `${(base / scaleMax) * 100}%`, background: isOver ? "color-mix(in srgb, var(--danger) 35%, var(--track))" : "var(--brand)" }} />

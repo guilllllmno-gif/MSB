@@ -59,6 +59,51 @@ export const RULE_OPS = ["≥", "≤", ">", "<", "=", "≠", "命中", "包含"]
 export const RULE_ELSE = ["放行 · 无需处置", "继续监控", "加强监控", "转研判"];
 export const condText = (cs: Clause[]) => cs.filter((c) => c.field && c.op && c.value).map((c) => `${c.field} ${c.op} ${c.value}`).join(" 且 ");
 
+// ── 回测调阈值:从规则 cond 抠出「主阈值」(数值 + 单位 + 放宽方向),供回测台把真实参数做成可拖滑块 ──
+// lowerLooser:降低该值 = 放宽(更多命中)。≥/> 型为 true;≤/< 型(如「≤2 跳」)为 false。
+export interface ThParam { value: number; start: number; len: number; prefix: string; unit: string; lowerLooser: boolean; currency: boolean }
+export function parseThreshold(cond: string): ThParam | null {
+  let m = cond.match(/(CAD)\s*([\d,]+)/); // A. 货币(带千分位)
+  if (m) {
+    const numStr = m[2], start = m.index! + m[0].indexOf(numStr);
+    return { value: parseFloat(numStr.replace(/,/g, "")), start, len: numStr.length, prefix: "CAD ", unit: "", lowerLooser: !/[≤<]\s*CAD/.test(cond), currency: true };
+  }
+  m = cond.match(/P(\d{1,3})\b/); // B. 百分位 P95
+  if (m) return { value: parseFloat(m[1]), start: m.index! + 1, len: m[1].length, prefix: "P", unit: "", lowerLooser: true, currency: false };
+  m = cond.match(/(≥|≤|>|<)\s*([\d][\d,.]*)\s*(%|×|x|倍|笔|跳|h|小时|天|次|分|主体)?/); // C. 比较运算符紧邻的数
+  if (m) {
+    const op = m[1], numStr = m[2], start = m.index! + m[0].indexOf(numStr);
+    return { value: parseFloat(numStr.replace(/,/g, "")), start, len: numStr.length, prefix: "", unit: m[3] || "", lowerLooser: op === "≥" || op === ">", currency: false };
+  }
+  return null;
+}
+export const fmtThresh = (v: number, currency: boolean) => (currency ? Math.round(v).toLocaleString() : Number.isInteger(v) ? `${v}` : v.toFixed(1));
+export const spliceThresh = (cond: string, p: ThParam, v: number) => cond.slice(0, p.start) + fmtThresh(v, p.currency) + cond.slice(p.start + p.len);
+
+// ── 版本历史 / 回滚:回滚只还原「内容字段」(触发条件 / 权重 / 处置),不动状态机 ──
+export interface RuleVersion { v: number; date: string; by: Person; summary: string; fields: { cond?: string; weight?: string; action?: string } }
+function monthShift(iso: string, n: number): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  if (!y || !m) return iso;
+  let mm = m + n, yy = y;
+  while (mm < 1) { mm += 12; yy--; }
+  while (mm > 12) { mm -= 12; yy++; }
+  return `${yy}-${String(mm).padStart(2, "0")}-${String(Math.min(d || 1, 28)).padStart(2, "0")}`;
+}
+// 演示态:从规则当前内容派生一条可信的版本谱系(初始 → 调整 → 当前),供版本历史 / 回滚展示。最新在前。
+export function seedVersions(rule: Rule): RuleVersion[] {
+  const p = parseThreshold(rule.cond);
+  const curW = parseInt(rule.weight.replace(/[^0-9]/g, ""), 10) || 0;
+  const prevW = Math.max(5, curW - 5), initW = Math.max(5, prevW - 5);
+  const at = (k: number) => (p ? spliceThresh(rule.cond, p, Math.round(p.lowerLooser ? p.value * k : p.value * (2 - k))) : rule.cond);
+  const ordered = [
+    { date: monthShift(rule.updated, -5), by: rule.owner, summary: "初始上线", fields: { cond: at(1.3), weight: `+${initW}`, action: rule.action } },
+    { date: monthShift(rule.updated, -2), by: RH, summary: p ? "放宽阈值 · 提升召回" : "上调命中权重", fields: { cond: at(1.15), weight: `+${prevW}`, action: rule.action } },
+    { date: rule.updated, by: rule.owner, summary: "当前版本", fields: { cond: rule.cond, weight: rule.weight, action: rule.action } },
+  ];
+  return ordered.map((e, i) => ({ ...e, v: i + 1 })).reverse();
+}
+
 export interface Rule {
   id: string; name: string; cat: RuCat; venue?: Venue; cond: string; action: string; state: RuState;
   hits30: number; fp30: string; src: string; srcId?: string; to?: string;
