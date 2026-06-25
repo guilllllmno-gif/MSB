@@ -59,6 +59,18 @@ export const RULE_OPS = ["≥", "≤", ">", "<", "=", "≠", "命中", "包含"]
 export const RULE_ELSE = ["放行 · 无需处置", "继续监控", "加强监控", "转研判"];
 export const condText = (cs: Clause[]) => cs.filter((c) => c.field && c.op && c.value).map((c) => `${c.field} ${c.op} ${c.value}`).join(" 且 ");
 
+// ── 新建规则:典型 typology 模板(一键预填,从空白起步 → 有起点;借鉴 Fireblocks 的模板化配置)──
+// 与回填闭环的 BFR typology 对齐,但带结构化 clauses(可直接进条件构造器编辑)。
+export interface RuleTemplate { key: string; desc: string; name: string; cat: RuCat; venue: Venue; clauses: Clause[]; action: string; weight: string }
+export const RULE_TEMPLATES: RuleTemplate[] = [
+  { key: "大额单笔", desc: "单笔超阈值即评分转研判", name: "大额单笔阈值", cat: "金额阈值", venue: "gate", clauses: [{ field: "单笔金额 (CAD)", op: "≥", value: "10,000" }], action: "评分 +25 · 转研判", weight: "+25" },
+  { key: "结构化拆分", desc: "同主体滑窗累计入金达标", name: "同主体滑窗累计阈值", cat: "统计聚合", venue: "gate", clauses: [{ field: "7 日累计金额 (CAD)", op: "≥", value: "10,000" }], action: "评分 +40 · 转研判", weight: "+40" },
+  { key: "多账户扇入", desc: "多主体汇入同一非托管地址", name: "多主体扇入同一地址", cat: "统计聚合", venue: "both", clauses: [{ field: "扇入主体数", op: "≥", value: "4" }], action: "评分 +40 · 转研判", weight: "+40" },
+  { key: "休眠后突发", desc: "长期休眠后单日突发出金", name: "休眠激活异常", cat: "行为模式", venue: "gate", clauses: [{ field: "账户休眠天数", op: "≥", value: "60" }, { field: "24h 笔数", op: "≥", value: "5" }], action: "评分 +30 · 加强监控", weight: "+30" },
+  { key: "对手集中度", desc: "单一对手 30 日金额占比过高", name: "对手集中度异常", cat: "统计聚合", venue: "batch", clauses: [{ field: "30 日对手集中度 (%)", op: "≥", value: "75" }], action: "评分 +20 · 加强监控", weight: "+20" },
+  { key: "币币链跳", desc: "兑入隐私币 / 经跨链桥转出", name: "隐私币 / 跨链跳转", cat: "链上溯源", venue: "both", clauses: [{ field: "跨链 / 隐私币", op: "命中", value: "隐私币 / 跨链桥" }], action: "评分 +45 · 转研判", weight: "+45" },
+];
+
 // ── 回测调阈值:从规则 cond 抠出「主阈值」(数值 + 单位 + 放宽方向),供回测台把真实参数做成可拖滑块 ──
 // lowerLooser:降低该值 = 放宽(更多命中)。≥/> 型为 true;≤/< 型(如「≤2 跳」)为 false。
 export interface ThParam { value: number; start: number; len: number; prefix: string; unit: string; lowerLooser: boolean; currency: boolean }

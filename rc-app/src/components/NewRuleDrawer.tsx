@@ -1,47 +1,93 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Drawer, DrawerContent, DrawerHeader, DrawerBody, DrawerFooter, Button, Input, Select, SelectItem } from "@heroui/react";
-import { Zap, History, Layers, Plus, X } from "lucide-react";
+import { Zap, History, Layers, Plus, X, Ban, Search, Eye, FileText, Sparkles, FlaskConical } from "lucide-react";
 import { SectionLabel } from "./bits";
-import { CATS, VENUE, RULE_FIELDS, RULE_OPS, RULE_ELSE, condText, ruleFieldDiffs, ruleChangeSummary, type RuCat, type Venue, type Rule, type Clause } from "@/lib/rules";
+import { CATS, VENUE, venueOf, RULE_FIELDS, RULE_OPS, RULE_ELSE, RULE_TEMPLATES, condText, ruleFieldDiffs, ruleChangeSummary, type RuCat, type Venue, type Rule, type Clause, type RuleTemplate } from "@/lib/rules";
 import { ruleStore } from "@/lib/store";
 
 const RH = { i: "RH", n: "Raj Hota", c: "#0ea5e9" };
-const ACTIONS = ["直接拦截 · 冻结", "评分 +N · 转研判", "评分 +N · 加强监控", "待补料 / 待核验"];
 const VENUE_ICON: Record<Venue, typeof Zap> = { gate: Zap, batch: History, both: Layers };
 const VENUES: Venue[] = ["gate", "batch", "both"];
 
 const onStyle = { borderColor: "var(--brand)", background: "var(--brand-soft)", color: "var(--brand)" };
 const offStyle = { borderColor: "var(--line)", color: "var(--text-2)" };
 
+// 结果优先(借鉴 Fireblocks ALLOW / BLOCK / 2-TIER):处置是头等选择,评分类内联权重
+type OutcomeKey = "block" | "score_inv" | "score_mon" | "rfi";
+const OUTCOMES: { k: OutcomeKey; label: string; desc: string; icon: typeof Ban; color: string; scored: boolean; suffix?: string; fixed?: string }[] = [
+  { k: "block", label: "拦截 · 冻结", desc: "命中即拦下 / 冻结,不进评分", icon: Ban, color: "var(--danger)", scored: false, fixed: "直接拦截 · 冻结" },
+  { k: "score_inv", label: "评分 · 转研判", desc: "计入风险分,转人工研判", icon: Search, color: "var(--brand)", scored: true, suffix: "转研判" },
+  { k: "score_mon", label: "评分 · 加强监控", desc: "计入风险分,加强监控不拦", icon: Eye, color: "var(--warning)", scored: true, suffix: "加强监控" },
+  { k: "rfi", label: "待补料 / 待核验", desc: "暂缓,要求补充材料 / 核验", icon: FileText, color: "var(--text-3)", scored: false, fixed: "待补料 / 待核验" },
+];
+// 把已有规则的 action 文案反解回处置类型(供编辑预填)
+const actionToOutcome = (action: string): OutcomeKey => {
+  if (/拦截|冻结|拒绝/.test(action)) return "block";
+  if (/补料|核验/.test(action)) return "rfi";
+  if (/加强监控/.test(action)) return "score_mon";
+  return "score_inv";
+};
+const normW = (w: string) => { const n = w.replace(/[^0-9]/g, ""); return n ? `+${n}` : ""; };
+
+// 字段级取值提示(借鉴 Fireblocks 的 currency / 单位抽象 + 合理占位)
+const FIELD_HINT: Record<string, string> = {
+  "单笔金额 (CAD)": "如 10,000", "7 日累计金额 (CAD)": "如 10,000", "24h 笔数": "如 20",
+  "30 日对手集中度 (%)": "如 75", "扇入主体数": "如 4", "KYW 评分": "0–100", "综合风险评分": "0–100",
+  "账户休眠天数": "如 60", "账户年龄 (天)": "如 30", "地址风险标签": "如 混币器 / 隐私币",
+  "名单": "如 制裁名单 / 黑名单", "跨链 / 隐私币": "如 跨链桥 / 隐私币", "KYB 状态": "如 未完成 / 已过期",
+};
+
 export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresApproval = false }: { open: boolean; onOpenChange: (o: boolean) => void; onDone?: (id?: string) => void; editRule?: Rule | null; requiresApproval?: boolean }) {
   const editing = !!editRule;
   const [name, setName] = useState("");
   const [cat, setCat] = useState<RuCat | "">("");
   const [venue, setVenue] = useState<Venue | "">("");
+  const [venueTouched, setVenueTouched] = useState(false);
   const [clauses, setClauses] = useState<Clause[]>([{ field: "", op: "", value: "" }]);
   const [otherwise, setOtherwise] = useState("");
-  const [action, setAction] = useState("");
+  const [outcomeK, setOutcomeK] = useState<OutcomeKey | "">("");
   const [weight, setWeight] = useState("");
+  const [tplKey, setTplKey] = useState("");
   const [errs, setErrs] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (open) {
-      setErrs(new Set());
-      if (editRule) {
-        setName(editRule.name); setCat(editRule.cat); setVenue(editRule.venue || ""); setAction(editRule.action); setWeight(editRule.weight);
-        setOtherwise(editRule.otherwise || ""); setClauses(editRule.clauses?.length ? editRule.clauses.map((c) => ({ ...c })) : [{ field: "", op: "", value: "" }]);
-      } else {
-        setName(""); setCat(""); setVenue(""); setClauses([{ field: "", op: "", value: "" }]); setOtherwise(""); setAction(""); setWeight("");
-      }
+    if (!open) return;
+    // 开抽屉时按当前规则(或空白)复位表单 —— 与外部 open/editRule 同步,刻意整体 setState
+    /* eslint-disable react-hooks/set-state-in-effect */
+    setErrs(new Set()); setTplKey("");
+    if (editRule) {
+      setName(editRule.name); setCat(editRule.cat); setVenue(editRule.venue || venueOf(editRule)); setVenueTouched(true);
+      setOtherwise(editRule.otherwise || ""); setClauses(editRule.clauses?.length ? editRule.clauses.map((c) => ({ ...c })) : [{ field: "", op: "", value: "" }]);
+      setOutcomeK(actionToOutcome(editRule.action)); setWeight(editRule.weight || "");
+    } else {
+      setName(""); setCat(""); setVenue(""); setVenueTouched(false); setClauses([{ field: "", op: "", value: "" }]); setOtherwise(""); setOutcomeK(""); setWeight("");
     }
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, [open, editRule]);
 
   const setClause = (i: number, patch: Partial<Clause>) => setClauses((cs) => cs.map((c, j) => (j === i ? { ...c, ...patch } : c)));
   const addClause = () => setClauses((cs) => [...cs, { field: "", op: "", value: "" }]);
   const delClause = (i: number) => setClauses((cs) => (cs.length > 1 ? cs.filter((_, j) => j !== i) : cs));
+  // 选类别 → 未手动改过场景就自动建议(借鉴 Fireblocks 合理默认 / 通配)
+  const pickCat = (c: RuCat | "") => { setCat(c); if (c && !venueTouched) setVenue(venueOf({ cat: c })); };
+  const pickVenue = (v: Venue) => { setVenue(v); setVenueTouched(true); };
+  const applyTemplate = (t: RuleTemplate) => {
+    setTplKey(t.key); setName(t.name); setCat(t.cat); setVenue(t.venue); setVenueTouched(true);
+    setClauses(t.clauses.map((c) => ({ ...c }))); setOutcomeK(actionToOutcome(t.action)); setWeight(t.weight); setErrs(new Set());
+  };
+
   const validClauses = clauses.filter((c) => c.field && c.op && c.value);
+  const cond = condText(validClauses);
+  const oc = OUTCOMES.find((o) => o.k === outcomeK);
+  const scored = !!oc?.scored;
+  // 由处置类型 + 权重派生最终 action 文案 / 入库权重
+  const action = !oc ? "" : oc.scored ? `评分 ${normW(weight) || "+N"} · ${oc.suffix}` : oc.fixed!;
+  const storeWeight = scored ? normW(weight) || "+30" : oc?.k === "block" ? "+50" : "+15";
+  // 演示态命中 / 误报预估(新规则无基线,按条件确定性派生量级;真实回测在「回测模拟」)
+  const h = [...cond].reduce((a, c) => a + c.charCodeAt(0), 0);
+  const estHit = validClauses.length ? (h % 34) + 12 : 0;
+  const estFp = validClauses.length ? (h % 12) + 4 : 0;
 
   const submit = () => {
     const e = new Set<string>();
@@ -49,11 +95,13 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
     if (!cat) e.add("cat");
     if (!venue) e.add("venue");
     if (!validClauses.length) e.add("cond");
-    if (!action) e.add("action");
+    if (!outcomeK) e.add("outcome");
+    if (scored && !normW(weight)) e.add("weight");
     setErrs(e);
-    if (e.size) { toast.error("请补全规则信息(名称 / 类别 / 执行场景 / 至少一条完整条件 / 处置)"); return; }
+    if (e.size) { toast.error("请补全规则信息(名称 / 类别 / 场景 / 至少一条完整条件 / 处置" + (scored ? " / 评分权重" : "") + ")"); return; }
+
+    const fields: Partial<Rule> = { name: name.trim(), cat: cat as RuCat, venue: venue as Venue, cond, clauses: validClauses, otherwise: otherwise || undefined, action, weight: storeWeight };
     if (editing && editRule) {
-      const fields: Partial<Rule> = { name: name.trim(), cat: cat as RuCat, venue: venue as Venue, cond: condText(validClauses), clauses: validClauses, otherwise: otherwise || undefined, action, weight: weight.trim() || editRule.weight };
       // 已上线规则:不直接动线上,落「拟议变更」待总管审批
       if (requiresApproval) {
         const diffs = ruleFieldDiffs(editRule, fields);
@@ -69,10 +117,9 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
     }
     const n = ruleStore.created().length + 1;
     const rule: Rule = {
-      id: `R-NEW-${String(n).padStart(3, "0")}`, name: name.trim(), cat: cat as RuCat, venue: venue as Venue,
-      cond: condText(validClauses), clauses: validClauses, otherwise: otherwise || undefined, action, state: "backtest", hits30: 0, fp30: "—", src: "手动新建", owner: RH,
-      updated: "2026-06-20", weight: weight.trim() || "+30",
-    };
+      id: `R-NEW-${String(n).padStart(3, "0")}`, ...fields, name: name.trim(), cat: cat as RuCat, venue: venue as Venue, cond, action,
+      state: "backtest", hits30: 0, fp30: "—", src: tplKey ? `模板 · ${tplKey}` : "手动新建", owner: RH, updated: "2026-06-25", weight: storeWeight,
+    } as Rule;
     ruleStore.add(rule);
     toast.success(`已新建规则「${rule.name}」· 进入回测`);
     toast(`执行场景:${VENUE[rule.venue!].label} · 待回测达标后审批上线`);
@@ -80,27 +127,46 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
   };
 
   return (
-    <Drawer isOpen={open} onOpenChange={onOpenChange} placement="right" size="md" classNames={{ base: "!w-[50vw] !min-w-[460px] !max-w-[820px]" }}>
+    <Drawer isOpen={open} onOpenChange={onOpenChange} placement="right" size="md" classNames={{ base: "!w-[50vw] !min-w-[480px] !max-w-[860px]" }}>
       <DrawerContent>
         <DrawerHeader className="flex-col items-start gap-0.5 border-b border-divider">
           <span className="text-[15px] font-bold">{editing ? "编辑监控规则" : "新建监控规则"}</span>
-          <span className="text-[11.5px] font-normal text-default-400">{editing ? `${editRule!.id} · ${requiresApproval ? "改动提交审批,原版照常生效" : "修改条件 / 处置 / 场景"}` : "新规则先进回测,达标审批后才上线生效"}</span>
+          <span className="text-[11.5px] font-normal text-default-400">{editing ? `${editRule!.id} · ${requiresApproval ? "改动提交审批,原版照常生效" : "修改条件 / 处置 / 场景"}` : "选典型模式快速起步,或从空白自定义 —— 新规则先进回测,达标审批后上线"}</span>
         </DrawerHeader>
         <DrawerBody className="gap-4 py-4">
+          {/* 模板快速起步 —— 仅新建态 */}
+          {!editing && (
+            <div>
+              <SectionLabel><Sparkles className="mr-1 inline h-3.5 w-3.5 text-default-400" />从典型模式起步</SectionLabel>
+              <div className="mt-1.5 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {RULE_TEMPLATES.map((t) => {
+                  const on = tplKey === t.key;
+                  return (
+                    <button key={t.key} onClick={() => applyTemplate(t)} className="flex flex-col items-start gap-0.5 rounded-xl border-[1.5px] px-2.5 py-2 text-left transition-colors" style={on ? onStyle : offStyle}>
+                      <span className="text-[12px] font-bold">{t.key}</span>
+                      <span className="text-[10.5px] leading-snug text-default-400">{t.desc}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="mt-1.5 text-[10.5px] text-default-400">点模板预填名称 / 类别 / 场景 / 条件 / 处置,下方可继续微调。</p>
+            </div>
+          )}
+
           <Input size="sm" label="规则名称" labelPlacement="outside" placeholder="如:同主体滑窗累计阈值" isRequired value={name} onValueChange={setName} isInvalid={errs.has("name")} />
 
           <Select size="sm" label="规则类别" labelPlacement="outside" placeholder="请选择…" isRequired aria-label="规则类别"
             selectedKeys={cat ? [cat] : []} isInvalid={errs.has("cat")}
-            onSelectionChange={(k) => setCat((Array.from(k as Set<string>)[0] as RuCat) ?? "")}>
+            onSelectionChange={(k) => pickCat((Array.from(k as Set<string>)[0] as RuCat) ?? "")}>
             {CATS.map((c) => <SelectItem key={c}>{c}</SelectItem>)}
           </Select>
 
-          {/* 执行场景 —— 关键:决定能否实时拦截 */}
+          {/* 执行场景 —— 选类别后自动建议,可改 */}
           <div>
-            <SectionLabel>执行场景 <span className="text-danger">*</span></SectionLabel>
+            <SectionLabel>执行场景 <span className="text-danger">*</span>{cat && !venueTouched && venue && <span className="ml-1.5 font-normal text-default-400">· 已按类别建议</span>}</SectionLabel>
             <div className={`grid grid-cols-3 gap-2 ${errs.has("venue") ? "rounded-xl p-1 ring-2 ring-danger/40" : ""}`}>
               {VENUES.map((v) => { const Icon = VENUE_ICON[v]; const on = venue === v; return (
-                <button key={v} onClick={() => setVenue(v)} className="flex flex-col items-center gap-1.5 rounded-xl border-[1.5px] px-1.5 py-3 text-[12.5px] font-semibold transition-colors"
+                <button key={v} onClick={() => pickVenue(v)} className="flex flex-col items-center gap-1.5 rounded-xl border-[1.5px] px-1.5 py-3 text-[12.5px] font-semibold transition-colors"
                   style={on ? onStyle : offStyle}>
                   <Icon className="h-[18px] w-[18px]" />{VENUE[v].short}</button>
               ); })}
@@ -109,7 +175,7 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
             {!venue && <p className="mt-1.5 text-[11px] leading-relaxed text-default-400">事中=交易发生时能实时算出(单笔阈值/名单/地址/滑窗累计);事后=要跨时间跨主体聚合,实时算不出(扇入/速度/集中度/链跳)。</p>}
           </div>
 
-          {/* 结构化条件:IF … 且(AND) … THEN … ELSE … */}
+          {/* 结构化条件:IF … 且(AND) … */}
           <div>
             <SectionLabel>触发条件 <span className="text-danger">*</span></SectionLabel>
             <div className={`rounded-xl border p-3 ${errs.has("cond") ? "border-danger/50 ring-2 ring-danger/30" : "border-divider"}`} style={{ background: "var(--default-50, transparent)" }}>
@@ -127,7 +193,7 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
                         onSelectionChange={(k) => setClause(i, { op: Array.from(k as Set<string>)[0] ?? "" })}>
                         {RULE_OPS.map((op) => <SelectItem key={op}>{op}</SelectItem>)}
                       </Select>
-                      <Input size="sm" aria-label="值" placeholder="值" value={c.value} onValueChange={(v) => setClause(i, { value: v })} className="flex-1" classNames={{ inputWrapper: "h-9 min-h-9" }} />
+                      <Input size="sm" aria-label="值" placeholder={c.field ? FIELD_HINT[c.field] ?? "值" : "值"} value={c.value} onValueChange={(v) => setClause(i, { value: v })} className="flex-1" classNames={{ inputWrapper: "h-9 min-h-9" }} />
                       <button onClick={() => delClause(i)} disabled={clauses.length === 1} className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-default-400 transition-colors hover:bg-default-100 hover:text-danger disabled:opacity-30"><X className="h-4 w-4" /></button>
                     </div>
                   </div>
@@ -137,12 +203,35 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
             </div>
           </div>
 
-          <div className="flex items-center gap-2"><span className="rounded-md bg-[var(--success-bg)] px-2 py-0.5 text-[11px] font-bold text-[var(--success)]">THEN</span>
-            <Select size="sm" aria-label="命中处置" placeholder="命中处置…" isRequired selectedKeys={action ? [action] : []} isInvalid={errs.has("action")} className="flex-1"
-              onSelectionChange={(k) => setAction(Array.from(k as Set<string>)[0] ?? "")}>
-              {ACTIONS.map((a) => <SelectItem key={a}>{a}</SelectItem>)}
-            </Select>
+          {/* 命中处置 —— 结果优先,类型卡(借鉴 Fireblocks ALLOW/BLOCK/2-TIER)*/}
+          <div>
+            <SectionLabel>命中处置 <span className="text-danger">*</span></SectionLabel>
+            <div className={`mt-1.5 grid grid-cols-2 gap-2 ${errs.has("outcome") ? "rounded-xl p-1 ring-2 ring-danger/40" : ""}`}>
+              {OUTCOMES.map((o) => {
+                const on = outcomeK === o.k; const Icon = o.icon;
+                return (
+                  <button key={o.k} onClick={() => setOutcomeK(o.k)} className="flex items-start gap-2 rounded-xl border-[1.5px] p-2.5 text-left transition-colors"
+                    style={on ? { borderColor: o.color, background: `color-mix(in srgb, ${o.color} 10%, transparent)` } : offStyle}>
+                    <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg" style={{ background: `color-mix(in srgb, ${o.color} 14%, transparent)`, color: o.color }}><Icon className="h-3.5 w-3.5" /></span>
+                    <span className="min-w-0">
+                      <span className="block text-[12.5px] font-bold" style={on ? { color: o.color } : undefined}>{o.label}</span>
+                      <span className="block text-[10.5px] leading-snug text-default-400">{o.desc}</span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            {/* 评分类 → 内联权重(只在评分处置出现)*/}
+            {scored && (
+              <div className="mt-2 flex items-center gap-2 rounded-xl border border-divider bg-default-50 p-2.5">
+                <span className="text-[12px] font-semibold text-default-600">命中评分权重</span>
+                <Input size="sm" aria-label="权重" placeholder="如 +40" value={weight} onValueChange={setWeight} isInvalid={errs.has("weight")} className="w-[120px]" classNames={{ inputWrapper: "h-8 min-h-8" }} startContent={<span className="text-[12px] text-default-400">+</span>} />
+                <span className="text-[11px] text-default-400">计入综合风险分;权重越高越接近升级 MLRO。</span>
+              </div>
+            )}
           </div>
+
+          {/* ELSE —— 否则 */}
           <div className="flex items-center gap-2"><span className="rounded-md bg-default-100 px-2 py-0.5 text-[11px] font-bold text-default-500">ELSE</span>
             <Select size="sm" aria-label="否则" placeholder="否则(选填)· 默认放行 / 继续监控" selectedKeys={otherwise ? [otherwise] : []} className="flex-1"
               onSelectionChange={(k) => setOtherwise(Array.from(k as Set<string>)[0] ?? "")}>
@@ -150,7 +239,26 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
             </Select>
           </div>
 
-          <Input size="sm" label="权重 / 评分(选填)" labelPlacement="outside" placeholder="如:+40" value={weight} onValueChange={setWeight} />
+          {/* 实时可读预览 + 回测预估(借鉴 Fireblocks 规则即一句话)*/}
+          <div className="rounded-xl border border-divider p-3" style={{ background: "var(--brand-soft)" }}>
+            <div className="mb-1.5 text-[10.5px] font-bold uppercase tracking-wider text-[var(--brand)]">规则预览</div>
+            <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[12.5px] leading-relaxed">
+              <span className="rounded bg-[var(--brand)]/15 px-1.5 py-0.5 text-[10px] font-bold text-[var(--brand)]">若</span>
+              <span className="font-semibold text-foreground">{cond || <span className="font-normal text-default-400">…待设置触发条件</span>}</span>
+              <span className="rounded bg-[var(--success-bg)] px-1.5 py-0.5 text-[10px] font-bold text-[var(--success)]">则</span>
+              <span className="font-semibold" style={{ color: oc?.color ?? "var(--text-3)" }}>{action || <span className="font-normal text-default-400">…待选处置</span>}</span>
+              <span className="rounded bg-default-100 px-1.5 py-0.5 text-[10px] font-bold text-default-500">否则</span>
+              <span className="text-default-500">{otherwise || "放行 · 继续监控"}</span>
+            </div>
+            {validClauses.length > 0 && (
+              <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-[var(--brand)]/15 pt-2 text-[11px]">
+                <span className="flex items-center gap-1 font-semibold text-[var(--brand)]"><FlaskConical className="h-3.5 w-3.5" />回测预估 · 近90天</span>
+                <span className="text-default-500">将额外命中 <b className="text-foreground tnum">~{estHit}</b> 笔</span>
+                <span className="text-default-500">预估误报 <b className="tnum" style={{ color: estFp >= 12 ? "var(--warning)" : "var(--text-3)" }}>~{estFp}%</b></span>
+                <span className="text-default-400">演示态估计 · 真实重放见「回测模拟」调阈值</span>
+              </div>
+            )}
+          </div>
 
           {!editing && <p className="rounded-xl border border-divider bg-default-100 p-3 text-[11.5px] leading-relaxed text-default-500">新建规则<b>不直接上线</b> —— 进入「回测中」,回测命中 / 误报达标后提交审批,审批通过才在所选场景生效。</p>}
           {editing && requiresApproval && <p className="rounded-xl border border-divider bg-default-100 p-3 text-[11.5px] leading-relaxed text-default-500">该规则<b>已上线生效</b> —— 改动<b>不直接套到线上</b>,而是提交一份<b>拟议变更</b>交风控总管审批;原版在审批期间照常拦截,批准后才切换并记入版本历史。</p>}
