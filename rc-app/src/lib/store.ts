@@ -138,6 +138,9 @@ export function useReportVersion() {
 const ruleData: Record<string, { state?: string; owner?: Person | null; events?: { t: string; text: string; reason: string }[] }> = {};
 const ruleEdits: Record<string, Partial<Rule>> = {};
 const ruleHistory: Record<string, RuleVersion[]> = {};
+// 变更治理:改「已上线」规则不直接动线上,先落一份「拟议变更」(完整字段快照),原版照常生效,待风控总管审批
+export interface PendingChange { fields: Partial<Rule>; by: Person; at: string; summary: string }
+const rulePending: Record<string, PendingChange> = {};
 const ruleRemoved = new Set<string>();
 let ruleCreated: Rule[] = [];
 let ruleVersion = 0;
@@ -163,6 +166,39 @@ export const ruleStore = {
   add(r: Rule) { ruleCreated = [r, ...ruleCreated]; ruleNotify(); },
   update(id: string, patch: Partial<Rule>) { ruleEdits[id] = { ...(ruleEdits[id] || {}), ...patch }; ruleNotify(); },
   remove(id: string) { ruleRemoved.add(id); ruleNotify(); },
+  // ── 变更治理:拟议 → 审批 / 退回 ──
+  pendingOf(id: string) { return rulePending[id]; },
+  allPending() { return Object.entries(rulePending).map(([id, c]) => ({ id, ...c })); },
+  // 编辑已上线规则 → 落拟议变更(不动线上),记一条「待审批」事件
+  proposeChange(id: string, fields: Partial<Rule>, by: Person, summary: string) {
+    rulePending[id] = { fields, by, at: "今天 " + now(), summary };
+    const cur = ruleData[id] || {};
+    cur.events = [...(cur.events || []), { t: now(), text: "提交拟议变更 · 待风控总管审批", reason: summary }];
+    ruleData[id] = cur;
+    ruleNotify();
+  },
+  // 总管批准:把拟议字段套到线上(ruleEdits)+ 记一个新版本 + 事件,清空 pending
+  approveChange(id: string, by: Person) {
+    const p = rulePending[id];
+    if (!p) return;
+    ruleEdits[id] = { ...(ruleEdits[id] || {}), ...p.fields };
+    const nextV = (ruleHistory[id]?.[0]?.v ?? 0) + 1;
+    ruleHistory[id] = [{ v: nextV, date: "今天 " + now(), by, summary: "变更上线 · " + p.summary, fields: { cond: p.fields.cond, weight: p.fields.weight, action: p.fields.action } }, ...(ruleHistory[id] || [])];
+    const cur = ruleData[id] || {};
+    cur.events = [...(cur.events || []), { t: now(), text: `审批通过 · 变更上线(v${nextV})`, reason: p.summary }];
+    ruleData[id] = cur;
+    delete rulePending[id];
+    ruleNotify();
+  },
+  // 总管退回:不动线上,记退回事件,清空 pending(理由必填)
+  rejectChange(id: string, by: Person, reason: string) {
+    if (!rulePending[id]) return;
+    const cur = ruleData[id] || {};
+    cur.events = [...(cur.events || []), { t: now(), text: `退回拟议变更 · ${by.n}`, reason }];
+    ruleData[id] = cur;
+    delete rulePending[id];
+    ruleNotify();
+  },
   set(id: string, state: string, opts: { owner?: Person | null; event?: string; reason?: string } = {}) {
     const cur = ruleData[id] || {};
     cur.state = state;

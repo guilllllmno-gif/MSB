@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { Drawer, DrawerContent, DrawerHeader, DrawerBody, DrawerFooter, Button, Input, Select, SelectItem } from "@heroui/react";
 import { Zap, History, Layers, Plus, X } from "lucide-react";
 import { SectionLabel } from "./bits";
-import { CATS, VENUE, RULE_FIELDS, RULE_OPS, RULE_ELSE, condText, type RuCat, type Venue, type Rule, type Clause } from "@/lib/rules";
+import { CATS, VENUE, RULE_FIELDS, RULE_OPS, RULE_ELSE, condText, ruleFieldDiffs, ruleChangeSummary, type RuCat, type Venue, type Rule, type Clause } from "@/lib/rules";
 import { ruleStore } from "@/lib/store";
 
 const RH = { i: "RH", n: "Raj Hota", c: "#0ea5e9" };
@@ -14,7 +14,7 @@ const VENUES: Venue[] = ["gate", "batch", "both"];
 const onStyle = { borderColor: "var(--brand)", background: "var(--brand-soft)", color: "var(--brand)" };
 const offStyle = { borderColor: "var(--line)", color: "var(--text-2)" };
 
-export function NewRuleDrawer({ open, onOpenChange, onDone, editRule }: { open: boolean; onOpenChange: (o: boolean) => void; onDone?: (id?: string) => void; editRule?: Rule | null }) {
+export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresApproval = false }: { open: boolean; onOpenChange: (o: boolean) => void; onDone?: (id?: string) => void; editRule?: Rule | null; requiresApproval?: boolean }) {
   const editing = !!editRule;
   const [name, setName] = useState("");
   const [cat, setCat] = useState<RuCat | "">("");
@@ -53,7 +53,17 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule }: { open: 
     setErrs(e);
     if (e.size) { toast.error("请补全规则信息(名称 / 类别 / 执行场景 / 至少一条完整条件 / 处置)"); return; }
     if (editing && editRule) {
-      ruleStore.update(editRule.id, { name: name.trim(), cat: cat as RuCat, venue: venue as Venue, cond: condText(validClauses), clauses: validClauses, otherwise: otherwise || undefined, action, weight: weight.trim() || editRule.weight });
+      const fields: Partial<Rule> = { name: name.trim(), cat: cat as RuCat, venue: venue as Venue, cond: condText(validClauses), clauses: validClauses, otherwise: otherwise || undefined, action, weight: weight.trim() || editRule.weight };
+      // 已上线规则:不直接动线上,落「拟议变更」待总管审批
+      if (requiresApproval) {
+        const diffs = ruleFieldDiffs(editRule, fields);
+        if (!diffs.length) { toast.error("内容未变更,无需提交审批"); return; }
+        ruleStore.proposeChange(editRule.id, fields, RH, ruleChangeSummary(diffs));
+        toast.success("已提交拟议变更 · 待风控总管审批");
+        toast("线上规则保持现版生效,审批通过后才切换");
+        onOpenChange(false); onDone?.(editRule.id); return;
+      }
+      ruleStore.update(editRule.id, fields);
       toast.success(`已保存「${name.trim()}」`);
       onOpenChange(false); onDone?.(editRule.id); return;
     }
@@ -74,7 +84,7 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule }: { open: 
       <DrawerContent>
         <DrawerHeader className="flex-col items-start gap-0.5 border-b border-divider">
           <span className="text-[15px] font-bold">{editing ? "编辑监控规则" : "新建监控规则"}</span>
-          <span className="text-[11.5px] font-normal text-default-400">{editing ? `${editRule!.id} · 修改条件 / 处置 / 场景` : "新规则先进回测,达标审批后才上线生效"}</span>
+          <span className="text-[11.5px] font-normal text-default-400">{editing ? `${editRule!.id} · ${requiresApproval ? "改动提交审批,原版照常生效" : "修改条件 / 处置 / 场景"}` : "新规则先进回测,达标审批后才上线生效"}</span>
         </DrawerHeader>
         <DrawerBody className="gap-4 py-4">
           <Input size="sm" label="规则名称" labelPlacement="outside" placeholder="如:同主体滑窗累计阈值" isRequired value={name} onValueChange={setName} isInvalid={errs.has("name")} />
@@ -143,10 +153,11 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule }: { open: 
           <Input size="sm" label="权重 / 评分(选填)" labelPlacement="outside" placeholder="如:+40" value={weight} onValueChange={setWeight} />
 
           {!editing && <p className="rounded-xl border border-divider bg-default-100 p-3 text-[11.5px] leading-relaxed text-default-500">新建规则<b>不直接上线</b> —— 进入「回测中」,回测命中 / 误报达标后提交审批,审批通过才在所选场景生效。</p>}
+          {editing && requiresApproval && <p className="rounded-xl border border-divider bg-default-100 p-3 text-[11.5px] leading-relaxed text-default-500">该规则<b>已上线生效</b> —— 改动<b>不直接套到线上</b>,而是提交一份<b>拟议变更</b>交风控总管审批;原版在审批期间照常拦截,批准后才切换并记入版本历史。</p>}
         </DrawerBody>
         <DrawerFooter className="border-t border-divider">
           <Button variant="bordered" onPress={() => onOpenChange(false)}>取消</Button>
-          <Button color="primary" onPress={submit}>{editing ? "保存修改" : "创建 · 进回测"}</Button>
+          <Button color="primary" onPress={submit}>{editing ? (requiresApproval ? "提交变更审批" : "保存修改") : "创建 · 进回测"}</Button>
         </DrawerFooter>
       </DrawerContent>
     </Drawer>

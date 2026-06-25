@@ -104,6 +104,19 @@ export function seedVersions(rule: Rule): RuleVersion[] {
   return ordered.map((e, i) => ({ ...e, v: i + 1 })).reverse();
 }
 
+// ── 变更治理:比对「线上现版」与「拟议变更」的内容字段差异(供编辑抽屉摘要 / 详情横幅 / 审批箱复用)──
+export interface FieldDiff { label: string; from: string; to: string }
+export function ruleFieldDiffs(cur: Partial<Rule>, next: Partial<Rule>): FieldDiff[] {
+  const out: FieldDiff[] = [];
+  const cmp = (label: string, a?: string, b?: string) => { if (b !== undefined && a !== b) out.push({ label, from: a ?? "—", to: b ?? "—" }); };
+  cmp("触发条件", cur.cond, next.cond);
+  cmp("命中权重", cur.weight, next.weight);
+  cmp("处置", cur.action, next.action);
+  cmp("规则名称", cur.name, next.name);
+  return out;
+}
+export const ruleChangeSummary = (diffs: FieldDiff[]) => (diffs.length ? diffs.map((d) => `${d.label} ${d.from} → ${d.to}`).join(" · ") : "无字段变更");
+
 export interface Rule {
   id: string; name: string; cat: RuCat; venue?: Venue; cond: string; action: string; state: RuState;
   hits30: number; fp30: string; src: string; srcId?: string; to?: string;

@@ -22,6 +22,7 @@ import { LISTS } from "@/lib/lists";
 import {
   ringStore, useRingVersion, alertStore, useAlertVersion,
   caseStore, useCaseVersion, useReportVersion, listStore, useListVersion,
+  ruleStore, useRuleVersion,
 } from "@/lib/store";
 
 const BRAND = "var(--brand)";
@@ -263,7 +264,7 @@ export default function Dashboard() {
   const isHead = role === "head";
   const who = isHead ? HEAD : ME;
   // subscribe to every store so the dashboard reconciles live with the list pages
-  useRingVersion(); useAlertVersion(); useCaseVersion(); useReportVersion(); useListVersion();
+  useRingVersion(); useAlertVersion(); useCaseVersion(); useReportVersion(); useListVersion(); useRuleVersion();
 
   // ── 关联团伙 — live from ringStore ──
   const allRings = [...ringStore.created(), ...rings];
@@ -343,11 +344,14 @@ export default function Dashboard() {
 
   // ── 待我审批(总管专属)—— 只有风控总管能拍板的决策,四类全部从真实 store 派生,与各自列表页同口径 ──
   const pendingRules = RULES.filter((r) => r.state === "pending");                                   // 规则:回测达标·提交审批
+  const proposedChanges = ruleStore.allPending();                                                     // 规则:已上线规则的拟议变更(编辑→待审批)
+  const ruleName = (id: string) => RULES.find((r) => r.id === id)?.name ?? id;
   const reviewReports = reports.filter((r) => liveStatus(r) === "review");                            // 报送:待 MLRO 复核签发
   const mlroCases = allCases.filter((c) => caseStOf(c) === "mlro");                                   // 案件:升级至 MLRO 评估
   const allLists = [...listStore.created(), ...LISTS];
   const pendingLists = allLists.filter((e) => listStore.statusOf(e.id, e.status) === "pending");      // 名单:待复核生效
   const approvals: { kind: string; subject: string; meta: string; icon: typeof Clock; to: string }[] = [
+    ...proposedChanges.map((c) => ({ kind: "规则变更", subject: ruleName(c.id), meta: `${c.id} · ${c.summary} · ${c.by.n} 提交`, icon: SlidersHorizontal, to: `/rule?id=${c.id}` })),
     ...pendingRules.map((r) => ({ kind: "规则上线", subject: r.name, meta: `${r.id} · 回测 ${r.backtest?.estFp ?? "—"} · ${r.owner.n} 提交`, icon: SlidersHorizontal, to: `/rule?id=${r.id}` })),
     ...mlroCases.map((c) => ({ kind: "案件升级", subject: `${c.subject} · ${c.type}`, meta: `${c.id} · ${c.amount} · MLRO 评估`, icon: Snowflake, to: `/case?id=${c.id}` })),
     ...reviewReports.map((r) => ({ kind: "报送签发", subject: `${r.type} · ${r.subject}`, meta: `${r.id} · 待 MLRO 复核签发`, icon: SendHorizontal, to: `/report?id=${r.id}` })),

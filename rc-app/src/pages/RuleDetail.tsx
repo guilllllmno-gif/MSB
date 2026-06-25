@@ -1,19 +1,20 @@
 import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
-import { Button, Tabs, Tab, Dropdown, DropdownTrigger, DropdownMenu, DropdownItem, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter } from "@heroui/react";
-import { ArrowLeft, ChevronLeft, ChevronRight, MoreHorizontal, Pencil, FlaskConical, Copy, Power, Trash2, ArrowRight, Download, AlertTriangle, History, RotateCcw } from "lucide-react";
+import { Button, Tabs, Tab, Dropdown, DropdownTrigger, DropdownMenu, DropdownItem, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Tooltip, Textarea } from "@heroui/react";
+import { ArrowLeft, ChevronLeft, ChevronRight, MoreHorizontal, Pencil, FlaskConical, Copy, Power, Trash2, ArrowRight, Download, AlertTriangle, History, RotateCcw, Stamp, Lock, Check, Undo2 } from "lucide-react";
 import { Shell } from "@/components/Shell";
 import { Pill, Initials } from "@/components/bits";
 import { Timeline } from "@/components/Timeline";
 import { NewRuleDrawer } from "@/components/NewRuleDrawer";
 import { RuleBacktestDrawer } from "@/components/RuleBacktestDrawer";
-import { RULES, RUSTATE, CAT_ICON, VENUE, venueOf, bfrMeta, bfrDefault, condText, seedVersions, type Rule, type RuState, type RuleVersion } from "@/lib/rules";
+import { RULES, RUSTATE, CAT_ICON, VENUE, venueOf, bfrMeta, bfrDefault, condText, seedVersions, ruleFieldDiffs, type Rule, type RuState, type RuleVersion } from "@/lib/rules";
 import { FINDINGS } from "@/lib/findings";
 import { findingStore, ruleStore, useRuleVersion, useFindingVersion } from "@/lib/store";
 import type { Person } from "@/lib/data";
 
 const ME: Person = { i: "JL", n: "James Liu", c: "var(--brand)" };
+const HEAD: Person = { i: "EZ", n: "Emma Zhang", c: "var(--violet)" }; // 风控总管 · 审批人
 const tc = (t: string) => (t === "red" ? "var(--danger)" : t === "amber" ? "var(--warning)" : t === "green" ? "var(--success)" : t === "violet" ? "var(--violet)" : t === "blue" ? "var(--brand)" : "var(--text-3)");
 
 // 解析 id → 规则(内置 / 新建 / 回填派生)
@@ -45,6 +46,8 @@ export default function RuleDetail() {
   const [editOpen, setEditOpen] = useState(false);
   const [btOpen, setBtOpen] = useState(false);
   const [delOpen, setDelOpen] = useState(false);
+  const [rejectOpen, setRejectOpen] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
 
   const id = sp.get("id");
   const base = resolve(id);
@@ -68,6 +71,19 @@ export default function RuleDetail() {
     ruleStore.update(base.id, { cond: ver.fields.cond, weight: ver.fields.weight, action: ver.fields.action });
     ruleStore.recordVersion(base.id, { by: ME, summary: `回滚到 v${ver.v} · ${ver.summary}`, fields: ver.fields });
     toast.success(`已回滚到 v${ver.v}（${ver.summary}）`);
+  };
+  // ── 变更治理 ──
+  // 名单筛查 = 法定硬规则(命中即拦,不靠权重阈值),编辑锁定;已上线规则的编辑须经总管审批(走拟议变更),其余状态原地直改
+  const isHard = rule.cat === "名单筛查";
+  const governed = st === "live" && !isHard;
+  const pending = ruleStore.pendingOf(base.id);
+  const pendingDiffs = pending ? ruleFieldDiffs(rule, pending.fields) : [];
+  const approveChange = () => { ruleStore.approveChange(base.id, HEAD); toast.success("拟议变更已审批上线 · 记入新版本"); };
+  const rejectChange = () => {
+    if (!rejectReason.trim()) { toast.error("请填写退回理由"); return; }
+    ruleStore.rejectChange(base.id, HEAD, rejectReason.trim());
+    setRejectOpen(false); setRejectReason("");
+    toast.success("已退回拟议变更 · 线上规则维持现版");
   };
   const ven = VENUE[venueOf(rule)];
   const CIcon = CAT_ICON[rule.cat];
@@ -128,7 +144,13 @@ export default function RuleDetail() {
         </div>
         <div className="flex items-center gap-2">
           {/* 固定操作 —— 不随状态变 */}
-          <Button size="sm" color="primary" startContent={<Pencil className="h-4 w-4" />} onPress={() => setEditOpen(true)}>编辑规则</Button>
+          {isHard ? (
+            <Tooltip content="法定硬规则 · 命中即拦,不靠权重阈值 —— 灵敏度调整请在名单管理增删名单项" placement="bottom">
+              <span className="inline-flex"><Button size="sm" color="primary" isDisabled startContent={<Lock className="h-4 w-4" />}>编辑规则</Button></span>
+            </Tooltip>
+          ) : (
+            <Button size="sm" color="primary" startContent={<Pencil className="h-4 w-4" />} onPress={() => setEditOpen(true)}>{governed ? "提议变更" : "编辑规则"}</Button>
+          )}
           <Dropdown placement="bottom-end">
             <DropdownTrigger><Button isIconOnly size="sm" variant="flat" className="bg-default-100"><MoreHorizontal className="h-4 w-4" /></Button></DropdownTrigger>
             <DropdownMenu aria-label="规则操作" onAction={(k) => { if (k === "disable") toggle(); else if (k === "backtest") setBtOpen(true); else if (k === "copy") doCopy(); else if (k === "delete") setDelOpen(true); }}>
@@ -140,6 +162,39 @@ export default function RuleDetail() {
           </Dropdown>
         </div>
       </div>
+
+      {/* 拟议变更 · 待总管审批 —— 原版照常生效,批准后才切换并记版本 */}
+      {pending && (
+        <div className="card mb-5 border-l-[3px] p-4" style={{ borderLeftColor: "var(--violet)" }}>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ background: "color-mix(in srgb, var(--violet) 12%, transparent)", color: "var(--violet)" }}><Stamp className="h-4 w-4" /></span>
+              <div>
+                <div className="flex items-center gap-2 text-[14px] font-bold">拟议变更 · 待风控总管审批
+                  <span className="rounded-full px-2 py-0.5 text-[10.5px] font-bold" style={{ background: "color-mix(in srgb, var(--violet) 12%, transparent)", color: "var(--violet)" }}>未生效</span>
+                </div>
+                <div className="mt-0.5 flex items-center gap-1.5 text-[11.5px] text-default-400"><Initials p={pending.by} size={16} />{pending.by.n} 提交 · {pending.at}</div>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button size="sm" variant="flat" radius="full" className="bg-default-100 font-semibold" startContent={<Undo2 className="h-3.5 w-3.5" />} onPress={() => setRejectOpen(true)}>退回</Button>
+              <Button size="sm" radius="full" className="bg-violet/10 font-semibold" style={{ background: "color-mix(in srgb, var(--violet) 12%, transparent)", color: "var(--violet)" }} startContent={<Check className="h-3.5 w-3.5" />} onPress={approveChange}>批准上线</Button>
+            </div>
+          </div>
+          {/* 变更明细:线上现版 → 拟议 */}
+          <div className="mt-3 flex flex-col gap-1.5 rounded-xl border border-divider bg-default-50 p-3">
+            {pendingDiffs.length ? pendingDiffs.map((d, i) => (
+              <div key={i} className="flex flex-wrap items-baseline gap-x-2 text-[12px]">
+                <span className="w-[60px] shrink-0 font-semibold text-default-500">{d.label}</span>
+                <span className="text-default-400 line-through">{d.from}</span>
+                <ArrowRight className="h-3 w-3 shrink-0 text-default-300" />
+                <span className="font-semibold text-foreground">{d.to}</span>
+              </div>
+            )) : <span className="text-[12px] text-default-400">无内容字段变更</span>}
+          </div>
+          <p className="mt-2 text-[10.5px] leading-snug text-default-400">线上规则当前仍按 <b className="text-default-500">现版</b> 拦截;批准后拟议字段即切换为线上版本、记入版本历史,退回则丢弃改动。审批人 = 风控总管(Emma Zhang)。</p>
+        </div>
+      )}
 
       <Tabs aria-label="规则详情" selectedKey={tab} onSelectionChange={(k) => setTab(k as string)} variant="underlined" color="primary" classNames={{ tabList: "gap-6 p-0 mb-5", cursor: "w-full", tab: "px-0 h-9 max-w-fit", tabContent: "text-[13px] font-semibold" }}>
         <Tab key="basic" title="基本信息" />
@@ -321,8 +376,21 @@ export default function RuleDetail() {
         </div>
       )}
 
-      <NewRuleDrawer open={editOpen} onOpenChange={setEditOpen} editRule={rule} />
+      <NewRuleDrawer open={editOpen} onOpenChange={setEditOpen} editRule={rule} requiresApproval={governed} />
       <RuleBacktestDrawer rule={rule} open={btOpen} onOpenChange={setBtOpen} />
+      <Modal isOpen={rejectOpen} onOpenChange={setRejectOpen} size="sm" placement="center">
+        <ModalContent>
+          <ModalHeader className="flex items-center gap-2 text-[15px]"><span className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ background: "color-mix(in srgb, var(--violet) 12%, transparent)", color: "var(--violet)" }}><Undo2 className="h-4 w-4" /></span>退回拟议变更</ModalHeader>
+          <ModalBody className="gap-3 text-[13px] leading-relaxed text-default-600">
+            退回 <b className="text-foreground">{rule.id} {rule.name}</b> 的拟议变更,线上维持现版。理由记入变更审计。
+            <Textarea aria-label="退回理由" minRows={2} placeholder="退回理由(必填)· 如:误报上升风险未评估、需补回测样本…" value={rejectReason} onValueChange={setRejectReason} isInvalid={rejectOpen && !rejectReason.trim()} />
+          </ModalBody>
+          <ModalFooter>
+            <Button variant="bordered" onPress={() => { setRejectOpen(false); setRejectReason(""); }}>取消</Button>
+            <Button style={{ background: "color-mix(in srgb, var(--violet) 14%, transparent)", color: "var(--violet)" }} className="font-semibold" onPress={rejectChange}>确认退回</Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
       <Modal isOpen={delOpen} onOpenChange={setDelOpen} size="sm" placement="center">
         <ModalContent>
           <ModalHeader className="flex items-center gap-2 text-[15px]"><span className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ background: "var(--danger-bg)", color: "var(--danger)" }}><AlertTriangle className="h-4 w-4" /></span>删除规则</ModalHeader>
