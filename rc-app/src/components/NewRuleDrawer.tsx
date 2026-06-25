@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { toast } from "sonner";
-import { Drawer, DrawerContent, DrawerHeader, DrawerBody, DrawerFooter, Button, Input, Select, SelectItem } from "@heroui/react";
-import { Zap, History, Layers, Plus, X, Ban, Search, Eye, FileText, Sparkles, FlaskConical } from "lucide-react";
+import { Drawer, DrawerContent, DrawerHeader, DrawerBody, DrawerFooter, Button, Select, SelectItem, Dropdown, DropdownTrigger, DropdownMenu, DropdownItem } from "@heroui/react";
+import { Zap, History, Layers, Plus, X, Ban, Search, Eye, FileText, Sparkles, FlaskConical, ChevronDown } from "lucide-react";
 import { SectionLabel } from "./bits";
 import { CATS, VENUE, venueOf, RULE_FIELDS, RULE_OPS, RULE_ELSE, RULE_TEMPLATES, condText, ruleFieldDiffs, ruleChangeSummary, type RuCat, type Venue, type Rule, type Clause, type RuleTemplate } from "@/lib/rules";
 import { ruleStore } from "@/lib/store";
@@ -37,6 +37,28 @@ const FIELD_HINT: Record<string, string> = {
   "账户休眠天数": "如 60", "账户年龄 (天)": "如 30", "地址风险标签": "如 混币器 / 隐私币",
   "名单": "如 制裁名单 / 黑名单", "跨链 / 隐私币": "如 跨链桥 / 隐私币", "KYB 状态": "如 未完成 / 已过期",
 };
+
+// 句首标签 若 / 且 / 则 / 否则(对齐固定宽,使整块读成一句话)
+const LBL_TONE: Record<string, string> = { brand: "bg-[var(--brand-soft)] text-[var(--brand)]", success: "bg-[var(--success-bg)] text-[var(--success)]", grey: "bg-default-100 text-default-500" };
+function Lbl({ tone, children }: { tone: keyof typeof LBL_TONE; children: ReactNode }) {
+  return <span className={`mt-0.5 inline-flex h-7 w-9 shrink-0 items-center justify-center rounded-md text-[11.5px] font-bold ${LBL_TONE[tone]}`}>{children}</span>;
+}
+
+// 内联可点 chip(借鉴 ClickUp:句子里的可配置词,点开下拉)—— 字段 / 运算符 / 否则
+function Chip({ value, placeholder, options, onSelect, invalid }: { value?: string; placeholder: string; options: readonly string[]; onSelect: (v: string) => void; invalid?: boolean }) {
+  return (
+    <Dropdown placement="bottom-start">
+      <DropdownTrigger>
+        <button className={`inline-flex h-8 items-center gap-1 rounded-lg border-[1.5px] px-2.5 text-[12.5px] font-semibold transition-colors hover:border-[var(--brand)] ${value ? "border-divider bg-content1 text-foreground" : invalid ? "border-danger/60 text-danger" : "border-dashed border-default-300 text-default-400"}`}>
+          {value || placeholder}<ChevronDown className="h-3.5 w-3.5 opacity-50" />
+        </button>
+      </DropdownTrigger>
+      <DropdownMenu aria-label={placeholder} onAction={(k) => onSelect(String(k))} className="max-h-[320px] overflow-y-auto">
+        {options.map((o) => <DropdownItem key={o}>{o}</DropdownItem>)}
+      </DropdownMenu>
+    </Dropdown>
+  );
+}
 
 export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresApproval = false }: { open: boolean; onOpenChange: (o: boolean) => void; onDone?: (id?: string) => void; editRule?: Rule | null; requiresApproval?: boolean }) {
   const editing = !!editRule;
@@ -129,8 +151,11 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
   return (
     <Drawer isOpen={open} onOpenChange={onOpenChange} placement="right" size="md" classNames={{ base: "!w-[50vw] !min-w-[480px] !max-w-[860px]" }}>
       <DrawerContent>
-        <DrawerHeader className="flex-col items-start gap-0.5 border-b border-divider">
-          <span className="text-[15px] font-bold">{editing ? "编辑监控规则" : "新建监控规则"}</span>
+        <DrawerHeader className="flex-col items-start gap-1 border-b border-divider">
+          {/* 内联可编辑命名(借鉴 ClickUp「Name this automation rule…」)*/}
+          <input value={name} onChange={(e) => setName(e.target.value)} aria-label="规则名称"
+            placeholder={editing ? "规则名称" : "为这条规则命名…"}
+            className={`w-full bg-transparent text-[16px] font-bold text-foreground outline-none placeholder:font-semibold ${errs.has("name") ? "placeholder:text-danger" : "placeholder:text-default-300"}`} />
           <span className="text-[11.5px] font-normal text-default-400">{editing ? `${editRule!.id} · ${requiresApproval ? "改动提交审批,原版照常生效" : "修改条件 / 处置 / 场景"}` : "选典型模式快速起步,或从空白自定义 —— 新规则先进回测,达标审批后上线"}</span>
         </DrawerHeader>
         <DrawerBody className="gap-4 py-4">
@@ -153,116 +178,113 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
             </div>
           )}
 
-          <Input size="sm" label="规则名称" labelPlacement="outside" placeholder="如:同主体滑窗累计阈值" isRequired value={name} onValueChange={setName} isInvalid={errs.has("name")} />
-
-          <Select size="sm" label="规则类别" labelPlacement="outside" placeholder="请选择…" isRequired aria-label="规则类别"
-            selectedKeys={cat ? [cat] : []} isInvalid={errs.has("cat")}
-            onSelectionChange={(k) => pickCat((Array.from(k as Set<string>)[0] as RuCat) ?? "")}>
-            {CATS.map((c) => <SelectItem key={c}>{c}</SelectItem>)}
-          </Select>
-
-          {/* 执行场景 —— 选类别后自动建议,可改 */}
-          <div>
-            <SectionLabel>执行场景 <span className="text-danger">*</span>{cat && !venueTouched && venue && <span className="ml-1.5 font-normal text-default-400">· 已按类别建议</span>}</SectionLabel>
-            <div className={`grid grid-cols-3 gap-2 ${errs.has("venue") ? "rounded-xl p-1 ring-2 ring-danger/40" : ""}`}>
-              {VENUES.map((v) => { const Icon = VENUE_ICON[v]; const on = venue === v; return (
-                <button key={v} onClick={() => pickVenue(v)} className="flex flex-col items-center gap-1.5 rounded-xl border-[1.5px] px-1.5 py-3 text-[12.5px] font-semibold transition-colors"
-                  style={on ? onStyle : offStyle}>
-                  <Icon className="h-[18px] w-[18px]" />{VENUE[v].short}</button>
-              ); })}
-            </div>
-            {venue && <p className="mt-1.5 rounded-xl border border-divider bg-default-50 p-2.5 text-[11.5px] leading-relaxed text-default-500">{VENUE[venue].hint}</p>}
-            {!venue && <p className="mt-1.5 text-[11px] leading-relaxed text-default-400">事中=交易发生时能实时算出(单笔阈值/名单/地址/滑窗累计);事后=要跨时间跨主体聚合,实时算不出(扇入/速度/集中度/链跳)。</p>}
-          </div>
-
-          {/* 结构化条件:IF … 且(AND) … */}
-          <div>
-            <SectionLabel>触发条件 <span className="text-danger">*</span></SectionLabel>
-            <div className={`rounded-xl border p-3 ${errs.has("cond") ? "border-danger/50 ring-2 ring-danger/30" : "border-divider"}`} style={{ background: "var(--default-50, transparent)" }}>
-              <div className="mb-2 flex items-center gap-2"><span className="rounded-md bg-[var(--brand-soft)] px-2 py-0.5 text-[11px] font-bold text-[var(--brand)]">IF</span><span className="text-[11px] text-default-400">满足以下全部条件(AND)</span></div>
-              <div className="flex flex-col gap-2">
-                {clauses.map((c, i) => (
-                  <div key={i}>
-                    {i > 0 && <div className="mb-2 flex items-center gap-2"><span className="rounded bg-default-100 px-1.5 py-0.5 text-[10px] font-bold text-default-500">且 AND</span><span className="h-px flex-1 bg-divider" /></div>}
-                    <div className="flex items-center gap-1.5">
-                      <Select size="sm" aria-label="字段" placeholder="字段" selectedKeys={c.field ? [c.field] : []} className="flex-[2]" classNames={{ trigger: "h-9 min-h-9" }}
-                        onSelectionChange={(k) => setClause(i, { field: Array.from(k as Set<string>)[0] ?? "" })}>
-                        {RULE_FIELDS.map((fld) => <SelectItem key={fld}>{fld}</SelectItem>)}
-                      </Select>
-                      <Select size="sm" aria-label="运算符" placeholder="op" selectedKeys={c.op ? [c.op] : []} className="w-[74px] shrink-0" classNames={{ trigger: "h-9 min-h-9" }}
-                        onSelectionChange={(k) => setClause(i, { op: Array.from(k as Set<string>)[0] ?? "" })}>
-                        {RULE_OPS.map((op) => <SelectItem key={op}>{op}</SelectItem>)}
-                      </Select>
-                      <Input size="sm" aria-label="值" placeholder={c.field ? FIELD_HINT[c.field] ?? "值" : "值"} value={c.value} onValueChange={(v) => setClause(i, { value: v })} className="flex-1" classNames={{ inputWrapper: "h-9 min-h-9" }} />
-                      <button onClick={() => delClause(i)} disabled={clauses.length === 1} className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-default-400 transition-colors hover:bg-default-100 hover:text-danger disabled:opacity-30"><X className="h-4 w-4" /></button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <button onClick={addClause} className="mt-2.5 inline-flex items-center gap-1 text-[12px] font-semibold text-primary hover:opacity-80"><Plus className="h-3.5 w-3.5" />添加条件(AND)</button>
-            </div>
-          </div>
-
-          {/* 命中处置 —— 结果优先,类型卡(借鉴 Fireblocks ALLOW/BLOCK/2-TIER)*/}
-          <div>
-            <SectionLabel>命中处置 <span className="text-danger">*</span></SectionLabel>
-            <div className={`mt-1.5 grid grid-cols-2 gap-2 ${errs.has("outcome") ? "rounded-xl p-1 ring-2 ring-danger/40" : ""}`}>
-              {OUTCOMES.map((o) => {
-                const on = outcomeK === o.k; const Icon = o.icon;
-                return (
-                  <button key={o.k} onClick={() => setOutcomeK(o.k)} className="flex items-start gap-2 rounded-xl border-[1.5px] p-2.5 text-left transition-colors"
-                    style={on ? { borderColor: o.color, background: `color-mix(in srgb, ${o.color} 10%, transparent)` } : offStyle}>
-                    <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg" style={{ background: `color-mix(in srgb, ${o.color} 14%, transparent)`, color: o.color }}><Icon className="h-3.5 w-3.5" /></span>
-                    <span className="min-w-0">
-                      <span className="block text-[12.5px] font-bold" style={on ? { color: o.color } : undefined}>{o.label}</span>
-                      <span className="block text-[10.5px] leading-snug text-default-400">{o.desc}</span>
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-            {/* 评分类 → 内联权重(只在评分处置出现)*/}
-            {scored && (
-              <div className="mt-2 flex items-center gap-2 rounded-xl border border-divider bg-default-50 p-2.5">
-                <span className="text-[12px] font-semibold text-default-600">命中评分权重</span>
-                <Input size="sm" aria-label="权重" placeholder="如 +40" value={weight} onValueChange={setWeight} isInvalid={errs.has("weight")} className="w-[120px]" classNames={{ inputWrapper: "h-8 min-h-8" }} startContent={<span className="text-[12px] text-default-400">+</span>} />
-                <span className="text-[11px] text-default-400">计入综合风险分;权重越高越接近升级 MLRO。</span>
-              </div>
-            )}
-          </div>
-
-          {/* ELSE —— 否则 */}
-          <div className="flex items-center gap-2"><span className="rounded-md bg-default-100 px-2 py-0.5 text-[11px] font-bold text-default-500">ELSE</span>
-            <Select size="sm" aria-label="否则" placeholder="否则(选填)· 默认放行 / 继续监控" selectedKeys={otherwise ? [otherwise] : []} className="flex-1"
-              onSelectionChange={(k) => setOtherwise(Array.from(k as Set<string>)[0] ?? "")}>
-              {RULE_ELSE.map((a) => <SelectItem key={a}>{a}</SelectItem>)}
+          {/* 类别 + 场景同一行,紧凑 */}
+          <div className="flex flex-col gap-4 sm:flex-row">
+            <Select size="sm" label="规则类别" labelPlacement="outside" placeholder="请选择…" isRequired aria-label="规则类别" className="sm:flex-1"
+              selectedKeys={cat ? [cat] : []} isInvalid={errs.has("cat")}
+              onSelectionChange={(k) => pickCat((Array.from(k as Set<string>)[0] as RuCat) ?? "")}>
+              {CATS.map((c) => <SelectItem key={c}>{c}</SelectItem>)}
             </Select>
-          </div>
-
-          {/* 实时可读预览 + 回测预估(借鉴 Fireblocks 规则即一句话)*/}
-          <div className="rounded-xl border border-divider p-3" style={{ background: "var(--brand-soft)" }}>
-            <div className="mb-1.5 text-[10.5px] font-bold uppercase tracking-wider text-[var(--brand)]">规则预览</div>
-            <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[12.5px] leading-relaxed">
-              <span className="rounded bg-[var(--brand)]/15 px-1.5 py-0.5 text-[10px] font-bold text-[var(--brand)]">若</span>
-              <span className="font-semibold text-foreground">{cond || <span className="font-normal text-default-400">…待设置触发条件</span>}</span>
-              <span className="rounded bg-[var(--success-bg)] px-1.5 py-0.5 text-[10px] font-bold text-[var(--success)]">则</span>
-              <span className="font-semibold" style={{ color: oc?.color ?? "var(--text-3)" }}>{action || <span className="font-normal text-default-400">…待选处置</span>}</span>
-              <span className="rounded bg-default-100 px-1.5 py-0.5 text-[10px] font-bold text-default-500">否则</span>
-              <span className="text-default-500">{otherwise || "放行 · 继续监控"}</span>
-            </div>
-            {validClauses.length > 0 && (
-              <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-[var(--brand)]/15 pt-2 text-[11px]">
-                <span className="flex items-center gap-1 font-semibold text-[var(--brand)]"><FlaskConical className="h-3.5 w-3.5" />回测预估 · 近90天</span>
-                <span className="text-default-500">将额外命中 <b className="text-foreground tnum">~{estHit}</b> 笔</span>
-                <span className="text-default-500">预估误报 <b className="tnum" style={{ color: estFp >= 12 ? "var(--warning)" : "var(--text-3)" }}>~{estFp}%</b></span>
-                <span className="text-default-400">演示态估计 · 真实重放见「回测模拟」调阈值</span>
+            <div className="sm:flex-1">
+              <SectionLabel>执行场景 <span className="text-danger">*</span>{cat && !venueTouched && venue && <span className="ml-1.5 font-normal text-default-400">· 按类别建议</span>}</SectionLabel>
+              <div className={`mt-1 grid grid-cols-3 gap-1.5 ${errs.has("venue") ? "rounded-xl p-1 ring-2 ring-danger/40" : ""}`}>
+                {VENUES.map((v) => { const Icon = VENUE_ICON[v]; const on = venue === v; return (
+                  <button key={v} onClick={() => pickVenue(v)} className="flex items-center justify-center gap-1 rounded-lg border-[1.5px] px-1 py-2 text-[11.5px] font-semibold transition-colors"
+                    style={on ? onStyle : offStyle}><Icon className="h-3.5 w-3.5" />{VENUE[v].short}</button>
+                ); })}
               </div>
-            )}
+            </div>
+          </div>
+          {venue && <p className="-mt-1 rounded-xl border border-divider bg-default-50 p-2.5 text-[11px] leading-relaxed text-default-500">{VENUE[venue].hint}</p>}
+
+          {/* ── 规则语句 —— 一句话内联编辑(借鉴 ClickUp When/Then,可点 chip 配置)── */}
+          <div>
+            <SectionLabel>规则语句 <span className="text-danger">*</span></SectionLabel>
+            <div className={`mt-1.5 space-y-3 rounded-xl border p-3.5 ${errs.has("cond") || errs.has("outcome") ? "border-danger/50 ring-2 ring-danger/30" : "border-divider"}`} style={{ background: "var(--default-50, transparent)" }}>
+              {/* 若 … 且 … */}
+              <div className="flex gap-2">
+                <Lbl tone="brand">若</Lbl>
+                <div className="min-w-0 flex-1 space-y-2 pt-0.5">
+                  {clauses.map((c, i) => (
+                    <div key={i} className="flex flex-wrap items-center gap-1.5">
+                      {i > 0 && <span className="text-[11px] font-bold text-default-400">且</span>}
+                      <Chip value={c.field} placeholder="选择字段" options={RULE_FIELDS} invalid={errs.has("cond") && !c.field} onSelect={(v) => setClause(i, { field: v })} />
+                      <Chip value={c.op} placeholder="运算" options={RULE_OPS} invalid={errs.has("cond") && !!c.field && !c.op} onSelect={(v) => setClause(i, { op: v })} />
+                      <input value={c.value} onChange={(e) => setClause(i, { value: e.target.value })} placeholder={c.field ? FIELD_HINT[c.field] ?? "值" : "值"}
+                        className="inline-flex h-8 w-[124px] rounded-lg border-[1.5px] border-divider bg-content1 px-2.5 text-[12.5px] font-semibold text-foreground outline-none transition-colors placeholder:font-normal placeholder:text-default-300 focus:border-[var(--brand)]" />
+                      {clauses.length > 1 && <button onClick={() => delClause(i)} className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-default-400 transition-colors hover:bg-default-100 hover:text-danger"><X className="h-3.5 w-3.5" /></button>}
+                    </div>
+                  ))}
+                  <button onClick={addClause} className="inline-flex items-center gap-1 text-[12px] font-semibold text-primary hover:opacity-80"><Plus className="h-3.5 w-3.5" />添加条件(且 AND)</button>
+                </div>
+              </div>
+
+              {/* 则 … 处置(内联 chip,评分类带权重)*/}
+              <div className="flex items-center gap-2">
+                <Lbl tone="success">则</Lbl>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <Dropdown placement="bottom-start">
+                    <DropdownTrigger>
+                      <button className={`inline-flex h-8 items-center gap-1.5 rounded-lg border-[1.5px] px-2.5 text-[12.5px] font-semibold transition-colors ${oc ? "" : errs.has("outcome") ? "border-danger/60 text-danger" : "border-dashed border-default-300 text-default-400 hover:border-[var(--brand)]"}`}
+                        style={oc ? { borderColor: oc.color, background: `color-mix(in srgb, ${oc.color} 10%, transparent)`, color: oc.color } : undefined}>
+                        {oc ? <><oc.icon className="h-3.5 w-3.5" />{oc.label}</> : "选择处置"}<ChevronDown className="h-3.5 w-3.5 opacity-50" />
+                      </button>
+                    </DropdownTrigger>
+                    <DropdownMenu aria-label="命中处置" onAction={(k) => setOutcomeK(k as OutcomeKey)}>
+                      {OUTCOMES.map((o) => (
+                        <DropdownItem key={o.k} description={o.desc} startContent={<span className="flex h-6 w-6 items-center justify-center rounded-lg" style={{ background: `color-mix(in srgb, ${o.color} 14%, transparent)`, color: o.color }}><o.icon className="h-3.5 w-3.5" /></span>}>{o.label}</DropdownItem>
+                      ))}
+                    </DropdownMenu>
+                  </Dropdown>
+                  {scored && (
+                    <span className="inline-flex items-center gap-1 text-[12px] text-default-500">· 评分
+                      <input value={weight} onChange={(e) => setWeight(e.target.value)} placeholder="+40"
+                        className={`inline-flex h-8 w-[68px] rounded-lg border-[1.5px] bg-content1 px-2.5 text-[12.5px] font-bold text-foreground outline-none transition-colors placeholder:font-normal placeholder:text-default-300 focus:border-[var(--brand)] ${errs.has("weight") ? "border-danger/60" : "border-divider"}`} />
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* 否则 … */}
+              <div className="flex items-center gap-2">
+                <Lbl tone="grey">否则</Lbl>
+                <Chip value={otherwise} placeholder="放行 · 继续监控(默认)" options={RULE_ELSE} onSelect={setOtherwise} />
+              </div>
+
+              {/* 回测预估 —— 条件就绪即显(演示态估计)*/}
+              {validClauses.length > 0 && (
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-divider pt-2.5 text-[11px]">
+                  <span className="flex items-center gap-1 font-semibold text-[var(--brand)]"><FlaskConical className="h-3.5 w-3.5" />回测预估 · 近90天</span>
+                  <span className="text-default-500">将额外命中 <b className="text-foreground tnum">~{estHit}</b> 笔</span>
+                  <span className="text-default-500">预估误报 <b className="tnum" style={{ color: estFp >= 12 ? "var(--warning)" : "var(--text-3)" }}>~{estFp}%</b></span>
+                  <span className="text-default-400">演示态估计 · 真实重放见「回测模拟」调阈值</span>
+                </div>
+              )}
+            </div>
           </div>
 
           {!editing && <p className="rounded-xl border border-divider bg-default-100 p-3 text-[11.5px] leading-relaxed text-default-500">新建规则<b>不直接上线</b> —— 进入「回测中」,回测命中 / 误报达标后提交审批,审批通过才在所选场景生效。</p>}
           {editing && requiresApproval && <p className="rounded-xl border border-divider bg-default-100 p-3 text-[11.5px] leading-relaxed text-default-500">该规则<b>已上线生效</b> —— 改动<b>不直接套到线上</b>,而是提交一份<b>拟议变更</b>交风控总管审批;原版在审批期间照常拦截,批准后才切换并记入版本历史。</p>}
         </DrawerBody>
+
+        {/* 成品句子条 —— 常驻底部,把配好的规则读成一句话(借鉴 ClickUp 底部 When…then… 摘要)*/}
+        <div className="shrink-0 border-t border-divider bg-default-50 px-6 py-2.5">
+          <div className="flex flex-wrap items-center gap-1.5 text-[12px] leading-relaxed">
+            <span className="font-semibold text-default-400">规则</span>
+            <span className="rounded-md bg-[var(--brand-soft)] px-1.5 py-0.5 text-[10.5px] font-bold text-[var(--brand)]">若</span>
+            {validClauses.length ? validClauses.map((c, i) => (
+              <span key={i} className="flex items-center gap-1.5">
+                {i > 0 && <span className="text-[11px] font-bold text-default-400">且</span>}
+                <span className="rounded-md border border-divider bg-content1 px-1.5 py-0.5 text-[11.5px] font-semibold text-foreground">{c.field} {c.op} {c.value}</span>
+              </span>
+            )) : <span className="text-default-300">…设触发条件</span>}
+            <span className="rounded-md bg-[var(--success-bg)] px-1.5 py-0.5 text-[10.5px] font-bold text-[var(--success)]">则</span>
+            {action ? <span className="rounded-md border border-divider bg-content1 px-1.5 py-0.5 text-[11.5px] font-semibold" style={{ color: oc?.color }}>{action}</span> : <span className="text-default-300">…选处置</span>}
+            <span className="rounded-md bg-default-100 px-1.5 py-0.5 text-[10.5px] font-bold text-default-500">否则</span>
+            <span className="rounded-md border border-divider bg-content1 px-1.5 py-0.5 text-[11.5px] font-medium text-default-600">{otherwise || "放行 · 继续监控"}</span>
+          </div>
+        </div>
+
         <DrawerFooter className="border-t border-divider">
           <Button variant="bordered" onPress={() => onOpenChange(false)}>取消</Button>
           <Button color="primary" onPress={submit}>{editing ? (requiresApproval ? "提交变更审批" : "保存修改") : "创建 · 进回测"}</Button>
