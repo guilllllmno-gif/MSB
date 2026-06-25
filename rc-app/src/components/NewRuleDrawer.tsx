@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { toast } from "sonner";
-import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button, Input, Textarea, Select, SelectItem, Checkbox, CheckboxGroup, Slider, Radio, RadioGroup } from "@heroui/react";
+import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button, Input, Select, SelectItem, Checkbox, CheckboxGroup, Slider, Radio, RadioGroup } from "@heroui/react";
 import { Zap, History, Layers, Trash2, Plus, Info, RefreshCw, ListFilter, ShieldCheck, ArrowRight } from "lucide-react";
 import {
   CATS, VENUE, venueOf, RULE_FIELDS, RULE_OPS, OP_LABEL, isAmountField, RULE_SCOPES, RULE_NETWORKS, RULE_ESCALATIONS, RULE_DISPOSITIONS, SEVERITIES,
@@ -144,21 +144,22 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
     onOpenChange(false); onDone?.(rule.id);
   };
 
-  const submitLabel = editing ? (requiresApproval ? "提交变更审批" : "保存修改") : "保存并提交";
+  const submitLabel = editing ? (requiresApproval ? "提交变更审批" : "保存修改") : "创建规则";
 
   return (
     <Modal isOpen={open} onOpenChange={onOpenChange} scrollBehavior="inside" classNames={{ base: "max-w-[1080px] h-[92vh]", header: "border-b border-divider", footer: "border-t border-divider" }}>
       <ModalContent>
-        <ModalHeader className="flex-col items-start gap-0.5 pr-10">
+        <ModalHeader className="flex-col items-start gap-1 pr-10">
           <input value={name} onChange={(e) => setName(e.target.value)} aria-label="规则名称" placeholder={editing ? "规则名称" : "为这条规则命名…"}
             className={`w-full bg-transparent text-[17px] font-bold text-foreground outline-none placeholder:font-semibold ${errs.has("name") ? "placeholder:text-danger" : "placeholder:text-default-300"}`} />
-          <span className="text-[11.5px] font-normal text-default-400">{editing && requiresApproval ? "改动提交审批,原版照常生效" : "定义触发条件、命中动作与风险校验,创建后进入「回测模拟」验证,审批生效后才生效。"}</span>
+          <input value={desc} onChange={(e) => setDesc(e.target.value)} aria-label="规则描述" placeholder="添加规则描述…"
+            className="w-full bg-transparent text-[12px] font-normal text-default-500 outline-none placeholder:text-default-300" />
         </ModalHeader>
 
         <ModalBody className="flex flex-col gap-0 p-0">
           <div className="flex-1 overflow-y-auto px-6 py-5">
             {/* ── 两栏:触发条件 → 命中动作,各列为 头卡 + 虚线连接 + 内容子卡 ── */}
-            <div className="grid items-start gap-2 lg:grid-cols-[1fr_56px_1fr]">
+            <div className="grid gap-2 lg:grid-cols-[1fr_56px_1fr]">
               {/* ═══ 左:触发条件 ═══ */}
               <div className="flex flex-col">
                 <CardHd icon={ListFilter} title="触发条件" right={
@@ -173,8 +174,8 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
 
                 <Connector />
 
-                {/* 事件类型(规则元数据)*/}
-                <SecCard label="事件类型">
+                {/* 规则元数据 */}
+                <SecCard label="规则元数据">
                   <Select size="sm" aria-label="规则类别" placeholder="规则类别" startContent={<Layers className="h-4 w-4 text-default-400" />} selectedKeys={cat ? [cat] : []} isInvalid={errs.has("cat")}
                     classNames={{ trigger: "h-10 min-h-10 bg-default-50" }} onSelectionChange={(k) => pickCat((Array.from(k as Set<string>)[0] as RuCat) ?? "")}>
                     {CATS.map((c) => <SelectItem key={c}>{c}</SelectItem>)}
@@ -189,7 +190,6 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
                       {RULE_NETWORKS.map((nw) => <SelectItem key={nw}>{nw}</SelectItem>)}
                     </Select>
                   </div>
-                  <Textarea size="sm" aria-label="规则描述" minRows={1} placeholder="规则描述(选填):本规则监控的内容与重要原则" value={desc} onValueChange={setDesc} className="mt-2.5" classNames={{ inputWrapper: "bg-default-50" }} />
                 </SecCard>
 
                 <Connector />
@@ -236,9 +236,10 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
                 </div>
               </div>
 
-              {/* ═══ 中:箭头 ═══ */}
-              <div className="hidden items-start justify-center pt-3.5 lg:flex">
-                <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-divider bg-content1 shadow-soft"><ArrowRight className="h-4 w-4 text-default-400" /></span>
+              {/* ═══ 中:全高分隔线 + 箭头 ═══ */}
+              <div className="relative hidden lg:block">
+                <span className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-divider" />
+                <span className="relative mx-auto mt-3.5 flex h-9 w-9 items-center justify-center rounded-xl border border-divider bg-content1 shadow-soft"><ArrowRight className="h-4 w-4 text-default-400" /></span>
               </div>
 
               {/* ═══ 右:命中动作 ═══ */}
@@ -264,8 +265,8 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
                 {/* 动作执行:处置动作 + 折入 升级路径/严重度/权重 */}
                 <SecCard label="动作执行">
                   <div className="text-[12.5px] font-semibold text-default-600">处置动作 <span className="text-danger">*</span></div>
-                  <CheckboxGroup value={actions} onValueChange={setActions} isDisabled={mode === "score"} orientation="horizontal"
-                    className={`mt-2 ${errs.has("actions") ? "rounded-xl p-1 ring-2 ring-danger/40" : ""}`} classNames={{ wrapper: "gap-x-5 gap-y-2.5" }}>
+                  <CheckboxGroup value={actions} onValueChange={setActions} isDisabled={mode === "score"}
+                    className={`mt-2 ${errs.has("actions") ? "rounded-xl p-1 ring-2 ring-danger/40" : ""}`} classNames={{ wrapper: "grid grid-cols-2 gap-x-4 gap-y-2.5" }}>
                     {RULE_DISPOSITIONS.map((d) => <Checkbox key={d} value={d} size="sm" classNames={{ label: "text-[12.5px]" }}>{d}</Checkbox>)}
                   </CheckboxGroup>
                   {mode === "score" && <p className="mt-1.5 text-[11px] text-default-400">「仅评分」模式不执行处置动作,仅按权重累加风险分。</p>}
