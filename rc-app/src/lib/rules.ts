@@ -227,7 +227,14 @@ export type Joiner = "AND" | "OR";
 // 新增规则界面的下拉选项
 export const RULE_SCOPES = ["充值通用", "提现", "兑换 · 币币", "On-ramp · 法币买币", "Off-ramp · 卖币出金", "全部业务线"];
 export const RULE_NETWORKS = ["全部网络", "Bitcoin", "Ethereum", "Tron", "Solana", "BSC", "Polygon"];
-export const RULE_DISPOSITIONS = ["智能入账(转人工审核)", "冻结资金并升级 MLRO", "要求补充材料", "拒绝交易", "仅记录"];
+// 处置 = 单一终态结果(一笔交易只能落到一个最终状态)。按严格度降序排列。
+export const RULE_DISPOSITIONS = ["拒绝交易", "冻结资金并升级 MLRO", "要求补充材料", "智能入账(转人工审核)", "仅记录"];
+// 终态严格度排序(唯一真值来源):跨规则「最严生效」+ 旧多选规则迁移为单选时都取此最大值。数字越大越严。
+export const DISPOSITION_RANK: Record<string, number> = {
+  "拒绝交易": 5, "冻结资金并升级 MLRO": 4, "要求补充材料": 3, "智能入账(转人工审核)": 2, "仅记录": 1,
+};
+export const strictestDisposition = (ds: string[]) =>
+  ds.slice().sort((a, b) => (DISPOSITION_RANK[b] ?? 0) - (DISPOSITION_RANK[a] ?? 0))[0] || "";
 // 运算符的中文标签(下拉里显示更直白)
 export const OP_LABEL: Record<string, string> = { "≥": "≥ 大于等于", "≤": "≤ 小于等于", ">": "> 大于", "<": "< 小于", "=": "= 等于", "≠": "≠ 不等于", "命中": "命中", "包含": "包含" };
 // 金额类字段(取值带 $ / CAD 装饰)

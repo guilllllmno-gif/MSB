@@ -1,11 +1,11 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { toast } from "sonner";
-import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button, Input, Select, SelectItem, Checkbox, CheckboxGroup, Slider, Radio, RadioGroup } from "@heroui/react";
+import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button, Input, Select, SelectItem, Checkbox, Slider, Radio, RadioGroup } from "@heroui/react";
 import { Zap, History, Layers, Trash2, Plus, Info, RefreshCw, ListFilter, ShieldCheck, ArrowRight, Clock, CalendarClock, PlayCircle, CheckCircle2, XCircle, MinusCircle } from "lucide-react";
 import { REPLAY_TXNS, evalRule, type RuleEval } from "@/lib/replay";
 import {
   CATS, VENUE, venueOf, RULE_FIELDS, RULE_OPS, OP_LABEL, isAmountField, isWindowedField, WINDOW_OPTS, CUSTOM_WINDOW, isCustomWindow, isNumericField, RULE_BASES, clauseText, groupsText, isTiered, TIER_DIMS, TIER_KEYS, RULE_SCOPES, RULE_NETWORKS, RULE_DISPOSITIONS,
-  ACTION_BYS, actionTiersText, ruleFieldDiffs, ruleChangeSummary, type RuCat, type Venue, type Rule, type Clause, type ClauseGroup, type ClauseTiers, type Basis, type RuleMode, type Joiner,
+  ACTION_BYS, actionTiersText, strictestDisposition, ruleFieldDiffs, ruleChangeSummary, type RuCat, type Venue, type Rule, type Clause, type ClauseGroup, type ClauseTiers, type Basis, type RuleMode, type Joiner,
 } from "@/lib/rules";
 import { ruleStore } from "@/lib/store";
 
@@ -83,12 +83,13 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
   // ⑦ 单笔回放
   const [replayId, setReplayId] = useState(REPLAY_TXNS[0].id);
   const [replay, setReplay] = useState<RuleEval | null>(null);
+  const [replayAction, setReplayAction] = useState("");
   const [errs, setErrs] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!open) return;
     /* eslint-disable react-hooks/set-state-in-effect */
-    setErrs(new Set()); setReplay(null); setReplayId(REPLAY_TXNS[0].id);
+    setErrs(new Set()); setReplay(null); setReplayAction(""); setReplayId(REPLAY_TXNS[0].id);
     if (editRule) {
       setName(editRule.name); setCat(editRule.cat); setVenue(editRule.venue || venueOf(editRule)); setVenueTouched(true);
       setScope(editRule.scope || RULE_SCOPES[0]); setNetwork(editRule.network || "全部网络"); setDesc(editRule.desc || "");
@@ -96,7 +97,8 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
       setGroups(editRule.groups?.length ? editRule.groups.map((g) => ({ joiner: g.joiner, clauses: g.clauses.map((c) => ({ ...c })) }))
         : [{ joiner: editRule.joiner || "AND", clauses: editRule.clauses?.length ? editRule.clauses.map((c) => ({ ...c })) : [{ field: "", op: "", value: "" }] }]);
       setOuterJoiner(editRule.outerJoiner || "OR");
-      setActions(editRule.actions?.length ? editRule.actions : (editRule.action ? [editRule.action] : []));
+      // 处置已是单选;旧多选规则按严格度收敛为唯一终态结果
+      setActions(editRule.actions?.length ? [strictestDisposition(editRule.actions)] : []);
       setActionTiered(!!editRule.actionTiers); setActionBy(editRule.actionTiers?.by || "金额");
       setActionRows(editRule.actionTiers?.rows.length ? editRule.actionTiers.rows.map((r) => ({ ...r })) : [{ from: "", action: "" }]);
       setWeight(Math.abs(parseInt(editRule.weight.replace(/[^0-9]/g, ""), 10)) || 30);
@@ -156,7 +158,20 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
   const runReplay = () => {
     if (!flatValid.length) { toast.error("请先至少配置一条完整条件"); return; }
     const tx = REPLAY_TXNS.find((t) => t.id === replayId)!;
-    setReplay(evalRule(groups, outerJoiner, tx));
+    const r = evalRule(groups, outerJoiner, tx);
+    // 命中后这笔实际落哪个处置:阶梯→按本笔金额/分数命中的最高档;否则单一终态/评分
+    let disp = "";
+    if (r.hit) {
+      if (tiersOn && validActionRows.length) {
+        const metric = actionBy === "金额" ? (tx.vals["单笔金额 (CAD)"] ?? 0) : (tx.vals["综合风险评分"] ?? 0);
+        const n = (s: string) => parseFloat(s.replace(/,/g, "")) || 0;
+        const sat = validActionRows.filter((x) => n(x.from) <= metric);
+        const band = (sat.length ? sat : validActionRows).reduce((best, x) => (n(x.from) > n(best.from) ? x : best));
+        disp = `${band.action} · 命中 ≥${actionBy === "金额" ? "$" : ""}${band.from}${actionBy === "风险分" ? " 分" : ""} 档`;
+      } else if (mode === "score") disp = `评分 ${w}`;
+      else disp = actions[0] || "";
+    }
+    setReplay(r); setReplayAction(disp);
   };
 
   const submit = () => {
@@ -406,6 +421,9 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
                         {replay.hit ? <XCircle className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
                         {replay.hit ? "命中 · 此规则会对这笔交易触发处置" : "未命中 · 此规则不会触发"}
                       </div>
+                      {replay.hit && replayAction && (
+                        <p className="mb-2.5 text-[11.5px] text-default-600"><b>本规则终态处置:</b>{replayAction}<span className="mt-0.5 block text-[10.5px] text-default-400">多条规则同时命中时,跨规则取最严处置(本原型仅回放当前这条)。</span></p>
+                      )}
                       <div className="flex flex-col gap-2">
                         {replay.groups.map((g, gi) => (
                           <div key={gi} className={replay.groups.length > 1 ? "rounded-xl border border-divider bg-default-50 p-2" : ""}>
@@ -491,12 +509,14 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
                       <p className="mt-1.5 text-[10.5px] leading-snug text-default-400">区间为下限,自高到低匹配:命中最高满足档的处置(如 ≥$50k 用冻结、否则 ≥$9k 用转研判)。</p>
                     </div>
                   ) : (
-                    <CheckboxGroup value={actions} onValueChange={setActions} isDisabled={mode === "score"}
+                    <RadioGroup value={actions[0] ?? ""} onValueChange={(v) => setActions([v])} isDisabled={mode === "score"}
                       className={`mt-2 ${errs.has("actions") ? "rounded-xl p-1 ring-2 ring-danger/40" : ""}`} classNames={{ wrapper: "grid grid-cols-2 gap-x-4 gap-y-2.5" }}>
-                      {RULE_DISPOSITIONS.map((d) => <Checkbox key={d} value={d} size="sm" classNames={{ label: "text-[12.5px]" }}>{d}</Checkbox>)}
-                    </CheckboxGroup>
+                      {RULE_DISPOSITIONS.map((d) => <Radio key={d} value={d} size="sm" classNames={{ label: "text-[12.5px]" }}>{d}</Radio>)}
+                    </RadioGroup>
                   )}
-                  {mode === "score" && <p className="mt-1.5 text-[11px] text-default-400">「仅评分」模式不执行处置动作,仅按权重累加风险分。</p>}
+                  {mode === "score"
+                    ? <p className="mt-1.5 text-[11px] text-default-400">「仅评分」模式不执行处置动作,仅按权重累加风险分。</p>
+                    : !tiersOn && <p className="mt-1.5 text-[11px] text-default-400">单一终态结果(一笔只能落一个最终状态);多条规则命中时跨规则取最严者。</p>}
 
                   {/* 风险权重(累加至评分,跨规则聚合裁决用)*/}
                   <div className="mt-4 border-t border-divider pt-4">
