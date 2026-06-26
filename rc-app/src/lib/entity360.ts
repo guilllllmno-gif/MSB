@@ -318,13 +318,35 @@ const MERCHANT_TAGS_RAW: { name: string; tags: string[] }[] = [
   { name: "Harbor Pay Co.", tags: ["加密 ATM 运营商"] },
 ];
 export const merchantTags = (name: string): string[] => MERCHANT_TAGS_RAW.find((m) => sameEntity(m.name, name))?.tags ?? [];
+
+// 模型自动识别建议标签:从商户跨模块足迹的行为特征确定性推断业务模式 → 给「建议标签(待确认)」,人工确认后才生效。
+// 演示态规则式映射;真实系统走特征模型 + 阈值,落人工复核队列。
+export interface TagSuggestion { tag: string; reason: string; conf: "高" | "中" }
+export function suggestTags(name: string): TagSuggestion[] {
+  const fp = footprint(name);
+  const blob = [
+    ...fp.alerts.flatMap((a) => [a.title, a.ruleShort, a.traceNote, a.network, ...a.factors.map((f) => f.title + f.desc), ...a.trace.map((t) => t[0])]),
+    ...fp.findings.map((f) => `${f.pattern} ${f.hit}`),
+  ].join(" ");
+  const has = (...kw: string[]) => kw.some((k) => blob.includes(k));
+  const cp = linkedAddresses(name).length;
+  const out: TagSuggestion[] = [];
+  if (has("跨链", "隐私币", "混币器", "Tornado", "桥"))
+    out.push({ tag: "DeFi / 跨链协议类", reason: "出现混币器 / 跨链桥 / 隐私币关联,疑似 DeFi · 跨链中转", conf: "中" });
+  if (has("拆分", "结构化", "高频", "归集", "扇入"))
+    out.push({ tag: "加密 ATM 运营商", reason: "频繁小额拆分 / 多方归集式入金,疑似现金对敲 · ATM 归集", conf: "中" });
+  if (has("快进快出", "过水", "快速提现") || cp >= 2)
+    out.push({ tag: "OTC 柜台 / 交易所类", reason: `快进快出过水${cp >= 2 ? ` · ${cp} 个对手地址` : ""},疑似 OTC · 交易所中转`, conf: cp >= 2 ? "高" : "中" });
+  return out;
+}
 // 高风险辖区(派生用,非穷举);命中即满足规则的「高风险辖区注册」定向。
 const HIGH_RISK_JURIS = new Set(["开曼群岛", "巴拿马", "塞舌尔", "英属维尔京群岛", "伊朗", "朝鲜"]);
 
 // 一个商户实际跑哪些规则:法定核心(制裁 / 名单,所有商户恒跑)+ 定向命中(audience 空或匹配)+ 不适用(audience 设定但不匹配)。
 export interface ApplicableRules { tags: string[]; core: Rule[]; targeted: Rule[]; excluded: Rule[] }
-export function applicableRules(m: { name: string; risk: number; country: string; white: boolean; kybIncomplete: boolean }): ApplicableRules {
-  const tags = merchantTags(m.name);
+// tags = 该商户「已确认」的业务模式标签(种子 + 人工确认),由页面传入(叠加 tagStore);applicableRules 本身保持纯派生。
+export function applicableRules(m: { name: string; risk: number; country: string; white: boolean; kybIncomplete: boolean; tags: string[] }): ApplicableRules {
+  const tags = m.tags;
   const match = (a: string) =>
     a === "高风险商户(风险分 ≥80)" ? m.risk >= 80
       : a === "新户 / KYB 未完成" ? m.kybIncomplete

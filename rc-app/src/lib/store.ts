@@ -273,3 +273,24 @@ export const caseStore = {
 export function useCaseVersion() {
   return useSyncExternalStore(caseStore.subscribe, caseStore.getVersion, caseStore.getVersion);
 }
+
+// ── 商户业务模式标签:模型自动识别 → 人工确认。确认态存内存(刷新重置),按归一化键存,跨名字写法一致 ──
+import { entityKeys } from "./entity360";
+let tagVersion = 0;
+const tagListeners = new Set<() => void>();
+const tagNotify = () => { tagVersion++; tagListeners.forEach((l) => l()); };
+const tagConfirmed: Record<string, string[]> = {};
+const tagDismissed: Record<string, string[]> = {};
+const tagKey = (name: string) => entityKeys(name)[0] || name;
+export const tagStore = {
+  subscribe(cb: () => void) { tagListeners.add(cb); return () => { tagListeners.delete(cb); }; },
+  getVersion() { return tagVersion; },
+  confirmedOf(name: string) { return tagConfirmed[tagKey(name)] || []; },
+  dismissedOf(name: string) { return tagDismissed[tagKey(name)] || []; },
+  confirm(name: string, tag: string) { const k = tagKey(name); tagConfirmed[k] = [...new Set([...(tagConfirmed[k] || []), tag])]; tagDismissed[k] = (tagDismissed[k] || []).filter((t) => t !== tag); tagNotify(); },
+  remove(name: string, tag: string) { const k = tagKey(name); tagConfirmed[k] = (tagConfirmed[k] || []).filter((t) => t !== tag); tagNotify(); },
+  dismiss(name: string, tag: string) { const k = tagKey(name); tagDismissed[k] = [...new Set([...(tagDismissed[k] || []), tag])]; tagNotify(); },
+};
+export function useTagVersion() {
+  return useSyncExternalStore(tagStore.subscribe, tagStore.getVersion, tagStore.getVersion);
+}

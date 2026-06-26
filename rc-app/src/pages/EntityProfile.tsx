@@ -2,18 +2,18 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Button, Input, Select, SelectItem, Popover, PopoverTrigger, PopoverContent } from "@heroui/react";
-import { Search, Bell, Network, FolderOpen, ArrowUpRight, ArrowLeft, ShieldAlert, Store, Layers, Building2, Lock, AlertOctagon, TrendingUp, TrendingDown, Minus, UserPlus, Send, Clock3, Sparkles, GitMerge, Globe, IdCard } from "lucide-react";
+import { Search, Bell, Network, FolderOpen, ArrowUpRight, ArrowLeft, ShieldAlert, Store, Layers, Building2, Lock, AlertOctagon, TrendingUp, TrendingDown, Minus, UserPlus, Send, Clock3, Sparkles, GitMerge, Globe, IdCard, X } from "lucide-react";
 import { Shell, PageHead } from "@/components/Shell";
 import { Pill, SoftChip, Initials, toneVar } from "@/components/bits";
 import { Timeline } from "@/components/Timeline";
-import { directory, footprint, totalExposure, fmtCAD, entityType, sameEntity, linkedAddresses, applicableRules, type DirEntry, type Pending } from "@/lib/entity360";
+import { directory, footprint, totalExposure, fmtCAD, entityType, sameEntity, linkedAddresses, applicableRules, merchantTags, suggestTags, type DirEntry, type Pending } from "@/lib/entity360";
 import { RC_STATES, type Tone } from "@/lib/data";
 import { type Rule } from "@/lib/rules";
 import { FSTATES, FDIM } from "@/lib/findings";
 import { CSTATE, type CState } from "@/lib/cases";
 import { RSTATE } from "@/lib/reports";
 import { RING_STATES } from "@/lib/rings";
-import { alertStore, useAlertVersion, findingStore, useFindingVersion, caseStore, useCaseVersion, reportStore, useReportVersion, ringStore, useRingVersion } from "@/lib/store";
+import { alertStore, useAlertVersion, findingStore, useFindingVersion, caseStore, useCaseVersion, reportStore, useReportVersion, ringStore, useRingVersion, tagStore, useTagVersion } from "@/lib/store";
 
 const MOD_LABEL: Record<string, string> = { alerts: "告警", findings: "事后", rings: "团伙", cases: "案件", reports: "报送" };
 type ModCount = { alerts: number; findings: number; rings: number; cases: number; reports: number };
@@ -66,10 +66,17 @@ function Profile({ name }: { name: string }) {
   const country = a0?.country ?? dir?.country ?? "—";
   const vol30 = a0?.custHistory?.vol30 ?? dir?.vol30 ?? "—";
 
+  // 业务模式标签:种子 + 人工确认(tagStore);模型自动识别给「建议标签(待确认)」
+  useTagVersion();
+  const confirmedTags = useMemo(() => [...new Set([...merchantTags(name), ...tagStore.confirmedOf(name)])], [name]);
+  const suggestions = useMemo(
+    () => (type === "商户" ? suggestTags(name).filter((s) => !confirmedTags.includes(s.tag) && !tagStore.dismissedOf(name).includes(s.tag)) : []),
+    [type, name, confirmedTags],
+  );
   // 适用规则:这个商户实际跑哪些规则 —— 法定核心(恒跑)+ 定向命中(audience 匹配)+ 不适用(定向未中)
   const applic = useMemo(
-    () => (type === "商户" ? applicableRules({ name, risk: riskNum, country, white: dir?.acct.key === "white", kybIncomplete: !!a0?.kyb?.includes("未完成") }) : null),
-    [type, name, riskNum, country, dir, a0],
+    () => (type === "商户" ? applicableRules({ name, risk: riskNum, country, white: dir?.acct.key === "white", kybIncomplete: !!a0?.kyb?.includes("未完成"), tags: confirmedTags }) : null),
+    [type, name, riskNum, country, dir, a0, confirmedTags],
   );
 
   // 关联主体(带关联强度 + 硬证据依据)—— 同团伙成员(取两者共享边的具体 note,即"凭什么是一伙")+ 同案商户子主体
@@ -217,9 +224,30 @@ function Profile({ name }: { name: string }) {
             {applic && (
               <div className="mt-4 border-t border-default-100 pt-3">
                 <div className="mb-2 text-[11px] font-semibold text-default-400">业务模式标签</div>
-                {applic.tags.length
-                  ? <div className="flex flex-wrap gap-1.5">{applic.tags.map((t) => <Pill key={t} tone="violet" dot={false}>{t}</Pill>)}</div>
-                  : <p className="text-[11.5px] text-default-400">未分类(业务模式靠开户分类打标签;风险 / KYC / 辖区为派生,不打标签)</p>}
+                {confirmedTags.length
+                  ? <div className="flex flex-wrap gap-1.5">{confirmedTags.map((t) => (
+                      <span key={t} className="inline-flex items-center gap-1 rounded-full bg-[color-mix(in_srgb,var(--violet)_14%,transparent)] px-2 py-0.5 text-[11.5px] font-semibold text-[var(--violet)]">{t}
+                        <button onClick={() => tagStore.remove(name, t)} aria-label="移除标签" className="opacity-60 hover:opacity-100"><X className="h-3 w-3" /></button>
+                      </span>
+                    ))}</div>
+                  : <p className="text-[11.5px] text-default-400">未分类(业务模式靠开户分类 / 模型识别打标签;风险 / KYC / 辖区为派生,不打)</p>}
+                {suggestions.length > 0 && (
+                  <div className="mt-2.5 rounded-xl border border-dashed border-[var(--violet)]/40 bg-[color-mix(in_srgb,var(--violet)_5%,transparent)] p-2.5">
+                    <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-bold text-[var(--violet)]"><Sparkles className="h-3.5 w-3.5" />模型识别 · 建议标签(待确认)</div>
+                    <div className="flex flex-col gap-1.5">
+                      {suggestions.map((s) => (
+                        <div key={s.tag} className="flex items-center gap-2">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5 text-[12px] font-semibold"><span className="truncate">{s.tag}</span><span className="shrink-0 rounded bg-default-100 px-1 text-[10px] font-medium text-default-500">置信 {s.conf}</span></div>
+                            <div className="truncate text-[10.5px] text-default-400">{s.reason}</div>
+                          </div>
+                          <Button size="sm" variant="flat" color="secondary" className="h-7 shrink-0 text-[11px]" onPress={() => { tagStore.confirm(name, s.tag); toast.success(`已确认标签「${s.tag}」`); }}>确认</Button>
+                          <button onClick={() => tagStore.dismiss(name, s.tag)} className="shrink-0 text-[11px] text-default-400 hover:text-default-600">忽略</button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
