@@ -8,7 +8,7 @@ import { Pill, Initials } from "@/components/bits";
 import { Timeline } from "@/components/Timeline";
 import { NewRuleDrawer } from "@/components/NewRuleDrawer";
 import { RuleBacktestDrawer } from "@/components/RuleBacktestDrawer";
-import { RULES, RUSTATE, CAT_ICON, VENUE, venueOf, bfrMeta, bfrDefault, condText, seedVersions, ruleFieldDiffs, type Rule, type RuState, type RuleVersion } from "@/lib/rules";
+import { RULES, RUSTATE, CAT_ICON, VENUE, venueOf, bfrMeta, bfrDefault, condText, groupsText, seedVersions, ruleFieldDiffs, type Rule, type RuState, type RuleVersion } from "@/lib/rules";
 import { FINDINGS } from "@/lib/findings";
 import { findingStore, ruleStore, useRuleVersion, useFindingVersion } from "@/lib/store";
 import type { Person } from "@/lib/data";
@@ -339,7 +339,7 @@ export default function RuleDetail() {
             <div className="mb-2 text-[11px] font-bold uppercase tracking-wider text-default-400">触发条件</div>
             <div className="mb-3 rounded-xl border border-divider bg-default-50 p-3 text-[12px] leading-relaxed">
               <span className="mr-1.5 rounded bg-[var(--brand-soft)] px-1.5 py-0.5 text-[10.5px] font-bold text-[var(--brand)]">IF</span>
-              <span className="font-medium text-default-700">{rule.clauses?.length ? condText(rule.clauses) : rule.cond}</span>
+              <span className="font-medium text-default-700">{rule.groups?.length ? groupsText(rule.groups, rule.outerJoiner || "OR") : rule.clauses?.length ? condText(rule.clauses) : rule.cond}</span>
               <span className="ml-1.5 rounded bg-[var(--success-bg)] px-1.5 py-0.5 text-[10.5px] font-bold text-[var(--success)]">THEN</span>
               <span className="font-medium text-default-700"> {rule.action}</span>
               {rule.otherwise && <><span className="ml-1.5 rounded bg-default-100 px-1.5 py-0.5 text-[10.5px] font-bold text-default-500">ELSE</span><span className="text-default-600"> {rule.otherwise}</span></>}

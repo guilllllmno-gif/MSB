@@ -87,6 +87,18 @@ export const clauseText = (c: Clause) => {
 };
 export const condText = (cs: Clause[]) => cs.filter((c) => c.field && c.op && c.value).map(clauseText).join(" 且 ");
 
+// ── ② AND/OR 一层嵌套子组:(A 且 B) 或 (C 且 D) —— 一条规则覆盖多条独立可疑路径,不必拆成多条规则 ──
+// 单子组退化为普通 clauses(向后兼容);多子组时存 groups + outerJoiner,condText 自动加括号渲染。
+export interface ClauseGroup { joiner: Joiner; clauses: Clause[] }
+const joinZh = (j: Joiner) => (j === "AND" ? " 且 " : " 或 ");
+export const groupText = (g: ClauseGroup) => g.clauses.filter((c) => c.field && c.op && c.value).map(clauseText).join(joinZh(g.joiner));
+export const groupsText = (gs: ClauseGroup[], outer: Joiner) => {
+  const live = gs.map((g) => ({ ...g, clauses: g.clauses.filter((c) => c.field && c.op && c.value) })).filter((g) => g.clauses.length);
+  if (!live.length) return "";
+  if (live.length === 1) return groupText(live[0]);
+  return live.map((g) => `(${groupText(g)})`).join(joinZh(outer));
+};
+
 // ── 新建规则:典型 typology 模板(一键预填,从空白起步 → 有起点;借鉴 Fireblocks 的模板化配置)──
 // 与回填闭环的 BFR typology 对齐,但带结构化 clauses(可直接进条件构造器编辑)。
 export interface RuleTemplate { key: string; desc: string; name: string; cat: RuCat; venue: Venue; clauses: Clause[]; action: string; weight: string }
@@ -160,7 +172,7 @@ export const ruleChangeSummary = (diffs: FieldDiff[]) => (diffs.length ? diffs.m
 export interface Rule {
   id: string; name: string; cat: RuCat; venue?: Venue; cond: string; action: string; state: RuState;
   hits30: number; fp30: string; src: string; srcId?: string; to?: string;
-  owner: Person; updated: string; weight: string; backtest?: Backtest; clauses?: Clause[]; otherwise?: string;
+  owner: Person; updated: string; weight: string; backtest?: Backtest; clauses?: Clause[]; groups?: ClauseGroup[]; outerJoiner?: Joiner; otherwise?: string;
   // 新增规则界面补充的可选元数据(向后兼容,内置规则可不填)
   scope?: string; network?: string; desc?: string; mode?: RuleMode; stopScan?: boolean;
   actions?: string[]; escalation?: string; severity?: Severity; joiner?: Joiner;

@@ -3,8 +3,8 @@ import { toast } from "sonner";
 import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button, Input, Select, SelectItem, Checkbox, CheckboxGroup, Slider, Radio, RadioGroup } from "@heroui/react";
 import { Zap, History, Layers, Trash2, Plus, Info, RefreshCw, ListFilter, ShieldCheck, ArrowRight, Clock } from "lucide-react";
 import {
-  CATS, VENUE, venueOf, RULE_FIELDS, RULE_OPS, OP_LABEL, isAmountField, isWindowedField, WINDOW_OPTS, isNumericField, RULE_BASES, clauseText, RULE_SCOPES, RULE_NETWORKS, RULE_ESCALATIONS, RULE_DISPOSITIONS, SEVERITIES,
-  ruleFieldDiffs, ruleChangeSummary, type RuCat, type Venue, type Rule, type Clause, type Basis, type RuleMode, type Severity, type Joiner,
+  CATS, VENUE, venueOf, RULE_FIELDS, RULE_OPS, OP_LABEL, isAmountField, isWindowedField, WINDOW_OPTS, isNumericField, RULE_BASES, clauseText, groupsText, RULE_SCOPES, RULE_NETWORKS, RULE_ESCALATIONS, RULE_DISPOSITIONS, SEVERITIES,
+  ruleFieldDiffs, ruleChangeSummary, type RuCat, type Venue, type Rule, type Clause, type ClauseGroup, type Basis, type RuleMode, type Severity, type Joiner,
 } from "@/lib/rules";
 import { ruleStore } from "@/lib/store";
 
@@ -46,6 +46,16 @@ function SecCard({ label, required, error, children, className }: { label?: Reac
 function Connector() {
   return <div className="flex justify-center py-1.5"><span className="h-4 border-l border-dashed border-default-300" /></div>;
 }
+// AND / OR 胶囊切换(子句内 / 子组间共用)
+function JoinerToggle({ value, onChange }: { value: Joiner; onChange: (j: Joiner) => void }) {
+  return (
+    <div className="flex items-center rounded-lg bg-default-100 p-0.5 text-[11px] font-bold">
+      {(["AND", "OR"] as const).map((j) => (
+        <button key={j} onClick={() => onChange(j)} className={`rounded-md px-2.5 py-0.5 transition-colors ${value === j ? "bg-[var(--brand)] text-white" : "text-default-400"}`}>{j}</button>
+      ))}
+    </div>
+  );
+}
 
 export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresApproval = false }: { open: boolean; onOpenChange: (o: boolean) => void; onDone?: (id?: string) => void; editRule?: Rule | null; requiresApproval?: boolean }) {
   const editing = !!editRule;
@@ -58,8 +68,9 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
   const [desc, setDesc] = useState("");
   const [mode, setMode] = useState<RuleMode>("alert");
   const [stopScan, setStopScan] = useState(true);
-  const [clauses, setClauses] = useState<Clause[]>([{ field: "", op: "", value: "" }]);
-  const [joiner, setJoiner] = useState<Joiner>("AND");
+  // 触发条件 = 一层嵌套子组:groups[gi].clauses 内以 group.joiner 连接,子组之间以 outerJoiner 连接
+  const [groups, setGroups] = useState<ClauseGroup[]>([{ joiner: "AND", clauses: [{ field: "", op: "", value: "" }] }]);
+  const [outerJoiner, setOuterJoiner] = useState<Joiner>("OR");
   const [actions, setActions] = useState<string[]>([]);
   const [escalation, setEscalation] = useState("");
   const [severity, setSeverity] = useState<Severity>("中");
@@ -74,21 +85,28 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
       setName(editRule.name); setCat(editRule.cat); setVenue(editRule.venue || venueOf(editRule)); setVenueTouched(true);
       setScope(editRule.scope || RULE_SCOPES[0]); setNetwork(editRule.network || "全部网络"); setDesc(editRule.desc || "");
       setMode(editRule.mode || "alert"); setStopScan(editRule.stopScan ?? true);
-      setClauses(editRule.clauses?.length ? editRule.clauses.map((c) => ({ ...c })) : [{ field: "", op: "", value: "" }]); setJoiner(editRule.joiner || "AND");
+      setGroups(editRule.groups?.length ? editRule.groups.map((g) => ({ joiner: g.joiner, clauses: g.clauses.map((c) => ({ ...c })) }))
+        : [{ joiner: editRule.joiner || "AND", clauses: editRule.clauses?.length ? editRule.clauses.map((c) => ({ ...c })) : [{ field: "", op: "", value: "" }] }]);
+      setOuterJoiner(editRule.outerJoiner || "OR");
       setActions(editRule.actions?.length ? editRule.actions : (editRule.action ? [editRule.action] : []));
       setEscalation(editRule.escalation || RULE_ESCALATIONS[0]); setSeverity(editRule.severity || "中");
       setWeight(Math.abs(parseInt(editRule.weight.replace(/[^0-9]/g, ""), 10)) || 30);
     } else {
       setName(""); setCat(""); setScope(""); setNetwork("全部网络"); setVenue(""); setVenueTouched(false); setDesc("");
-      setMode("alert"); setStopScan(true); setClauses([{ field: "", op: "", value: "" }]); setJoiner("AND");
+      setMode("alert"); setStopScan(true); setGroups([{ joiner: "AND", clauses: [{ field: "", op: "", value: "" }] }]); setOuterJoiner("OR");
       setActions([]); setEscalation(""); setSeverity("中"); setWeight(40);
     }
     /* eslint-enable react-hooks/set-state-in-effect */
   }, [open, editRule]);
 
-  const setClause = (i: number, patch: Partial<Clause>) => setClauses((cs) => cs.map((c, j) => (j === i ? { ...c, ...patch } : c)));
-  const addClause = () => setClauses((cs) => [...cs, { field: "", op: "", value: "" }]);
-  const delClause = (i: number) => setClauses((cs) => (cs.length > 1 ? cs.filter((_, j) => j !== i) : cs));
+  // 子组 / 子句的增删改(gi = 子组下标,ci = 子句下标)
+  const mutClauses = (gi: number, fn: (cs: Clause[]) => Clause[]) => setGroups((gs) => gs.map((g, j) => (j === gi ? { ...g, clauses: fn(g.clauses) } : g)));
+  const setClause = (gi: number, ci: number, patch: Partial<Clause>) => mutClauses(gi, (cs) => cs.map((c, j) => (j === ci ? { ...c, ...patch } : c)));
+  const addClause = (gi: number) => mutClauses(gi, (cs) => [...cs, { field: "", op: "", value: "" }]);
+  const delClause = (gi: number, ci: number) => mutClauses(gi, (cs) => (cs.length > 1 ? cs.filter((_, j) => j !== ci) : cs));
+  const setGroupJoiner = (gi: number, j: Joiner) => setGroups((gs) => gs.map((g, k) => (k === gi ? { ...g, joiner: j } : g)));
+  const addGroup = () => setGroups((gs) => [...gs, { joiner: "AND", clauses: [{ field: "", op: "", value: "" }] }]);
+  const delGroup = (gi: number) => setGroups((gs) => (gs.length > 1 ? gs.filter((_, j) => j !== gi) : gs));
   const pickCat = (c: RuCat | "") => { setCat(c); if (c && !venueTouched) setVenue(venueOf({ cat: c })); };
 
   // 比较基准:取值框的前/后缀与占位随基准变化(绝对金额→$…CAD;×基线 / 同业群 P / 偏离 σ)
@@ -98,17 +116,18 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
 
   // 窗口型指标必须配窗口才算完整(否则「累计 ≥$9k」无界、无意义)
   const clauseOk = (c: Clause) => !!c.field && !!c.op && !!c.value && (!isWindowedField(c.field) || !!c.window);
-  const validClauses = clauses.filter(clauseOk);
-  const join = joiner === "AND" ? " 且 " : " 或 ";
-  const cond = validClauses.map(clauseText).join(join);
+  const validGroups = groups.map((g) => ({ joiner: g.joiner, clauses: g.clauses.filter(clauseOk) })).filter((g) => g.clauses.length);
+  const multiGroup = validGroups.length > 1;
+  const flatValid = validGroups.flatMap((g) => g.clauses);
+  const cond = groupsText(groups, outerJoiner);
   const w = `+${weight}`;
   const usedActions = mode === "alert" ? actions : [];
   const action = usedActions.length ? usedActions.join(" · ") : mode === "score" ? `评分 ${w}` : "生成告警";
   const h = [...cond].reduce((a, c) => a + c.charCodeAt(0), 0);
-  const estHit = validClauses.length ? (h % 34) + 12 : 0;
-  const estFp = validClauses.length ? (h % 12) + 4 : 0;
+  const estHit = flatValid.length ? (h % 34) + 12 : 0;
+  const estFp = flatValid.length ? (h % 12) + 4 : 0;
 
-  const runRule = () => { if (!validClauses.length) { toast.error("请先至少配置一条完整条件"); return; } toast.success(`已运行 · 近90天预估命中 ~${estHit} 笔 · 误报 ~${estFp}%`); };
+  const runRule = () => { if (!flatValid.length) { toast.error("请先至少配置一条完整条件"); return; } toast.success(`已运行 · 近90天预估命中 ~${estHit} 笔 · 误报 ~${estFp}%`); };
 
   const submit = () => {
     const e = new Set<string>();
@@ -117,7 +136,7 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
     if (!scope) e.add("scope");
     if (!network) e.add("network");
     if (!venue) e.add("venue");
-    if (!validClauses.length) e.add("cond");
+    if (!flatValid.length) e.add("cond");
     if (mode === "alert" && !usedActions.length) e.add("actions");
     if (!escalation) e.add("escalation");
     setErrs(e);
@@ -125,7 +144,8 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
 
     const fields: Partial<Rule> = {
       name: name.trim(), cat: cat as RuCat, venue: venue as Venue, scope, network, desc: desc || undefined,
-      mode, stopScan, cond, clauses: validClauses, joiner, actions: usedActions, escalation, severity, action, weight: w,
+      mode, stopScan, cond, clauses: flatValid, groups: multiGroup ? validGroups : undefined, outerJoiner: multiGroup ? outerJoiner : undefined,
+      joiner: validGroups[0]?.joiner ?? "AND", actions: usedActions, escalation, severity, action, weight: w,
     };
     if (editing && editRule) {
       if (requiresApproval) {
@@ -201,66 +221,88 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
 
                 <Connector />
 
-                {/* 条件标题行 + AND/OR */}
+                {/* 条件标题行(单子组时内联 AND/OR;多子组时 AND/OR 移到各子组头) */}
                 <div className="flex items-center justify-between gap-2 px-1">
-                  <span className="text-[12.5px] font-semibold text-default-600">当交易满足以下{joiner === "AND" ? "全部" : "任一"}条件</span>
-                  <div className="flex items-center rounded-lg bg-default-100 p-0.5 text-[11px] font-bold">
-                    {(["AND", "OR"] as const).map((j) => (
-                      <button key={j} onClick={() => setJoiner(j)} className={`rounded-md px-2.5 py-0.5 transition-colors ${joiner === j ? "bg-[var(--brand)] text-white" : "text-default-400"}`}>{j}</button>
-                    ))}
-                  </div>
+                  <span className="text-[12.5px] font-semibold text-default-600">当交易满足{groups.length > 1 ? "以下任一子组" : `以下${groups[0].joiner === "AND" ? "全部" : "任一"}条件`}</span>
+                  {groups.length === 1 && <JoinerToggle value={groups[0].joiner} onChange={(j) => setGroupJoiner(0, j)} />}
                 </div>
 
-                {/* 条件子卡(每条一卡)*/}
+                {/* 子组(每组内子句以 AND/OR 连;组间以 outerJoiner 连)*/}
                 <div className={`mt-2.5 flex flex-col gap-2.5 ${errs.has("cond") ? "rounded-2xl p-1 ring-2 ring-danger/30" : ""}`}>
-                  {clauses.map((c, i) => (
-                    <SecCard key={i}>
-                      <div className="mb-2.5 flex items-center justify-between">
-                        <span className="text-[12.5px] font-bold text-foreground">条件 {i + 1}</span>
-                        <button onClick={() => delClause(i)} disabled={clauses.length === 1} className="flex h-6 w-6 items-center justify-center rounded-lg text-default-400 transition-colors hover:bg-danger/10 hover:text-danger disabled:opacity-30"><Trash2 className="h-3.5 w-3.5" /></button>
-                      </div>
-                      <Select size="sm" aria-label="运算字段" placeholder="运算字段" selectedKeys={c.field ? [c.field] : []} classNames={{ trigger: "h-10 min-h-10 bg-default-50" }}
-                        onSelectionChange={(k) => { const f = (Array.from(k as Set<string>)[0] as string) ?? ""; setClause(i, { field: f, window: isWindowedField(f) ? (c.window || "24 小时") : undefined, basis: isNumericField(f) ? (c.basis ?? "abs") : undefined }); }}>
-                        {RULE_FIELDS.map((fld) => <SelectItem key={fld}>{fld}</SelectItem>)}
-                      </Select>
-                      {/* 滑动窗口:仅窗口型指标出现 —— 指标与窗口解耦,同一指标可配任意窗口 */}
-                      {isWindowedField(c.field) && (
-                        <div className="mt-2.5 flex items-center gap-2 rounded-xl border border-[var(--brand)]/25 bg-[var(--brand-soft)] px-2.5 py-2">
-                          <Clock className="h-3.5 w-3.5 shrink-0 text-[var(--brand)]" />
-                          <span className="shrink-0 text-[11.5px] font-semibold text-default-600">滑动窗口内</span>
-                          <Select size="sm" aria-label="滑动窗口" placeholder="选窗口" selectedKeys={c.window ? [c.window] : []} className="flex-1"
-                            classNames={{ trigger: "h-8 min-h-8 bg-content1" }} onSelectionChange={(k) => setClause(i, { window: Array.from(k as Set<string>)[0] ?? "" })}>
-                            {WINDOW_OPTS.map((w) => <SelectItem key={w}>{w}</SelectItem>)}
-                          </Select>
+                  {groups.map((g, gi) => (
+                    <div key={gi} className="flex flex-col gap-2.5">
+                      {/* 子组之间的 OR/AND 连接器 */}
+                      {gi > 0 && (
+                        <div className="flex items-center gap-2 py-0.5">
+                          <span className="h-px flex-1 bg-default-200" />
+                          <JoinerToggle value={outerJoiner} onChange={setOuterJoiner} />
+                          <span className="text-[10.5px] font-medium text-default-400">子组之间</span>
+                          <span className="h-px flex-1 bg-default-200" />
                         </div>
                       )}
-                      {/* 比较基准:数值型指标可选 —— 绝对值 / × 自身历史基线 / 同业群 P 百分位 / 偏离均值 σ */}
-                      {isNumericField(c.field) && (
-                        <div className="mt-2.5 flex items-center gap-2">
-                          <span className="shrink-0 text-[11.5px] font-semibold text-default-500">比较基准</span>
-                          <Select size="sm" aria-label="比较基准" selectedKeys={[c.basis ?? "abs"]} className="flex-1" classNames={{ trigger: "h-9 min-h-9 bg-default-50" }}
-                            onSelectionChange={(k) => setClause(i, { basis: ((Array.from(k as Set<string>)[0] as Basis) ?? "abs") })}>
-                            {RULE_BASES.map((b) => <SelectItem key={b.key}>{b.label}</SelectItem>)}
-                          </Select>
+                      {/* 多子组时给每组套一层卡 + 头(子组号 / 内连接 / 删除);单组时无额外卡壳 */}
+                      <div className={groups.length > 1 ? "rounded-2xl border border-divider bg-default-50/60 p-2.5" : "flex flex-col gap-2.5"}>
+                        {groups.length > 1 && (
+                          <div className="mb-2 flex items-center justify-between px-1">
+                            <span className="flex items-center gap-2 text-[12px] font-bold text-default-600">子组 {gi + 1}<span className="text-[10.5px] font-medium text-default-400">组内</span><JoinerToggle value={g.joiner} onChange={(j) => setGroupJoiner(gi, j)} /></span>
+                            <button onClick={() => delGroup(gi)} className="flex items-center gap-1 rounded-lg px-1.5 py-1 text-[11px] font-medium text-default-400 transition-colors hover:bg-danger/10 hover:text-danger"><Trash2 className="h-3.5 w-3.5" />删除子组</button>
+                          </div>
+                        )}
+                        <div className="flex flex-col gap-2.5">
+                          {g.clauses.map((c, ci) => (
+                            <SecCard key={ci}>
+                              <div className="mb-2.5 flex items-center justify-between">
+                                <span className="text-[12.5px] font-bold text-foreground">条件 {ci + 1}</span>
+                                <button onClick={() => delClause(gi, ci)} disabled={g.clauses.length === 1} className="flex h-6 w-6 items-center justify-center rounded-lg text-default-400 transition-colors hover:bg-danger/10 hover:text-danger disabled:opacity-30"><Trash2 className="h-3.5 w-3.5" /></button>
+                              </div>
+                              <Select size="sm" aria-label="运算字段" placeholder="运算字段" selectedKeys={c.field ? [c.field] : []} classNames={{ trigger: "h-10 min-h-10 bg-default-50" }}
+                                onSelectionChange={(k) => { const f = (Array.from(k as Set<string>)[0] as string) ?? ""; setClause(gi, ci, { field: f, window: isWindowedField(f) ? (c.window || "24 小时") : undefined, basis: isNumericField(f) ? (c.basis ?? "abs") : undefined }); }}>
+                                {RULE_FIELDS.map((fld) => <SelectItem key={fld}>{fld}</SelectItem>)}
+                              </Select>
+                              {/* 滑动窗口:仅窗口型指标出现 —— 指标与窗口解耦,同一指标可配任意窗口 */}
+                              {isWindowedField(c.field) && (
+                                <div className="mt-2.5 flex items-center gap-2 rounded-xl border border-[var(--brand)]/25 bg-[var(--brand-soft)] px-2.5 py-2">
+                                  <Clock className="h-3.5 w-3.5 shrink-0 text-[var(--brand)]" />
+                                  <span className="shrink-0 text-[11.5px] font-semibold text-default-600">滑动窗口内</span>
+                                  <Select size="sm" aria-label="滑动窗口" placeholder="选窗口" selectedKeys={c.window ? [c.window] : []} className="flex-1"
+                                    classNames={{ trigger: "h-8 min-h-8 bg-content1" }} onSelectionChange={(k) => setClause(gi, ci, { window: Array.from(k as Set<string>)[0] ?? "" })}>
+                                    {WINDOW_OPTS.map((w) => <SelectItem key={w}>{w}</SelectItem>)}
+                                  </Select>
+                                </div>
+                              )}
+                              {/* 比较基准:数值型指标可选 —— 绝对值 / × 自身历史基线 / 同业群 P 百分位 / 偏离均值 σ */}
+                              {isNumericField(c.field) && (
+                                <div className="mt-2.5 flex items-center gap-2">
+                                  <span className="shrink-0 text-[11.5px] font-semibold text-default-500">比较基准</span>
+                                  <Select size="sm" aria-label="比较基准" selectedKeys={[c.basis ?? "abs"]} className="flex-1" classNames={{ trigger: "h-9 min-h-9 bg-default-50" }}
+                                    onSelectionChange={(k) => setClause(gi, ci, { basis: ((Array.from(k as Set<string>)[0] as Basis) ?? "abs") })}>
+                                    {RULE_BASES.map((b) => <SelectItem key={b.key}>{b.label}</SelectItem>)}
+                                  </Select>
+                                </div>
+                              )}
+                              {isNumericField(c.field) && (c.basis ?? "abs") !== "abs" && <p className="mt-1 px-1 text-[10.5px] leading-snug text-default-400">{baseOf(c).hint}</p>}
+                              <div className="mt-2.5 grid grid-cols-[140px_1fr] gap-2.5">
+                                <Select size="sm" aria-label="运算符" placeholder="运算符" selectedKeys={c.op ? [c.op] : []} classNames={{ trigger: "h-10 min-h-10 bg-default-50" }}
+                                  onSelectionChange={(k) => setClause(gi, ci, { op: Array.from(k as Set<string>)[0] ?? "" })}>
+                                  {RULE_OPS.map((op) => <SelectItem key={op}>{OP_LABEL[op]}</SelectItem>)}
+                                </Select>
+                                <Input size="sm" aria-label="取值" placeholder={baseOf(c).ph} value={c.value} onValueChange={(v) => setClause(gi, ci, { value: v })} classNames={{ inputWrapper: "h-10 min-h-10 bg-default-50" }}
+                                  startContent={valStart(c) ? <span className="text-[12px] text-default-400">{valStart(c)}</span> : undefined}
+                                  endContent={valEnd(c) ? <span className="text-[11px] text-default-400">{valEnd(c)}</span> : undefined} />
+                              </div>
+                            </SecCard>
+                          ))}
+                          {/* 组内 + 添加条件 */}
+                          <button onClick={() => addClause(gi)} className="flex h-8 items-center justify-center gap-1 rounded-xl border border-dashed border-default-300 text-[11.5px] font-medium text-default-500 transition-colors hover:border-[var(--brand)] hover:text-[var(--brand)]"><Plus className="h-3.5 w-3.5" />添加条件</button>
                         </div>
-                      )}
-                      {isNumericField(c.field) && (c.basis ?? "abs") !== "abs" && <p className="mt-1 px-1 text-[10.5px] leading-snug text-default-400">{baseOf(c).hint}</p>}
-                      <div className="mt-2.5 grid grid-cols-[140px_1fr] gap-2.5">
-                        <Select size="sm" aria-label="运算符" placeholder="运算符" selectedKeys={c.op ? [c.op] : []} classNames={{ trigger: "h-10 min-h-10 bg-default-50" }}
-                          onSelectionChange={(k) => setClause(i, { op: Array.from(k as Set<string>)[0] ?? "" })}>
-                          {RULE_OPS.map((op) => <SelectItem key={op}>{OP_LABEL[op]}</SelectItem>)}
-                        </Select>
-                        <Input size="sm" aria-label="取值" placeholder={baseOf(c).ph} value={c.value} onValueChange={(v) => setClause(i, { value: v })} classNames={{ inputWrapper: "h-10 min-h-10 bg-default-50" }}
-                          startContent={valStart(c) ? <span className="text-[12px] text-default-400">{valStart(c)}</span> : undefined}
-                          endContent={valEnd(c) ? <span className="text-[11px] text-default-400">{valEnd(c)}</span> : undefined} />
                       </div>
-                    </SecCard>
+                    </div>
                   ))}
                 </div>
 
-                {/* + 添加条件 */}
+                {/* + 添加子组 / 运行规则 */}
                 <div className="mt-2.5 flex items-center justify-center gap-2">
-                  <button onClick={addClause} className="flex h-9 w-9 items-center justify-center rounded-xl border border-divider bg-content1 text-default-500 shadow-soft transition-colors hover:border-[var(--brand)] hover:text-[var(--brand)]" aria-label="添加条件"><Plus className="h-4 w-4" /></button>
+                  <Button size="sm" variant="bordered" className="h-9 font-semibold" startContent={<Plus className="h-3.5 w-3.5" />} onPress={addGroup}>添加子组</Button>
                   <Button size="sm" color="primary" variant="flat" className="h-9 font-semibold" startContent={<RefreshCw className="h-3.5 w-3.5" />} onPress={runRule}>运行规则</Button>
                 </div>
               </div>
@@ -336,8 +378,15 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
           <div className="shrink-0 border-t border-divider bg-default-50 px-6 py-2.5">
             <div className="flex flex-wrap items-center gap-1.5 text-[12px] leading-relaxed">
               <Cap tone="brand">当</Cap>
-              {validClauses.length ? validClauses.map((c, i) => (
-                <span key={i} className="flex items-center gap-1.5">{i > 0 && <span className="text-[11px] font-bold text-default-400">{joiner === "AND" ? "且" : "或"}</span>}<Tok>{clauseText(c)}</Tok></span>
+              {validGroups.length ? validGroups.map((g, gi) => (
+                <span key={gi} className="flex flex-wrap items-center gap-1.5">
+                  {gi > 0 && <span className="text-[11px] font-bold text-[var(--brand)]">{outerJoiner === "AND" ? "且" : "或"}</span>}
+                  {multiGroup && <span className="text-[12px] font-bold text-default-400">(</span>}
+                  {g.clauses.map((c, ci) => (
+                    <span key={ci} className="flex items-center gap-1.5">{ci > 0 && <span className="text-[11px] font-bold text-default-400">{g.joiner === "AND" ? "且" : "或"}</span>}<Tok>{clauseText(c)}</Tok></span>
+                  ))}
+                  {multiGroup && <span className="text-[12px] font-bold text-default-400">)</span>}
+                </span>
               )) : <span className="text-default-300">…设触发条件</span>}
               <Cap tone="success">则</Cap>
               <Tok>{action}</Tok>
