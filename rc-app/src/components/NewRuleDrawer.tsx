@@ -3,8 +3,8 @@ import { toast } from "sonner";
 import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button, Input, Select, SelectItem, Checkbox, CheckboxGroup, Slider, Radio, RadioGroup } from "@heroui/react";
 import { Zap, History, Layers, Trash2, Plus, Info, RefreshCw, ListFilter, ShieldCheck, ArrowRight, Clock } from "lucide-react";
 import {
-  CATS, VENUE, venueOf, RULE_FIELDS, RULE_OPS, OP_LABEL, isAmountField, isWindowedField, WINDOW_OPTS, CUSTOM_WINDOW, isCustomWindow, isNumericField, RULE_BASES, clauseText, groupsText, RULE_SCOPES, RULE_NETWORKS, RULE_ESCALATIONS, RULE_DISPOSITIONS, SEVERITIES,
-  ruleFieldDiffs, ruleChangeSummary, type RuCat, type Venue, type Rule, type Clause, type ClauseGroup, type Basis, type RuleMode, type Severity, type Joiner,
+  CATS, VENUE, venueOf, RULE_FIELDS, RULE_OPS, OP_LABEL, isAmountField, isWindowedField, WINDOW_OPTS, CUSTOM_WINDOW, isCustomWindow, isNumericField, RULE_BASES, clauseText, groupsText, isTiered, TIER_DIMS, TIER_KEYS, RULE_SCOPES, RULE_NETWORKS, RULE_ESCALATIONS, RULE_DISPOSITIONS, SEVERITIES,
+  ruleFieldDiffs, ruleChangeSummary, type RuCat, type Venue, type Rule, type Clause, type ClauseGroup, type ClauseTiers, type Basis, type RuleMode, type Severity, type Joiner,
 } from "@/lib/rules";
 import { ruleStore } from "@/lib/store";
 
@@ -109,13 +109,22 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
   const delGroup = (gi: number) => setGroups((gs) => (gs.length > 1 ? gs.filter((_, j) => j !== gi) : gs));
   const pickCat = (c: RuCat | "") => { setCat(c); if (c && !venueTouched) setVenue(venueOf({ cat: c })); };
 
+  // ③ 分层阈值:档位表的增删改(仅绝对值基准开放)
+  const mutTiers = (gi: number, ci: number, fn: (t: ClauseTiers) => ClauseTiers) => mutClauses(gi, (cs) => cs.map((c, j) => (j === ci && c.tiers ? { ...c, tiers: fn(c.tiers) } : c)));
+  const toggleTiers = (gi: number, ci: number, c: Clause, on: boolean) => setClause(gi, ci, { tiers: on ? { dim: TIER_DIMS[0], rows: [{ key: "默认", value: c.value || "" }, { key: "", value: "" }] } : undefined });
+  const setTierDim = (gi: number, ci: number, dim: string) => mutTiers(gi, ci, (t) => ({ ...t, dim }));
+  const setTierRow = (gi: number, ci: number, ri: number, patch: Partial<{ key: string; value: string }>) => mutTiers(gi, ci, (t) => ({ ...t, rows: t.rows.map((r, j) => (j === ri ? { ...r, ...patch } : r)) }));
+  const addTierRow = (gi: number, ci: number) => mutTiers(gi, ci, (t) => ({ ...t, rows: [...t.rows, { key: "", value: "" }] }));
+  const delTierRow = (gi: number, ci: number, ri: number) => mutTiers(gi, ci, (t) => (t.rows.length > 1 ? { ...t, rows: t.rows.filter((_, j) => j !== ri) } : t));
+
   // 比较基准:取值框的前/后缀与占位随基准变化(绝对金额→$…CAD;×基线 / 同业群 P / 偏离 σ)
   const baseOf = (c: Clause) => RULE_BASES.find((b) => b.key === (c.basis ?? "abs"))!;
   const valStart = (c: Clause) => ((c.basis ?? "abs") === "abs" ? (isAmountField(c.field) ? "$" : "") : baseOf(c).unitPrefix);
   const valEnd = (c: Clause) => ((c.basis ?? "abs") === "abs" ? (isAmountField(c.field) ? "CAD" : "") : baseOf(c).unitSuffix);
 
-  // 窗口型指标必须配窗口才算完整(否则「累计 ≥$9k」无界、无意义)
-  const clauseOk = (c: Clause) => !!c.field && !!c.op && !!c.value && (!isWindowedField(c.field) || (!!c.window && c.window !== CUSTOM_WINDOW));
+  // 窗口型指标必须配窗口才算完整;分层阈值则至少一档完整(否则「累计 ≥$9k」无界、无意义)
+  const hasValue = (c: Clause) => (isTiered(c) ? c.tiers!.rows.some((r) => r.key && r.value) : !!c.value);
+  const clauseOk = (c: Clause) => !!c.field && !!c.op && hasValue(c) && (!isWindowedField(c.field) || (!!c.window && c.window !== CUSTOM_WINDOW));
   const validGroups = groups.map((g) => ({ joiner: g.joiner, clauses: g.clauses.filter(clauseOk) })).filter((g) => g.clauses.length);
   const multiGroup = validGroups.length > 1;
   const flatValid = validGroups.flatMap((g) => g.clauses);
@@ -256,7 +265,7 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
                                 <button onClick={() => delClause(gi, ci)} disabled={g.clauses.length === 1} className="flex h-6 w-6 items-center justify-center rounded-lg text-default-400 transition-colors hover:bg-danger/10 hover:text-danger disabled:opacity-30"><Trash2 className="h-3.5 w-3.5" /></button>
                               </div>
                               <Select size="sm" aria-label="运算字段" placeholder="运算字段" selectedKeys={c.field ? [c.field] : []} classNames={{ trigger: "h-10 min-h-10 bg-default-50" }}
-                                onSelectionChange={(k) => { const f = (Array.from(k as Set<string>)[0] as string) ?? ""; setClause(gi, ci, { field: f, window: isWindowedField(f) ? (c.window || "24 小时") : undefined, basis: isNumericField(f) ? (c.basis ?? "abs") : undefined }); }}>
+                                onSelectionChange={(k) => { const f = (Array.from(k as Set<string>)[0] as string) ?? ""; setClause(gi, ci, { field: f, window: isWindowedField(f) ? (c.window || "24 小时") : undefined, basis: isNumericField(f) ? (c.basis ?? "abs") : undefined, tiers: undefined }); }}>
                                 {RULE_FIELDS.map((fld) => <SelectItem key={fld}>{fld}</SelectItem>)}
                               </Select>
                               {/* 滑动窗口:仅窗口型指标出现 —— 指标与窗口解耦,同一指标可配任意窗口(含自定义) */}
@@ -286,21 +295,61 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
                                 <div className="mt-2.5 flex items-center gap-2">
                                   <span className="shrink-0 text-[11.5px] font-semibold text-default-500">比较基准</span>
                                   <Select size="sm" aria-label="比较基准" selectedKeys={[c.basis ?? "abs"]} className="flex-1" classNames={{ trigger: "h-9 min-h-9 bg-default-50" }}
-                                    onSelectionChange={(k) => setClause(gi, ci, { basis: ((Array.from(k as Set<string>)[0] as Basis) ?? "abs") })}>
+                                    onSelectionChange={(k) => { const b = (Array.from(k as Set<string>)[0] as Basis) ?? "abs"; setClause(gi, ci, { basis: b, tiers: b === "abs" ? c.tiers : undefined }); }}>
                                     {RULE_BASES.map((b) => <SelectItem key={b.key}>{b.label}</SelectItem>)}
                                   </Select>
                                 </div>
                               )}
                               {isNumericField(c.field) && (c.basis ?? "abs") !== "abs" && <p className="mt-1 px-1 text-[10.5px] leading-snug text-default-400">{baseOf(c).hint}</p>}
-                              <div className="mt-2.5 grid grid-cols-[140px_1fr] gap-2.5">
-                                <Select size="sm" aria-label="运算符" placeholder="运算符" selectedKeys={c.op ? [c.op] : []} classNames={{ trigger: "h-10 min-h-10 bg-default-50" }}
-                                  onSelectionChange={(k) => setClause(gi, ci, { op: Array.from(k as Set<string>)[0] ?? "" })}>
-                                  {RULE_OPS.map((op) => <SelectItem key={op}>{OP_LABEL[op]}</SelectItem>)}
-                                </Select>
-                                <Input size="sm" aria-label="取值" placeholder={baseOf(c).ph} value={c.value} onValueChange={(v) => setClause(gi, ci, { value: v })} classNames={{ inputWrapper: "h-10 min-h-10 bg-default-50" }}
-                                  startContent={valStart(c) ? <span className="text-[12px] text-default-400">{valStart(c)}</span> : undefined}
-                                  endContent={valEnd(c) ? <span className="text-[11px] text-default-400">{valEnd(c)}</span> : undefined} />
-                              </div>
+                              {/* ③ 分层阈值开关:仅数值 + 绝对值基准可分档 */}
+                              {isNumericField(c.field) && (c.basis ?? "abs") === "abs" && (
+                                <Checkbox size="sm" isSelected={isTiered(c)} onValueChange={(on) => toggleTiers(gi, ci, c, on)} className="mt-2" classNames={{ label: "text-[11.5px] text-default-500" }}>按 KYC 等级 / 业务线 / 注册地分档取阈值</Checkbox>
+                              )}
+                              {isTiered(c) ? (
+                                <>
+                                  <div className="mt-2.5 flex items-center gap-2.5">
+                                    <Select size="sm" aria-label="运算符" placeholder="运算符" selectedKeys={c.op ? [c.op] : []} className="w-[140px]" classNames={{ trigger: "h-10 min-h-10 bg-default-50" }}
+                                      onSelectionChange={(k) => setClause(gi, ci, { op: Array.from(k as Set<string>)[0] ?? "" })}>
+                                      {RULE_OPS.map((op) => <SelectItem key={op}>{OP_LABEL[op]}</SelectItem>)}
+                                    </Select>
+                                    <span className="text-[11.5px] text-default-400">按下表分档取阈值</span>
+                                  </div>
+                                  <div className="mt-2 rounded-xl border border-divider bg-default-50 p-2.5">
+                                    <div className="mb-2 flex items-center gap-2">
+                                      <Layers className="h-3.5 w-3.5 shrink-0 text-default-400" />
+                                      <span className="shrink-0 text-[11.5px] font-semibold text-default-600">分层维度</span>
+                                      <Select size="sm" aria-label="分层维度" selectedKeys={[c.tiers!.dim]} className="flex-1" classNames={{ trigger: "h-8 min-h-8 bg-content1" }}
+                                        onSelectionChange={(k) => setTierDim(gi, ci, (Array.from(k as Set<string>)[0] as string) ?? TIER_DIMS[0])}>
+                                        {TIER_DIMS.map((d) => <SelectItem key={d}>{d}</SelectItem>)}
+                                      </Select>
+                                    </div>
+                                    <div className="flex flex-col gap-1.5">
+                                      {c.tiers!.rows.map((r, ri) => (
+                                        <div key={ri} className="flex items-center gap-1.5">
+                                          <Select size="sm" aria-label="档位" placeholder="档位" selectedKeys={r.key ? [r.key] : []} className="flex-1" classNames={{ trigger: "h-8 min-h-8 bg-content1" }}
+                                            onSelectionChange={(k) => setTierRow(gi, ci, ri, { key: (Array.from(k as Set<string>)[0] as string) ?? "" })}>
+                                            {TIER_KEYS[c.tiers!.dim].map((kk) => <SelectItem key={kk}>{kk}</SelectItem>)}
+                                          </Select>
+                                          <Input size="sm" aria-label="阈值" placeholder="阈值" value={r.value} onValueChange={(v) => setTierRow(gi, ci, ri, { value: v })} className="w-[120px]" classNames={{ inputWrapper: "h-8 min-h-8 bg-content1" }}
+                                            startContent={isAmountField(c.field) ? <span className="text-[11px] text-default-400">$</span> : undefined} />
+                                          <button onClick={() => delTierRow(gi, ci, ri)} disabled={c.tiers!.rows.length === 1} className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-default-400 transition-colors hover:bg-danger/10 hover:text-danger disabled:opacity-30"><Trash2 className="h-3.5 w-3.5" /></button>
+                                        </div>
+                                      ))}
+                                    </div>
+                                    <button onClick={() => addTierRow(gi, ci)} className="mt-1.5 flex h-7 w-full items-center justify-center gap-1 rounded-lg border border-dashed border-default-300 text-[11px] font-medium text-default-500 transition-colors hover:border-[var(--brand)] hover:text-[var(--brand)]"><Plus className="h-3 w-3" />添加档位</button>
+                                  </div>
+                                </>
+                              ) : (
+                                <div className="mt-2.5 grid grid-cols-[140px_1fr] gap-2.5">
+                                  <Select size="sm" aria-label="运算符" placeholder="运算符" selectedKeys={c.op ? [c.op] : []} classNames={{ trigger: "h-10 min-h-10 bg-default-50" }}
+                                    onSelectionChange={(k) => setClause(gi, ci, { op: Array.from(k as Set<string>)[0] ?? "" })}>
+                                    {RULE_OPS.map((op) => <SelectItem key={op}>{OP_LABEL[op]}</SelectItem>)}
+                                  </Select>
+                                  <Input size="sm" aria-label="取值" placeholder={baseOf(c).ph} value={c.value} onValueChange={(v) => setClause(gi, ci, { value: v })} classNames={{ inputWrapper: "h-10 min-h-10 bg-default-50" }}
+                                    startContent={valStart(c) ? <span className="text-[12px] text-default-400">{valStart(c)}</span> : undefined}
+                                    endContent={valEnd(c) ? <span className="text-[11px] text-default-400">{valEnd(c)}</span> : undefined} />
+                                </div>
+                              )}
                             </SecCard>
                           ))}
                           {/* 组内 + 添加条件 */}

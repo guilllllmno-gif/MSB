@@ -58,7 +58,18 @@ export interface Backtest { window: string; scanned: string; wouldHit: number; e
 // basis:比较基准 —— 不只绝对值,可对相对基线比较(× 自身历史基线 / 同业群 P 百分位 / 偏离均值 σ),
 // 按「异常程度」抓而非写死固定阈值。复用案件详情已有的 BaselinePair「本次 vs 历史常态」语言。
 export type Basis = "abs" | "self" | "peer" | "sigma";
-export interface Clause { field: string; op: string; value: string; window?: string; basis?: Basis }
+// ③ 分层阈值:同一条件按维度(KYC 等级 / 业务线 / 注册地)取不同阈值 —— 一条规则一张档位表,
+// 不必为「VIP $50k 正常、新户 $5k 就拦」写一堆近乎重复的规则。仅对绝对值基准开放(相对基线已按主体自适应)。
+export interface ClauseTier { key: string; value: string }
+export interface ClauseTiers { dim: string; rows: ClauseTier[] }
+export interface Clause { field: string; op: string; value: string; window?: string; basis?: Basis; tiers?: ClauseTiers }
+export const TIER_DIMS = ["KYC 等级", "业务线", "注册地"];
+export const TIER_KEYS: Record<string, string[]> = {
+  "KYC 等级": ["VIP / 已验证", "标准", "新户 / 未验证", "默认"],
+  "业务线": ["Off-ramp 出金", "On-ramp 入金", "兑换 · 币币", "默认"],
+  "注册地": ["高风险辖区", "标准辖区", "默认"],
+};
+export const isTiered = (c: Clause) => !!c.tiers && c.tiers.rows.length > 0;
 export const RULE_FIELDS = ["单笔金额 (CAD)", "滑窗累计金额 (CAD)", "滑窗笔数", "对手集中度 (%)", "扇入主体数", "KYW 评分", "综合风险评分", "账户休眠天数", "账户年龄 (天)", "地址风险标签", "名单", "跨链 / 隐私币", "KYB 状态"];
 // 窗口型指标:需配一个滑动窗口才有意义(跨时间聚合);其余为即时 / 单笔指标,无窗口。
 export const WINDOWED_FIELDS = ["滑窗累计金额 (CAD)", "滑窗笔数", "对手集中度 (%)", "扇入主体数"];
@@ -81,6 +92,11 @@ export const RULE_ELSE = ["放行 · 无需处置", "继续监控", "加强监�
 // 单条子句可读文本:窗口型指标前缀「⟨窗口⟩内」;相对基准展开为 ×基线 / 同业群 P / 偏离均值 σ。
 export const clauseText = (c: Clause) => {
   const win = c.window ? `${c.window}内 ` : "";
+  if (c.tiers && c.tiers.rows.length) {
+    const amt = isAmountField(c.field);
+    const body = c.tiers.rows.filter((r) => r.key && r.value).map((r) => `${r.key}: ${amt ? "$" : ""}${r.value}`).join(" / ");
+    return `${win}${c.field} ${c.op} 按${c.tiers.dim}分档(${body})`;
+  }
   switch (c.basis) {
     case "self": return `${win}${c.field} ${c.op} 自身历史基线 ×${c.value}`;
     case "peer": return `${win}${c.field} ${c.op} 同业群 P${c.value}`;

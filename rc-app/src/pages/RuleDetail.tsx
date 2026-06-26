@@ -353,7 +353,7 @@ export default function RuleDetail() {
                       <td className="py-2.5 pr-4 font-medium">{c.field}</td>
                       <td className="py-2.5 pr-4 text-default-500">{c.window || "—"}</td>
                       <td className="py-2.5 pr-4 text-primary">{c.op}</td>
-                      <td className="py-2.5 font-semibold tnum">{c.basis === "self" ? `自身基线 ×${c.value}` : c.basis === "peer" ? `同业群 P${c.value}` : c.basis === "sigma" ? `偏离均值 ${c.value}σ` : c.value}</td>
+                      <td className="py-2.5 font-semibold tnum">{c.tiers?.rows.length ? `按${c.tiers.dim}分档(${c.tiers.rows.filter((r) => r.key && r.value).map((r) => `${r.key}: ${r.value}`).join(" / ")})` : c.basis === "self" ? `自身基线 ×${c.value}` : c.basis === "peer" ? `同业群 P${c.value}` : c.basis === "sigma" ? `偏离均值 ${c.value}σ` : c.value}</td>
                     </tr>
                   ))}
                 </tbody>
