@@ -7,6 +7,7 @@ import { rings, type Ring, type RingMember } from "./rings";
 import { CASES, type Case, strLabel, type CState, CSTATE } from "./cases";
 import { REPORTS, type Report } from "./reports";
 import { LISTS } from "./lists";
+import { RULES, type Rule } from "./rules";
 
 // --- 归一化键 ---------------------------------------------------------------
 // 一个名字可能含多个可匹配的「身份」(如报告主体「OffshoreFX Ltd. · 0x7F4a…9c21」= 商户 + 地址),
@@ -308,3 +309,31 @@ export function directory(): DirEntry[] {
 
 // 案件「在办」状态集(派生风险分 / 状态用,与 cases.ts 的 active 口径一致)
 const CASE_ACTIVE = new Set<string>(["investigating", "str_draft", "mlro", "queued", "filed"]);
+
+// --- 商户业务模式标签 + 适用规则解析 ----------------------------------------
+// 标签只打「派生不出来」的业务模式(OTC / ATM / DeFi);风险分 / KYC / 辖区 / 名单都是派生,不打标签。
+const MERCHANT_TAGS_RAW: { name: string; tags: string[] }[] = [
+  { name: "Kraken-U Exchange", tags: ["OTC 柜台 / 交易所类"] },
+  { name: "BlockTrade Corp.", tags: ["OTC 柜台 / 交易所类"] },
+  { name: "Harbor Pay Co.", tags: ["加密 ATM 运营商"] },
+];
+export const merchantTags = (name: string): string[] => MERCHANT_TAGS_RAW.find((m) => sameEntity(m.name, name))?.tags ?? [];
+// 高风险辖区(派生用,非穷举);命中即满足规则的「高风险辖区注册」定向。
+const HIGH_RISK_JURIS = new Set(["开曼群岛", "巴拿马", "塞舌尔", "英属维尔京群岛", "伊朗", "朝鲜"]);
+
+// 一个商户实际跑哪些规则:法定核心(制裁 / 名单,所有商户恒跑)+ 定向命中(audience 空或匹配)+ 不适用(audience 设定但不匹配)。
+export interface ApplicableRules { tags: string[]; core: Rule[]; targeted: Rule[]; excluded: Rule[] }
+export function applicableRules(m: { name: string; risk: number; country: string; white: boolean; kybIncomplete: boolean }): ApplicableRules {
+  const tags = merchantTags(m.name);
+  const match = (a: string) =>
+    a === "高风险商户(风险分 ≥80)" ? m.risk >= 80
+      : a === "新户 / KYB 未完成" ? m.kybIncomplete
+      : a === "高风险辖区注册" ? HIGH_RISK_JURIS.has(m.country)
+      : a === "白名单商户除外" ? !m.white
+      : tags.includes(a); // 业务模式标签
+  const applies = (r: Rule) => !r.audience?.length || r.audience.some(match);
+  const live = RULES.filter((r) => r.state === "live");
+  const core = live.filter((r) => r.cat === "名单筛查"); // 制裁 / 名单硬规则 = 法定核心
+  const rest = live.filter((r) => r.cat !== "名单筛查");
+  return { tags, core, targeted: rest.filter(applies), excluded: rest.filter((r) => !applies(r)) };
+}

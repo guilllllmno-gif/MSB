@@ -6,8 +6,9 @@ import { Search, Bell, Network, FolderOpen, ArrowUpRight, ArrowLeft, ShieldAlert
 import { Shell, PageHead } from "@/components/Shell";
 import { Pill, SoftChip, Initials, toneVar } from "@/components/bits";
 import { Timeline } from "@/components/Timeline";
-import { directory, footprint, totalExposure, fmtCAD, entityType, sameEntity, linkedAddresses, type DirEntry, type Pending } from "@/lib/entity360";
+import { directory, footprint, totalExposure, fmtCAD, entityType, sameEntity, linkedAddresses, applicableRules, type DirEntry, type Pending } from "@/lib/entity360";
 import { RC_STATES, type Tone } from "@/lib/data";
+import { type Rule } from "@/lib/rules";
 import { FSTATES, FDIM } from "@/lib/findings";
 import { CSTATE, type CState } from "@/lib/cases";
 import { RSTATE } from "@/lib/reports";
@@ -64,6 +65,12 @@ function Profile({ name }: { name: string }) {
   const legalForm = name.match(/\b(Ltd|Inc|Corp|LLC|PLC|GmbH|Pte|Co)\b\.?/i)?.[1]; // 从名称派生法律形式(Ltd./Inc./Corp.…)
   const country = a0?.country ?? dir?.country ?? "—";
   const vol30 = a0?.custHistory?.vol30 ?? dir?.vol30 ?? "—";
+
+  // 适用规则:这个商户实际跑哪些规则 —— 法定核心(恒跑)+ 定向命中(audience 匹配)+ 不适用(定向未中)
+  const applic = useMemo(
+    () => (type === "商户" ? applicableRules({ name, risk: riskNum, country, white: dir?.acct.key === "white", kybIncomplete: !!a0?.kyb?.includes("未完成") }) : null),
+    [type, name, riskNum, country, dir, a0],
+  );
 
   // 关联主体(带关联强度 + 硬证据依据)—— 同团伙成员(取两者共享边的具体 note,即"凭什么是一伙")+ 同案商户子主体
   const related = useMemo(() => {
@@ -207,6 +214,14 @@ function Profile({ name }: { name: string }) {
               <Field label="30 日交易额">{vol30}</Field>
               <Field label="KYB">{a0?.kyb ?? "—"}</Field>
             </div>
+            {applic && (
+              <div className="mt-4 border-t border-default-100 pt-3">
+                <div className="mb-2 text-[11px] font-semibold text-default-400">业务模式标签</div>
+                {applic.tags.length
+                  ? <div className="flex flex-wrap gap-1.5">{applic.tags.map((t) => <Pill key={t} tone="violet" dot={false}>{t}</Pill>)}</div>
+                  : <p className="text-[11.5px] text-default-400">未分类(业务模式靠开户分类打标签;风险 / KYC / 辖区为派生,不打标签)</p>}
+              </div>
+            )}
           </div>
 
           {/* 关联网络 */}
@@ -248,6 +263,21 @@ function Profile({ name }: { name: string }) {
             {addrs.length === 0 && related.length === 0 && <div className="py-8 text-center text-[12px] text-default-400">暂无关联地址 / 关联主体</div>}
           </div>
         </div>
+
+        {/* 适用规则:这个商户实际跑哪些规则 —— 法定核心 + 定向命中 + 不适用 */}
+        {applic && (
+          <div className="card p-5">
+            <div className="mb-1 flex flex-wrap items-center gap-2 text-[15px] font-bold"><ShieldAlert className="h-[18px] w-[18px] text-default-400" />适用规则
+              <span className="text-[12px] font-medium text-default-400">法定核心 {applic.core.length} 条 · 定向命中 {applic.targeted.length} 条 · 不适用 {applic.excluded.length} 条</span>
+            </div>
+            <p className="mb-3 text-[11.5px] text-default-400">并非所有商户都跑所有规则:法定核心对全部商户恒生效;其余按规则「适用对象」定向到匹配的商户。</p>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              <RuleBucket title="法定核心 · 恒跑" tone="red" rules={applic.core} nav={nav} note="制裁 / 名单硬规则 + LVCTR,所有商户不可豁免" />
+              <RuleBucket title="定向命中 · 适用" tone="green" rules={applic.targeted} nav={nav} note="audience 为「全部」或匹配本商户" />
+              <RuleBucket title="不适用 · 未定向到" tone="grey" rules={applic.excluded} nav={nav} note="规则定向到其它商户分群,本商户不跑" />
+            </div>
+          </div>
+        )}
 
         {/* 完整事件记录 */}
         <div className="card overflow-hidden">
@@ -345,6 +375,25 @@ function Kpi({ icon: Icon, label, value, sub, tone }: { icon: typeof Store; labe
   );
 }
 const toneSoft = (t: Tone) => `color-mix(in srgb, ${toneVar(t)} 14%, transparent)`;
+
+// ── 适用规则分桶(法定核心 / 定向命中 / 不适用)──
+function RuleBucket({ title, tone, rules, nav, note }: { title: string; tone: Tone; rules: Rule[]; nav: (to: string) => void; note: string }) {
+  return (
+    <div className="rounded-xl border border-default-200 p-3">
+      <div className="mb-1 flex items-center gap-1.5 text-[12.5px] font-bold"><span className="h-2 w-2 rounded-full" style={{ background: toneVar(tone) }} />{title}<span className="text-default-400">({rules.length})</span></div>
+      <p className="mb-2 text-[10.5px] leading-snug text-default-400">{note}</p>
+      {rules.length ? (
+        <div className="flex flex-col gap-1">
+          {rules.map((r) => (
+            <button key={r.id} onClick={() => nav(`/rule?id=${r.id}`)} className="card-hover flex items-center justify-between gap-2 rounded-lg border border-default-100 px-2.5 py-1.5 text-left text-[11.5px]">
+              <span className="truncate font-medium">{r.name}</span><span className="shrink-0 text-default-400">{r.cat}</span>
+            </button>
+          ))}
+        </div>
+      ) : <p className="text-[11px] text-default-300">—</p>}
+    </div>
+  );
+}
 
 // ── 风险分徽标 ──
 function RiskNum({ n }: { n: number }) {

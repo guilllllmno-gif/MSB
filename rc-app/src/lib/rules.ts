@@ -258,7 +258,7 @@ export const RULES: Rule[] = [
   { id: "R-SCR-001", name: "KYW 评分超阈值", cat: "评分模型", cond: "收款钱包 KYW 评分 > 70", action: "评分 +50 · 转研判", state: "live", hits30: 27, fp30: "14%", src: "内置", owner: SC, updated: "2026-05-19", weight: "+50" },
   { id: "R-BHV-001", name: "高频拆分入金(单笔)", cat: "行为模式", cond: "24h 内 ≥5 笔且金额相近", action: "评分 +30 · 转研判", state: "live", hits30: 19, fp30: "21%", src: "内置", owner: JL, updated: "2026-03-28", weight: "+30" },
   { id: "R-BHV-002", name: "快进快出钱包", cat: "行为模式", cond: "入金后 1h 内转出 > 80%", action: "评分 +28 · 加强监控", state: "live", hits30: 15, fp30: "18%", src: "内置", owner: JL, updated: "2026-03-28", weight: "+28" },
-  { id: "R-BHV-003", name: "新商户首充", cat: "行为模式", cond: "商户首笔 且 KYB 未完成", action: "评分 +20 · 待 KYB", state: "live", hits30: 33, fp30: "26%", src: "内置", owner: JL, updated: "2026-04-30", weight: "+20" },
+  { id: "R-BHV-003", name: "新商户首充", cat: "行为模式", cond: "商户首笔 且 KYB 未完成", action: "评分 +20 · 待 KYB", state: "live", hits30: 33, fp30: "26%", src: "内置", owner: JL, updated: "2026-04-30", weight: "+20", audience: ["新户 / KYB 未完成"] },
   { id: "R-CHN-002", name: "高风险地址检测", cat: "链上溯源", cond: "发送方含风险标签", action: "评分 +25", state: "live", hits30: 64, fp30: "11%", src: "内置", owner: SC, updated: "2026-05-03", weight: "+25" },
   // 治理流水线中的提案(展示回测 / 待审批态)
   { id: "R-AGG-009", name: "速度 / 峰值偏离", cat: "统计聚合", cond: "笔频 > 同业群 P95 且 > 自身基线 5×", action: "评分 +25 · 转研判", state: "pending", hits30: 0, fp30: "回测 7%", src: "风控建模 · 提案", owner: RH, updated: "2026-06-18", weight: "+25", backtest: { window: "近 90 天", scanned: "108.4M", wouldHit: 41, estFp: "≈ 7%" } },
