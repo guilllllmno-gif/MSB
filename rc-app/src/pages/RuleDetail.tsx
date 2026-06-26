@@ -111,7 +111,7 @@ export default function RuleDetail() {
   // 规则概要字段
   const summary: [string, React.ReactNode][] = [
     ["触发条件", <span className="text-right">{rule.cond}</span>],
-    ["适用范围", rule.cat === "金额阈值" ? "充值 / 提现" : rule.action.includes("提现") ? "提现" : "全业务线"],
+    ["适用范围", rule.scope || (rule.cat === "金额阈值" ? "充值 / 提现" : rule.action.includes("提现") ? "提现" : "全业务线")],
     ["适用对象", <span className="text-right">{audienceText(rule.audience)}</span>],
     ["执行场景", <Pill tone={ven.tone} dot={false}>{ven.short}</Pill>],
     ["命中动作", rule.action],
