@@ -346,11 +346,12 @@ export default function RuleDetail() {
             </div>
             {rule.clauses?.length ? (
               <table className="w-full text-[12.5px]">
-                <thead><tr className="border-b border-divider text-[11.5px] text-default-400"><th className="py-2 pr-4 text-left font-medium">字段</th><th className="py-2 pr-4 text-left font-medium">运算符</th><th className="py-2 text-left font-medium">阈值 / 取值</th></tr></thead>
+                <thead><tr className="border-b border-divider text-[11.5px] text-default-400"><th className="py-2 pr-4 text-left font-medium">字段</th><th className="py-2 pr-4 text-left font-medium">滑动窗口</th><th className="py-2 pr-4 text-left font-medium">运算符</th><th className="py-2 text-left font-medium">阈值 / 取值</th></tr></thead>
                 <tbody>
                   {rule.clauses.map((c, i) => (
                     <tr key={i} className="border-b border-default-100 last:border-0">
                       <td className="py-2.5 pr-4 font-medium">{c.field}</td>
+                      <td className="py-2.5 pr-4 text-default-500">{c.window || "—"}</td>
                       <td className="py-2.5 pr-4 text-primary">{c.op}</td>
                       <td className="py-2.5 font-semibold tnum">{c.value}</td>
                     </tr>

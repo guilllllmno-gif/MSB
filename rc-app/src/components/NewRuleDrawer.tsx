@@ -1,9 +1,9 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button, Input, Select, SelectItem, Checkbox, CheckboxGroup, Slider, Radio, RadioGroup } from "@heroui/react";
-import { Zap, History, Layers, Trash2, Plus, Info, RefreshCw, ListFilter, ShieldCheck, ArrowRight } from "lucide-react";
+import { Zap, History, Layers, Trash2, Plus, Info, RefreshCw, ListFilter, ShieldCheck, ArrowRight, Clock } from "lucide-react";
 import {
-  CATS, VENUE, venueOf, RULE_FIELDS, RULE_OPS, OP_LABEL, isAmountField, RULE_SCOPES, RULE_NETWORKS, RULE_ESCALATIONS, RULE_DISPOSITIONS, SEVERITIES,
+  CATS, VENUE, venueOf, RULE_FIELDS, RULE_OPS, OP_LABEL, isAmountField, isWindowedField, WINDOW_OPTS, clauseText, RULE_SCOPES, RULE_NETWORKS, RULE_ESCALATIONS, RULE_DISPOSITIONS, SEVERITIES,
   ruleFieldDiffs, ruleChangeSummary, type RuCat, type Venue, type Rule, type Clause, type RuleMode, type Severity, type Joiner,
 } from "@/lib/rules";
 import { ruleStore } from "@/lib/store";
@@ -91,9 +91,11 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
   const delClause = (i: number) => setClauses((cs) => (cs.length > 1 ? cs.filter((_, j) => j !== i) : cs));
   const pickCat = (c: RuCat | "") => { setCat(c); if (c && !venueTouched) setVenue(venueOf({ cat: c })); };
 
-  const validClauses = clauses.filter((c) => c.field && c.op && c.value);
+  // 窗口型指标必须配窗口才算完整(否则「累计 ≥$9k」无界、无意义)
+  const clauseOk = (c: Clause) => !!c.field && !!c.op && !!c.value && (!isWindowedField(c.field) || !!c.window);
+  const validClauses = clauses.filter(clauseOk);
   const join = joiner === "AND" ? " 且 " : " 或 ";
-  const cond = validClauses.map((c) => `${c.field} ${c.op} ${c.value}`).join(join);
+  const cond = validClauses.map(clauseText).join(join);
   const w = `+${weight}`;
   const usedActions = mode === "alert" ? actions : [];
   const action = usedActions.length ? usedActions.join(" · ") : mode === "score" ? `评分 ${w}` : "生成告警";
@@ -213,9 +215,20 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
                         <button onClick={() => delClause(i)} disabled={clauses.length === 1} className="flex h-6 w-6 items-center justify-center rounded-lg text-default-400 transition-colors hover:bg-danger/10 hover:text-danger disabled:opacity-30"><Trash2 className="h-3.5 w-3.5" /></button>
                       </div>
                       <Select size="sm" aria-label="运算字段" placeholder="运算字段" selectedKeys={c.field ? [c.field] : []} classNames={{ trigger: "h-10 min-h-10 bg-default-50" }}
-                        onSelectionChange={(k) => setClause(i, { field: Array.from(k as Set<string>)[0] ?? "" })}>
+                        onSelectionChange={(k) => { const f = (Array.from(k as Set<string>)[0] as string) ?? ""; setClause(i, { field: f, window: isWindowedField(f) ? (c.window || "24 小时") : undefined }); }}>
                         {RULE_FIELDS.map((fld) => <SelectItem key={fld}>{fld}</SelectItem>)}
                       </Select>
+                      {/* 滑动窗口:仅窗口型指标出现 —— 指标与窗口解耦,同一指标可配任意窗口 */}
+                      {isWindowedField(c.field) && (
+                        <div className="mt-2.5 flex items-center gap-2 rounded-xl border border-[var(--brand)]/25 bg-[var(--brand-soft)] px-2.5 py-2">
+                          <Clock className="h-3.5 w-3.5 shrink-0 text-[var(--brand)]" />
+                          <span className="shrink-0 text-[11.5px] font-semibold text-default-600">滑动窗口内</span>
+                          <Select size="sm" aria-label="滑动窗口" placeholder="选窗口" selectedKeys={c.window ? [c.window] : []} className="flex-1"
+                            classNames={{ trigger: "h-8 min-h-8 bg-content1" }} onSelectionChange={(k) => setClause(i, { window: Array.from(k as Set<string>)[0] ?? "" })}>
+                            {WINDOW_OPTS.map((w) => <SelectItem key={w}>{w}</SelectItem>)}
+                          </Select>
+                        </div>
+                      )}
                       <div className="mt-2.5 grid grid-cols-[140px_1fr] gap-2.5">
                         <Select size="sm" aria-label="运算符" placeholder="运算符" selectedKeys={c.op ? [c.op] : []} classNames={{ trigger: "h-10 min-h-10 bg-default-50" }}
                           onSelectionChange={(k) => setClause(i, { op: Array.from(k as Set<string>)[0] ?? "" })}>
@@ -308,7 +321,7 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
             <div className="flex flex-wrap items-center gap-1.5 text-[12px] leading-relaxed">
               <Cap tone="brand">当</Cap>
               {validClauses.length ? validClauses.map((c, i) => (
-                <span key={i} className="flex items-center gap-1.5">{i > 0 && <span className="text-[11px] font-bold text-default-400">{joiner === "AND" ? "且" : "或"}</span>}<Tok>{c.field} {c.op} {c.value}</Tok></span>
+                <span key={i} className="flex items-center gap-1.5">{i > 0 && <span className="text-[11px] font-bold text-default-400">{joiner === "AND" ? "且" : "或"}</span>}<Tok>{clauseText(c)}</Tok></span>
               )) : <span className="text-default-300">…设触发条件</span>}
               <Cap tone="success">则</Cap>
               <Tok>{action}</Tok>
