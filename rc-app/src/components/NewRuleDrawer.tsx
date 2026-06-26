@@ -1,7 +1,8 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button, Input, Select, SelectItem, Checkbox, CheckboxGroup, Slider, Radio, RadioGroup } from "@heroui/react";
-import { Zap, History, Layers, Trash2, Plus, Info, RefreshCw, ListFilter, ShieldCheck, ArrowRight, Clock, CalendarClock } from "lucide-react";
+import { Zap, History, Layers, Trash2, Plus, Info, RefreshCw, ListFilter, ShieldCheck, ArrowRight, Clock, CalendarClock, PlayCircle, CheckCircle2, XCircle, MinusCircle } from "lucide-react";
+import { REPLAY_TXNS, evalRule, type RuleEval } from "@/lib/replay";
 import {
   CATS, VENUE, venueOf, RULE_FIELDS, RULE_OPS, OP_LABEL, isAmountField, isWindowedField, WINDOW_OPTS, CUSTOM_WINDOW, isCustomWindow, isNumericField, RULE_BASES, clauseText, groupsText, isTiered, TIER_DIMS, TIER_KEYS, RULE_SCOPES, RULE_NETWORKS, RULE_ESCALATIONS, RULE_DISPOSITIONS, SEVERITIES,
   ACTION_BYS, actionTiersText, ruleFieldDiffs, ruleChangeSummary, type RuCat, type Venue, type Rule, type Clause, type ClauseGroup, type ClauseTiers, type Basis, type RuleMode, type Severity, type Joiner,
@@ -83,12 +84,15 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
   const [shadow, setShadow] = useState(false);
   const [rollout, setRollout] = useState(100);
   const [expiry, setExpiry] = useState("");
+  // ⑦ 单笔回放
+  const [replayId, setReplayId] = useState(REPLAY_TXNS[0].id);
+  const [replay, setReplay] = useState<RuleEval | null>(null);
   const [errs, setErrs] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!open) return;
     /* eslint-disable react-hooks/set-state-in-effect */
-    setErrs(new Set());
+    setErrs(new Set()); setReplay(null); setReplayId(REPLAY_TXNS[0].id);
     if (editRule) {
       setName(editRule.name); setCat(editRule.cat); setVenue(editRule.venue || venueOf(editRule)); setVenueTouched(true);
       setScope(editRule.scope || RULE_SCOPES[0]); setNetwork(editRule.network || "全部网络"); setDesc(editRule.desc || "");
@@ -154,6 +158,11 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
   const estFp = flatValid.length ? (h % 12) + 4 : 0;
 
   const runRule = () => { if (!flatValid.length) { toast.error("请先至少配置一条完整条件"); return; } toast.success(`已运行 · 近90天预估命中 ~${estHit} 笔 · 误报 ~${estFp}%`); };
+  const runReplay = () => {
+    if (!flatValid.length) { toast.error("请先至少配置一条完整条件"); return; }
+    const tx = REPLAY_TXNS.find((t) => t.id === replayId)!;
+    setReplay(evalRule(groups, outerJoiner, tx));
+  };
 
   const submit = () => {
     const e = new Set<string>();
@@ -382,6 +391,47 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
                 <div className="mt-2.5 flex items-center justify-center gap-2">
                   <Button size="sm" variant="bordered" className="h-9 font-semibold" startContent={<Plus className="h-3.5 w-3.5" />} onPress={addGroup}>添加子组</Button>
                   <Button size="sm" color="primary" variant="flat" className="h-9 font-semibold" startContent={<RefreshCw className="h-3.5 w-3.5" />} onPress={runRule}>运行规则</Button>
+                </div>
+
+                {/* ⑦ 单笔回放:拿一笔真实历史交易跑当前条件 —— 命不命中?卡在哪个条件 */}
+                <div className="mt-2.5 rounded-2xl border border-divider bg-content1 p-3 shadow-soft">
+                  <div className="mb-2 flex items-center gap-2 text-[12.5px] font-bold text-foreground"><PlayCircle className="h-4 w-4 text-[var(--brand)]" />单笔回放测试</div>
+                  <div className="flex items-center gap-2">
+                    <Select size="sm" aria-label="样本交易" selectedKeys={[replayId]} className="flex-1" classNames={{ trigger: "h-9 min-h-9 bg-default-50" }}
+                      renderValue={() => { const t = REPLAY_TXNS.find((x) => x.id === replayId)!; return <span className="truncate text-[12px] font-medium">{t.label}</span>; }}
+                      onSelectionChange={(k) => { setReplayId((Array.from(k as Set<string>)[0] as string) ?? REPLAY_TXNS[0].id); setReplay(null); }}>
+                      {REPLAY_TXNS.map((t) => <SelectItem key={t.id} description={t.sub}>{t.label}</SelectItem>)}
+                    </Select>
+                    <Button size="sm" color="primary" variant="solid" className="h-9 font-semibold" onPress={runReplay}>回放</Button>
+                  </div>
+                  <p className="mt-1.5 text-[11px] text-default-400">{REPLAY_TXNS.find((x) => x.id === replayId)!.sub}</p>
+
+                  {replay && (
+                    <div className="mt-3 border-t border-divider pt-3">
+                      <div className={`mb-2.5 flex items-center gap-2 rounded-xl px-3 py-2 text-[13px] font-bold ${replay.hit ? "bg-danger/10 text-danger" : "bg-success/10 text-success"}`}>
+                        {replay.hit ? <XCircle className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
+                        {replay.hit ? "命中 · 此规则会对这笔交易触发处置" : "未命中 · 此规则不会触发"}
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        {replay.groups.map((g, gi) => (
+                          <div key={gi} className={replay.groups.length > 1 ? "rounded-xl border border-divider bg-default-50 p-2" : ""}>
+                            {replay.groups.length > 1 && <div className="mb-1 text-[10.5px] font-bold text-default-400">子组 {gi + 1} · {g.joiner === "AND" ? "全部满足" : "任一满足"} → {g.status === "pass" ? "✓ 满足" : g.status === "skip" ? "— 跳过" : "✗ 不满足"}</div>}
+                            <div className="flex flex-col gap-1">
+                              {g.clauses.map((c, ci) => (
+                                <div key={ci} className="flex items-start gap-1.5 text-[11.5px]">
+                                  {c.status === "pass" ? <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-success" /> : c.status === "fail" ? <XCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-danger" /> : <MinusCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-default-300" />}
+                                  <span className="flex-1"><span className="font-medium text-default-700">{c.text}</span><span className="ml-1 text-default-400">— {c.detail}</span></span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      {!replay.hit && replay.blockers.length > 0 && (
+                        <p className="mt-2 rounded-lg bg-default-100 px-2.5 py-1.5 text-[11px] leading-snug text-default-500"><b>卡在:</b>{replay.blockers.join(";")}</p>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 
