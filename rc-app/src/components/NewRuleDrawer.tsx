@@ -61,7 +61,7 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
   const [name, setName] = useState("");
   const [cat, setCat] = useState<RuCat | "">("");
   const [scope, setScope] = useState("");
-  const [network, setNetwork] = useState("全部网络");
+  const [networks, setNetworks] = useState<string[]>([]);
   const [audience, setAudience] = useState<string[]>([]);
   const [venue, setVenue] = useState<Venue | "">("");
   const [venueTouched, setVenueTouched] = useState(false);
@@ -93,7 +93,7 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
     setErrs(new Set()); setReplay(null); setReplayAction(""); setReplayId(REPLAY_TXNS[0].id);
     if (editRule) {
       setName(editRule.name); setCat(editRule.cat); setVenue(editRule.venue || venueOf(editRule)); setVenueTouched(true);
-      setScope(editRule.scope || RULE_SCOPES[0]); setNetwork(editRule.network || "全部网络"); setAudience(editRule.audience || []); setDesc(editRule.desc || "");
+      setScope(editRule.scope || RULE_SCOPES[0]); setNetworks(editRule.networks || []); setAudience(editRule.audience || []); setDesc(editRule.desc || "");
       setMode(editRule.mode || "alert"); setStopScan(editRule.stopScan ?? true);
       setGroups(editRule.groups?.length ? editRule.groups.map((g) => ({ joiner: g.joiner, clauses: g.clauses.map((c) => ({ ...c })) }))
         : [{ joiner: editRule.joiner || "AND", clauses: editRule.clauses?.length ? editRule.clauses.map((c) => ({ ...c })) : [{ field: "", op: "", value: "" }] }]);
@@ -105,7 +105,7 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
       setWeight(Math.abs(parseInt(editRule.weight.replace(/[^0-9]/g, ""), 10)) || 30);
       setShadow(editRule.shadow ?? false); setRollout(editRule.rollout ?? 100); setExpiry(editRule.expiry || "");
     } else {
-      setName(""); setCat(""); setScope(""); setNetwork("全部网络"); setAudience([]); setVenue(""); setVenueTouched(false); setDesc("");
+      setName(""); setCat(""); setScope(""); setNetworks([]); setAudience([]); setVenue(""); setVenueTouched(false); setDesc("");
       setMode("alert"); setStopScan(true); setGroups([{ joiner: "AND", clauses: [{ field: "", op: "", value: "" }] }]); setOuterJoiner("OR");
       setActions([]); setActionTiered(false); setActionBy("金额"); setActionRows([{ from: "", action: "" }]);
       setWeight(40);
@@ -180,7 +180,6 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
     if (!name.trim()) e.add("name");
     if (!cat) e.add("cat");
     if (!scope) e.add("scope");
-    if (!network) e.add("network");
     if (!venue) e.add("venue");
     if (!flatValid.length) e.add("cond");
     if (mode === "alert" && (actionTiered ? !validActionRows.length : !usedActions.length)) e.add("actions");
@@ -188,7 +187,7 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
     if (e.size) { toast.error("请补全带 * 的必填项(元数据 / 至少一条完整条件 / 处置动作)"); return; }
 
     const fields: Partial<Rule> = {
-      name: name.trim(), cat: cat as RuCat, venue: venue as Venue, scope, network, audience: audience.length ? audience : undefined, desc: desc || undefined,
+      name: name.trim(), cat: cat as RuCat, venue: venue as Venue, scope, networks: networks.length ? networks : undefined, audience: audience.length ? audience : undefined, desc: desc || undefined,
       mode, stopScan, cond, clauses: flatValid, groups: multiGroup ? validGroups : undefined, outerJoiner: multiGroup ? outerJoiner : undefined,
       joiner: validGroups[0]?.joiner ?? "AND", actions: usedActions, actionTiers, action, weight: w,
       shadow, rollout, expiry: expiry || undefined,
@@ -258,8 +257,9 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
                       classNames={{ trigger: "h-10 min-h-10 bg-default-50" }} onSelectionChange={(k) => setScope(Array.from(k as Set<string>)[0] ?? "")}>
                       {RULE_SCOPES.map((s) => <SelectItem key={s}>{s}</SelectItem>)}
                     </Select>
-                    <Select size="sm" aria-label="适用网络" placeholder="适用网络" startContent={<Layers className="h-4 w-4 text-default-400" />} selectedKeys={network ? [network] : []} isInvalid={errs.has("network")}
-                      classNames={{ trigger: "h-10 min-h-10 bg-default-50" }} onSelectionChange={(k) => setNetwork(Array.from(k as Set<string>)[0] ?? "")}>
+                    <Select size="sm" aria-label="适用网络" placeholder="适用网络:全部" selectionMode="multiple" startContent={<Layers className="h-4 w-4 text-default-400" />} selectedKeys={new Set(networks)}
+                      classNames={{ trigger: "min-h-10 bg-default-50" }} renderValue={() => <span className="text-[12.5px]">{networks.length ? networks.join(" · ") : "全部网络"}</span>}
+                      onSelectionChange={(k) => setNetworks(Array.from(k as Set<string>))}>
                       {RULE_NETWORKS.map((nw) => <SelectItem key={nw}>{nw}</SelectItem>)}
                     </Select>
                   </div>

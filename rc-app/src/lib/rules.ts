@@ -199,7 +199,7 @@ export interface Rule {
   hits30: number; fp30: string; src: string; srcId?: string; to?: string;
   owner: Person; updated: string; weight: string; backtest?: Backtest; clauses?: Clause[]; groups?: ClauseGroup[]; outerJoiner?: Joiner; otherwise?: string;
   // 新增规则界面补充的可选元数据(向后兼容,内置规则可不填)
-  scope?: string; network?: string; audience?: string[]; desc?: string; mode?: RuleMode; stopScan?: boolean;
+  scope?: string; networks?: string[]; audience?: string[]; desc?: string; mode?: RuleMode; stopScan?: boolean;
   actions?: string[]; joiner?: Joiner;
   // ⑤ 上线策略:影子模式(只告警不处置评估期)/ 到期日(到点自动失效)/ 灰度比例(按比例放量)
   shadow?: boolean; expiry?: string; rollout?: number;
@@ -226,7 +226,9 @@ export type RuleMode = "score" | "alert";  // 规则操作:仅评分 / 生成告
 export type Joiner = "AND" | "OR";
 // 新增规则界面的下拉选项
 export const RULE_SCOPES = ["充值通用", "提现", "兑换 · 币币", "On-ramp · 法币买币", "Off-ramp · 卖币出金", "全部业务线"];
-export const RULE_NETWORKS = ["全部网络", "Bitcoin", "Ethereum", "Tron", "Solana", "BSC", "Polygon"];
+// 适用网络:多选,空 = 全部网络(不限)。链特定逻辑的粗粒度圈定;更细的隐私币/跨链桥走条件字段「跨链 / 隐私币」。
+export const RULE_NETWORKS = ["Bitcoin", "Ethereum", "Tron", "Solana", "BSC", "Polygon"];
+export const networksText = (n?: string[]) => (n && n.length ? n.join(" · ") : "全部网络(不限)");
 // 适用对象 = 这条规则定向到哪类商户(空 = 全部商户)。派生型群组(系统算)+ 业务模式标签(人工分类)混选;
 // 法定核心(制裁筛查 / LVCTR)对所有商户恒生效,不受此限。
 export const RULE_AUDIENCES = ["高风险商户(风险分 ≥80)", "新户 / KYB 未完成", "高风险辖区注册", "白名单商户除外", "OTC 柜台 / 交易所类", "加密 ATM 运营商", "DeFi / 跨链协议类"];
