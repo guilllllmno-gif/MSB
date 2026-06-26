@@ -8,7 +8,7 @@ import { Pill, Initials } from "@/components/bits";
 import { Timeline } from "@/components/Timeline";
 import { NewRuleDrawer } from "@/components/NewRuleDrawer";
 import { RuleBacktestDrawer } from "@/components/RuleBacktestDrawer";
-import { RULES, RUSTATE, CAT_ICON, VENUE, venueOf, bfrMeta, bfrDefault, condText, groupsText, audienceText, networksText, rolloutBadges, seedVersions, ruleFieldDiffs, type Rule, type RuState, type RuleVersion } from "@/lib/rules";
+import { RULES, RUSTATE, CAT_ICON, VENUE, venueOf, bfrMeta, bfrDefault, condText, groupsText, audienceText, rolloutBadges, seedVersions, ruleFieldDiffs, type Rule, type RuState, type RuleVersion } from "@/lib/rules";
 import { FINDINGS } from "@/lib/findings";
 import { findingStore, ruleStore, useRuleVersion, useFindingVersion } from "@/lib/store";
 import type { Person } from "@/lib/data";
@@ -112,7 +112,6 @@ export default function RuleDetail() {
   const summary: [string, React.ReactNode][] = [
     ["触发条件", <span className="text-right">{rule.cond}</span>],
     ["适用范围", rule.cat === "金额阈值" ? "充值 / 提现" : rule.action.includes("提现") ? "提现" : "全业务线"],
-    ["适用网络", networksText(rule.networks)],
     ["适用对象", <span className="text-right">{audienceText(rule.audience)}</span>],
     ["执行场景", <Pill tone={ven.tone} dot={false}>{ven.short}</Pill>],
     ["命中动作", rule.action],

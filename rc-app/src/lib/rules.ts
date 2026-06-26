@@ -199,7 +199,7 @@ export interface Rule {
   hits30: number; fp30: string; src: string; srcId?: string; to?: string;
   owner: Person; updated: string; weight: string; backtest?: Backtest; clauses?: Clause[]; groups?: ClauseGroup[]; outerJoiner?: Joiner; otherwise?: string;
   // 新增规则界面补充的可选元数据(向后兼容,内置规则可不填)
-  scope?: string; networks?: string[]; audience?: string[]; desc?: string; mode?: RuleMode; stopScan?: boolean;
+  scope?: string; audience?: string[]; desc?: string; mode?: RuleMode; stopScan?: boolean;
   actions?: string[]; joiner?: Joiner;
   // ⑤ 上线策略:影子模式(只告警不处置评估期)/ 到期日(到点自动失效)/ 灰度比例(按比例放量)
   shadow?: boolean; expiry?: string; rollout?: number;
@@ -226,16 +226,7 @@ export type RuleMode = "score" | "alert";  // 规则操作:仅评分 / 生成告
 export type Joiner = "AND" | "OR";
 // 新增规则界面的下拉选项
 export const RULE_SCOPES = ["充值通用", "提现", "兑换 · 币币", "On-ramp · 法币买币", "Off-ramp · 卖币出金", "全部业务线"];
-// 适用网络:多选,空 = 全部网络(不限)。链特定逻辑的粗粒度圈定;更细的隐私币/跨链桥走条件字段「跨链 / 隐私币」。
-export const RULE_NETWORKS = ["Bitcoin", "Ethereum", "Tron", "Solana", "BSC", "Polygon"];
-export const networksText = (n?: string[]) => (n && n.length ? n.join(" · ") : "全部网络(不限)");
-// 网络快速分组:把「哪几条链该一起监控」的领域知识沉淀成预设,运营点分组即选好对应链,不必自己记链族关系。
-export const NETWORK_GROUPS: { label: string; members: string[]; note: string }[] = [
-  { label: "EVM 兼容链", members: ["Ethereum", "BSC", "Polygon"], note: "同地址格式 / 同类合约与跨链桥风险,通常一起监控" },
-  { label: "稳定币主力链", members: ["Tron", "Ethereum"], note: "USDT 流通量最大,拆分 / 过水高发" },
-  { label: "比特币系 (UTXO)", members: ["Bitcoin"], note: "UTXO 模型,链上溯源方式与账户链不同" },
-  { label: "高吞吐链", members: ["Solana"], note: "高频低费,刷量 / 速度类异常需关注" },
-];
+// 注:已移除手填「适用网络」—— 链适用性要么与规则无关(默认全跑),要么由规则类别 / 条件逻辑隐含(如 链上溯源 类、跨链 / 隐私币 条件),不再让用户单独录入。
 // 适用对象 = 这条规则定向到哪类商户(空 = 全部商户)。派生型群组(系统算)+ 业务模式标签(人工分类)混选;
 // 法定核心(制裁筛查 / LVCTR)对所有商户恒生效,不受此限。
 export const RULE_AUDIENCES = ["高风险商户(风险分 ≥80)", "新户 / KYB 未完成", "高风险辖区注册", "白名单商户除外", "OTC 柜台 / 交易所类", "加密 ATM 运营商", "DeFi / 跨链协议类"];

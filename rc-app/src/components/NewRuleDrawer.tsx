@@ -4,7 +4,7 @@ import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button, Input
 import { Zap, History, Layers, Trash2, Plus, Info, RefreshCw, ListFilter, ShieldCheck, ArrowRight, Clock, CalendarClock, PlayCircle, CheckCircle2, XCircle, MinusCircle, Users } from "lucide-react";
 import { REPLAY_TXNS, evalRule, type RuleEval } from "@/lib/replay";
 import {
-  CATS, VENUE, venueOf, RULE_FIELDS, RULE_OPS, OP_LABEL, isAmountField, isWindowedField, WINDOW_OPTS, CUSTOM_WINDOW, isCustomWindow, isNumericField, RULE_BASES, clauseText, groupsText, isTiered, TIER_DIMS, TIER_KEYS, RULE_SCOPES, RULE_NETWORKS, NETWORK_GROUPS, RULE_AUDIENCES, RULE_DISPOSITIONS,
+  CATS, VENUE, venueOf, RULE_FIELDS, RULE_OPS, OP_LABEL, isAmountField, isWindowedField, WINDOW_OPTS, CUSTOM_WINDOW, isCustomWindow, isNumericField, RULE_BASES, clauseText, groupsText, isTiered, TIER_DIMS, TIER_KEYS, RULE_SCOPES, RULE_AUDIENCES, RULE_DISPOSITIONS,
   ACTION_BYS, actionTiersText, strictestDisposition, ruleFieldDiffs, ruleChangeSummary, type RuCat, type Venue, type Rule, type Clause, type ClauseGroup, type ClauseTiers, type Basis, type RuleMode, type Joiner,
 } from "@/lib/rules";
 import { ruleStore } from "@/lib/store";
@@ -61,7 +61,6 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
   const [name, setName] = useState("");
   const [cat, setCat] = useState<RuCat | "">("");
   const [scope, setScope] = useState("");
-  const [networks, setNetworks] = useState<string[]>([]);
   const [audience, setAudience] = useState<string[]>([]);
   const [venue, setVenue] = useState<Venue | "">("");
   const [venueTouched, setVenueTouched] = useState(false);
@@ -93,7 +92,7 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
     setErrs(new Set()); setReplay(null); setReplayAction(""); setReplayId(REPLAY_TXNS[0].id);
     if (editRule) {
       setName(editRule.name); setCat(editRule.cat); setVenue(editRule.venue || venueOf(editRule)); setVenueTouched(true);
-      setScope(editRule.scope || RULE_SCOPES[0]); setNetworks(editRule.networks || []); setAudience(editRule.audience || []); setDesc(editRule.desc || "");
+      setScope(editRule.scope || RULE_SCOPES[0]); setAudience(editRule.audience || []); setDesc(editRule.desc || "");
       setMode(editRule.mode || "alert"); setStopScan(editRule.stopScan ?? true);
       setGroups(editRule.groups?.length ? editRule.groups.map((g) => ({ joiner: g.joiner, clauses: g.clauses.map((c) => ({ ...c })) }))
         : [{ joiner: editRule.joiner || "AND", clauses: editRule.clauses?.length ? editRule.clauses.map((c) => ({ ...c })) : [{ field: "", op: "", value: "" }] }]);
@@ -105,7 +104,7 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
       setWeight(Math.abs(parseInt(editRule.weight.replace(/[^0-9]/g, ""), 10)) || 30);
       setShadow(editRule.shadow ?? false); setRollout(editRule.rollout ?? 100); setExpiry(editRule.expiry || "");
     } else {
-      setName(""); setCat(""); setScope(""); setNetworks([]); setAudience([]); setVenue(""); setVenueTouched(false); setDesc("");
+      setName(""); setCat(""); setScope(""); setAudience([]); setVenue(""); setVenueTouched(false); setDesc("");
       setMode("alert"); setStopScan(true); setGroups([{ joiner: "AND", clauses: [{ field: "", op: "", value: "" }] }]); setOuterJoiner("OR");
       setActions([]); setActionTiered(false); setActionBy("金额"); setActionRows([{ from: "", action: "" }]);
       setWeight(40);
@@ -123,8 +122,6 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
   const addGroup = () => setGroups((gs) => [...gs, { joiner: "AND", clauses: [{ field: "", op: "", value: "" }] }]);
   const delGroup = (gi: number) => setGroups((gs) => (gs.length > 1 ? gs.filter((_, j) => j !== gi) : gs));
   const pickCat = (c: RuCat | "") => { setCat(c); if (c && !venueTouched) setVenue(venueOf({ cat: c })); };
-  // 网络快速分组:点一下选好整组链(全选则取消),省得运营自己记哪几条是一族
-  const toggleNetGroup = (members: string[]) => setNetworks((cur) => (members.every((m) => cur.includes(m)) ? cur.filter((m) => !members.includes(m)) : [...new Set([...cur, ...members])]));
 
   // ③ 分层阈值:档位表的增删改(仅绝对值基准开放)
   const mutTiers = (gi: number, ci: number, fn: (t: ClauseTiers) => ClauseTiers) => mutClauses(gi, (cs) => cs.map((c, j) => (j === ci && c.tiers ? { ...c, tiers: fn(c.tiers) } : c)));
@@ -189,7 +186,7 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
     if (e.size) { toast.error("请补全带 * 的必填项(元数据 / 至少一条完整条件 / 处置动作)"); return; }
 
     const fields: Partial<Rule> = {
-      name: name.trim(), cat: cat as RuCat, venue: venue as Venue, scope, networks: networks.length ? networks : undefined, audience: audience.length ? audience : undefined, desc: desc || undefined,
+      name: name.trim(), cat: cat as RuCat, venue: venue as Venue, scope, audience: audience.length ? audience : undefined, desc: desc || undefined,
       mode, stopScan, cond, clauses: flatValid, groups: multiGroup ? validGroups : undefined, outerJoiner: multiGroup ? outerJoiner : undefined,
       joiner: validGroups[0]?.joiner ?? "AND", actions: usedActions, actionTiers, action, weight: w,
       shadow, rollout, expiry: expiry || undefined,
@@ -254,29 +251,11 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
                     classNames={{ trigger: "h-10 min-h-10 bg-default-50" }} onSelectionChange={(k) => pickCat((Array.from(k as Set<string>)[0] as RuCat) ?? "")}>
                     {CATS.map((c) => <SelectItem key={c}>{c}</SelectItem>)}
                   </Select>
-                  <div className="mt-2.5 grid grid-cols-2 gap-2.5">
+                  <div className="mt-2.5">
                     <Select size="sm" aria-label="适用场景" placeholder="适用场景" startContent={<ListFilter className="h-4 w-4 text-default-400" />} selectedKeys={scope ? [scope] : []} isInvalid={errs.has("scope")}
                       classNames={{ trigger: "h-10 min-h-10 bg-default-50" }} onSelectionChange={(k) => setScope(Array.from(k as Set<string>)[0] ?? "")}>
                       {RULE_SCOPES.map((s) => <SelectItem key={s}>{s}</SelectItem>)}
                     </Select>
-                    <Select size="sm" aria-label="适用网络" placeholder="适用网络:全部" selectionMode="multiple" startContent={<Layers className="h-4 w-4 text-default-400" />} selectedKeys={new Set(networks)}
-                      classNames={{ trigger: "min-h-10 bg-default-50" }} renderValue={() => <span className="text-[12.5px]">{networks.length ? networks.join(" · ") : "全部网络"}</span>}
-                      onSelectionChange={(k) => setNetworks(Array.from(k as Set<string>))}>
-                      {RULE_NETWORKS.map((nw) => <SelectItem key={nw}>{nw}</SelectItem>)}
-                    </Select>
-                  </div>
-                  {/* 网络快速分组:沉淀「哪几条链一起监控」的领域知识,点一下选好整组(hover 看为什么归一组) */}
-                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                    <span className="text-[10.5px] font-semibold text-default-400">快速分组</span>
-                    {NETWORK_GROUPS.map((g) => {
-                      const on = g.members.every((m) => networks.includes(m));
-                      return (
-                        <button key={g.label} title={`${g.members.join(" · ")} —— ${g.note}`} onClick={() => toggleNetGroup(g.members)}
-                          className={`rounded-full border px-2.5 py-0.5 text-[11px] font-medium transition-colors ${on ? "border-[var(--brand)] bg-[var(--brand-soft)] text-[var(--brand)]" : "border-default-200 text-default-500 hover:border-[var(--brand)] hover:text-[var(--brand)]"}`}>
-                          {g.label}<span className="ml-1 text-default-400">{g.members.length}</span>
-                        </button>
-                      );
-                    })}
                   </div>
                   {/* 适用对象:定向到哪类商户(空 = 全部);派生群组 + 业务模式标签混选 */}
                   <Select size="sm" aria-label="适用对象" placeholder="适用对象:全部商户(不限)" selectionMode="multiple" startContent={<Users className="h-4 w-4 text-default-400" />}
