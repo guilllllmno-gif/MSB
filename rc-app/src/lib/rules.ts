@@ -199,7 +199,7 @@ export interface Rule {
   hits30: number; fp30: string; src: string; srcId?: string; to?: string;
   owner: Person; updated: string; weight: string; backtest?: Backtest; clauses?: Clause[]; groups?: ClauseGroup[]; outerJoiner?: Joiner; otherwise?: string;
   // 新增规则界面补充的可选元数据(向后兼容,内置规则可不填)
-  scope?: string; network?: string; desc?: string; mode?: RuleMode; stopScan?: boolean;
+  scope?: string; network?: string; audience?: string[]; desc?: string; mode?: RuleMode; stopScan?: boolean;
   actions?: string[]; joiner?: Joiner;
   // ⑤ 上线策略:影子模式(只告警不处置评估期)/ 到期日(到点自动失效)/ 灰度比例(按比例放量)
   shadow?: boolean; expiry?: string; rollout?: number;
@@ -227,6 +227,10 @@ export type Joiner = "AND" | "OR";
 // 新增规则界面的下拉选项
 export const RULE_SCOPES = ["充值通用", "提现", "兑换 · 币币", "On-ramp · 法币买币", "Off-ramp · 卖币出金", "全部业务线"];
 export const RULE_NETWORKS = ["全部网络", "Bitcoin", "Ethereum", "Tron", "Solana", "BSC", "Polygon"];
+// 适用对象 = 这条规则定向到哪类商户(空 = 全部商户)。派生型群组(系统算)+ 业务模式标签(人工分类)混选;
+// 法定核心(制裁筛查 / LVCTR)对所有商户恒生效,不受此限。
+export const RULE_AUDIENCES = ["高风险商户(风险分 ≥80)", "新户 / KYB 未完成", "高风险辖区注册", "白名单商户除外", "OTC 柜台 / 交易所类", "加密 ATM 运营商", "DeFi / 跨链协议类"];
+export const audienceText = (a?: string[]) => (a && a.length ? a.join(" · ") : "全部商户(不限)");
 // 处置 = 单一终态结果(一笔交易只能落到一个最终状态)。按严格度降序排列。
 export const RULE_DISPOSITIONS = ["拒绝交易", "冻结资金并升级 MLRO", "要求补充材料", "智能入账(转人工审核)", "仅记录"];
 // 终态严格度排序(唯一真值来源):跨规则「最严生效」+ 旧多选规则迁移为单选时都取此最大值。数字越大越严。
