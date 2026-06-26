@@ -64,14 +64,17 @@ export const RULE_FIELDS = ["单笔金额 (CAD)", "滑窗累计金额 (CAD)", "�
 export const WINDOWED_FIELDS = ["滑窗累计金额 (CAD)", "滑窗笔数", "对手集中度 (%)", "扇入主体数"];
 export const isWindowedField = (f?: string) => !!f && WINDOWED_FIELDS.includes(f);
 export const WINDOW_OPTS = ["1 小时", "24 小时", "48 小时", "7 天", "14 天", "30 天"];
+// 自定义窗口:下拉选「自定义」时落此哨兵(未填完整,校验不通过),手填后存真实文本(如「36 小时」)。
+export const CUSTOM_WINDOW = "__custom__";
+export const isCustomWindow = (w?: string) => !!w && w !== CUSTOM_WINDOW && !WINDOW_OPTS.includes(w);
 // 类别型指标只能「命中 / 包含」,不支持相对基线;其余数值指标可选比较基准。
 export const CATEGORICAL_FIELDS = ["地址风险标签", "名单", "跨链 / 隐私币", "KYB 状态"];
 export const isNumericField = (f?: string) => !!f && RULE_FIELDS.includes(f) && !CATEGORICAL_FIELDS.includes(f);
 export const RULE_BASES: { key: Basis; label: string; hint: string; unitPrefix: string; unitSuffix: string; ph: string }[] = [
-  { key: "abs", label: "绝对值", hint: "与固定阈值比较", unitPrefix: "", unitSuffix: "", ph: "阈值" },
-  { key: "self", label: "× 自身历史基线", hint: "倍于该主体历史常态(均单 / 均笔频),按异常程度抓而非一刀切 —— 抓休眠突发", unitPrefix: "", unitSuffix: "×", ph: "倍数" },
-  { key: "peer", label: "同业群百分位 P", hint: "高于同业商户群的 P 分位(群体离群)—— 抓速度 / 峰值偏离", unitPrefix: "P", unitSuffix: "", ph: "百分位" },
-  { key: "sigma", label: "偏离均值 σ", hint: "偏离自身均值 N 个标准差", unitPrefix: "", unitSuffix: "σ", ph: "标准差数" },
+  { key: "abs", label: "绝对值", hint: "与固定 / 法定阈值比较 —— 抓 LVCTR 大额、Travel Rule、制裁命中", unitPrefix: "", unitSuffix: "", ph: "阈值" },
+  { key: "self", label: "× 自身历史基线", hint: "倍于该主体历史常态(均单 / 均笔频)—— 抓休眠突发 / 账户接管(VIP 高基线不误报、新户低基线即触发)", unitPrefix: "", unitSuffix: "×", ph: "倍数" },
+  { key: "peer", label: "同业群百分位 P", hint: "高于同业商户群的 P 分位(群体离群)—— 抓速度 / 峰值偏离、自身无历史可比的新户", unitPrefix: "P", unitSuffix: "", ph: "百分位" },
+  { key: "sigma", label: "偏离均值 σ", hint: "偏离自身均值 N 个标准差(按波动自适应)—— 抓做市 / 促销等高波动账户的真异常,不被自身波动淹没", unitPrefix: "", unitSuffix: "σ", ph: "标准差数" },
 ];
 export const RULE_OPS = ["≥", "≤", ">", "<", "=", "≠", "命中", "包含"];
 export const RULE_ELSE = ["放行 · 无需处置", "继续监控", "加强监控", "转研判"];

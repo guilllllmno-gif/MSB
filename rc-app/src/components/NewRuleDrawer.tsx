@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button, Input, Select, SelectItem, Checkbox, CheckboxGroup, Slider, Radio, RadioGroup } from "@heroui/react";
 import { Zap, History, Layers, Trash2, Plus, Info, RefreshCw, ListFilter, ShieldCheck, ArrowRight, Clock } from "lucide-react";
 import {
-  CATS, VENUE, venueOf, RULE_FIELDS, RULE_OPS, OP_LABEL, isAmountField, isWindowedField, WINDOW_OPTS, isNumericField, RULE_BASES, clauseText, groupsText, RULE_SCOPES, RULE_NETWORKS, RULE_ESCALATIONS, RULE_DISPOSITIONS, SEVERITIES,
+  CATS, VENUE, venueOf, RULE_FIELDS, RULE_OPS, OP_LABEL, isAmountField, isWindowedField, WINDOW_OPTS, CUSTOM_WINDOW, isCustomWindow, isNumericField, RULE_BASES, clauseText, groupsText, RULE_SCOPES, RULE_NETWORKS, RULE_ESCALATIONS, RULE_DISPOSITIONS, SEVERITIES,
   ruleFieldDiffs, ruleChangeSummary, type RuCat, type Venue, type Rule, type Clause, type ClauseGroup, type Basis, type RuleMode, type Severity, type Joiner,
 } from "@/lib/rules";
 import { ruleStore } from "@/lib/store";
@@ -115,7 +115,7 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
   const valEnd = (c: Clause) => ((c.basis ?? "abs") === "abs" ? (isAmountField(c.field) ? "CAD" : "") : baseOf(c).unitSuffix);
 
   // 窗口型指标必须配窗口才算完整(否则「累计 ≥$9k」无界、无意义)
-  const clauseOk = (c: Clause) => !!c.field && !!c.op && !!c.value && (!isWindowedField(c.field) || !!c.window);
+  const clauseOk = (c: Clause) => !!c.field && !!c.op && !!c.value && (!isWindowedField(c.field) || (!!c.window && c.window !== CUSTOM_WINDOW));
   const validGroups = groups.map((g) => ({ joiner: g.joiner, clauses: g.clauses.filter(clauseOk) })).filter((g) => g.clauses.length);
   const multiGroup = validGroups.length > 1;
   const flatValid = validGroups.flatMap((g) => g.clauses);
@@ -259,17 +259,28 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
                                 onSelectionChange={(k) => { const f = (Array.from(k as Set<string>)[0] as string) ?? ""; setClause(gi, ci, { field: f, window: isWindowedField(f) ? (c.window || "24 小时") : undefined, basis: isNumericField(f) ? (c.basis ?? "abs") : undefined }); }}>
                                 {RULE_FIELDS.map((fld) => <SelectItem key={fld}>{fld}</SelectItem>)}
                               </Select>
-                              {/* 滑动窗口:仅窗口型指标出现 —— 指标与窗口解耦,同一指标可配任意窗口 */}
-                              {isWindowedField(c.field) && (
-                                <div className="mt-2.5 flex items-center gap-2 rounded-xl border border-[var(--brand)]/25 bg-[var(--brand-soft)] px-2.5 py-2">
-                                  <Clock className="h-3.5 w-3.5 shrink-0 text-[var(--brand)]" />
-                                  <span className="shrink-0 text-[11.5px] font-semibold text-default-600">滑动窗口内</span>
-                                  <Select size="sm" aria-label="滑动窗口" placeholder="选窗口" selectedKeys={c.window ? [c.window] : []} className="flex-1"
-                                    classNames={{ trigger: "h-8 min-h-8 bg-content1" }} onSelectionChange={(k) => setClause(gi, ci, { window: Array.from(k as Set<string>)[0] ?? "" })}>
-                                    {WINDOW_OPTS.map((w) => <SelectItem key={w}>{w}</SelectItem>)}
-                                  </Select>
-                                </div>
-                              )}
+                              {/* 滑动窗口:仅窗口型指标出现 —— 指标与窗口解耦,同一指标可配任意窗口(含自定义) */}
+                              {isWindowedField(c.field) && (() => {
+                                const custom = c.window === CUSTOM_WINDOW || isCustomWindow(c.window);
+                                return (
+                                  <div className="mt-2.5 rounded-xl border border-[var(--brand)]/25 bg-[var(--brand-soft)] px-2.5 py-2">
+                                    <div className="flex items-center gap-2">
+                                      <Clock className="h-3.5 w-3.5 shrink-0 text-[var(--brand)]" />
+                                      <span className="shrink-0 text-[11.5px] font-semibold text-default-600">滑动窗口内</span>
+                                      <Select size="sm" aria-label="滑动窗口" placeholder="选窗口" selectedKeys={custom ? ["自定义"] : (c.window ? [c.window] : [])} className="flex-1"
+                                        classNames={{ trigger: "h-8 min-h-8 bg-content1" }}
+                                        onSelectionChange={(k) => { const v = Array.from(k as Set<string>)[0] as string; setClause(gi, ci, { window: v === "自定义" ? CUSTOM_WINDOW : (v ?? "") }); }}>
+                                        {[...WINDOW_OPTS, "自定义"].map((w) => <SelectItem key={w}>{w === "自定义" ? "自定义…" : w}</SelectItem>)}
+                                      </Select>
+                                    </div>
+                                    {custom && (
+                                      <Input size="sm" aria-label="自定义窗口" placeholder="如 36 小时 / 10 天" value={c.window === CUSTOM_WINDOW ? "" : (c.window ?? "")}
+                                        onValueChange={(v) => setClause(gi, ci, { window: v || CUSTOM_WINDOW })}
+                                        className="mt-2" classNames={{ inputWrapper: "h-8 min-h-8 bg-content1" }} startContent={<span className="text-[11px] text-default-400">窗口</span>} />
+                                    )}
+                                  </div>
+                                );
+                              })()}
                               {/* 比较基准:数值型指标可选 —— 绝对值 / × 自身历史基线 / 同业群 P 百分位 / 偏离均值 σ */}
                               {isNumericField(c.field) && (
                                 <div className="mt-2.5 flex items-center gap-2">
