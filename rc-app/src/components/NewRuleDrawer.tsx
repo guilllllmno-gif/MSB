@@ -4,7 +4,7 @@ import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button, Input
 import { Zap, History, Layers, Trash2, Plus, Info, RefreshCw, ListFilter, ShieldCheck, ArrowRight, Clock, CalendarClock } from "lucide-react";
 import {
   CATS, VENUE, venueOf, RULE_FIELDS, RULE_OPS, OP_LABEL, isAmountField, isWindowedField, WINDOW_OPTS, CUSTOM_WINDOW, isCustomWindow, isNumericField, RULE_BASES, clauseText, groupsText, isTiered, TIER_DIMS, TIER_KEYS, RULE_SCOPES, RULE_NETWORKS, RULE_ESCALATIONS, RULE_DISPOSITIONS, SEVERITIES,
-  ruleFieldDiffs, ruleChangeSummary, type RuCat, type Venue, type Rule, type Clause, type ClauseGroup, type ClauseTiers, type Basis, type RuleMode, type Severity, type Joiner,
+  ACTION_BYS, actionTiersText, ruleFieldDiffs, ruleChangeSummary, type RuCat, type Venue, type Rule, type Clause, type ClauseGroup, type ClauseTiers, type Basis, type RuleMode, type Severity, type Joiner,
 } from "@/lib/rules";
 import { ruleStore } from "@/lib/store";
 
@@ -72,6 +72,10 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
   const [groups, setGroups] = useState<ClauseGroup[]>([{ joiner: "AND", clauses: [{ field: "", op: "", value: "" }] }]);
   const [outerJoiner, setOuterJoiner] = useState<Joiner>("OR");
   const [actions, setActions] = useState<string[]>([]);
+  // ⑥ 阶梯处置(动作按金额/风险分分档)
+  const [actionTiered, setActionTiered] = useState(false);
+  const [actionBy, setActionBy] = useState<"金额" | "风险分">("金额");
+  const [actionRows, setActionRows] = useState<{ from: string; action: string }[]>([{ from: "", action: "" }]);
   const [escalation, setEscalation] = useState("");
   const [severity, setSeverity] = useState<Severity>("中");
   const [weight, setWeight] = useState(40);
@@ -93,13 +97,16 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
         : [{ joiner: editRule.joiner || "AND", clauses: editRule.clauses?.length ? editRule.clauses.map((c) => ({ ...c })) : [{ field: "", op: "", value: "" }] }]);
       setOuterJoiner(editRule.outerJoiner || "OR");
       setActions(editRule.actions?.length ? editRule.actions : (editRule.action ? [editRule.action] : []));
+      setActionTiered(!!editRule.actionTiers); setActionBy(editRule.actionTiers?.by || "金额");
+      setActionRows(editRule.actionTiers?.rows.length ? editRule.actionTiers.rows.map((r) => ({ ...r })) : [{ from: "", action: "" }]);
       setEscalation(editRule.escalation || RULE_ESCALATIONS[0]); setSeverity(editRule.severity || "中");
       setWeight(Math.abs(parseInt(editRule.weight.replace(/[^0-9]/g, ""), 10)) || 30);
       setShadow(editRule.shadow ?? false); setRollout(editRule.rollout ?? 100); setExpiry(editRule.expiry || "");
     } else {
       setName(""); setCat(""); setScope(""); setNetwork("全部网络"); setVenue(""); setVenueTouched(false); setDesc("");
       setMode("alert"); setStopScan(true); setGroups([{ joiner: "AND", clauses: [{ field: "", op: "", value: "" }] }]); setOuterJoiner("OR");
-      setActions([]); setEscalation(""); setSeverity("中"); setWeight(40);
+      setActions([]); setActionTiered(false); setActionBy("金额"); setActionRows([{ from: "", action: "" }]);
+      setEscalation(""); setSeverity("中"); setWeight(40);
       setShadow(false); setRollout(100); setExpiry("");
     }
     /* eslint-enable react-hooks/set-state-in-effect */
@@ -136,8 +143,12 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
   const flatValid = validGroups.flatMap((g) => g.clauses);
   const cond = groupsText(groups, outerJoiner);
   const w = `+${weight}`;
-  const usedActions = mode === "alert" ? actions : [];
-  const action = usedActions.length ? usedActions.join(" · ") : mode === "score" ? `评分 ${w}` : "生成告警";
+  // ⑥ 阶梯处置:仅「生成告警」模式可分档;校验需至少一档完整(from + action)
+  const tiersOn = mode === "alert" && actionTiered;
+  const validActionRows = actionRows.filter((r) => r.from && r.action);
+  const actionTiers = tiersOn && validActionRows.length ? { by: actionBy, rows: validActionRows } : undefined;
+  const usedActions = mode === "alert" && !actionTiered ? actions : [];
+  const action = actionTiers ? actionTiersText(actionTiers) : usedActions.length ? usedActions.join(" · ") : mode === "score" ? `评分 ${w}` : "生成告警";
   const h = [...cond].reduce((a, c) => a + c.charCodeAt(0), 0);
   const estHit = flatValid.length ? (h % 34) + 12 : 0;
   const estFp = flatValid.length ? (h % 12) + 4 : 0;
@@ -152,7 +163,7 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
     if (!network) e.add("network");
     if (!venue) e.add("venue");
     if (!flatValid.length) e.add("cond");
-    if (mode === "alert" && !usedActions.length) e.add("actions");
+    if (mode === "alert" && (actionTiered ? !validActionRows.length : !usedActions.length)) e.add("actions");
     if (!escalation) e.add("escalation");
     setErrs(e);
     if (e.size) { toast.error("请补全带 * 的必填项(元数据 / 至少一条完整条件 / 处置动作 / 升级路径)"); return; }
@@ -160,7 +171,7 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
     const fields: Partial<Rule> = {
       name: name.trim(), cat: cat as RuCat, venue: venue as Venue, scope, network, desc: desc || undefined,
       mode, stopScan, cond, clauses: flatValid, groups: multiGroup ? validGroups : undefined, outerJoiner: multiGroup ? outerJoiner : undefined,
-      joiner: validGroups[0]?.joiner ?? "AND", actions: usedActions, escalation, severity, action, weight: w,
+      joiner: validGroups[0]?.joiner ?? "AND", actions: usedActions, actionTiers, escalation, severity, action, weight: w,
       shadow, rollout, expiry: expiry || undefined,
     };
     if (editing && editRule) {
@@ -402,11 +413,45 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
 
                 {/* 动作执行:处置动作 + 折入 升级路径/严重度/权重 */}
                 <SecCard label="动作执行">
-                  <div className="text-[12.5px] font-semibold text-default-600">处置动作 <span className="text-danger">*</span></div>
-                  <CheckboxGroup value={actions} onValueChange={setActions} isDisabled={mode === "score"}
-                    className={`mt-2 ${errs.has("actions") ? "rounded-xl p-1 ring-2 ring-danger/40" : ""}`} classNames={{ wrapper: "grid grid-cols-2 gap-x-4 gap-y-2.5" }}>
-                    {RULE_DISPOSITIONS.map((d) => <Checkbox key={d} value={d} size="sm" classNames={{ label: "text-[12.5px]" }}>{d}</Checkbox>)}
-                  </CheckboxGroup>
+                  <div className="flex items-center justify-between">
+                    <div className="text-[12.5px] font-semibold text-default-600">处置动作 <span className="text-danger">*</span></div>
+                    {mode === "alert" && (
+                      <Checkbox size="sm" isSelected={actionTiered} onValueChange={setActionTiered} classNames={{ label: "text-[11.5px] text-default-500" }}>按金额 / 风险分阶梯处置</Checkbox>
+                    )}
+                  </div>
+                  {/* ⑥ 阶梯处置:按金额/风险分区间触发不同动作($9k 转研判、$50k 直接冻结升级)*/}
+                  {tiersOn ? (
+                    <div className={`mt-2 rounded-xl border border-divider bg-default-50 p-2.5 ${errs.has("actions") ? "ring-2 ring-danger/40" : ""}`}>
+                      <div className="mb-2 flex items-center gap-2">
+                        <span className="shrink-0 text-[11.5px] font-semibold text-default-600">分档依据</span>
+                        <Select size="sm" aria-label="分档依据" selectedKeys={[actionBy]} className="flex-1" classNames={{ trigger: "h-8 min-h-8 bg-content1" }}
+                          onSelectionChange={(k) => setActionBy((Array.from(k as Set<string>)[0] as "金额" | "风险分") ?? "金额")}>
+                          {ACTION_BYS.map((b) => <SelectItem key={b}>{b}</SelectItem>)}
+                        </Select>
+                      </div>
+                      <div className="flex flex-col gap-1.5">
+                        {actionRows.map((r, ri) => (
+                          <div key={ri} className="flex items-center gap-1.5">
+                            <Input size="sm" aria-label="下限" placeholder={actionBy === "金额" ? "金额下限" : "分数下限"} value={r.from} className="w-[112px]" classNames={{ inputWrapper: "h-8 min-h-8 bg-content1" }}
+                              startContent={<span className="text-[11px] text-default-400">≥{actionBy === "金额" ? "$" : ""}</span>}
+                              onValueChange={(v) => setActionRows((rs) => rs.map((x, j) => (j === ri ? { ...x, from: v } : x)))} />
+                            <Select size="sm" aria-label="处置" placeholder="处置动作" selectedKeys={r.action ? [r.action] : []} className="flex-1" classNames={{ trigger: "h-8 min-h-8 bg-content1" }}
+                              onSelectionChange={(k) => setActionRows((rs) => rs.map((x, j) => (j === ri ? { ...x, action: (Array.from(k as Set<string>)[0] as string) ?? "" } : x)))}>
+                              {RULE_DISPOSITIONS.map((d) => <SelectItem key={d}>{d}</SelectItem>)}
+                            </Select>
+                            <button onClick={() => setActionRows((rs) => (rs.length > 1 ? rs.filter((_, j) => j !== ri) : rs))} disabled={actionRows.length === 1} className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-default-400 transition-colors hover:bg-danger/10 hover:text-danger disabled:opacity-30"><Trash2 className="h-3.5 w-3.5" /></button>
+                          </div>
+                        ))}
+                      </div>
+                      <button onClick={() => setActionRows((rs) => [...rs, { from: "", action: "" }])} className="mt-1.5 flex h-7 w-full items-center justify-center gap-1 rounded-lg border border-dashed border-default-300 text-[11px] font-medium text-default-500 transition-colors hover:border-[var(--brand)] hover:text-[var(--brand)]"><Plus className="h-3 w-3" />添加档位</button>
+                      <p className="mt-1.5 text-[10.5px] leading-snug text-default-400">区间为下限,自高到低匹配:命中最高满足档的处置(如 ≥$50k 用冻结、否则 ≥$9k 用转研判)。</p>
+                    </div>
+                  ) : (
+                    <CheckboxGroup value={actions} onValueChange={setActions} isDisabled={mode === "score"}
+                      className={`mt-2 ${errs.has("actions") ? "rounded-xl p-1 ring-2 ring-danger/40" : ""}`} classNames={{ wrapper: "grid grid-cols-2 gap-x-4 gap-y-2.5" }}>
+                      {RULE_DISPOSITIONS.map((d) => <Checkbox key={d} value={d} size="sm" classNames={{ label: "text-[12.5px]" }}>{d}</Checkbox>)}
+                    </CheckboxGroup>
+                  )}
                   {mode === "score" && <p className="mt-1.5 text-[11px] text-default-400">「仅评分」模式不执行处置动作,仅按权重累加风险分。</p>}
 
                   {/* 折叠区:升级路径 / 严重度 / 风险权重 */}

@@ -203,7 +203,16 @@ export interface Rule {
   actions?: string[]; escalation?: string; severity?: Severity; joiner?: Joiner;
   // ⑤ 上线策略:影子模式(只告警不处置评估期)/ 到期日(到点自动失效)/ 灰度比例(按比例放量)
   shadow?: boolean; expiry?: string; rollout?: number;
+  // ⑥ 阶梯处置:动作按金额 / 风险分区间分档(无则用 actions 平铺处置)
+  actionTiers?: ActionTiers;
 }
+// ⑥ 阶梯处置:同一规则命中,按金额 / 风险分区间触发不同处置 —— $9k 转研判、$50k 直接冻结升级 MLRO,不一刀切。
+export interface ActionTier { from: string; action: string }
+export interface ActionTiers { by: "金额" | "风险分"; rows: ActionTier[] }
+export const ACTION_BYS: ActionTiers["by"][] = ["金额", "风险分"];
+export const actionTiersText = (t: ActionTiers) =>
+  t.rows.filter((r) => r.from && r.action).map((r) => `${t.by === "金额" ? "≥$" : "≥"}${r.from}${t.by === "风险分" ? "分" : ""} → ${r.action}`).join(" · ");
+
 // 上线策略摘要(供详情 / 列表显徽标);返回各项可读文案。rollout 100 / 留空 视为全量。
 export interface RolloutBadge { label: string; tone: Tone }
 export function rolloutBadges(r: { shadow?: boolean; expiry?: string; rollout?: number }): RolloutBadge[] {

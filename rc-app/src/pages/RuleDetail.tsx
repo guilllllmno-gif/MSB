@@ -365,6 +365,20 @@ export default function RuleDetail() {
           {/* 命中动作与下游处置 */}
           <div className="card p-5">
             <div className="mb-3 text-[11px] font-bold uppercase tracking-wider text-default-400">命中动作与下游处置</div>
+            {rule.actionTiers && (
+              <div className="mb-3 rounded-xl border border-divider bg-default-50 p-3">
+                <div className="mb-2 text-[11.5px] font-semibold text-default-600">阶梯处置 · 按{rule.actionTiers.by}分档(自高到低匹配)</div>
+                <div className="flex flex-col gap-1.5">
+                  {rule.actionTiers.rows.filter((r) => r.from && r.action).map((r, i) => (
+                    <div key={i} className="flex items-center gap-2 text-[12.5px]">
+                      <span className="tnum rounded-md bg-content1 px-2 py-0.5 font-semibold text-default-700">≥{rule.actionTiers!.by === "金额" ? "$" : ""}{r.from}{rule.actionTiers!.by === "风险分" ? " 分" : ""}</span>
+                      <ArrowRight className="h-3.5 w-3.5 text-default-300" />
+                      <span className="font-medium text-default-700">{r.action}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             <div className="flex flex-wrap items-center gap-1.5">
               {[`命中评分 ${rule.weight}`, rule.action, ven.short === "事后" ? "回溯命中 · 转研判" : "事中闸口处置", risk.tone === "red" ? "升级 MLRO · STR" : "L1 研判结案"].map((s, i, arr) => (
                 <span key={i} className="flex items-center gap-1.5">
