@@ -4,16 +4,14 @@ import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button, Input
 import { Zap, History, Layers, Trash2, Plus, Info, RefreshCw, ListFilter, ShieldCheck, ArrowRight, Clock, CalendarClock, PlayCircle, CheckCircle2, XCircle, MinusCircle } from "lucide-react";
 import { REPLAY_TXNS, evalRule, type RuleEval } from "@/lib/replay";
 import {
-  CATS, VENUE, venueOf, RULE_FIELDS, RULE_OPS, OP_LABEL, isAmountField, isWindowedField, WINDOW_OPTS, CUSTOM_WINDOW, isCustomWindow, isNumericField, RULE_BASES, clauseText, groupsText, isTiered, TIER_DIMS, TIER_KEYS, RULE_SCOPES, RULE_NETWORKS, RULE_ESCALATIONS, RULE_DISPOSITIONS, SEVERITIES,
-  ACTION_BYS, actionTiersText, ruleFieldDiffs, ruleChangeSummary, type RuCat, type Venue, type Rule, type Clause, type ClauseGroup, type ClauseTiers, type Basis, type RuleMode, type Severity, type Joiner,
+  CATS, VENUE, venueOf, RULE_FIELDS, RULE_OPS, OP_LABEL, isAmountField, isWindowedField, WINDOW_OPTS, CUSTOM_WINDOW, isCustomWindow, isNumericField, RULE_BASES, clauseText, groupsText, isTiered, TIER_DIMS, TIER_KEYS, RULE_SCOPES, RULE_NETWORKS, RULE_DISPOSITIONS,
+  ACTION_BYS, actionTiersText, ruleFieldDiffs, ruleChangeSummary, type RuCat, type Venue, type Rule, type Clause, type ClauseGroup, type ClauseTiers, type Basis, type RuleMode, type Joiner,
 } from "@/lib/rules";
 import { ruleStore } from "@/lib/store";
 
 const RH = { i: "RH", n: "Raj Hota", c: "#0ea5e9" };
 const VENUE_ICON: Record<Venue, typeof Zap> = { gate: Zap, batch: History, both: Layers };
 const VENUES: Venue[] = ["gate", "batch", "both"];
-const onStyle = { borderColor: "var(--brand)", background: "var(--brand-soft)", color: "var(--brand)" };
-const offStyle = { borderColor: "var(--line)", color: "var(--text-2)" };
 
 // 句首小标签 + 摘要 token
 function Cap({ children, tone = "grey" }: { children: ReactNode; tone?: "brand" | "success" | "grey" }) {
@@ -77,8 +75,6 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
   const [actionTiered, setActionTiered] = useState(false);
   const [actionBy, setActionBy] = useState<"金额" | "风险分">("金额");
   const [actionRows, setActionRows] = useState<{ from: string; action: string }[]>([{ from: "", action: "" }]);
-  const [escalation, setEscalation] = useState("");
-  const [severity, setSeverity] = useState<Severity>("中");
   const [weight, setWeight] = useState(40);
   // ⑤ 上线策略
   const [shadow, setShadow] = useState(false);
@@ -103,14 +99,13 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
       setActions(editRule.actions?.length ? editRule.actions : (editRule.action ? [editRule.action] : []));
       setActionTiered(!!editRule.actionTiers); setActionBy(editRule.actionTiers?.by || "金额");
       setActionRows(editRule.actionTiers?.rows.length ? editRule.actionTiers.rows.map((r) => ({ ...r })) : [{ from: "", action: "" }]);
-      setEscalation(editRule.escalation || RULE_ESCALATIONS[0]); setSeverity(editRule.severity || "中");
       setWeight(Math.abs(parseInt(editRule.weight.replace(/[^0-9]/g, ""), 10)) || 30);
       setShadow(editRule.shadow ?? false); setRollout(editRule.rollout ?? 100); setExpiry(editRule.expiry || "");
     } else {
       setName(""); setCat(""); setScope(""); setNetwork("全部网络"); setVenue(""); setVenueTouched(false); setDesc("");
       setMode("alert"); setStopScan(true); setGroups([{ joiner: "AND", clauses: [{ field: "", op: "", value: "" }] }]); setOuterJoiner("OR");
       setActions([]); setActionTiered(false); setActionBy("金额"); setActionRows([{ from: "", action: "" }]);
-      setEscalation(""); setSeverity("中"); setWeight(40);
+      setWeight(40);
       setShadow(false); setRollout(100); setExpiry("");
     }
     /* eslint-enable react-hooks/set-state-in-effect */
@@ -173,14 +168,13 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
     if (!venue) e.add("venue");
     if (!flatValid.length) e.add("cond");
     if (mode === "alert" && (actionTiered ? !validActionRows.length : !usedActions.length)) e.add("actions");
-    if (!escalation) e.add("escalation");
     setErrs(e);
-    if (e.size) { toast.error("请补全带 * 的必填项(元数据 / 至少一条完整条件 / 处置动作 / 升级路径)"); return; }
+    if (e.size) { toast.error("请补全带 * 的必填项(元数据 / 至少一条完整条件 / 处置动作)"); return; }
 
     const fields: Partial<Rule> = {
       name: name.trim(), cat: cat as RuCat, venue: venue as Venue, scope, network, desc: desc || undefined,
       mode, stopScan, cond, clauses: flatValid, groups: multiGroup ? validGroups : undefined, outerJoiner: multiGroup ? outerJoiner : undefined,
-      joiner: validGroups[0]?.joiner ?? "AND", actions: usedActions, actionTiers, escalation, severity, action, weight: w,
+      joiner: validGroups[0]?.joiner ?? "AND", actions: usedActions, actionTiers, action, weight: w,
       shadow, rollout, expiry: expiry || undefined,
     };
     if (editing && editRule) {
@@ -504,28 +498,14 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
                   )}
                   {mode === "score" && <p className="mt-1.5 text-[11px] text-default-400">「仅评分」模式不执行处置动作,仅按权重累加风险分。</p>}
 
-                  {/* 折叠区:升级路径 / 严重度 / 风险权重 */}
-                  <div className="mt-4 space-y-4 border-t border-divider pt-4">
-                    <Select size="sm" label="升级路径" labelPlacement="outside" isRequired aria-label="升级路径" placeholder="请选择…" selectedKeys={escalation ? [escalation] : []} isInvalid={errs.has("escalation")}
-                      classNames={{ trigger: "bg-default-50" }} onSelectionChange={(k) => setEscalation(Array.from(k as Set<string>)[0] ?? "")}>
-                      {RULE_ESCALATIONS.map((s) => <SelectItem key={s}>{s}</SelectItem>)}
-                    </Select>
-                    <div>
-                      <div className="mb-1.5 text-[12px] font-medium text-default-600">严重度 <span className="text-danger">*</span></div>
-                      <div className="grid grid-cols-4 gap-1.5">
-                        {SEVERITIES.map((s) => { const on = severity === s; return (
-                          <button key={s} onClick={() => setSeverity(s)} className="rounded-lg border-[1.5px] py-1.5 text-[12px] font-semibold transition-colors" style={on ? onStyle : offStyle}>{s}</button>
-                        ); })}
-                      </div>
+                  {/* 风险权重(累加至评分,跨规则聚合裁决用)*/}
+                  <div className="mt-4 border-t border-divider pt-4">
+                    <div className="mb-1 flex items-center justify-between">
+                      <div className="text-[12px] font-medium text-default-600">风险权重(累加至评分)<span className="text-danger">*</span></div>
+                      <span className="text-[13px] font-extrabold tnum text-[var(--brand)]">+{weight}</span>
                     </div>
-                    <div>
-                      <div className="mb-1 flex items-center justify-between">
-                        <div className="text-[12px] font-medium text-default-600">风险权重(累加至评分)<span className="text-danger">*</span></div>
-                        <span className="text-[13px] font-extrabold tnum text-[var(--brand)]">+{weight}</span>
-                      </div>
-                      <Slider aria-label="风险权重" size="sm" minValue={0} maxValue={100} step={5} value={weight} onChange={(v) => setWeight(Array.isArray(v) ? v[0] : v)} classNames={{ track: "bg-default-200", filler: "bg-primary" }} />
-                      <div className="mt-0.5 flex justify-between text-[10px] text-default-400"><span>0 · 低敏</span><span>{weight >= 50 ? "高权重 → 易升级 MLRO" : "中低权重"}</span><span>100 · 强拦</span></div>
-                    </div>
+                    <Slider aria-label="风险权重" size="sm" minValue={0} maxValue={100} step={5} value={weight} onChange={(v) => setWeight(Array.isArray(v) ? v[0] : v)} classNames={{ track: "bg-default-200", filler: "bg-primary" }} />
+                    <div className="mt-0.5 flex justify-between text-[10px] text-default-400"><span>0 · 低敏</span><span>{weight >= 50 ? "高权重 → 易升级 MLRO" : "中低权重"}</span><span>100 · 强拦</span></div>
                   </div>
                 </SecCard>
 
@@ -579,7 +559,6 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
               )) : <span className="text-default-300">…设触发条件</span>}
               <Cap tone="success">则</Cap>
               <Tok>{action}</Tok>
-              <Cap>严重度</Cap><Tok>{severity}</Tok>
               <Cap>权重</Cap><Tok color="var(--brand)">+{weight}</Tok>
             </div>
           </div>

@@ -200,7 +200,7 @@ export interface Rule {
   owner: Person; updated: string; weight: string; backtest?: Backtest; clauses?: Clause[]; groups?: ClauseGroup[]; outerJoiner?: Joiner; otherwise?: string;
   // 新增规则界面补充的可选元数据(向后兼容,内置规则可不填)
   scope?: string; network?: string; desc?: string; mode?: RuleMode; stopScan?: boolean;
-  actions?: string[]; escalation?: string; severity?: Severity; joiner?: Joiner;
+  actions?: string[]; joiner?: Joiner;
   // ⑤ 上线策略:影子模式(只告警不处置评估期)/ 到期日(到点自动失效)/ 灰度比例(按比例放量)
   shadow?: boolean; expiry?: string; rollout?: number;
   // ⑥ 阶梯处置:动作按金额 / 风险分区间分档(无则用 actions 平铺处置)
@@ -223,14 +223,11 @@ export function rolloutBadges(r: { shadow?: boolean; expiry?: string; rollout?: 
   return out;
 }
 export type RuleMode = "score" | "alert";  // 规则操作:仅评分 / 生成告警
-export type Severity = "低" | "中" | "高" | "极高";
 export type Joiner = "AND" | "OR";
 // 新增规则界面的下拉选项
 export const RULE_SCOPES = ["充值通用", "提现", "兑换 · 币币", "On-ramp · 法币买币", "Off-ramp · 卖币出金", "全部业务线"];
 export const RULE_NETWORKS = ["全部网络", "Bitcoin", "Ethereum", "Tron", "Solana", "BSC", "Polygon"];
-export const RULE_ESCALATIONS = ["L1 → L2 → MLRO", "L1 → MLRO", "直接 MLRO", "L1 研判结案"];
 export const RULE_DISPOSITIONS = ["智能入账(转人工审核)", "冻结资金并升级 MLRO", "要求补充材料", "拒绝交易", "仅记录"];
-export const SEVERITIES: Severity[] = ["低", "中", "高", "极高"];
 // 运算符的中文标签(下拉里显示更直白)
 export const OP_LABEL: Record<string, string> = { "≥": "≥ 大于等于", "≤": "≤ 小于等于", ">": "> 大于", "<": "< 小于", "=": "= 等于", "≠": "≠ 不等于", "命中": "命中", "包含": "包含" };
 // 金额类字段(取值带 $ / CAD 装饰)
