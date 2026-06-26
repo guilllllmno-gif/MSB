@@ -55,16 +55,36 @@ export interface Backtest { window: string; scanned: string; wouldHit: number; e
 // 结构化条件:IF 子句(AND 连接)… THEN 处置 ELSE 否则
 // window:滑动时间窗口 —— 指标(累计金额/笔数/对手集中度/扇入主体数)与窗口解耦,
 // 同一指标可配任意窗口(48h 内累计 ≥$9k 抓拆分 / 24h 内笔数突增抓速度),不再把窗口焊死在字段名里。
-export interface Clause { field: string; op: string; value: string; window?: string }
+// basis:比较基准 —— 不只绝对值,可对相对基线比较(× 自身历史基线 / 同业群 P 百分位 / 偏离均值 σ),
+// 按「异常程度」抓而非写死固定阈值。复用案件详情已有的 BaselinePair「本次 vs 历史常态」语言。
+export type Basis = "abs" | "self" | "peer" | "sigma";
+export interface Clause { field: string; op: string; value: string; window?: string; basis?: Basis }
 export const RULE_FIELDS = ["单笔金额 (CAD)", "滑窗累计金额 (CAD)", "滑窗笔数", "对手集中度 (%)", "扇入主体数", "KYW 评分", "综合风险评分", "账户休眠天数", "账户年龄 (天)", "地址风险标签", "名单", "跨链 / 隐私币", "KYB 状态"];
 // 窗口型指标:需配一个滑动窗口才有意义(跨时间聚合);其余为即时 / 单笔指标,无窗口。
 export const WINDOWED_FIELDS = ["滑窗累计金额 (CAD)", "滑窗笔数", "对手集中度 (%)", "扇入主体数"];
 export const isWindowedField = (f?: string) => !!f && WINDOWED_FIELDS.includes(f);
 export const WINDOW_OPTS = ["1 小时", "24 小时", "48 小时", "7 天", "14 天", "30 天"];
+// 类别型指标只能「命中 / 包含」,不支持相对基线;其余数值指标可选比较基准。
+export const CATEGORICAL_FIELDS = ["地址风险标签", "名单", "跨链 / 隐私币", "KYB 状态"];
+export const isNumericField = (f?: string) => !!f && RULE_FIELDS.includes(f) && !CATEGORICAL_FIELDS.includes(f);
+export const RULE_BASES: { key: Basis; label: string; hint: string; unitPrefix: string; unitSuffix: string; ph: string }[] = [
+  { key: "abs", label: "绝对值", hint: "与固定阈值比较", unitPrefix: "", unitSuffix: "", ph: "阈值" },
+  { key: "self", label: "× 自身历史基线", hint: "倍于该主体历史常态(均单 / 均笔频),按异常程度抓而非一刀切 —— 抓休眠突发", unitPrefix: "", unitSuffix: "×", ph: "倍数" },
+  { key: "peer", label: "同业群百分位 P", hint: "高于同业商户群的 P 分位(群体离群)—— 抓速度 / 峰值偏离", unitPrefix: "P", unitSuffix: "", ph: "百分位" },
+  { key: "sigma", label: "偏离均值 σ", hint: "偏离自身均值 N 个标准差", unitPrefix: "", unitSuffix: "σ", ph: "标准差数" },
+];
 export const RULE_OPS = ["≥", "≤", ">", "<", "=", "≠", "命中", "包含"];
 export const RULE_ELSE = ["放行 · 无需处置", "继续监控", "加强监控", "转研判"];
-// 单条子句可读文本:窗口型指标前缀「⟨窗口⟩内」。
-export const clauseText = (c: Clause) => `${c.window ? `${c.window}内 ` : ""}${c.field} ${c.op} ${c.value}`;
+// 单条子句可读文本:窗口型指标前缀「⟨窗口⟩内」;相对基准展开为 ×基线 / 同业群 P / 偏离均值 σ。
+export const clauseText = (c: Clause) => {
+  const win = c.window ? `${c.window}内 ` : "";
+  switch (c.basis) {
+    case "self": return `${win}${c.field} ${c.op} 自身历史基线 ×${c.value}`;
+    case "peer": return `${win}${c.field} ${c.op} 同业群 P${c.value}`;
+    case "sigma": return `${win}${c.field} 偏离均值 ${c.op} ${c.value}σ`;
+    default: return `${win}${c.field} ${c.op} ${c.value}`;
+  }
+};
 export const condText = (cs: Clause[]) => cs.filter((c) => c.field && c.op && c.value).map(clauseText).join(" 且 ");
 
 // ── 新建规则:典型 typology 模板(一键预填,从空白起步 → 有起点;借鉴 Fireblocks 的模板化配置)──
@@ -74,7 +94,7 @@ export const RULE_TEMPLATES: RuleTemplate[] = [
   { key: "大额单笔", desc: "单笔超阈值即评分转研判", name: "大额单笔阈值", cat: "金额阈值", venue: "gate", clauses: [{ field: "单笔金额 (CAD)", op: "≥", value: "10,000" }], action: "评分 +25 · 转研判", weight: "+25" },
   { key: "结构化拆分", desc: "滑动窗口内累计入金 + 笔数双达标(规避 LVCTR)", name: "滑窗结构化拆分", cat: "统计聚合", venue: "gate", clauses: [{ field: "滑窗累计金额 (CAD)", op: "≥", value: "9,000", window: "48 小时" }, { field: "滑窗笔数", op: "≥", value: "5", window: "48 小时" }], action: "评分 +40 · 转研判", weight: "+40" },
   { key: "多账户扇入", desc: "多主体短窗内汇入同一非托管地址", name: "多主体扇入同一地址", cat: "统计聚合", venue: "both", clauses: [{ field: "扇入主体数", op: "≥", value: "4", window: "14 天" }], action: "评分 +40 · 转研判", weight: "+40" },
-  { key: "休眠后突发", desc: "长期休眠后短窗内突发出金", name: "休眠激活异常", cat: "行为模式", venue: "gate", clauses: [{ field: "账户休眠天数", op: "≥", value: "60" }, { field: "滑窗笔数", op: "≥", value: "5", window: "24 小时" }], action: "评分 +30 · 加强监控", weight: "+30" },
+  { key: "休眠后突发", desc: "长期休眠后短窗内出金笔频突破自身基线", name: "休眠激活异常", cat: "行为模式", venue: "gate", clauses: [{ field: "账户休眠天数", op: "≥", value: "60" }, { field: "滑窗笔数", op: "≥", value: "5", window: "24 小时", basis: "self" }], action: "评分 +30 · 加强监控", weight: "+30" },
   { key: "对手集中度", desc: "单一对手窗口内金额占比过高", name: "对手集中度异常", cat: "统计聚合", venue: "batch", clauses: [{ field: "对手集中度 (%)", op: "≥", value: "75", window: "30 天" }], action: "评分 +20 · 加强监控", weight: "+20" },
   { key: "币币链跳", desc: "兑入隐私币 / 经跨链桥转出", name: "隐私币 / 跨链跳转", cat: "链上溯源", venue: "both", clauses: [{ field: "跨链 / 隐私币", op: "命中", value: "隐私币 / 跨链桥" }], action: "评分 +45 · 转研判", weight: "+45" },
 ];

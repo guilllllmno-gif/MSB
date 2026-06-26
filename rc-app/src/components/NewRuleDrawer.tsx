@@ -3,8 +3,8 @@ import { toast } from "sonner";
 import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button, Input, Select, SelectItem, Checkbox, CheckboxGroup, Slider, Radio, RadioGroup } from "@heroui/react";
 import { Zap, History, Layers, Trash2, Plus, Info, RefreshCw, ListFilter, ShieldCheck, ArrowRight, Clock } from "lucide-react";
 import {
-  CATS, VENUE, venueOf, RULE_FIELDS, RULE_OPS, OP_LABEL, isAmountField, isWindowedField, WINDOW_OPTS, clauseText, RULE_SCOPES, RULE_NETWORKS, RULE_ESCALATIONS, RULE_DISPOSITIONS, SEVERITIES,
-  ruleFieldDiffs, ruleChangeSummary, type RuCat, type Venue, type Rule, type Clause, type RuleMode, type Severity, type Joiner,
+  CATS, VENUE, venueOf, RULE_FIELDS, RULE_OPS, OP_LABEL, isAmountField, isWindowedField, WINDOW_OPTS, isNumericField, RULE_BASES, clauseText, RULE_SCOPES, RULE_NETWORKS, RULE_ESCALATIONS, RULE_DISPOSITIONS, SEVERITIES,
+  ruleFieldDiffs, ruleChangeSummary, type RuCat, type Venue, type Rule, type Clause, type Basis, type RuleMode, type Severity, type Joiner,
 } from "@/lib/rules";
 import { ruleStore } from "@/lib/store";
 
@@ -90,6 +90,11 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
   const addClause = () => setClauses((cs) => [...cs, { field: "", op: "", value: "" }]);
   const delClause = (i: number) => setClauses((cs) => (cs.length > 1 ? cs.filter((_, j) => j !== i) : cs));
   const pickCat = (c: RuCat | "") => { setCat(c); if (c && !venueTouched) setVenue(venueOf({ cat: c })); };
+
+  // 比较基准:取值框的前/后缀与占位随基准变化(绝对金额→$…CAD;×基线 / 同业群 P / 偏离 σ)
+  const baseOf = (c: Clause) => RULE_BASES.find((b) => b.key === (c.basis ?? "abs"))!;
+  const valStart = (c: Clause) => ((c.basis ?? "abs") === "abs" ? (isAmountField(c.field) ? "$" : "") : baseOf(c).unitPrefix);
+  const valEnd = (c: Clause) => ((c.basis ?? "abs") === "abs" ? (isAmountField(c.field) ? "CAD" : "") : baseOf(c).unitSuffix);
 
   // 窗口型指标必须配窗口才算完整(否则「累计 ≥$9k」无界、无意义)
   const clauseOk = (c: Clause) => !!c.field && !!c.op && !!c.value && (!isWindowedField(c.field) || !!c.window);
@@ -215,7 +220,7 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
                         <button onClick={() => delClause(i)} disabled={clauses.length === 1} className="flex h-6 w-6 items-center justify-center rounded-lg text-default-400 transition-colors hover:bg-danger/10 hover:text-danger disabled:opacity-30"><Trash2 className="h-3.5 w-3.5" /></button>
                       </div>
                       <Select size="sm" aria-label="运算字段" placeholder="运算字段" selectedKeys={c.field ? [c.field] : []} classNames={{ trigger: "h-10 min-h-10 bg-default-50" }}
-                        onSelectionChange={(k) => { const f = (Array.from(k as Set<string>)[0] as string) ?? ""; setClause(i, { field: f, window: isWindowedField(f) ? (c.window || "24 小时") : undefined }); }}>
+                        onSelectionChange={(k) => { const f = (Array.from(k as Set<string>)[0] as string) ?? ""; setClause(i, { field: f, window: isWindowedField(f) ? (c.window || "24 小时") : undefined, basis: isNumericField(f) ? (c.basis ?? "abs") : undefined }); }}>
                         {RULE_FIELDS.map((fld) => <SelectItem key={fld}>{fld}</SelectItem>)}
                       </Select>
                       {/* 滑动窗口:仅窗口型指标出现 —— 指标与窗口解耦,同一指标可配任意窗口 */}
@@ -229,14 +234,25 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
                           </Select>
                         </div>
                       )}
+                      {/* 比较基准:数值型指标可选 —— 绝对值 / × 自身历史基线 / 同业群 P 百分位 / 偏离均值 σ */}
+                      {isNumericField(c.field) && (
+                        <div className="mt-2.5 flex items-center gap-2">
+                          <span className="shrink-0 text-[11.5px] font-semibold text-default-500">比较基准</span>
+                          <Select size="sm" aria-label="比较基准" selectedKeys={[c.basis ?? "abs"]} className="flex-1" classNames={{ trigger: "h-9 min-h-9 bg-default-50" }}
+                            onSelectionChange={(k) => setClause(i, { basis: ((Array.from(k as Set<string>)[0] as Basis) ?? "abs") })}>
+                            {RULE_BASES.map((b) => <SelectItem key={b.key}>{b.label}</SelectItem>)}
+                          </Select>
+                        </div>
+                      )}
+                      {isNumericField(c.field) && (c.basis ?? "abs") !== "abs" && <p className="mt-1 px-1 text-[10.5px] leading-snug text-default-400">{baseOf(c).hint}</p>}
                       <div className="mt-2.5 grid grid-cols-[140px_1fr] gap-2.5">
                         <Select size="sm" aria-label="运算符" placeholder="运算符" selectedKeys={c.op ? [c.op] : []} classNames={{ trigger: "h-10 min-h-10 bg-default-50" }}
                           onSelectionChange={(k) => setClause(i, { op: Array.from(k as Set<string>)[0] ?? "" })}>
                           {RULE_OPS.map((op) => <SelectItem key={op}>{OP_LABEL[op]}</SelectItem>)}
                         </Select>
-                        <Input size="sm" aria-label="取值" placeholder="值" value={c.value} onValueChange={(v) => setClause(i, { value: v })} classNames={{ inputWrapper: "h-10 min-h-10 bg-default-50" }}
-                          startContent={isAmountField(c.field) ? <span className="text-[12px] text-default-400">$</span> : undefined}
-                          endContent={isAmountField(c.field) ? <span className="text-[11px] text-default-400">CAD</span> : undefined} />
+                        <Input size="sm" aria-label="取值" placeholder={baseOf(c).ph} value={c.value} onValueChange={(v) => setClause(i, { value: v })} classNames={{ inputWrapper: "h-10 min-h-10 bg-default-50" }}
+                          startContent={valStart(c) ? <span className="text-[12px] text-default-400">{valStart(c)}</span> : undefined}
+                          endContent={valEnd(c) ? <span className="text-[11px] text-default-400">{valEnd(c)}</span> : undefined} />
                       </div>
                     </SecCard>
                   ))}
