@@ -8,7 +8,7 @@ import { Pill, Initials } from "@/components/bits";
 import { Timeline } from "@/components/Timeline";
 import { NewRuleDrawer } from "@/components/NewRuleDrawer";
 import { RuleBacktestDrawer } from "@/components/RuleBacktestDrawer";
-import { RULES, RUSTATE, CAT_ICON, VENUE, venueOf, bfrMeta, bfrDefault, condText, groupsText, seedVersions, ruleFieldDiffs, type Rule, type RuState, type RuleVersion } from "@/lib/rules";
+import { RULES, RUSTATE, CAT_ICON, VENUE, venueOf, bfrMeta, bfrDefault, condText, groupsText, rolloutBadges, seedVersions, ruleFieldDiffs, type Rule, type RuState, type RuleVersion } from "@/lib/rules";
 import { FINDINGS } from "@/lib/findings";
 import { findingStore, ruleStore, useRuleVersion, useFindingVersion } from "@/lib/store";
 import type { Person } from "@/lib/data";
@@ -139,6 +139,7 @@ export default function RuleDetail() {
             {rule.id} {rule.name}
             <Pill tone={sd.tone}>{sd.label}</Pill>
             <Pill tone={risk.tone} dot={false}>{risk.label}</Pill>
+            {rolloutBadges(rule).map((b) => <Pill key={b.label} tone={b.tone} dot={false}>{b.label}</Pill>)}
           </h1>
           <div className="mt-2.5 text-[13px] text-default-500">{rule.cat} · {ven.label} · 创建 <span className="tnum">{rule.updated}</span> · 负责人 <b className="text-foreground">{(owner || ME).n}</b> · 来源 {rule.to ? <button onClick={() => nav(rule.to!)} className="text-primary hover:opacity-80">{rule.src} {rule.srcId}</button> : rule.src}</div>
         </div>

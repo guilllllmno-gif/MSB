@@ -184,6 +184,12 @@ export function ruleFieldDiffs(cur: Partial<Rule>, next: Partial<Rule>): FieldDi
   cmp("命中权重", cur.weight, next.weight);
   cmp("处置", cur.action, next.action);
   cmp("规则名称", cur.name, next.name);
+  // ⑤ 上线策略也纳入变更治理(改线上规则的影子 / 灰度 / 到期同样需审批)
+  const sh = (v?: boolean) => (v ? "影子模式" : "实拦");
+  if (next.shadow !== undefined) cmp("处置模式", sh(cur.shadow), sh(next.shadow));
+  const ro = (v?: number) => (typeof v === "number" ? `${v}%` : "100%");
+  if (next.rollout !== undefined) cmp("灰度比例", ro(cur.rollout), ro(next.rollout));
+  if (next.expiry !== undefined) cmp("到期日", cur.expiry || "永久", next.expiry || "永久");
   return out;
 }
 export const ruleChangeSummary = (diffs: FieldDiff[]) => (diffs.length ? diffs.map((d) => `${d.label} ${d.from} → ${d.to}`).join(" · ") : "无字段变更");
@@ -195,6 +201,17 @@ export interface Rule {
   // 新增规则界面补充的可选元数据(向后兼容,内置规则可不填)
   scope?: string; network?: string; desc?: string; mode?: RuleMode; stopScan?: boolean;
   actions?: string[]; escalation?: string; severity?: Severity; joiner?: Joiner;
+  // ⑤ 上线策略:影子模式(只告警不处置评估期)/ 到期日(到点自动失效)/ 灰度比例(按比例放量)
+  shadow?: boolean; expiry?: string; rollout?: number;
+}
+// 上线策略摘要(供详情 / 列表显徽标);返回各项可读文案。rollout 100 / 留空 视为全量。
+export interface RolloutBadge { label: string; tone: Tone }
+export function rolloutBadges(r: { shadow?: boolean; expiry?: string; rollout?: number }): RolloutBadge[] {
+  const out: RolloutBadge[] = [];
+  if (r.shadow) out.push({ label: "影子模式 · 只告警不处置", tone: "violet" });
+  if (typeof r.rollout === "number" && r.rollout < 100) out.push({ label: `灰度 ${r.rollout}%`, tone: "amber" });
+  if (r.expiry) out.push({ label: `到期 ${r.expiry}`, tone: "blue" });
+  return out;
 }
 export type RuleMode = "score" | "alert";  // 规则操作:仅评分 / 生成告警
 export type Severity = "低" | "中" | "高" | "极高";

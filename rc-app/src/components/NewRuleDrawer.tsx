@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button, Input, Select, SelectItem, Checkbox, CheckboxGroup, Slider, Radio, RadioGroup } from "@heroui/react";
-import { Zap, History, Layers, Trash2, Plus, Info, RefreshCw, ListFilter, ShieldCheck, ArrowRight, Clock } from "lucide-react";
+import { Zap, History, Layers, Trash2, Plus, Info, RefreshCw, ListFilter, ShieldCheck, ArrowRight, Clock, CalendarClock } from "lucide-react";
 import {
   CATS, VENUE, venueOf, RULE_FIELDS, RULE_OPS, OP_LABEL, isAmountField, isWindowedField, WINDOW_OPTS, CUSTOM_WINDOW, isCustomWindow, isNumericField, RULE_BASES, clauseText, groupsText, isTiered, TIER_DIMS, TIER_KEYS, RULE_SCOPES, RULE_NETWORKS, RULE_ESCALATIONS, RULE_DISPOSITIONS, SEVERITIES,
   ruleFieldDiffs, ruleChangeSummary, type RuCat, type Venue, type Rule, type Clause, type ClauseGroup, type ClauseTiers, type Basis, type RuleMode, type Severity, type Joiner,
@@ -75,6 +75,10 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
   const [escalation, setEscalation] = useState("");
   const [severity, setSeverity] = useState<Severity>("中");
   const [weight, setWeight] = useState(40);
+  // ⑤ 上线策略
+  const [shadow, setShadow] = useState(false);
+  const [rollout, setRollout] = useState(100);
+  const [expiry, setExpiry] = useState("");
   const [errs, setErrs] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -91,10 +95,12 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
       setActions(editRule.actions?.length ? editRule.actions : (editRule.action ? [editRule.action] : []));
       setEscalation(editRule.escalation || RULE_ESCALATIONS[0]); setSeverity(editRule.severity || "中");
       setWeight(Math.abs(parseInt(editRule.weight.replace(/[^0-9]/g, ""), 10)) || 30);
+      setShadow(editRule.shadow ?? false); setRollout(editRule.rollout ?? 100); setExpiry(editRule.expiry || "");
     } else {
       setName(""); setCat(""); setScope(""); setNetwork("全部网络"); setVenue(""); setVenueTouched(false); setDesc("");
       setMode("alert"); setStopScan(true); setGroups([{ joiner: "AND", clauses: [{ field: "", op: "", value: "" }] }]); setOuterJoiner("OR");
       setActions([]); setEscalation(""); setSeverity("中"); setWeight(40);
+      setShadow(false); setRollout(100); setExpiry("");
     }
     /* eslint-enable react-hooks/set-state-in-effect */
   }, [open, editRule]);
@@ -155,6 +161,7 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
       name: name.trim(), cat: cat as RuCat, venue: venue as Venue, scope, network, desc: desc || undefined,
       mode, stopScan, cond, clauses: flatValid, groups: multiGroup ? validGroups : undefined, outerJoiner: multiGroup ? outerJoiner : undefined,
       joiner: validGroups[0]?.joiner ?? "AND", actions: usedActions, escalation, severity, action, weight: w,
+      shadow, rollout, expiry: expiry || undefined,
     };
     if (editing && editRule) {
       if (requiresApproval) {
@@ -424,6 +431,33 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
                       <Slider aria-label="风险权重" size="sm" minValue={0} maxValue={100} step={5} value={weight} onChange={(v) => setWeight(Array.isArray(v) ? v[0] : v)} classNames={{ track: "bg-default-200", filler: "bg-primary" }} />
                       <div className="mt-0.5 flex justify-between text-[10px] text-default-400"><span>0 · 低敏</span><span>{weight >= 50 ? "高权重 → 易升级 MLRO" : "中低权重"}</span><span>100 · 强拦</span></div>
                     </div>
+                  </div>
+                </SecCard>
+
+                <Connector />
+
+                {/* ⑤ 上线策略:影子 / 灰度 / 到期(呼应回测→审批→上线治理链)*/}
+                <SecCard label="上线策略">
+                  <div className="flex items-start gap-2">
+                    <Checkbox size="sm" isSelected={shadow} onValueChange={setShadow} classNames={{ label: "text-[12.5px]" }}>
+                      <span className="font-semibold">影子模式</span> · 只告警不处置(评估期)
+                    </Checkbox>
+                  </div>
+                  <p className="mt-1 pl-6 text-[11px] leading-snug text-default-400">{shadow ? "命中只记录 / 告警、不执行处置动作,跑一段时间确认误报率再切实拦。" : "关闭 = 命中即按上方处置动作生效。"}</p>
+
+                  <div className="mt-3.5 border-t border-divider pt-3.5">
+                    <div className="mb-1 flex items-center justify-between">
+                      <div className="text-[12px] font-medium text-default-600">灰度比例(按比例放量)</div>
+                      <span className="text-[13px] font-extrabold tnum text-[var(--brand)]">{rollout}%</span>
+                    </div>
+                    <Slider aria-label="灰度比例" size="sm" minValue={10} maxValue={100} step={10} value={rollout} onChange={(v) => setRollout(Array.isArray(v) ? v[0] : v)} classNames={{ track: "bg-default-200", filler: "bg-primary" }} />
+                    <div className="mt-0.5 flex justify-between text-[10px] text-default-400"><span>10% · 小流量试跑</span><span>{rollout < 100 ? `仅对 ${rollout}% 命中流量生效` : "全量生效"}</span><span>100% · 全量</span></div>
+                  </div>
+
+                  <div className="mt-3.5 border-t border-divider pt-3.5">
+                    <Input size="sm" type="date" label="到期日(到点自动失效)" labelPlacement="outside" aria-label="到期日" value={expiry} onValueChange={setExpiry}
+                      classNames={{ inputWrapper: "h-10 min-h-10 bg-default-50" }} startContent={<CalendarClock className="h-4 w-4 text-default-400" />} />
+                    <p className="mt-1 text-[11px] text-default-400">{expiry ? `${expiry} 自动停用 —— 临时加严(交易所被盗 / 新制裁)用。` : "留空 = 永久生效。"}</p>
                   </div>
                 </SecCard>
               </div>
