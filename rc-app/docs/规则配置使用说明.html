@@ -1,0 +1,310 @@
+<title>监控规则配置 · 使用说明</title>
+<meta name="description" content="加密 MSB 风控:监控规则怎么配、配完去哪、谁会跑到它 —— 面向分析师与风控总管的操作手册。">
+<style>
+  :root{
+    --bg:#F6F7F9; --surface:#FFFFFF; --ink:#191E29; --ink-2:#4A5362; --ink-3:#838C9B;
+    --line:#E6E9F0; --line-2:#EFF1F6;
+    --accent:#3551D1; --accent-soft:#ECEFFC;
+    --green:#16895A; --green-s:#E4F4EC; --amber:#B26A00; --amber-s:#FAEFD7;
+    --red:#C8392F; --red-s:#FBE7E4; --violet:#6A45C9; --violet-s:#EEE8FB;
+    --blue:#2D6BD4; --blue-s:#E6EEFB; --grey:#697283; --grey-s:#EDEFF3;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+    --cjk:"PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,-apple-system,sans-serif;
+  }
+  *{box-sizing:border-box}
+  .doc{font-family:var(--cjk);color:var(--ink);background:var(--bg);line-height:1.72;
+    font-size:14.5px;-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
+  .doc{max-width:1180px;margin:0 auto;padding:0 24px}
+
+  /* ── header ── */
+  .hd{padding:54px 0 30px;border-bottom:1px solid var(--line)}
+  .eyebrow{font-size:11.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--accent)}
+  .hd h1{font-size:31px;line-height:1.18;font-weight:800;letter-spacing:-.01em;margin:.5rem 0 0;text-wrap:balance}
+  .hd p{font-size:15px;color:var(--ink-2);margin:.7rem 0 0;max-width:62ch}
+  .meta{display:flex;flex-wrap:wrap;gap:8px 18px;margin-top:18px;font-size:12.5px;color:var(--ink-3)}
+  .meta b{color:var(--ink-2);font-weight:600}
+
+  /* ── layout ── */
+  .grid{display:grid;grid-template-columns:1fr;gap:0}
+  @media(min-width:980px){.grid{grid-template-columns:212px 1fr;gap:44px;align-items:start}}
+  nav.toc{display:none}
+  @media(min-width:980px){
+    nav.toc{display:block;position:sticky;top:24px;padding-top:34px;font-size:13px}
+    nav.toc .lbl{font-size:10.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);padding:0 0 10px}
+    nav.toc a{display:block;color:var(--ink-2);text-decoration:none;padding:5px 10px;border-radius:7px;border-left:2px solid transparent}
+    nav.toc a:hover{background:var(--accent-soft);color:var(--accent)}
+    nav.toc a .n{color:var(--ink-3);font-variant-numeric:tabular-nums;margin-right:7px}
+  }
+  main{min-width:0;padding-bottom:80px}
+
+  section{padding:38px 0 4px;border-top:1px solid var(--line-2);scroll-margin-top:18px}
+  section:first-of-type{border-top:0}
+  h2{font-size:20px;font-weight:750;letter-spacing:-.01em;margin:0 0 4px;display:flex;align-items:baseline;gap:11px}
+  h2 .sn{font-size:13px;font-weight:700;color:var(--accent);font-variant-numeric:tabular-nums;flex:none}
+  h3{font-size:14.5px;font-weight:700;margin:26px 0 8px;color:var(--ink)}
+  p{margin:11px 0;max-width:68ch}
+  .lead{color:var(--ink-2)}
+  strong{font-weight:700}
+  a.inl{color:var(--accent);text-decoration:none;border-bottom:1px solid var(--accent-soft)}
+
+  /* ── chips & code ── */
+  .pill{display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:999px;
+    font-size:12px;font-weight:650;white-space:nowrap;line-height:1.5}
+  .p-green{background:var(--green-s);color:var(--green)} .p-amber{background:var(--amber-s);color:var(--amber)}
+  .p-red{background:var(--red-s);color:var(--red)} .p-violet{background:var(--violet-s);color:var(--violet)}
+  .p-blue{background:var(--blue-s);color:var(--blue)} .p-grey{background:var(--grey-s);color:var(--grey)}
+  code,.mono{font-family:var(--mono);font-size:12.5px;background:#F0F2F7;color:#2B3445;
+    padding:1.5px 6px;border-radius:5px;border:1px solid var(--line);white-space:nowrap}
+  .expr{display:block;font-family:var(--mono);font-size:13px;background:#FBFCFE;border:1px solid var(--line);
+    border-left:3px solid var(--accent);border-radius:8px;padding:11px 14px;margin:10px 0;color:#2B3445;white-space:normal}
+
+  /* ── lifecycle flow ── */
+  .flow{display:flex;flex-wrap:wrap;align-items:center;gap:9px;margin:16px 0 6px}
+  .flow .arr{color:var(--ink-3);font-size:15px}
+  .flow .branch{font-size:12px;color:var(--ink-3);width:100%;padding-left:2px;margin-top:4px}
+
+  /* ── cards ── */
+  .cards{display:grid;gap:14px;margin:16px 0}
+  @media(min-width:620px){.cards.two{grid-template-columns:1fr 1fr}.cards.three{grid-template-columns:repeat(3,1fr)}}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:13px;padding:16px 17px}
+  .card h4{margin:0 0 4px;font-size:14px;font-weight:700;display:flex;align-items:center;gap:8px}
+  .card h4 .dot{width:8px;height:8px;border-radius:50%;flex:none}
+  .card p{margin:6px 0 0;font-size:13px;color:var(--ink-2)}
+  .callout{background:var(--accent-soft);border:1px solid #D9DFF8;border-radius:11px;padding:13px 16px;margin:14px 0;font-size:13.5px;color:#2C3556}
+  .callout b{color:var(--accent)}
+
+  /* ── tables ── */
+  .tw{overflow-x:auto;margin:15px 0;border:1px solid var(--line);border-radius:12px}
+  table{border-collapse:collapse;width:100%;font-size:13.5px;background:var(--surface)}
+  th,td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--line-2);vertical-align:top}
+  thead th{font-size:11.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-3);
+    background:#FBFCFE;white-space:nowrap}
+  tbody tr:last-child td{border-bottom:0}
+  td:first-child{font-weight:600;white-space:nowrap}
+  table.cook td:first-child{white-space:normal}
+  td .mono,td code{white-space:normal}
+
+  ul{margin:11px 0;padding-left:20px}li{margin:5px 0;color:var(--ink-2)}li strong{color:var(--ink)}
+  .foot{margin-top:40px;padding-top:22px;border-top:1px solid var(--line);font-size:12.5px;color:var(--ink-3)}
+  html{scroll-behavior:smooth}
+  @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+</style>
+
+<div class="doc">
+  <header class="hd">
+    <div class="eyebrow">MSB 风控 · 操作手册</div>
+    <h1>监控规则配置使用说明</h1>
+    <p class="lead">一条规则怎么配、配完去哪、谁会跑到它 —— 面向风控分析师与风控总管。</p>
+    <div class="meta">
+      <span><b>入口</b>　左侧导航「规则」→ 右上「新建规则」;或规则详情页「编辑规则」</span>
+      <span><b>适用</b>　加密货币 MSB · FINTRAC 合规</span>
+    </div>
+  </header>
+
+  <div class="grid">
+    <nav class="toc" aria-label="目录">
+      <div class="lbl">目录</div>
+      <a href="#s0"><span class="n">0</span>两个前提</a>
+      <a href="#s1"><span class="n">1</span>命名与描述</a>
+      <a href="#s2"><span class="n">2</span>触发条件</a>
+      <a href="#s3"><span class="n">3</span>命中动作</a>
+      <a href="#s4"><span class="n">4</span>验证与提交</a>
+      <a href="#s5"><span class="n">5</span>适用对象</a>
+      <a href="#s6"><span class="n">6</span>评分模式处置</a>
+      <a href="#s7"><span class="n">7</span>场景配方</a>
+      <a href="#s8"><span class="n">8</span>速记</a>
+    </nav>
+
+    <main>
+      <section id="s0">
+        <h2><span class="sn">0</span>先理解两件事</h2>
+
+        <h3>① 规则有生命周期,新建不直接上线</h3>
+        <div class="flow">
+          <span class="pill p-blue">新建 / 回测中</span><span class="arr">→</span>
+          <span class="pill p-amber">待审批</span><span class="arr">→</span>
+          <span class="pill p-green">已上线 · 生效</span>
+          <span class="branch">分支:<span class="pill p-grey">已驳回</span>　<span class="pill p-grey">已停用</span>(可重新启用)</span>
+        </div>
+        <ul>
+          <li>新建规则一律先进「回测中」,<strong>不会立刻拦真实交易</strong>。</li>
+          <li>回测命中 / 误报达标后<strong>提交审批</strong>,由<strong>风控总管</strong>批准才上线。</li>
+          <li>改一条<strong>已上线</strong>的规则:不直接动线上,而是提交<strong>拟议变更</strong>,总管审批通过才切换(原版审批期间照常生效)。</li>
+          <li><strong>名单筛查类硬规则</strong>(制裁 / 法定命中即拦)编辑被锁定,灵敏度走名单管理。</li>
+        </ul>
+
+        <h3>② 规则有两种「命中后做什么」</h3>
+        <div class="cards two">
+          <div class="card">
+            <h4><span class="dot" style="background:var(--blue)"></span>仅评分</h4>
+            <p>命中只给交易<strong>加风险分</strong>(权重),自己不处置。最终处置由<strong>全局策略</strong>按总分裁决(见第 6 节)。</p>
+          </div>
+          <div class="card">
+            <h4><span class="dot" style="background:var(--accent)"></span>生成告警</h4>
+            <p>命中生成告警并执行你配的<strong>处置动作</strong>(见 3.2)。</p>
+          </div>
+        </div>
+        <div class="callout">多条规则会一起跑同一笔交易。跨规则的处置取 <b>「最严生效」</b>:拒绝 &gt; 冻结 &gt; 补料 &gt; 转人工 &gt; 放行,不取最宽松。</div>
+      </section>
+
+      <section id="s1">
+        <h2><span class="sn">1</span>命名与描述</h2>
+        <p>弹窗顶部:<strong>规则名称</strong>(必填,一句话说清抓什么,如「滑窗结构化拆分」)+ <strong>规则描述</strong>(选填,补充意图 / 背景)。</p>
+      </section>
+
+      <section id="s2">
+        <h2><span class="sn">2</span>左栏 · 触发条件</h2>
+
+        <h3>2.1 执行场景(头部右上)</h3>
+        <p>决定规则能不能实时拦。选好<strong>规则类别</strong>后系统会按类别自动建议场景。</p>
+        <div class="tw"><table>
+          <thead><tr><th>场景</th><th>含义</th></tr></thead>
+          <tbody>
+            <tr><td><span class="pill p-blue">事中 · 实时闸口</span></td><td>交易发生时即可判定(单笔阈值 / 名单 / 地址 / 同主体滑窗),可当场放行 / 拒绝</td></tr>
+            <tr><td><span class="pill p-violet">事后 · 批量回溯</span></td><td>需跨时间 / 跨主体聚合(扇入 / 速度 / 集中度 / 链跳),只能批量回扫</td></tr>
+            <tr><td><span class="pill p-green">事中 + 事后</span></td><td>事中近实时标记 + 事后复扫补全</td></tr>
+          </tbody>
+        </table></div>
+
+        <h3>2.2 规则元数据</h3>
+        <ul>
+          <li><strong>规则类别</strong>:金额阈值 / 链上溯源 / 行为模式 / 名单筛查 / 评分模型 / 统计聚合。</li>
+          <li><strong>适用场景</strong>(业务线)、<strong>适用网络</strong>:限定只在哪类交易 / 哪条链上跑。</li>
+          <li><strong>适用对象</strong>(选填,多选):定向到哪类商户 —— 见第 5 节。<strong>不选 = 全部商户都跑。</strong></li>
+        </ul>
+
+        <h3>2.3 条件构造器(核心)</h3>
+        <p>一条规则 = 若干<strong>子句</strong>,子句间用 <strong>AND(且)/ OR(或)</strong> 连接;还可拆成<strong>子组</strong>做一层嵌套。每条子句 = <strong>字段 + 运算符 + 值</strong>,外加两个可选维度:</p>
+
+        <div class="cards three">
+          <div class="card">
+            <h4>① 滑动窗口</h4>
+            <p>窗口型指标(滑窗累计金额 / 滑窗笔数 / 对手集中度 / 扇入主体数)必配窗口:1h / 24h / 48h / 7d / 14d / 30d / 自定义。</p>
+          </div>
+          <div class="card">
+            <h4>② 比较基准</h4>
+            <p>数值字段可选:绝对值 / × 自身历史基线 / 同业群百分位 P / 偏离均值 σ。类别字段(名单 / 标签 / 跨链 / KYB)无基准。</p>
+          </div>
+          <div class="card">
+            <h4>③ 分层阈值</h4>
+            <p>数值 + 绝对值基准时可勾:按 KYC 等级 / 业务线 / 注册地分档取不同阈值。</p>
+          </div>
+        </div>
+
+        <div class="tw"><table>
+          <thead><tr><th>比较基准</th><th>含义</th><th>抓什么</th></tr></thead>
+          <tbody>
+            <tr><td>绝对值</td><td>跟固定 / 法定阈值比</td><td>LVCTR 大额、Travel Rule、评分超阈</td></tr>
+            <tr><td>× 自身历史基线</td><td>倍于该主体自己的常态</td><td>休眠突发、账户接管(VIP 不误报、新户即触发)</td></tr>
+            <tr><td>同业群百分位 P</td><td>高于同业商户群 P 分位</td><td>速度 / 峰值偏离、无历史可比的新户</td></tr>
+            <tr><td>偏离均值 σ</td><td>偏离自身均值 N 个标准差</td><td>做市 / 促销等高波动账户的真异常</td></tr>
+          </tbody>
+        </table></div>
+
+        <p><strong>嵌套子组</strong>:点「添加子组」,组内子句用各自 AND/OR 连,子组之间再用 AND/OR 连,可表达:</p>
+        <span class="expr">( 单笔 ≥ $9k 且 账户 &lt; 30天 ) 或 ( 24h 笔数 ≥ 5 且 集中度 ≥ 80% )</span>
+        <p>底部<strong>常驻句子条</strong>会把你配的条件实时翻译成一句话,随时可看。</p>
+      </section>
+
+      <section id="s3">
+        <h2><span class="sn">3</span>右栏 · 命中动作</h2>
+
+        <h3>3.1 事件操作</h3>
+        <ul>
+          <li><strong>仅评分 / 生成告警</strong>(二选一,见 0.2)。</li>
+          <li><strong>停止扫描</strong>:勾上后这笔交易命中本规则即不再匹配后续规则。</li>
+        </ul>
+
+        <h3>3.2 处置动作(生成告警模式)</h3>
+        <p><strong>单选</strong>一个终态结果 —— 一笔交易只能落一个最终状态,按严格度排列:</p>
+        <div class="flow">
+          <span class="pill p-red">拒绝交易</span><span class="arr">›</span>
+          <span class="pill p-red">冻结并升级 MLRO</span><span class="arr">›</span>
+          <span class="pill p-amber">要求补充材料</span><span class="arr">›</span>
+          <span class="pill p-blue">智能入账 · 转人工</span><span class="arr">›</span>
+          <span class="pill p-grey">仅记录</span>
+        </div>
+        <p><strong>阶梯处置</strong>(可勾):按金额 / 风险分区间分档触发不同处置,自高到低匹配:</p>
+        <span class="expr">≥ $9,000 → 转人工审核　·　≥ $50,000 → 冻结并升级 MLRO</span>
+
+        <h3>3.3 风险权重</h3>
+        <p>0–100,命中后累加到交易风险分。权重越高越易把总分推过拦截线(评分模式的处置由全局策略按总分定)。</p>
+
+        <h3>3.4 上线策略</h3>
+        <div class="cards three">
+          <div class="card"><h4><span class="dot" style="background:var(--violet)"></span>影子模式</h4><p>命中只告警不处置,跑一段确认误报率再切实拦。</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--amber)"></span>灰度比例</h4><p>10–100%,先小流量试跑再全量。</p></div>
+          <div class="card"><h4><span class="dot" style="background:var(--blue)"></span>到期日</h4><p>到点自动失效(临时加严用,如某交易所被盗 / 新制裁)。</p></div>
+        </div>
+        <p style="font-size:13px;color:var(--ink-3)">改已上线规则的上线策略,同样要走总管审批。</p>
+      </section>
+
+      <section id="s4">
+        <h2><span class="sn">4</span>配完怎么验 / 提交</h2>
+        <ul>
+          <li><strong>单笔回放测试</strong>(左栏底部):选一笔真实历史样本交易 → <strong>回放</strong> → 看这条规则命不命中、逐子句 ✓/✗、不命中<strong>卡在哪条</strong>、命中后<strong>取哪个处置</strong>。调规则不再靠猜。</li>
+          <li><strong>运行规则 / 运行 30 天回测</strong>:给近 90 天的命中 / 误报量级预估。</li>
+          <li><strong>创建规则</strong>:落「回测中」。<strong>保存修改 / 提交变更审批</strong>:已上线规则走审批,其余直改。</li>
+        </ul>
+      </section>
+
+      <section id="s5">
+        <h2><span class="sn">5</span>适用对象 · 谁会跑到这条规则</h2>
+        <p>并非所有商户都跑所有规则。「适用对象」多选把规则定向到商户分群:</p>
+        <div class="cards two">
+          <div class="card">
+            <h4><span class="dot" style="background:var(--blue)"></span>派生型群组(系统实时算)</h4>
+            <p>高风险商户(风险分 ≥80)/ 新户 · KYB 未完成 / 高风险辖区 / 白名单除外。<strong>不靠打标签</strong>。</p>
+          </div>
+          <div class="card">
+            <h4><span class="dot" style="background:var(--violet)"></span>业务模式标签(分类 / 识别)</h4>
+            <p>OTC · 交易所类 / 加密 ATM 运营商 / DeFi · 跨链协议类。靠开户分类或模型自动识别。</p>
+          </div>
+        </div>
+        <div class="callout"><b>不选 = 全部商户都跑。</b>法定核心(制裁筛查 / LVCTR)对所有商户恒生效,不受适用对象限制。</div>
+        <p>想看一个商户实际跑哪些规则:商户 360 档案的<strong>「适用规则」卡</strong>(法定核心 / 定向命中 / 不适用 三桶)与它的<strong>业务模式标签</strong>(模型自动识别 → 人工确认)。</p>
+      </section>
+
+      <section id="s6">
+        <h2><span class="sn">6</span>评分模式的处置在哪定</h2>
+        <p>「仅评分」规则只加分,最终处置在<strong>全局策略</strong>的<strong>风险分处置矩阵</strong>按总分裁决:</p>
+        <div class="tw"><table>
+          <thead><tr><th>风险分</th><th>档</th><th>处置</th></tr></thead>
+          <tbody>
+            <tr><td>≥ 80</td><td><span class="pill p-red">高危</span></td><td>拦截 + 强制人工复核</td></tr>
+            <tr><td>60 – 79</td><td><span class="pill p-amber">偏高</span></td><td>放行 + 转告警研判 + 留痕</td></tr>
+            <tr><td>40 – 59</td><td><span class="pill p-blue">中低</span></td><td>放行 + 留痕(抽样复核)</td></tr>
+            <tr><td>&lt; 40</td><td><span class="pill p-green">低</span></td><td>直接放行</td></tr>
+          </tbody>
+        </table></div>
+        <p>跨规则仲裁、名单优先级、数据缺失兜底也都在全局策略页。</p>
+      </section>
+
+      <section id="s7">
+        <h2><span class="sn">7</span>常见场景配方</h2>
+        <div class="tw"><table class="cook">
+          <thead><tr><th>想抓什么</th><th>怎么配</th></tr></thead>
+          <tbody>
+            <tr><td>结构化拆分(规避 LVCTR)</td><td><span class="mono">滑窗累计金额 ≥ $9,000</span>(48h)<strong>且</strong> <span class="mono">滑窗笔数 ≥ 5</span>(48h)</td></tr>
+            <tr><td>大额单笔(LVCTR)</td><td><span class="mono">单笔金额 ≥ $10,000</span>(绝对值)</td></tr>
+            <tr><td>休眠后突发</td><td><span class="mono">账户休眠天数 ≥ 60</span> <strong>且</strong> <span class="mono">滑窗笔数 ≥ 自身基线 ×5</span>(24h)</td></tr>
+            <tr><td>速度 / 峰值偏离</td><td><span class="mono">滑窗笔数 &gt; 同业群 P95</span>(24h)</td></tr>
+            <tr><td>多账户扇入归集</td><td><span class="mono">扇入主体数 ≥ 4</span>(14 天)</td></tr>
+            <tr><td>混币器 / 跨链</td><td><span class="mono">跨链 / 隐私币 命中 隐私币 / 跨链桥</span>(类别型)</td></tr>
+            <tr><td>VIP 与新户不同阈值</td><td><span class="mono">单笔金额 ≥ 绝对值</span>,勾<strong>分层阈值</strong>按 KYC 分档</td></tr>
+            <tr><td>金额越大处置越狠</td><td>勾<strong>阶梯处置</strong>:≥$9k 转人工 / ≥$50k 冻结升级</td></tr>
+          </tbody>
+        </table></div>
+      </section>
+
+      <section id="s8">
+        <h2><span class="sn">8</span>一句话速记</h2>
+        <div class="callout" style="font-size:14.5px;line-height:1.85">
+          <b>条件</b>(字段 + 窗口 + 基准 + 值,可嵌套子组、可分层)→ <b>动作</b>(评分加权 / 单一处置或阶梯,可影子 · 灰度 · 到期)→ <b>定向</b>(适用对象,默认全部)→ <b>回放验证</b> → <b>回测 → 审批 → 上线</b>。
+        </div>
+      </section>
+
+      <div class="foot">MSB 风控原型 · 监控规则模块 — 演示态文档,功能口径以应用内为准。</div>
+    </main>
+  </div>
+</div>
