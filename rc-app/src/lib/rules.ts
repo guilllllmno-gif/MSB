@@ -200,7 +200,7 @@ export interface Rule {
   owner: Person; updated: string; weight: string; backtest?: Backtest; clauses?: Clause[]; groups?: ClauseGroup[]; outerJoiner?: Joiner; otherwise?: string;
   // 新增规则界面补充的可选元数据(向后兼容,内置规则可不填)
   scope?: string; audience?: string[]; desc?: string; mode?: RuleMode; stopScan?: boolean;
-  actions?: string[]; joiner?: Joiner;
+  actions?: string[]; sideActions?: string[]; joiner?: Joiner;
   // ⑤ 上线策略:影子模式(只告警不处置评估期)/ 到期日(到点自动失效)/ 灰度比例(按比例放量)
   shadow?: boolean; expiry?: string; rollout?: number;
   // ⑥ 阶梯处置:动作按金额 / 风险分区间分档(无则用 actions 平铺处置)
@@ -231,14 +231,16 @@ export const RULE_SCOPES = ["充值通用", "提现", "兑换 · 币币", "On-ra
 // 法定核心(制裁筛查 / LVCTR)对所有商户恒生效,不受此限。
 export const RULE_AUDIENCES = ["高风险商户(风险分 ≥80)", "新户 / KYB 未完成", "高风险辖区注册", "白名单商户除外", "OTC 柜台 / 交易所类", "加密 ATM 运营商", "DeFi / 跨链协议类"];
 export const audienceText = (a?: string[]) => (a && a.length ? a.join(" · ") : "全部商户(不限)");
-// 处置 = 单一终态结果(一笔交易只能落到一个最终状态)。按严格度降序排列。
-export const RULE_DISPOSITIONS = ["拒绝交易", "冻结资金并升级 MLRO", "要求补充材料", "智能入账(转人工审核)", "仅记录"];
+// 终态处置 = 单一最终结果(一笔交易只能落到一个最终状态),互斥单选。按严格度降序排列。
+export const RULE_DISPOSITIONS = ["拒绝交易", "冻结资金", "要求补充材料", "智能入账(转人工审核)", "放行 · 仅记录"];
 // 终态严格度排序(唯一真值来源):跨规则「最严生效」+ 旧多选规则迁移为单选时都取此最大值。数字越大越严。
 export const DISPOSITION_RANK: Record<string, number> = {
-  "拒绝交易": 5, "冻结资金并升级 MLRO": 4, "要求补充材料": 3, "智能入账(转人工审核)": 2, "仅记录": 1,
+  "拒绝交易": 5, "冻结资金": 4, "要求补充材料": 3, "智能入账(转人工审核)": 2, "放行 · 仅记录": 1,
 };
 export const strictestDisposition = (ds: string[]) =>
   ds.slice().sort((a, b) => (DISPOSITION_RANK[b] ?? 0) - (DISPOSITION_RANK[a] ?? 0))[0] || "";
+// 附带动作 = 叠加在终态处置之上的工作流副作用,可多选、可与任意终态共存(终态不互斥它们)。
+export const RULE_SIDE_ACTIONS = ["升级 MLRO", "通知合规官", "加入观察名单", "生成案件", "触发 EDD 复核"];
 // 运算符的中文标签(下拉里显示更直白)
 export const OP_LABEL: Record<string, string> = { "≥": "≥ 大于等于", "≤": "≤ 小于等于", ">": "> 大于", "<": "< 小于", "=": "= 等于", "≠": "≠ 不等于", "命中": "命中", "包含": "包含" };
 // 金额类字段(取值带 $ / CAD 装饰)

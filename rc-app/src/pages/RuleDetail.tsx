@@ -380,6 +380,12 @@ export default function RuleDetail() {
                 </div>
               </div>
             )}
+            {rule.sideActions && rule.sideActions.length > 0 && (
+              <div className="mb-3 flex flex-wrap items-center gap-1.5">
+                <span className="text-[11.5px] font-semibold text-default-500">附带动作</span>
+                {rule.sideActions.map((s) => <span key={s} className="rounded-md bg-default-100 px-2 py-0.5 text-[11.5px] font-medium text-default-600">{s}</span>)}
+              </div>
+            )}
             <div className="flex flex-wrap items-center gap-1.5">
               {[`命中评分 ${rule.weight}`, rule.action, ven.short === "事后" ? "回溯命中 · 转研判" : "事中闸口处置", risk.tone === "red" ? "升级 MLRO · STR" : "L1 研判结案"].map((s, i, arr) => (
                 <span key={i} className="flex items-center gap-1.5">

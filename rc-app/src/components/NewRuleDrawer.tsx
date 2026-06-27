@@ -1,10 +1,10 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button, Input, Select, SelectItem, Checkbox, Slider, Radio, RadioGroup } from "@heroui/react";
-import { Zap, History, Layers, Trash2, Plus, Info, RefreshCw, ListFilter, ShieldCheck, ArrowRight, Clock, CalendarClock, PlayCircle, CheckCircle2, XCircle, MinusCircle, Users } from "lucide-react";
+import { Zap, History, Layers, Trash2, Plus, Info, ListFilter, ShieldCheck, ArrowRight, Clock, CalendarClock, PlayCircle, CheckCircle2, XCircle, MinusCircle, Users, FlaskConical, X } from "lucide-react";
 import { REPLAY_TXNS, evalRule, type RuleEval } from "@/lib/replay";
 import {
-  CATS, VENUE, venueOf, RULE_FIELDS, RULE_OPS, OP_LABEL, isAmountField, isWindowedField, WINDOW_OPTS, CUSTOM_WINDOW, isCustomWindow, isNumericField, RULE_BASES, clauseText, groupsText, isTiered, TIER_DIMS, TIER_KEYS, RULE_SCOPES, RULE_AUDIENCES, RULE_DISPOSITIONS,
+  CATS, VENUE, venueOf, RULE_FIELDS, RULE_OPS, OP_LABEL, isAmountField, isWindowedField, WINDOW_OPTS, CUSTOM_WINDOW, isCustomWindow, isNumericField, RULE_BASES, clauseText, groupsText, isTiered, TIER_DIMS, TIER_KEYS, RULE_SCOPES, RULE_AUDIENCES, RULE_DISPOSITIONS, RULE_SIDE_ACTIONS,
   ACTION_BYS, actionTiersText, strictestDisposition, ruleFieldDiffs, ruleChangeSummary, type RuCat, type Venue, type Rule, type Clause, type ClauseGroup, type ClauseTiers, type Basis, type RuleMode, type Joiner,
 } from "@/lib/rules";
 import { ruleStore } from "@/lib/store";
@@ -70,7 +70,8 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
   // 触发条件 = 一层嵌套子组:groups[gi].clauses 内以 group.joiner 连接,子组之间以 outerJoiner 连接
   const [groups, setGroups] = useState<ClauseGroup[]>([{ joiner: "AND", clauses: [{ field: "", op: "", value: "" }] }]);
   const [outerJoiner, setOuterJoiner] = useState<Joiner>("OR");
-  const [actions, setActions] = useState<string[]>([]);
+  const [actions, setActions] = useState<string[]>([]);   // 终态处置(单选,存数组首项)
+  const [sideActions, setSideActions] = useState<string[]>([]); // 附带动作(多选)
   // ⑥ 阶梯处置(动作按金额/风险分分档)
   const [actionTiered, setActionTiered] = useState(false);
   const [actionBy, setActionBy] = useState<"金额" | "风险分">("金额");
@@ -84,12 +85,14 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
   const [replayId, setReplayId] = useState(REPLAY_TXNS[0].id);
   const [replay, setReplay] = useState<RuleEval | null>(null);
   const [replayAction, setReplayAction] = useState("");
+  // 30 天回测结果(点页脚「运行 30 天回测」生成)
+  const [backtest, setBacktest] = useState<{ scanned: string; hits: number; fp: number; eff: number; escalated: number; daily: number[]; ok: boolean } | null>(null);
   const [errs, setErrs] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!open) return;
     /* eslint-disable react-hooks/set-state-in-effect */
-    setErrs(new Set()); setReplay(null); setReplayAction(""); setReplayId(REPLAY_TXNS[0].id);
+    setErrs(new Set()); setReplay(null); setReplayAction(""); setReplayId(REPLAY_TXNS[0].id); setBacktest(null);
     if (editRule) {
       setName(editRule.name); setCat(editRule.cat); setVenue(editRule.venue || venueOf(editRule)); setVenueTouched(true);
       setScope(editRule.scope || RULE_SCOPES[0]); setAudience(editRule.audience || []); setDesc(editRule.desc || "");
@@ -97,8 +100,9 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
       setGroups(editRule.groups?.length ? editRule.groups.map((g) => ({ joiner: g.joiner, clauses: g.clauses.map((c) => ({ ...c })) }))
         : [{ joiner: editRule.joiner || "AND", clauses: editRule.clauses?.length ? editRule.clauses.map((c) => ({ ...c })) : [{ field: "", op: "", value: "" }] }]);
       setOuterJoiner(editRule.outerJoiner || "OR");
-      // 处置已是单选;旧多选规则按严格度收敛为唯一终态结果
+      // 终态单选;旧多选规则按严格度收敛为唯一终态结果
       setActions(editRule.actions?.length ? [strictestDisposition(editRule.actions)] : []);
+      setSideActions(editRule.sideActions || []);
       setActionTiered(!!editRule.actionTiers); setActionBy(editRule.actionTiers?.by || "金额");
       setActionRows(editRule.actionTiers?.rows.length ? editRule.actionTiers.rows.map((r) => ({ ...r })) : [{ from: "", action: "" }]);
       setWeight(Math.abs(parseInt(editRule.weight.replace(/[^0-9]/g, ""), 10)) || 30);
@@ -106,7 +110,7 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
     } else {
       setName(""); setCat(""); setScope(""); setAudience([]); setVenue(""); setVenueTouched(false); setDesc("");
       setMode("alert"); setStopScan(true); setGroups([{ joiner: "AND", clauses: [{ field: "", op: "", value: "" }] }]); setOuterJoiner("OR");
-      setActions([]); setActionTiered(false); setActionBy("金额"); setActionRows([{ from: "", action: "" }]);
+      setActions([]); setSideActions([]); setActionTiered(false); setActionBy("金额"); setActionRows([{ from: "", action: "" }]);
       setWeight(40);
       setShadow(false); setRollout(100); setExpiry("");
     }
@@ -149,12 +153,23 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
   const validActionRows = actionRows.filter((r) => r.from && r.action);
   const actionTiers = tiersOn && validActionRows.length ? { by: actionBy, rows: validActionRows } : undefined;
   const usedActions = mode === "alert" && !actionTiered ? actions : [];
-  const action = actionTiers ? actionTiersText(actionTiers) : usedActions.length ? usedActions.join(" · ") : mode === "score" ? `评分 ${w}` : "生成告警";
+  const sides = mode === "alert" ? sideActions : [];
+  const dispBase = actionTiers ? actionTiersText(actionTiers) : usedActions.length ? usedActions.join(" · ") : mode === "score" ? `评分 ${w}` : "生成告警";
+  const action = sides.length ? `${dispBase} · 附带 ${sides.join(" / ")}` : dispBase;
   const h = [...cond].reduce((a, c) => a + c.charCodeAt(0), 0);
-  const estHit = flatValid.length ? (h % 34) + 12 : 0;
-  const estFp = flatValid.length ? (h % 12) + 4 : 0;
 
-  const runRule = () => { if (!flatValid.length) { toast.error("请先至少配置一条完整条件"); return; } toast.success(`已运行 · 近90天预估命中 ~${estHit} 笔 · 误报 ~${estFp}%`); };
+  // 30 天回测:从条件确定性派生一份可信的回测估算(演示态;真实重放走「回测模拟」调阈值)
+  const runBacktest = () => {
+    if (!flatValid.length) { toast.error("请先至少配置一条完整条件再回测"); return; }
+    const hits = (h % 280) + 40;
+    const fp = (h % 12) + 4;
+    const eff = Math.max(60, 100 - fp - (h % 6));
+    const escalated = Math.round(hits * (0.12 + (h % 8) / 100));
+    const scanned = `${(1.0 + (h % 22) / 10).toFixed(1)}M`;
+    const daily = Array.from({ length: 30 }, (_, i) => 2 + (((h >>> (i % 13)) ^ (i * 7 + 3)) % 9));
+    setBacktest({ scanned, hits, fp, eff, escalated, daily, ok: fp <= 9 && hits >= 20 });
+    toast.success("30 天回测完成 · 见底部结果");
+  };
   const runReplay = () => {
     if (!flatValid.length) { toast.error("请先至少配置一条完整条件"); return; }
     const tx = REPLAY_TXNS.find((t) => t.id === replayId)!;
@@ -170,6 +185,7 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
         disp = `${band.action} · 命中 ≥${actionBy === "金额" ? "$" : ""}${band.from}${actionBy === "风险分" ? " 分" : ""} 档`;
       } else if (mode === "score") disp = `评分 ${w}`;
       else disp = actions[0] || "";
+      if (disp && mode === "alert" && sideActions.length) disp += ` · 附带 ${sideActions.join(" / ")}`;
     }
     setReplay(r); setReplayAction(disp);
   };
@@ -188,7 +204,7 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
     const fields: Partial<Rule> = {
       name: name.trim(), cat: cat as RuCat, venue: venue as Venue, scope, audience: audience.length ? audience : undefined, desc: desc || undefined,
       mode, stopScan, cond, clauses: flatValid, groups: multiGroup ? validGroups : undefined, outerJoiner: multiGroup ? outerJoiner : undefined,
-      joiner: validGroups[0]?.joiner ?? "AND", actions: usedActions, actionTiers, action, weight: w,
+      joiner: validGroups[0]?.joiner ?? "AND", actions: usedActions, sideActions: sides.length ? sides : undefined, actionTiers, action, weight: w,
       shadow, rollout, expiry: expiry || undefined,
     };
     if (editing && editRule) {
@@ -399,15 +415,15 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
                   ))}
                 </div>
 
-                {/* + 添加子组 / 运行规则 */}
-                <div className="mt-2.5 flex items-center justify-center gap-2">
+                {/* + 添加子组 */}
+                <div className="mt-2.5 flex items-center justify-center">
                   <Button size="sm" variant="bordered" className="h-9 font-semibold" startContent={<Plus className="h-3.5 w-3.5" />} onPress={addGroup}>添加子组</Button>
-                  <Button size="sm" color="primary" variant="flat" className="h-9 font-semibold" startContent={<RefreshCw className="h-3.5 w-3.5" />} onPress={runRule}>运行规则</Button>
                 </div>
 
                 {/* ⑦ 单笔回放:拿一笔真实历史交易跑当前条件 —— 命不命中?卡在哪个条件 */}
                 <div className="mt-2.5 rounded-2xl border border-divider bg-content1 p-3 shadow-soft">
-                  <div className="mb-2 flex items-center gap-2 text-[12.5px] font-bold text-foreground"><PlayCircle className="h-4 w-4 text-[var(--brand)]" />单笔回放测试</div>
+                  <div className="flex items-center gap-2 text-[12.5px] font-bold text-foreground"><PlayCircle className="h-4 w-4 text-[var(--brand)]" />单笔回放测试</div>
+                  <p className="mb-2 mt-0.5 text-[10.5px] text-default-400">验逻辑:拿一笔真实交易看命不命中、卡在哪条(↔ 页脚「30 天回测」估影响:命中量 / 误报率)</p>
                   <div className="flex items-center gap-2">
                     <Select size="sm" aria-label="样本交易" selectedKeys={[replayId]} className="flex-1" classNames={{ trigger: "h-9 min-h-9 bg-default-50" }}
                       renderValue={() => { const t = REPLAY_TXNS.find((x) => x.id === replayId)!; return <span className="truncate text-[12px] font-medium">{t.label}</span>; }}
@@ -494,22 +510,36 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
                           {ACTION_BYS.map((b) => <SelectItem key={b}>{b}</SelectItem>)}
                         </Select>
                       </div>
-                      <div className="flex flex-col gap-1.5">
-                        {actionRows.map((r, ri) => (
-                          <div key={ri} className="flex items-center gap-1.5">
-                            <Input size="sm" aria-label="下限" placeholder={actionBy === "金额" ? "金额下限" : "分数下限"} value={r.from} className="w-[112px]" classNames={{ inputWrapper: "h-8 min-h-8 bg-content1" }}
-                              startContent={<span className="text-[11px] text-default-400">≥{actionBy === "金额" ? "$" : ""}</span>}
-                              onValueChange={(v) => setActionRows((rs) => rs.map((x, j) => (j === ri ? { ...x, from: v } : x)))} />
-                            <Select size="sm" aria-label="处置" placeholder="处置动作" selectedKeys={r.action ? [r.action] : []} className="flex-1" classNames={{ trigger: "h-8 min-h-8 bg-content1" }}
-                              onSelectionChange={(k) => setActionRows((rs) => rs.map((x, j) => (j === ri ? { ...x, action: (Array.from(k as Set<string>)[0] as string) ?? "" } : x)))}>
-                              {RULE_DISPOSITIONS.map((d) => <SelectItem key={d}>{d}</SelectItem>)}
-                            </Select>
-                            <button onClick={() => setActionRows((rs) => (rs.length > 1 ? rs.filter((_, j) => j !== ri) : rs))} disabled={actionRows.length === 1} className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-default-400 transition-colors hover:bg-danger/10 hover:text-danger disabled:opacity-30"><Trash2 className="h-3.5 w-3.5" /></button>
-                          </div>
-                        ))}
-                      </div>
-                      <button onClick={() => setActionRows((rs) => [...rs, { from: "", action: "" }])} className="mt-1.5 flex h-7 w-full items-center justify-center gap-1 rounded-lg border border-dashed border-default-300 text-[11px] font-medium text-default-500 transition-colors hover:border-[var(--brand)] hover:text-[var(--brand)]"><Plus className="h-3 w-3" />添加档位</button>
-                      <p className="mt-1.5 text-[10.5px] leading-snug text-default-400">区间为下限,自高到低匹配:命中最高满足档的处置(如 ≥$50k 用冻结、否则 ≥$9k 用转研判)。</p>
+                      {(() => {
+                        const sym = actionBy === "金额" ? "$" : "";
+                        const suf = actionBy === "风险分" ? "分" : "";
+                        const bands = actionRows.map((r) => ({ ...r, n: parseFloat((r.from || "").replace(/,/g, "")) })).filter((b) => b.from && b.action && !isNaN(b.n)).sort((a, b) => a.n - b.n);
+                        return (
+                          <>
+                            {/* 极简单行:阈值 → 处置 */}
+                            <div className="flex flex-col">
+                              {actionRows.map((r, ri) => (
+                                <div key={ri} className="flex items-center gap-2 py-1.5">
+                                  <span className="shrink-0 text-[11.5px] text-default-400">≥</span>
+                                  <Input size="sm" aria-label="下限" placeholder={actionBy === "金额" ? "金额" : "分数"} value={r.from} className="w-[96px]" classNames={{ inputWrapper: "h-9 min-h-9 bg-default-50" }}
+                                    startContent={actionBy === "金额" ? <span className="text-[11px] text-default-400">$</span> : undefined}
+                                    onValueChange={(v) => setActionRows((rs) => rs.map((x, j) => (j === ri ? { ...x, from: v } : x)))} />
+                                  <ArrowRight className="h-3.5 w-3.5 shrink-0 text-default-300" />
+                                  <Select size="sm" aria-label="处置" placeholder="处置动作" selectedKeys={r.action ? [r.action] : []} className="flex-1" classNames={{ trigger: "h-9 min-h-9 bg-default-50" }}
+                                    onSelectionChange={(k) => setActionRows((rs) => rs.map((x, j) => (j === ri ? { ...x, action: (Array.from(k as Set<string>)[0] as string) ?? "" } : x)))}>
+                                    {RULE_DISPOSITIONS.map((d) => <SelectItem key={d}>{d}</SelectItem>)}
+                                  </Select>
+                                  <button onClick={() => setActionRows((rs) => (rs.length > 1 ? rs.filter((_, j) => j !== ri) : rs))} disabled={actionRows.length === 1} className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-default-300 transition-colors hover:bg-danger/10 hover:text-danger disabled:opacity-30"><Trash2 className="h-3.5 w-3.5" /></button>
+                                </div>
+                              ))}
+                            </div>
+                            <button onClick={() => setActionRows((rs) => [...rs, { from: "", action: "" }])} className="mt-1 flex items-center gap-1 text-[11.5px] font-medium text-[var(--brand)] hover:opacity-70"><Plus className="h-3.5 w-3.5" />加一档</button>
+                            {bands.length > 0 && (
+                              <p className="mt-2 text-[10.5px] leading-snug text-default-400">低于最低档 {sym}{bands[0].from}{suf} 不触发本规则;命中按{actionBy}升序取最高满足档执行。</p>
+                            )}
+                          </>
+                        );
+                      })()}
                     </div>
                   ) : (
                     <RadioGroup value={actions[0] ?? ""} onValueChange={(v) => setActions([v])} isDisabled={mode === "score"}
@@ -519,7 +549,19 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
                   )}
                   {mode === "score"
                     ? <p className="mt-1.5 text-[11px] text-default-400">「仅评分」模式不执行处置动作,仅按权重累加风险分。</p>
-                    : !tiersOn && <p className="mt-1.5 text-[11px] text-default-400">单一终态结果(一笔只能落一个最终状态);多条规则命中时跨规则取最严者。</p>}
+                    : !tiersOn && <p className="mt-1.5 text-[11px] text-default-400">终态单选(一笔只能落一个最终状态);跨规则取最严者。可在下方叠加附带动作。</p>}
+
+                  {/* 附带动作:可多选的工作流副作用,叠加在终态处置之上 */}
+                  {mode === "alert" && (
+                    <div className="mt-3 border-t border-divider pt-3">
+                      <div className="mb-1.5 text-[12px] font-medium text-default-600">附带动作 <span className="font-normal text-default-400">· 选填 · 可多选,叠加在终态处置之上</span></div>
+                      <Select size="sm" aria-label="附带动作" placeholder="无附带动作" selectionMode="multiple" selectedKeys={new Set(sideActions)}
+                        classNames={{ trigger: "min-h-9 bg-default-50" }} renderValue={() => <span className="text-[12.5px]">{sideActions.length ? sideActions.join(" / ") : "无附带动作"}</span>}
+                        onSelectionChange={(k) => setSideActions(Array.from(k as Set<string>))}>
+                        {RULE_SIDE_ACTIONS.map((s) => <SelectItem key={s}>{s}</SelectItem>)}
+                      </Select>
+                    </div>
+                  )}
 
                   {/* 风险权重(累加至评分,跨规则聚合裁决用)*/}
                   <div className="mt-4 border-t border-divider pt-4">
@@ -566,6 +608,36 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
             {editing && requiresApproval && <p className="mt-4 rounded-xl border border-divider bg-default-100 p-3 text-[11.5px] leading-relaxed text-default-500">该规则<b>已上线生效</b> —— 改动<b>不直接套到线上</b>,而是提交一份<b>拟议变更</b>交风控总管审批;原版在审批期间照常拦截,批准后才切换并记入版本历史。</p>}
           </div>
 
+          {/* 30 天回测结果卡(常驻底部、点页脚按钮生成)*/}
+          {backtest && (
+            <div className="shrink-0 border-t border-divider bg-content1 px-6 py-3">
+              <div className="mb-2 flex items-center justify-between">
+                <div className="flex items-center gap-2 text-[12.5px] font-bold text-foreground">
+                  <FlaskConical className="h-4 w-4 text-[var(--brand)]" />30 天回测 · 估影响(命中量 / 误报率)
+                  <span className={`rounded-md px-1.5 py-0.5 text-[10.5px] font-bold ${backtest.ok ? "bg-[var(--success-bg)] text-[var(--success)]" : "bg-[var(--warning-bg)] text-[var(--warning)]"}`}>{backtest.ok ? "达标 · 可提交审批" : "误报偏高 · 建议调阈值"}</span>
+                </div>
+                <button onClick={() => setBacktest(null)} aria-label="关闭回测结果" className="text-default-400 hover:text-default-600"><X className="h-4 w-4" /></button>
+              </div>
+              <div className="flex flex-wrap items-end gap-x-6 gap-y-2">
+                {[["扫描交易", backtest.scanned], ["命中", `${backtest.hits} 笔`], ["误报率", `${backtest.fp}%`], ["命中有效率", `${backtest.eff}%`], ["升级转案", `${backtest.escalated} 件`]].map(([l, v]) => (
+                  <div key={l} className="flex flex-col">
+                    <span className="text-[10px] text-default-400">{l}</span>
+                    <span className="tnum text-[15px] font-extrabold leading-tight">{v}</span>
+                  </div>
+                ))}
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-[10px] text-default-400">近 30 日命中(末 7 日红)</span>
+                  <div className="flex h-8 items-end gap-px">
+                    {backtest.daily.map((v, i) => (
+                      <span key={i} className="w-[5px] rounded-sm" style={{ height: `${Math.max(8, (v / 10) * 100)}%`, background: i >= 23 ? "var(--danger)" : "var(--brand)" }} />
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <p className="mt-2 text-[10.5px] leading-snug text-default-400">演示态确定性估算。达标后可「保存并提交审批」;要调阈值看影响,上线后进规则详情的「回测模拟」拖滑块实时重算。</p>
+            </div>
+          )}
+
           {/* 成品句子条 —— 常驻底部(对应 ClickUp 底部 When…then… 摘要)*/}
           <div className="shrink-0 border-t border-divider bg-default-50 px-6 py-2.5">
             <div className="flex flex-wrap items-center gap-1.5 text-[12px] leading-relaxed">
@@ -588,7 +660,7 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
         </ModalBody>
 
         <ModalFooter>
-          <Button variant="bordered" startContent={<RefreshCw className="h-4 w-4" />} onPress={runRule}>运行 30 天回测</Button>
+          <Button variant="bordered" startContent={<FlaskConical className="h-4 w-4" />} onPress={runBacktest}>运行 30 天回测</Button>
           <Button color="primary" onPress={submit}>{submitLabel}</Button>
         </ModalFooter>
       </ModalContent>

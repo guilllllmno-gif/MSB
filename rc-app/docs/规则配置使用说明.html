@@ -216,16 +216,20 @@
         </ul>
 
         <h3>3.2 处置动作(生成告警模式)</h3>
-        <p><strong>单选</strong>一个终态结果 —— 一笔交易只能落一个最终状态,按严格度排列:</p>
+        <p>分两层。<strong>终态处置(单选,互斥)</strong> —— 一笔交易只能落一个最终状态,按严格度排列:</p>
         <div class="flow">
           <span class="pill p-red">拒绝交易</span><span class="arr">›</span>
-          <span class="pill p-red">冻结并升级 MLRO</span><span class="arr">›</span>
+          <span class="pill p-red">冻结资金</span><span class="arr">›</span>
           <span class="pill p-amber">要求补充材料</span><span class="arr">›</span>
           <span class="pill p-blue">智能入账 · 转人工</span><span class="arr">›</span>
-          <span class="pill p-grey">仅记录</span>
+          <span class="pill p-grey">放行 · 仅记录</span>
         </div>
-        <p><strong>阶梯处置</strong>(可勾):按金额 / 风险分区间分档触发不同处置,自高到低匹配:</p>
-        <span class="expr">≥ $9,000 → 转人工审核　·　≥ $50,000 → 冻结并升级 MLRO</span>
+        <p><strong>附带动作(多选,选填)</strong> —— 叠加在终态之上的工作流副作用,可多勾:</p>
+        <div class="flow">
+          <span class="pill p-violet">升级 MLRO</span><span class="pill p-violet">通知合规官</span><span class="pill p-violet">加入观察名单</span><span class="pill p-violet">生成案件</span><span class="pill p-violet">触发 EDD 复核</span>
+        </div>
+        <p><strong>阶梯处置</strong>(可勾):终态按金额 / 风险分区间分档,自高到低匹配:</p>
+        <span class="expr">≥ $9,000 → 转人工审核　·　≥ $50,000 → 冻结资金</span>
 
         <h3>3.3 风险权重</h3>
         <p>0–100,命中后累加到交易风险分。权重越高越易把总分推过拦截线(评分模式的处置由全局策略按总分定)。</p>
@@ -241,9 +245,10 @@
 
       <section id="s4">
         <h2><span class="sn">4</span>配完怎么验 / 提交</h2>
+        <p>两个测试工具,各司其职:</p>
         <ul>
-          <li><strong>单笔回放测试</strong>(左栏底部):选一笔真实历史样本交易 → <strong>回放</strong> → 看这条规则命不命中、逐子句 ✓/✗、不命中<strong>卡在哪条</strong>、命中后<strong>取哪个处置</strong>。调规则不再靠猜。</li>
-          <li><strong>运行规则 / 运行 30 天回测</strong>:给近 90 天的命中 / 误报量级预估。</li>
+          <li><strong>单笔回放测试</strong>(左栏 · <strong>验逻辑</strong>):选一笔真实历史样本交易 → <strong>回放</strong> → 看命不命中、逐子句 ✓/✗、不命中<strong>卡在哪条</strong>、命中后<strong>取哪个处置</strong>。</li>
+          <li><strong>运行 30 天回测</strong>(页脚 · <strong>估影响</strong>):底部弹结果卡 —— 扫描量 / 命中 / 误报率 / 有效率 / 升级转案 + 近 30 日命中柱状 + <strong>达标判定</strong>。</li>
           <li><strong>创建规则</strong>:落「回测中」。<strong>保存修改 / 提交变更审批</strong>:已上线规则走审批,其余直改。</li>
         </ul>
       </section>
