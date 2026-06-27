@@ -201,8 +201,14 @@
           </tbody>
         </table></div>
 
-        <p><strong>嵌套子组</strong>:点「添加子组」,组内子句用各自 AND/OR 连,子组之间再用 AND/OR 连,可表达:</p>
+        <h3>添加条件 vs 添加子组(常被问)</h3>
+        <ul>
+          <li><strong>添加条件</strong> = 在<strong>当前组里</strong>再加一条判断;组内所有条件用<strong>同一个 AND/OR</strong> 连。</li>
+          <li><strong>添加子组</strong> = 新开<strong>一整组</strong>(有自己的内部 AND/OR),<strong>组与组之间</strong>再用另一个 AND/OR 连 —— 用来表达「AND 和 OR 混用」的括号逻辑:</li>
+        </ul>
         <span class="expr">( 单笔 ≥ $9k 且 账户 &lt; 30天 ) 或 ( 24h 笔数 ≥ 5 且 集中度 ≥ 80% )</span>
+        <p>这种「一条规则覆盖两条独立可疑路径」,平铺一层的 AND/OR 表达不出来,才需要子组。</p>
+        <div class="callout"><b>口诀</b>:条件<b>都用「且」或都用「或」→ 只加条件</b>;需要 <b>(…且…) 或 (…且…)</b> 这种混着用 → <b>才加子组</b>。</div>
         <p>底部<strong>常驻句子条</strong>会把你配的条件实时翻译成一句话,随时可看。</p>
       </section>
 
