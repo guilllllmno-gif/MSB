@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button, Input, Select, SelectItem, Checkbox, Slider, Radio, RadioGroup } from "@heroui/react";
-import { Zap, History, Layers, Trash2, Plus, Info, ListFilter, ShieldCheck, ArrowRight, Clock, CalendarClock, PlayCircle, CheckCircle2, XCircle, MinusCircle, Users, FlaskConical, X } from "lucide-react";
+import { Zap, History, Layers, Trash2, Plus, Info, ListFilter, ShieldCheck, ArrowRight, Clock, CalendarClock, PlayCircle, CheckCircle2, XCircle, MinusCircle, Users, FlaskConical } from "lucide-react";
 import { REPLAY_TXNS, evalRule, type RuleEval } from "@/lib/replay";
 import {
   CATS, VENUE, venueOf, RULE_FIELDS, RULE_OPS, OP_LABEL, isAmountField, isWindowedField, WINDOW_OPTS, CUSTOM_WINDOW, isCustomWindow, isNumericField, RULE_BASES, clauseText, groupsText, isTiered, TIER_DIMS, TIER_KEYS, RULE_SCOPES, RULE_AUDIENCES, RULE_DISPOSITIONS, RULE_SIDE_ACTIONS,
@@ -168,7 +168,6 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
     const scanned = `${(1.0 + (h % 22) / 10).toFixed(1)}M`;
     const daily = Array.from({ length: 30 }, (_, i) => 2 + (((h >>> (i % 13)) ^ (i * 7 + 3)) % 9));
     setBacktest({ scanned, hits, fp, eff, escalated, daily, ok: fp <= 9 && hits >= 20 });
-    toast.success("30 天回测完成 · 见底部结果");
   };
   const runReplay = () => {
     if (!flatValid.length) { toast.error("请先至少配置一条完整条件"); return; }
@@ -234,7 +233,8 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
   const submitLabel = editing ? (requiresApproval ? "提交变更审批" : "保存修改") : "创建规则";
 
   return (
-    <Modal isOpen={open} onOpenChange={onOpenChange} scrollBehavior="inside" classNames={{ base: "max-w-[1080px] h-[92vh]", header: "border-b border-divider", footer: "border-t border-divider" }}>
+    <>
+      <Modal isOpen={open} onOpenChange={onOpenChange} scrollBehavior="inside" classNames={{ base: "max-w-[1080px] h-[92vh]", header: "border-b border-divider", footer: "border-t border-divider" }}>
       <ModalContent>
         <ModalHeader className="flex-col items-start gap-1 pr-10">
           <input value={name} onChange={(e) => setName(e.target.value)} aria-label="规则名称" placeholder={editing ? "规则名称" : "为这条规则命名…"}
@@ -608,36 +608,6 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
             {editing && requiresApproval && <p className="mt-4 rounded-xl border border-divider bg-default-100 p-3 text-[11.5px] leading-relaxed text-default-500">该规则<b>已上线生效</b> —— 改动<b>不直接套到线上</b>,而是提交一份<b>拟议变更</b>交风控总管审批;原版在审批期间照常拦截,批准后才切换并记入版本历史。</p>}
           </div>
 
-          {/* 30 天回测结果卡(常驻底部、点页脚按钮生成)*/}
-          {backtest && (
-            <div className="shrink-0 border-t border-divider bg-content1 px-6 py-3">
-              <div className="mb-2 flex items-center justify-between">
-                <div className="flex items-center gap-2 text-[12.5px] font-bold text-foreground">
-                  <FlaskConical className="h-4 w-4 text-[var(--brand)]" />30 天回测 · 估影响(命中量 / 误报率)
-                  <span className={`rounded-md px-1.5 py-0.5 text-[10.5px] font-bold ${backtest.ok ? "bg-[var(--success-bg)] text-[var(--success)]" : "bg-[var(--warning-bg)] text-[var(--warning)]"}`}>{backtest.ok ? "达标 · 可提交审批" : "误报偏高 · 建议调阈值"}</span>
-                </div>
-                <button onClick={() => setBacktest(null)} aria-label="关闭回测结果" className="text-default-400 hover:text-default-600"><X className="h-4 w-4" /></button>
-              </div>
-              <div className="flex flex-wrap items-end gap-x-6 gap-y-2">
-                {[["扫描交易", backtest.scanned], ["命中", `${backtest.hits} 笔`], ["误报率", `${backtest.fp}%`], ["命中有效率", `${backtest.eff}%`], ["升级转案", `${backtest.escalated} 件`]].map(([l, v]) => (
-                  <div key={l} className="flex flex-col">
-                    <span className="text-[10px] text-default-400">{l}</span>
-                    <span className="tnum text-[15px] font-extrabold leading-tight">{v}</span>
-                  </div>
-                ))}
-                <div className="flex flex-col gap-0.5">
-                  <span className="text-[10px] text-default-400">近 30 日命中(末 7 日红)</span>
-                  <div className="flex h-8 items-end gap-px">
-                    {backtest.daily.map((v, i) => (
-                      <span key={i} className="w-[5px] rounded-sm" style={{ height: `${Math.max(8, (v / 10) * 100)}%`, background: i >= 23 ? "var(--danger)" : "var(--brand)" }} />
-                    ))}
-                  </div>
-                </div>
-              </div>
-              <p className="mt-2 text-[10.5px] leading-snug text-default-400">演示态确定性估算。达标后可「保存并提交审批」;要调阈值看影响,上线后进规则详情的「回测模拟」拖滑块实时重算。</p>
-            </div>
-          )}
-
           {/* 成品句子条 —— 常驻底部(对应 ClickUp 底部 When…then… 摘要)*/}
           <div className="shrink-0 border-t border-divider bg-default-50 px-6 py-2.5">
             <div className="flex flex-wrap items-center gap-1.5 text-[12px] leading-relaxed">
@@ -664,6 +634,45 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
           <Button color="primary" onPress={submit}>{submitLabel}</Button>
         </ModalFooter>
       </ModalContent>
-    </Modal>
+      </Modal>
+
+      {/* 30 天回测结果 · 弹窗(叠加在新建抽屉之上)*/}
+      <Modal isOpen={!!backtest} onOpenChange={(o) => !o && setBacktest(null)} size="lg" placement="center" classNames={{ header: "border-b border-divider", footer: "border-t border-divider" }}>
+        <ModalContent>
+          {backtest && (
+            <>
+              <ModalHeader className="flex items-center gap-2.5 text-[16px]">
+                <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-[var(--brand-soft)] text-[var(--brand)]"><FlaskConical className="h-4 w-4" /></span>
+                30 天回测 · 估影响
+                <span className={`rounded-md px-2 py-0.5 text-[11px] font-bold ${backtest.ok ? "bg-[var(--success-bg)] text-[var(--success)]" : "bg-[var(--warning-bg)] text-[var(--warning)]"}`}>{backtest.ok ? "达标 · 可提交审批" : "误报偏高 · 建议调阈值"}</span>
+              </ModalHeader>
+              <ModalBody className="gap-4 py-5">
+                <div className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3">
+                  {[["扫描交易", backtest.scanned], ["命中", `${backtest.hits} 笔`], ["误报率", `${backtest.fp}%`], ["命中有效率", `${backtest.eff}%`], ["升级转案", `${backtest.escalated} 件`]].map(([l, v]) => (
+                    <div key={l} className="rounded-xl border border-divider bg-default-50 px-3 py-2.5">
+                      <div className="text-[11px] text-default-400">{l}</div>
+                      <div className="tnum text-[20px] font-extrabold leading-tight">{v}</div>
+                    </div>
+                  ))}
+                </div>
+                <div>
+                  <div className="mb-1.5 flex items-center justify-between text-[11.5px] text-default-500"><span>近 30 日命中分布</span><span className="text-default-400">末 7 日标红</span></div>
+                  <div className="flex h-16 items-end gap-1 rounded-xl border border-divider bg-default-50 px-2.5 py-2">
+                    {backtest.daily.map((v, i) => (
+                      <span key={i} className="flex-1 rounded-sm" style={{ height: `${Math.max(8, (v / 10) * 100)}%`, background: i >= 23 ? "var(--danger)" : "var(--brand)" }} />
+                    ))}
+                  </div>
+                </div>
+                <p className="text-[11.5px] leading-relaxed text-default-400">演示态确定性估算。达标后可「保存并提交审批」;上线后要调阈值看影响,进规则详情的「回测模拟」拖滑块实时重算召回↔精准权衡。</p>
+              </ModalBody>
+              <ModalFooter>
+                <Button variant="light" onPress={() => setBacktest(null)}>关闭</Button>
+                <Button color="primary" isDisabled={!backtest.ok} onPress={() => { setBacktest(null); submit(); }}>{backtest.ok ? "达标 · 保存并提交" : "误报偏高 · 先调阈值"}</Button>
+              </ModalFooter>
+            </>
+          )}
+        </ModalContent>
+      </Modal>
+    </>
   );
 }
