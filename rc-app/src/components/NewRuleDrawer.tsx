@@ -663,11 +663,11 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
                     ))}
                   </div>
                 </div>
-                <p className="text-[11.5px] leading-relaxed text-default-400">演示态确定性估算。达标后可「保存并提交审批」;上线后要调阈值看影响,进规则详情的「回测模拟」拖滑块实时重算召回↔精准权衡。</p>
+                <p className="text-[11.5px] leading-relaxed text-default-400">演示态确定性估算 · 仅供参考。新规则无论达标与否都先落「回测中」草稿;<b className="font-semibold text-default-500">达标</b> 是后续「提交审批」的门槛,误报偏高建议先回去调阈值再走审批。上线后还可在规则详情「回测模拟」拖滑块实时重算召回↔精准权衡。</p>
               </ModalBody>
               <ModalFooter>
-                <Button variant="light" onPress={() => setBacktest(null)}>关闭</Button>
-                <Button color="primary" isDisabled={!backtest.ok} onPress={() => { setBacktest(null); submit(); }}>{backtest.ok ? "达标 · 保存并提交" : "误报偏高 · 先调阈值"}</Button>
+                <Button variant="light" onPress={() => setBacktest(null)}>{backtest.ok ? "关闭" : "去调阈值"}</Button>
+                <Button color="primary" onPress={() => { setBacktest(null); submit(); }}>{submitLabel}</Button>
               </ModalFooter>
             </>
           )}
