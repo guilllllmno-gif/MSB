@@ -169,7 +169,7 @@
         <h3>2.2 规则元数据</h3>
         <ul>
           <li><strong>规则类别</strong>:金额阈值 / 链上溯源 / 行为模式 / 名单筛查 / 评分模型 / 统计聚合。</li>
-          <li><strong>适用场景</strong>(业务线):限定只在哪类交易上跑。链适用性不单独填 —— 要么与规则无关(默认 BTC/ERC/TRC 全跑),要么由类别 / 条件隐含。</li>
+          <li><strong>适用业务线</strong>:限定只在哪类交易上跑(充值 / 提现 / 兑换 / on-ramp / off-ramp / 全部)。链适用性不单独填 —— 要么与规则无关(默认 BTC/ERC/TRC 全跑),要么由类别 / 条件隐含。</li>
           <li><strong>适用对象</strong>(选填,多选):定向到哪类商户 —— 见第 5 节。<strong>不选 = 全部商户都跑。</strong></li>
         </ul>
 
@@ -217,8 +217,8 @@
 
         <h3>3.1 事件操作</h3>
         <ul>
-          <li><strong>仅评分 / 生成告警</strong>(二选一,见 0.2)。</li>
-          <li><strong>停止扫描</strong>:勾上后这笔交易命中本规则即不再匹配后续规则。</li>
+          <li><strong>仅评分 / 生成告警</strong>(二选一,见 0.2)。仅评分 = <strong>永久</strong>只加分(全局策略裁决),≠「影子模式」的<strong>临时</strong>评估。</li>
+          <li><strong>停止扫描</strong>:勾上后命中即止(first-match),本规则处置<strong>直接生效、不再与后续规则比「最严生效」</strong> —— 多用于制裁 / 硬拦截。默认关闭 = 继续扫描、跨规则取最严。</li>
         </ul>
 
         <h3>3.2 处置动作(生成告警模式)</h3>
@@ -238,9 +238,9 @@
         <span class="expr">≥ $9,000 → 转人工审核　·　≥ $50,000 → 冻结资金</span>
 
         <h3>3.3 风险权重</h3>
-        <p>0–100,命中后累加到交易风险分。权重越高越易把总分推过拦截线(评分模式的处置由全局策略按总分定)。</p>
+        <p>0–100,命中后累加到交易风险分。<strong>仅评分模式必填</strong>;生成告警 + 终态处置时为<strong>选填</strong>(只作评分聚合参考)。权重越高越易把总分推过拦截线。</p>
 
-        <h3>3.4 上线策略</h3>
+        <h3>3.4 上线策略(进阶 · 默认折叠)</h3>
         <div class="cards three">
           <div class="card"><h4><span class="dot" style="background:var(--violet)"></span>影子模式</h4><p>命中只告警不处置,跑一段确认误报率再切实拦。</p></div>
           <div class="card"><h4><span class="dot" style="background:var(--amber)"></span>灰度比例</h4><p>10–100%,先小流量试跑再全量。</p></div>
@@ -253,7 +253,7 @@
         <h2><span class="sn">4</span>配完怎么验 / 提交</h2>
         <p>两个测试工具,各司其职:</p>
         <ul>
-          <li><strong>单笔回放测试</strong>(左栏 · <strong>验逻辑</strong>):选一笔真实历史样本交易 → <strong>回放</strong> → 看命不命中、逐子句 ✓/✗、不命中<strong>卡在哪条</strong>、命中后<strong>取哪个处置</strong>。</li>
+          <li><strong>单笔回放测试</strong>(左栏按钮 → <strong>弹窗</strong> · <strong>验逻辑</strong>):选一笔真实历史样本交易 → <strong>回放</strong> → 看命不命中、逐子句 ✓/✗、不命中<strong>卡在哪条</strong>、命中后<strong>取哪个处置</strong>。</li>
           <li><strong>运行 30 天回测</strong>(页脚 · <strong>估影响</strong>):底部弹结果卡 —— 扫描量 / 命中 / 误报率 / 有效率 / 升级转案 + 近 30 日命中柱状 + <strong>达标判定</strong>。</li>
           <li><strong>创建规则</strong>:落「回测中」。<strong>保存修改 / 提交变更审批</strong>:已上线规则走审批,其余直改。</li>
         </ul>

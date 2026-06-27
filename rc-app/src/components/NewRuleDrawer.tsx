@@ -56,6 +56,9 @@ function JoinerToggle({ value, onChange }: { value: Joiner; onChange: (j: Joiner
   );
 }
 
+// HeroUI Select 单选回调取选中首项的小工具(收敛全文件重复的 Array.from(set)[0])
+const single = (k: unknown): string => [...(k as Set<string>)][0] ?? "";
+
 export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresApproval = false }: { open: boolean; onOpenChange: (o: boolean) => void; onDone?: (id?: string) => void; editRule?: Rule | null; requiresApproval?: boolean }) {
   const editing = !!editRule;
   const [name, setName] = useState("");
@@ -87,12 +90,14 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
   const [replayAction, setReplayAction] = useState("");
   // 30 天回测结果(点页脚「运行 30 天回测」生成)
   const [backtest, setBacktest] = useState<{ scanned: string; hits: number; fp: number; eff: number; escalated: number; daily: number[]; ok: boolean } | null>(null);
+  const [replayOpen, setReplayOpen] = useState(false); // 单笔回放弹窗
+  const [showRollout, setShowRollout] = useState(false); // 上线策略默认折叠(进阶项)
   const [errs, setErrs] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!open) return;
     /* eslint-disable react-hooks/set-state-in-effect */
-    setErrs(new Set()); setReplay(null); setReplayAction(""); setReplayId(REPLAY_TXNS[0].id); setBacktest(null);
+    setErrs(new Set()); setReplay(null); setReplayAction(""); setReplayId(REPLAY_TXNS[0].id); setBacktest(null); setReplayOpen(false); setShowRollout(false);
     if (editRule) {
       setName(editRule.name); setCat(editRule.cat); setVenue(editRule.venue || venueOf(editRule)); setVenueTouched(true);
       setScope(editRule.scope || RULE_SCOPES[0]); setAudience(editRule.audience || []); setDesc(editRule.desc || "");
@@ -253,7 +258,7 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
                   <Select aria-label="执行场景" size="sm" variant="bordered" placeholder="场景" selectedKeys={venue ? [venue] : []} isInvalid={errs.has("venue")}
                     className="w-[148px]" classNames={{ trigger: "h-8 min-h-8 border-default-200 bg-content1" }}
                     renderValue={() => venue ? <span className="flex items-center gap-1.5 text-[12.5px] font-semibold">{(() => { const I = VENUE_ICON[venue as Venue]; return <I className="h-3.5 w-3.5" />; })()}{VENUE[venue as Venue].short}</span> : undefined}
-                    onSelectionChange={(k) => { setVenue((Array.from(k as Set<string>)[0] as Venue) ?? ""); setVenueTouched(true); }}>
+                    onSelectionChange={(k) => { setVenue((single(k) as Venue) ?? ""); setVenueTouched(true); }}>
                     {VENUES.map((v) => { const I = VENUE_ICON[v]; return <SelectItem key={v} startContent={<I className="h-3.5 w-3.5 text-default-400" />}>{VENUE[v].short}</SelectItem>; })}
                   </Select>
                 } />
@@ -264,12 +269,12 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
                 {/* 规则元数据 */}
                 <SecCard label="规则元数据">
                   <Select size="sm" aria-label="规则类别" placeholder="规则类别" startContent={<Layers className="h-4 w-4 text-default-400" />} selectedKeys={cat ? [cat] : []} isInvalid={errs.has("cat")}
-                    classNames={{ trigger: "h-10 min-h-10 bg-default-50" }} onSelectionChange={(k) => pickCat((Array.from(k as Set<string>)[0] as RuCat) ?? "")}>
+                    classNames={{ trigger: "h-10 min-h-10 bg-default-50" }} onSelectionChange={(k) => pickCat((single(k) as RuCat) ?? "")}>
                     {CATS.map((c) => <SelectItem key={c}>{c}</SelectItem>)}
                   </Select>
                   <div className="mt-2.5">
-                    <Select size="sm" aria-label="适用场景" placeholder="适用场景" startContent={<ListFilter className="h-4 w-4 text-default-400" />} selectedKeys={scope ? [scope] : []} isInvalid={errs.has("scope")}
-                      classNames={{ trigger: "h-10 min-h-10 bg-default-50" }} onSelectionChange={(k) => setScope(Array.from(k as Set<string>)[0] ?? "")}>
+                    <Select size="sm" aria-label="适用业务线" placeholder="适用业务线" startContent={<ListFilter className="h-4 w-4 text-default-400" />} selectedKeys={scope ? [scope] : []} isInvalid={errs.has("scope")}
+                      classNames={{ trigger: "h-10 min-h-10 bg-default-50" }} onSelectionChange={(k) => setScope(single(k) ?? "")}>
                       {RULE_SCOPES.map((s) => <SelectItem key={s}>{s}</SelectItem>)}
                     </Select>
                   </div>
@@ -320,7 +325,7 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
                                 <button onClick={() => delClause(gi, ci)} disabled={g.clauses.length === 1} className="flex h-6 w-6 items-center justify-center rounded-lg text-default-400 transition-colors hover:bg-danger/10 hover:text-danger disabled:opacity-30"><Trash2 className="h-3.5 w-3.5" /></button>
                               </div>
                               <Select size="sm" aria-label="运算字段" placeholder="运算字段" selectedKeys={c.field ? [c.field] : []} classNames={{ trigger: "h-10 min-h-10 bg-default-50" }}
-                                onSelectionChange={(k) => { const f = (Array.from(k as Set<string>)[0] as string) ?? ""; setClause(gi, ci, { field: f, window: isWindowedField(f) ? (c.window || "24 小时") : undefined, basis: isNumericField(f) ? (c.basis ?? "abs") : undefined, tiers: undefined }); }}>
+                                onSelectionChange={(k) => { const f = (single(k) as string) ?? ""; setClause(gi, ci, { field: f, window: isWindowedField(f) ? (c.window || "24 小时") : undefined, basis: isNumericField(f) ? (c.basis ?? "abs") : undefined, tiers: undefined }); }}>
                                 {RULE_FIELDS.map((fld) => <SelectItem key={fld}>{fld}</SelectItem>)}
                               </Select>
                               {/* 滑动窗口:仅窗口型指标出现 —— 指标与窗口解耦,同一指标可配任意窗口(含自定义) */}
@@ -333,7 +338,7 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
                                       <span className="shrink-0 text-[11.5px] font-semibold text-default-600">滑动窗口内</span>
                                       <Select size="sm" aria-label="滑动窗口" placeholder="选窗口" selectedKeys={custom ? ["自定义"] : (c.window ? [c.window] : [])} className="flex-1"
                                         classNames={{ trigger: "h-8 min-h-8 bg-content1" }}
-                                        onSelectionChange={(k) => { const v = Array.from(k as Set<string>)[0] as string; setClause(gi, ci, { window: v === "自定义" ? CUSTOM_WINDOW : (v ?? "") }); }}>
+                                        onSelectionChange={(k) => { const v = single(k) as string; setClause(gi, ci, { window: v === "自定义" ? CUSTOM_WINDOW : (v ?? "") }); }}>
                                         {[...WINDOW_OPTS, "自定义"].map((w) => <SelectItem key={w}>{w === "自定义" ? "自定义…" : w}</SelectItem>)}
                                       </Select>
                                     </div>
@@ -350,7 +355,7 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
                                 <div className="mt-2.5 flex items-center gap-2">
                                   <span className="shrink-0 text-[11.5px] font-semibold text-default-500">比较基准</span>
                                   <Select size="sm" aria-label="比较基准" selectedKeys={[c.basis ?? "abs"]} className="flex-1" classNames={{ trigger: "h-9 min-h-9 bg-default-50" }}
-                                    onSelectionChange={(k) => { const b = (Array.from(k as Set<string>)[0] as Basis) ?? "abs"; setClause(gi, ci, { basis: b, tiers: b === "abs" ? c.tiers : undefined }); }}>
+                                    onSelectionChange={(k) => { const b = (single(k) as Basis) ?? "abs"; setClause(gi, ci, { basis: b, tiers: b === "abs" ? c.tiers : undefined }); }}>
                                     {RULE_BASES.map((b) => <SelectItem key={b.key}>{b.label}</SelectItem>)}
                                   </Select>
                                 </div>
@@ -364,7 +369,7 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
                                 <>
                                   <div className="mt-2.5 flex items-center gap-2.5">
                                     <Select size="sm" aria-label="运算符" placeholder="运算符" selectedKeys={c.op ? [c.op] : []} className="w-[140px]" classNames={{ trigger: "h-10 min-h-10 bg-default-50" }}
-                                      onSelectionChange={(k) => setClause(gi, ci, { op: Array.from(k as Set<string>)[0] ?? "" })}>
+                                      onSelectionChange={(k) => setClause(gi, ci, { op: single(k) ?? "" })}>
                                       {RULE_OPS.map((op) => <SelectItem key={op}>{OP_LABEL[op]}</SelectItem>)}
                                     </Select>
                                     <span className="text-[11.5px] text-default-400">按下表分档取阈值</span>
@@ -374,7 +379,7 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
                                       <Layers className="h-3.5 w-3.5 shrink-0 text-default-400" />
                                       <span className="shrink-0 text-[11.5px] font-semibold text-default-600">分层维度</span>
                                       <Select size="sm" aria-label="分层维度" selectedKeys={[c.tiers!.dim]} className="flex-1" classNames={{ trigger: "h-8 min-h-8 bg-content1" }}
-                                        onSelectionChange={(k) => setTierDim(gi, ci, (Array.from(k as Set<string>)[0] as string) ?? TIER_DIMS[0])}>
+                                        onSelectionChange={(k) => setTierDim(gi, ci, (single(k) as string) ?? TIER_DIMS[0])}>
                                         {TIER_DIMS.map((d) => <SelectItem key={d}>{d}</SelectItem>)}
                                       </Select>
                                     </div>
@@ -382,7 +387,7 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
                                       {c.tiers!.rows.map((r, ri) => (
                                         <div key={ri} className="flex items-center gap-1.5">
                                           <Select size="sm" aria-label="档位" placeholder="档位" selectedKeys={r.key ? [r.key] : []} className="flex-1" classNames={{ trigger: "h-8 min-h-8 bg-content1" }}
-                                            onSelectionChange={(k) => setTierRow(gi, ci, ri, { key: (Array.from(k as Set<string>)[0] as string) ?? "" })}>
+                                            onSelectionChange={(k) => setTierRow(gi, ci, ri, { key: (single(k) as string) ?? "" })}>
                                             {TIER_KEYS[c.tiers!.dim].map((kk) => <SelectItem key={kk}>{kk}</SelectItem>)}
                                           </Select>
                                           <Input size="sm" aria-label="阈值" placeholder="阈值" value={r.value} onValueChange={(v) => setTierRow(gi, ci, ri, { value: v })} className="w-[120px]" classNames={{ inputWrapper: "h-8 min-h-8 bg-content1" }}
@@ -397,7 +402,7 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
                               ) : (
                                 <div className="mt-2.5 grid grid-cols-[140px_1fr] gap-2.5">
                                   <Select size="sm" aria-label="运算符" placeholder="运算符" selectedKeys={c.op ? [c.op] : []} classNames={{ trigger: "h-10 min-h-10 bg-default-50" }}
-                                    onSelectionChange={(k) => setClause(gi, ci, { op: Array.from(k as Set<string>)[0] ?? "" })}>
+                                    onSelectionChange={(k) => setClause(gi, ci, { op: single(k) ?? "" })}>
                                     {RULE_OPS.map((op) => <SelectItem key={op}>{OP_LABEL[op]}</SelectItem>)}
                                   </Select>
                                   <Input size="sm" aria-label="取值" placeholder={baseOf(c).ph} value={c.value} onValueChange={(v) => setClause(gi, ci, { value: v })} classNames={{ inputWrapper: "h-10 min-h-10 bg-default-50" }}
@@ -420,50 +425,10 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
                   <Button size="sm" variant="bordered" className="h-9 font-semibold" startContent={<Plus className="h-3.5 w-3.5" />} onPress={addGroup}>添加子组</Button>
                 </div>
 
-                {/* ⑦ 单笔回放:拿一笔真实历史交易跑当前条件 —— 命不命中?卡在哪个条件 */}
-                <div className="mt-2.5 rounded-2xl border border-divider bg-content1 p-3 shadow-soft">
-                  <div className="flex items-center gap-2 text-[12.5px] font-bold text-foreground"><PlayCircle className="h-4 w-4 text-[var(--brand)]" />单笔回放测试</div>
-                  <p className="mb-2 mt-0.5 text-[10.5px] text-default-400">验逻辑:拿一笔真实交易看命不命中、卡在哪条(↔ 页脚「30 天回测」估影响:命中量 / 误报率)</p>
-                  <div className="flex items-center gap-2">
-                    <Select size="sm" aria-label="样本交易" selectedKeys={[replayId]} className="flex-1" classNames={{ trigger: "h-9 min-h-9 bg-default-50" }}
-                      renderValue={() => { const t = REPLAY_TXNS.find((x) => x.id === replayId)!; return <span className="truncate text-[12px] font-medium">{t.label}</span>; }}
-                      onSelectionChange={(k) => { setReplayId((Array.from(k as Set<string>)[0] as string) ?? REPLAY_TXNS[0].id); setReplay(null); }}>
-                      {REPLAY_TXNS.map((t) => <SelectItem key={t.id} description={t.sub}>{t.label}</SelectItem>)}
-                    </Select>
-                    <Button size="sm" color="primary" variant="solid" className="h-9 font-semibold" onPress={runReplay}>回放</Button>
-                  </div>
-                  <p className="mt-1.5 text-[11px] text-default-400">{REPLAY_TXNS.find((x) => x.id === replayId)!.sub}</p>
-
-                  {replay && (
-                    <div className="mt-3 border-t border-divider pt-3">
-                      <div className={`mb-2.5 flex items-center gap-2 rounded-xl px-3 py-2 text-[13px] font-bold ${replay.hit ? "bg-danger/10 text-danger" : "bg-success/10 text-success"}`}>
-                        {replay.hit ? <XCircle className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
-                        {replay.hit ? "命中 · 此规则会对这笔交易触发处置" : "未命中 · 此规则不会触发"}
-                      </div>
-                      {replay.hit && replayAction && (
-                        <p className="mb-2.5 text-[11.5px] text-default-600"><b>本规则终态处置:</b>{replayAction}<span className="mt-0.5 block text-[10.5px] text-default-400">多条规则同时命中时,跨规则取最严处置(本原型仅回放当前这条)。</span></p>
-                      )}
-                      <div className="flex flex-col gap-2">
-                        {replay.groups.map((g, gi) => (
-                          <div key={gi} className={replay.groups.length > 1 ? "rounded-xl border border-divider bg-default-50 p-2" : ""}>
-                            {replay.groups.length > 1 && <div className="mb-1 text-[10.5px] font-bold text-default-400">子组 {gi + 1} · {g.joiner === "AND" ? "全部满足" : "任一满足"} → {g.status === "pass" ? "✓ 满足" : g.status === "skip" ? "— 跳过" : "✗ 不满足"}</div>}
-                            <div className="flex flex-col gap-1">
-                              {g.clauses.map((c, ci) => (
-                                <div key={ci} className="flex items-start gap-1.5 text-[11.5px]">
-                                  {c.status === "pass" ? <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-success" /> : c.status === "fail" ? <XCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-danger" /> : <MinusCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-default-300" />}
-                                  <span className="flex-1"><span className="font-medium text-default-700">{c.text}</span><span className="ml-1 text-default-400">— {c.detail}</span></span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                      {!replay.hit && replay.blockers.length > 0 && (
-                        <p className="mt-2 rounded-lg bg-default-100 px-2.5 py-1.5 text-[11px] leading-snug text-default-500"><b>卡在:</b>{replay.blockers.join(";")}</p>
-                      )}
-                    </div>
-                  )}
-                </div>
+                {/* ⑦ 单笔回放:验逻辑 —— 弹窗(与「30 天回测」对称)*/}
+                <button onClick={() => { setReplay(null); setReplayOpen(true); }} className="mt-2.5 flex w-full items-center justify-center gap-1.5 rounded-2xl border border-divider bg-content1 py-2.5 text-[12.5px] font-semibold text-default-600 shadow-soft transition-colors hover:border-[var(--brand)] hover:text-[var(--brand)]">
+                  <PlayCircle className="h-4 w-4 text-[var(--brand)]" />单笔回放测试 · 验逻辑
+                </button>
               </div>
 
               {/* ═══ 中:全高分隔线 + 箭头 ═══ */}
@@ -484,9 +449,10 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
                     <Radio value="score" size="sm" classNames={{ label: "text-[13px]" }}>仅评分</Radio>
                     <Radio value="alert" size="sm" classNames={{ label: "text-[13px]" }}>生成告警</Radio>
                   </RadioGroup>
-                  <p className="mt-1.5 text-[11px] text-default-400">{mode === "score" ? "只累加风险分、不生成告警,达阈值后由评分规则统一处置。" : "生成告警并执行下方处置动作。"}</p>
+                  <p className="mt-1.5 text-[11px] text-default-400">{mode === "score" ? "永久只累加风险分、不生成告警,由全局策略按总分统一裁决(≠「影子模式」的临时评估)。" : "生成告警并执行下方处置动作。"}</p>
                   <div className="mt-3 border-t border-divider pt-3">
                     <Checkbox size="sm" isSelected={stopScan} onValueChange={setStopScan} classNames={{ label: "text-[12.5px]" }}>如果交易匹配此规则,则停止扫描交易(不再匹配后续规则)</Checkbox>
+                    <p className="mt-1 pl-6 text-[10.5px] leading-snug text-default-400">{stopScan ? "命中即止(first-match)—— 本规则的处置直接生效,不再与后续规则比较「最严生效」。多用于制裁 / 硬拦截等确定性规则。" : "默认关闭 —— 继续扫描后续规则,跨规则取最严处置。"}</p>
                   </div>
                 </SecCard>
 
@@ -506,7 +472,7 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
                       <div className="mb-2 flex items-center gap-2">
                         <span className="shrink-0 text-[11.5px] font-semibold text-default-600">分档依据</span>
                         <Select size="sm" aria-label="分档依据" selectedKeys={[actionBy]} className="flex-1" classNames={{ trigger: "h-8 min-h-8 bg-content1" }}
-                          onSelectionChange={(k) => setActionBy((Array.from(k as Set<string>)[0] as "金额" | "风险分") ?? "金额")}>
+                          onSelectionChange={(k) => setActionBy((single(k) as "金额" | "风险分") ?? "金额")}>
                           {ACTION_BYS.map((b) => <SelectItem key={b}>{b}</SelectItem>)}
                         </Select>
                       </div>
@@ -526,7 +492,7 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
                                     onValueChange={(v) => setActionRows((rs) => rs.map((x, j) => (j === ri ? { ...x, from: v } : x)))} />
                                   <ArrowRight className="h-3.5 w-3.5 shrink-0 text-default-300" />
                                   <Select size="sm" aria-label="处置" placeholder="处置动作" selectedKeys={r.action ? [r.action] : []} className="flex-1" classNames={{ trigger: "h-9 min-h-9 bg-default-50" }}
-                                    onSelectionChange={(k) => setActionRows((rs) => rs.map((x, j) => (j === ri ? { ...x, action: (Array.from(k as Set<string>)[0] as string) ?? "" } : x)))}>
+                                    onSelectionChange={(k) => setActionRows((rs) => rs.map((x, j) => (j === ri ? { ...x, action: (single(k) as string) ?? "" } : x)))}>
                                     {RULE_DISPOSITIONS.map((d) => <SelectItem key={d}>{d}</SelectItem>)}
                                   </Select>
                                   <button onClick={() => setActionRows((rs) => (rs.length > 1 ? rs.filter((_, j) => j !== ri) : rs))} disabled={actionRows.length === 1} className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-default-300 transition-colors hover:bg-danger/10 hover:text-danger disabled:opacity-30"><Trash2 className="h-3.5 w-3.5" /></button>
@@ -563,10 +529,10 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
                     </div>
                   )}
 
-                  {/* 风险权重(累加至评分,跨规则聚合裁决用)*/}
+                  {/* 风险权重:仅评分模式必填(累加至评分);生成告警+终态处置时为选填(只作评分聚合参考)*/}
                   <div className="mt-4 border-t border-divider pt-4">
                     <div className="mb-1 flex items-center justify-between">
-                      <div className="text-[12px] font-medium text-default-600">风险权重(累加至评分)<span className="text-danger">*</span></div>
+                      <div className="text-[12px] font-medium text-default-600">风险权重(累加至评分){mode === "score" ? <span className="text-danger">*</span> : <span className="font-normal text-default-400"> · 选填</span>}</div>
                       <span className="text-[13px] font-extrabold tnum text-[var(--brand)]">+{weight}</span>
                     </div>
                     <Slider aria-label="风险权重" size="sm" minValue={0} maxValue={100} step={5} value={weight} onChange={(v) => setWeight(Array.isArray(v) ? v[0] : v)} classNames={{ track: "bg-default-200", filler: "bg-primary" }} />
@@ -576,29 +542,40 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
 
                 <Connector />
 
-                {/* ⑤ 上线策略:影子 / 灰度 / 到期(呼应回测→审批→上线治理链)*/}
-                <SecCard label="上线策略">
-                  <div className="flex items-start gap-2">
-                    <Checkbox size="sm" isSelected={shadow} onValueChange={setShadow} classNames={{ label: "text-[12.5px]" }}>
-                      <span className="font-semibold">影子模式</span> · 只告警不处置(评估期)
-                    </Checkbox>
+                {/* ⑤ 上线策略:影子 / 灰度 / 到期(进阶项,默认折叠)*/}
+                <SecCard label={
+                  <div className="flex w-full items-center justify-between">
+                    <span>上线策略 <span className="font-normal text-default-400">· 进阶 · 选填</span></span>
+                    <button onClick={() => setShowRollout((v) => !v)} className="text-[11px] font-semibold text-[var(--brand)] hover:opacity-70">{showRollout ? "收起" : "展开"}</button>
                   </div>
-                  <p className="mt-1 pl-6 text-[11px] leading-snug text-default-400">{shadow ? "命中只记录 / 告警、不执行处置动作,跑一段时间确认误报率再切实拦。" : "关闭 = 命中即按上方处置动作生效。"}</p>
+                }>
+                  {!showRollout ? (
+                    <p className="text-[11.5px] text-default-500">{[shadow && "影子模式", rollout < 100 && `灰度 ${rollout}%`, expiry && `到期 ${expiry}`].filter(Boolean).join(" · ") || "默认:实拦 · 全量 · 永久生效"}</p>
+                  ) : (
+                    <>
+                      <div className="flex items-start gap-2">
+                        <Checkbox size="sm" isSelected={shadow} onValueChange={setShadow} classNames={{ label: "text-[12.5px]" }}>
+                          <span className="font-semibold">影子模式</span> · 只告警不处置(评估期)
+                        </Checkbox>
+                      </div>
+                      <p className="mt-1 pl-6 text-[11px] leading-snug text-default-400">{shadow ? "命中只记录 / 告警、不执行处置动作,跑一段确认误报率再切实拦 —— 临时评估期,跑完要切回实拦(≠「仅评分」的永久只加分)。" : "关闭 = 命中即按上方处置动作生效。"}</p>
 
-                  <div className="mt-3.5 border-t border-divider pt-3.5">
-                    <div className="mb-1 flex items-center justify-between">
-                      <div className="text-[12px] font-medium text-default-600">灰度比例(按比例放量)</div>
-                      <span className="text-[13px] font-extrabold tnum text-[var(--brand)]">{rollout}%</span>
-                    </div>
-                    <Slider aria-label="灰度比例" size="sm" minValue={10} maxValue={100} step={10} value={rollout} onChange={(v) => setRollout(Array.isArray(v) ? v[0] : v)} classNames={{ track: "bg-default-200", filler: "bg-primary" }} />
-                    <div className="mt-0.5 flex justify-between text-[10px] text-default-400"><span>10% · 小流量试跑</span><span>{rollout < 100 ? `仅对 ${rollout}% 命中流量生效` : "全量生效"}</span><span>100% · 全量</span></div>
-                  </div>
+                      <div className="mt-3.5 border-t border-divider pt-3.5">
+                        <div className="mb-1 flex items-center justify-between">
+                          <div className="text-[12px] font-medium text-default-600">灰度比例(按比例放量)</div>
+                          <span className="text-[13px] font-extrabold tnum text-[var(--brand)]">{rollout}%</span>
+                        </div>
+                        <Slider aria-label="灰度比例" size="sm" minValue={10} maxValue={100} step={10} value={rollout} onChange={(v) => setRollout(Array.isArray(v) ? v[0] : v)} classNames={{ track: "bg-default-200", filler: "bg-primary" }} />
+                        <div className="mt-0.5 flex justify-between text-[10px] text-default-400"><span>10% · 小流量试跑</span><span>{rollout < 100 ? `仅对 ${rollout}% 命中流量生效` : "全量生效"}</span><span>100% · 全量</span></div>
+                      </div>
 
-                  <div className="mt-3.5 border-t border-divider pt-3.5">
-                    <Input size="sm" type="date" label="到期日(到点自动失效)" labelPlacement="outside" aria-label="到期日" value={expiry} onValueChange={setExpiry}
-                      classNames={{ inputWrapper: "h-10 min-h-10 bg-default-50" }} startContent={<CalendarClock className="h-4 w-4 text-default-400" />} />
-                    <p className="mt-1 text-[11px] text-default-400">{expiry ? `${expiry} 自动停用 —— 临时加严(交易所被盗 / 新制裁)用。` : "留空 = 永久生效。"}</p>
-                  </div>
+                      <div className="mt-3.5 border-t border-divider pt-3.5">
+                        <Input size="sm" type="date" label="到期日(到点自动失效)" labelPlacement="outside" aria-label="到期日" value={expiry} onValueChange={setExpiry}
+                          classNames={{ inputWrapper: "h-10 min-h-10 bg-default-50" }} startContent={<CalendarClock className="h-4 w-4 text-default-400" />} />
+                        <p className="mt-1 text-[11px] text-default-400">{expiry ? `${expiry} 自动停用 —— 临时加严(交易所被盗 / 新制裁)用。` : "留空 = 永久生效。"}</p>
+                      </div>
+                    </>
+                  )}
                 </SecCard>
               </div>
             </div>
@@ -671,6 +648,61 @@ export function NewRuleDrawer({ open, onOpenChange, onDone, editRule, requiresAp
               </ModalFooter>
             </>
           )}
+        </ModalContent>
+      </Modal>
+
+      {/* 单笔回放 · 弹窗(与 30 天回测对称)*/}
+      <Modal isOpen={replayOpen} onOpenChange={(o) => { setReplayOpen(o); if (!o) setReplay(null); }} size="lg" placement="center" classNames={{ header: "border-b border-divider" }}>
+        <ModalContent>
+          <ModalHeader className="flex items-center gap-2.5 text-[16px]">
+            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-[var(--brand-soft)] text-[var(--brand)]"><PlayCircle className="h-4 w-4" /></span>
+            单笔回放 · 验逻辑
+          </ModalHeader>
+          <ModalBody className="gap-3 py-5">
+            <p className="text-[11.5px] text-default-400">拿一笔真实历史交易跑当前条件,看命不命中、卡在哪条(↔「30 天回测」估影响:命中量 / 误报率)。</p>
+            <div className="flex items-center gap-2">
+              <Select size="sm" aria-label="样本交易" selectedKeys={[replayId]} className="flex-1" classNames={{ trigger: "h-10 min-h-10 bg-default-50" }}
+                renderValue={() => { const t = REPLAY_TXNS.find((x) => x.id === replayId)!; return <span className="truncate text-[12.5px] font-medium">{t.label}</span>; }}
+                onSelectionChange={(k) => { setReplayId((single(k) as string) ?? REPLAY_TXNS[0].id); setReplay(null); }}>
+                {REPLAY_TXNS.map((t) => <SelectItem key={t.id} description={t.sub}>{t.label}</SelectItem>)}
+              </Select>
+              <Button color="primary" className="font-semibold" onPress={runReplay}>回放</Button>
+            </div>
+            <p className="text-[11px] text-default-400">{REPLAY_TXNS.find((x) => x.id === replayId)!.sub}</p>
+
+            {replay && (
+              <div className="border-t border-divider pt-3">
+                <div className={`mb-2.5 flex items-center gap-2 rounded-xl px-3 py-2 text-[13px] font-bold ${replay.hit ? "bg-danger/10 text-danger" : "bg-success/10 text-success"}`}>
+                  {replay.hit ? <XCircle className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
+                  {replay.hit ? "命中 · 此规则会对这笔交易触发处置" : "未命中 · 此规则不会触发"}
+                </div>
+                {replay.hit && replayAction && (
+                  <p className="mb-2.5 text-[11.5px] text-default-600"><b>本规则终态处置:</b>{replayAction}<span className="mt-0.5 block text-[10.5px] text-default-400">多条规则同时命中时,跨规则取最严处置(本原型仅回放当前这条)。</span></p>
+                )}
+                <div className="flex flex-col gap-2">
+                  {replay.groups.map((g, gi) => (
+                    <div key={gi} className={replay.groups.length > 1 ? "rounded-xl border border-divider bg-default-50 p-2" : ""}>
+                      {replay.groups.length > 1 && <div className="mb-1 text-[10.5px] font-bold text-default-400">子组 {gi + 1} · {g.joiner === "AND" ? "全部满足" : "任一满足"} → {g.status === "pass" ? "✓ 满足" : g.status === "skip" ? "— 跳过" : "✗ 不满足"}</div>}
+                      <div className="flex flex-col gap-1">
+                        {g.clauses.map((c, ci) => (
+                          <div key={ci} className="flex items-start gap-1.5 text-[11.5px]">
+                            {c.status === "pass" ? <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-success" /> : c.status === "fail" ? <XCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-danger" /> : <MinusCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-default-300" />}
+                            <span className="flex-1"><span className="font-medium text-default-700">{c.text}</span><span className="ml-1 text-default-400">— {c.detail}</span></span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {!replay.hit && replay.blockers.length > 0 && (
+                  <p className="mt-2 rounded-lg bg-default-100 px-2.5 py-1.5 text-[11px] leading-snug text-default-500"><b>卡在:</b>{replay.blockers.join(";")}</p>
+                )}
+              </div>
+            )}
+          </ModalBody>
+          <ModalFooter>
+            <Button variant="light" onPress={() => setReplayOpen(false)}>关闭</Button>
+          </ModalFooter>
         </ModalContent>
       </Modal>
     </>

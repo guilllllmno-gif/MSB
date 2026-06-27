@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { Button, Input, Select, SelectItem, Popover, PopoverTrigger, PopoverContent } from "@heroui/react";
 import { Search, Bell, Network, FolderOpen, ArrowUpRight, ArrowLeft, ShieldAlert, Store, Layers, Building2, Lock, AlertOctagon, TrendingUp, TrendingDown, Minus, UserPlus, Send, Clock3, Sparkles, GitMerge, Globe, IdCard, X } from "lucide-react";
 import { Shell, PageHead } from "@/components/Shell";
-import { Pill, SoftChip, Initials, toneVar } from "@/components/bits";
+import { Pill, Initials, toneVar } from "@/components/bits";
 import { Timeline } from "@/components/Timeline";
 import { directory, footprint, totalExposure, fmtCAD, entityType, sameEntity, linkedAddresses, applicableRules, merchantTags, suggestTags, type DirEntry, type Pending } from "@/lib/entity360";
 import { RC_STATES, type Tone } from "@/lib/data";
@@ -123,6 +123,7 @@ function Profile({ name }: { name: string }) {
 
   const [tab, setTab] = useState<"info" | "log">("info");
   const [evFilter, setEvFilter] = useState<string>("all");
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- 切换主体时重置 tab/筛选,刻意同步重置
   useEffect(() => { setTab("info"); setEvFilter("all"); }, [name]);
   const evShown = evFilter === "all" ? events : events.filter((e) => e.mod === evFilter);
   const EV_TABS = ([["alerts", modCount.alerts], ["findings", modCount.findings], ["rings", modCount.rings], ["cases", modCount.cases], ["reports", modCount.reports]] as const).filter(([, n]) => n > 0);
@@ -384,7 +385,7 @@ const pad2 = (n: number) => String(n).padStart(2, "0");
 function synthReg(name: string): string { const h = avHash(name + "reg"); return `2026-${pad2(1 + (h % 11))}-${pad2(1 + ((h >> 4) % 27))}`; }
 function evtTime(key: string): string { const h = avHash(key + "ts"); return `2026-${pad2(2 + (h % 4))}-${pad2(1 + ((h >> 3) % 27))} ${pad2((h >> 6) % 24)}:${pad2((h >> 11) % 60)}`; }
 function initialsOf(name: string): string {
-  const toks = name.replace(/[（(].*$/, "").trim().split(/[\s\-]+|(?<=[a-z])(?=[A-Z])/).filter(Boolean);
+  const toks = name.replace(/[（(].*$/, "").trim().split(/[\s-]+|(?<=[a-z])(?=[A-Z])/).filter(Boolean);
   const s = toks.length >= 2 ? (toks[0][0] || "") + (toks[1][0] || "") : (toks[0] || name).slice(0, 2);
   return s.toUpperCase();
 }
