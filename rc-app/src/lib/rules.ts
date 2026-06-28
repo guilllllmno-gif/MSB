@@ -263,8 +263,8 @@ export const RULES: Rule[] = [
   { id: "R-BHV-003", name: "新商户首充", cat: "行为模式", cond: "商户首笔 且 KYB 未完成", action: "评分 +20 · 待 KYB", actions: ["要求补充材料"], state: "live", hits30: 33, fp30: "26%", src: "内置", owner: JL, updated: "2026-04-30", weight: "+20", audience: ["新户 / KYB 未完成"] },
   { id: "R-CHN-002", name: "高风险地址检测", cat: "链上溯源", cond: "发送方含风险标签", action: "评分 +25", mode: "score", state: "live", hits30: 64, fp30: "11%", src: "内置", owner: SC, updated: "2026-05-03", weight: "+25" },
   // 治理流水线中的提案(展示回测 / 待审批态)
-  { id: "R-AGG-009", name: "速度 / 峰值偏离", cat: "统计聚合", cond: "笔频 > 同业群 P95 且 > 自身基线 5×", action: "评分 +25 · 转研判", actions: ["智能入账(转人工审核)"], state: "pending", hits30: 0, fp30: "回测 7%", src: "风控建模 · 提案", owner: RH, updated: "2026-06-18", weight: "+25", backtest: { window: "近 90 天", scanned: "108.4M", wouldHit: 41, estFp: "≈ 7%" } },
-  { id: "R-AGG-010", name: "对手集中度", cat: "统计聚合", cond: "单一对手 30 日金额占比 ≥75% 且高风险辖区", action: "评分 +20 · 加强监控", actions: ["智能入账(转人工审核)"], sideActions: ["加入观察名单"], state: "backtest", hits30: 0, fp30: "—", src: "风控建模 · 提案", owner: RH, updated: "2026-06-19", weight: "+20", backtest: { window: "回测中 …", scanned: "—", wouldHit: 0, estFp: "—" } },
+  { id: "R-AGG-009", name: "速度 / 峰值偏离", cat: "统计聚合", cond: "笔频 > 同业群 P95 且 > 自身基线 5×", action: "评分 +25 · 转研判", actions: ["智能入账(转人工审核)"], state: "pending", hits30: 0, fp30: "回测 7%", src: "风控建模 · 提案", owner: RH, updated: "2026-06-18", weight: "+25", rollout: 50, backtest: { window: "近 90 天", scanned: "108.4M", wouldHit: 41, estFp: "≈ 7%" } },
+  { id: "R-AGG-010", name: "对手集中度", cat: "统计聚合", cond: "单一对手 30 日金额占比 ≥75% 且高风险辖区", action: "评分 +20 · 加强监控", actions: ["智能入账(转人工审核)"], sideActions: ["加入观察名单"], state: "backtest", hits30: 0, fp30: "—", src: "风控建模 · 提案", owner: RH, updated: "2026-06-19", weight: "+20", shadow: true, expiry: "2026-08-31", backtest: { window: "回测中 …", scanned: "—", wouldHit: 0, estFp: "—" } },
 ];
 
 export const ruleOf = (id?: string) => RULES.find((r) => r.id === id);

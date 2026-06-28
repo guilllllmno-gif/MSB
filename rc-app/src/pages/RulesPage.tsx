@@ -5,7 +5,7 @@ import { Eye, Settings2, Search, RefreshCw, ExternalLink, FlaskConical, ShieldCh
 import { Shell, PageHead } from "@/components/Shell";
 import { Pill, Initials } from "@/components/bits";
 import { NewRuleDrawer } from "@/components/NewRuleDrawer";
-import { RULES, RUSTATE, CAT_ICON, CATS, VENUE, venueOf, bfrMeta, bfrDefault, type Rule, type RuState } from "@/lib/rules";
+import { RULES, RUSTATE, CAT_ICON, CATS, VENUE, venueOf, bfrMeta, bfrDefault, rolloutBadges, type Rule, type RuState } from "@/lib/rules";
 import { FINDINGS } from "@/lib/findings";
 import { findingStore, ruleStore, useRuleVersion, useFindingVersion } from "@/lib/store";
 import type { Person } from "@/lib/data";
@@ -158,7 +158,7 @@ export default function RulesPage() {
                 <TableCell>
                   <button onClick={() => manage(r)} className="text-left">
                     <span className="inline-flex items-center gap-2 font-semibold whitespace-nowrap"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-default-100 text-default-500"><CIcon className="h-4 w-4" /></span>{r.name}</span>
-                    <div className="ml-9 mt-0.5 flex items-center gap-1.5"><Pill tone={VENUE[venueOf(r)].tone} dot={false}>{VENUE[venueOf(r)].short}</Pill><span className="text-[11px] text-default-400">{r.cat} · {r.id}</span></div>
+                    <div className="ml-9 mt-0.5 flex flex-wrap items-center gap-1.5"><Pill tone={VENUE[venueOf(r)].tone} dot={false}>{VENUE[venueOf(r)].short}</Pill><span className="text-[11px] text-default-400">{r.cat} · {r.id}</span>{rolloutBadges(r).map((b) => <Pill key={b.label} tone={b.tone} dot={false}>{b.label}</Pill>)}</div>
                   </button>
                 </TableCell>
                 <TableCell><span className="block max-w-[240px] text-[12.5px] leading-snug text-default-600">{r.cond}</span></TableCell>
