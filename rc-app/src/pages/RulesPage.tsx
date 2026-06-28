@@ -161,7 +161,15 @@ export default function RulesPage() {
                     <div className="ml-9 mt-0.5 flex flex-wrap items-center gap-1.5"><Pill tone={VENUE[venueOf(r)].tone} dot={false}>{VENUE[venueOf(r)].short}</Pill><span className="text-[11px] text-default-400">{r.cat} · {r.id}</span>{rolloutBadges(r).map((b) => <Pill key={b.label} tone={b.tone} dot={false}>{b.label}</Pill>)}</div>
                   </button>
                 </TableCell>
-                <TableCell><span className="block max-w-[240px] text-[12.5px] leading-snug text-default-600">{r.cond}</span></TableCell>
+                <TableCell>
+                  <span className="block max-w-[240px] text-[12.5px] leading-snug text-default-600">{r.cond}</span>
+                  {(() => {
+                    const parts: string[] = [];
+                    if (r.scope && r.scope !== "全部业务线") parts.push(r.scope);
+                    if (r.audience?.length) parts.push(...r.audience);
+                    return parts.length ? <div className="mt-1 max-w-[240px] text-[11px] leading-snug text-default-400">适用 · {parts.join(" / ")}</div> : null;
+                  })()}
+                </TableCell>
                 <TableCell><span className="text-default-600">{r.action}</span></TableCell>
                 <TableCell>{st === "live" ? <span className="tnum font-semibold">{r.hits30}<span className="ml-1 text-[10.5px] font-normal text-default-400">误报 {r.fp30}</span></span> : <span className="text-default-400">—</span>}</TableCell>
                 <TableCell><Pill tone={RUSTATE[st].tone}>{RUSTATE[st].label}</Pill></TableCell>
