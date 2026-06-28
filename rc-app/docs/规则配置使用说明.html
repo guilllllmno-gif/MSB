@@ -145,6 +145,18 @@
           </div>
         </div>
         <div class="callout">多条规则会一起跑同一笔交易。跨规则的处置取 <b>「最严生效」</b>:拒绝 &gt; 冻结 &gt; 补料 &gt; 转人工 &gt; 放行,不取最宽松。</div>
+
+        <h3>0.3 权重校准闭环(规则不是拍一次定死)</h3>
+        <p>规则 / 权重经一个持续收敛的闭环,不是配完就一劳永逸:</p>
+        <div class="flow">
+          <span class="pill p-grey">建模 · 提案</span><span class="arr">→</span>
+          <span class="pill p-blue">回测</span><span class="arr">→</span>
+          <span class="pill p-amber">审批上线</span><span class="arr">→</span>
+          <span class="pill p-green">事中生效 · 盯误报</span><span class="arr">→</span>
+          <span class="pill p-violet">事后确认 · 回填</span>
+          <span class="branch">误报偏高 / 事后成案 → 回「建模」调权重,重走一圈</span>
+        </div>
+        <div class="callout"><b>制裁 / 名单类硬规则不在此环</b> —— 命中即拦,不靠权重与阈值。</div>
       </section>
 
       <section id="s1">

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button, Tooltip, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Input } from "@heroui/react";
-import { Eye, Settings2, Search, RefreshCw, ExternalLink, FlaskConical, ShieldCheck, Radar, RotateCcw, ChevronRight } from "lucide-react";
+import { Eye, Settings2, Search, ExternalLink } from "lucide-react";
 import { Shell, PageHead } from "@/components/Shell";
 import { Pill, Initials } from "@/components/bits";
 import { NewRuleDrawer } from "@/components/NewRuleDrawer";
@@ -55,22 +55,6 @@ export default function RulesPage() {
     return okF && okC && okQ;
   });
 
-  const liveN = all.filter((r) => stOf(r) === "live").length;
-  const bfN = finRules.length;
-  // 权重校准闭环的每个阶段挂一个真实计数
-  const fpNum = (s: string) => parseInt(s, 10) || 0;
-  const backtestN = all.filter((r) => stOf(r) === "backtest").length;
-  const pendingN = all.filter((r) => stOf(r) === "pending").length;
-  const worstFp = [...all].filter((r) => stOf(r) === "live").sort((a, b) => fpNum(b.fp30) - fpNum(a.fp30))[0];
-  // 闭环 5 阶段:建模 → 回测 → 审批 → 生效·监控 → 回填,再回到建模
-  const LOOP: { icon: typeof FlaskConical; t: string; who: string; metric: string; tone?: string }[] = [
-    { icon: Settings2, t: "建模 · 提案", who: "风控建模", metric: "拟规则 / 调权重" },
-    { icon: FlaskConical, t: "回测", who: "历史数据验证", metric: `回测中 ${backtestN} · 预估误报达标才提交` },
-    { icon: ShieldCheck, t: "审批上线", who: "风控总管签批", metric: `待审批 ${pendingN}`, tone: pendingN ? "var(--warning)" : undefined },
-    { icon: Radar, t: "事中生效 · 误报监控", who: "实时拦截同类", metric: worstFp ? `已上线 ${liveN} · 最高误报 ${worstFp.fp30}` : `已上线 ${liveN}`, tone: worstFp && fpNum(worstFp.fp30) >= 20 ? "var(--danger)" : undefined },
-    { icon: RotateCcw, t: "事后确认 · 回填", who: "成案 / 误报回填", metric: `来自回填 ${bfN}`, tone: bfN ? "var(--brand)" : undefined },
-  ];
-
   const manage = (r: Rule) => nav(`/rule?id=${r.id}`);
 
   return (
@@ -80,38 +64,6 @@ export default function RulesPage() {
         sub="事中 / 告警的检测规则库与变更治理 —— 内置规则长期生效;事后监控「规则回填」的 typology 在此走 回测 → 审批 → 上线,闭环让事中实时拦截同类。"
         actions={<Button size="sm" radius="full" color="primary" variant="flat" startContent={<Settings2 className="h-3.5 w-3.5" />} onPress={() => setNewOpen(true)}>新建规则</Button>}
       />
-
-      {/* 权重校准闭环 —— 规则/权重从提案到上线再到回填的循环;每阶段挂真实计数 */}
-      <div className="card mb-5 p-4">
-        <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1">
-          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><RefreshCw className="h-4 w-4" /></span>
-          <span className="text-[14px] font-bold">权重校准闭环</span>
-          <span className="text-[12px] text-default-400">规则的权重不是拍一次定死 —— 经回测验证、上线后盯误报、事后结果回填再调,闭环让它持续收敛。</span>
-        </div>
-
-        {/* 5 阶段流:小屏纵向、宽屏横向带箭头 */}
-        <div className="flex flex-col gap-2 lg:flex-row lg:items-stretch">
-          {LOOP.map((s, i) => (
-            <div key={s.t} className="flex items-stretch gap-2 lg:flex-1">
-              <div className="flex flex-1 flex-col rounded-xl border border-divider p-3">
-                <div className="flex items-center gap-1.5">
-                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-default-100 text-default-500"><s.icon className="h-3.5 w-3.5" /></span>
-                  <span className="text-[12.5px] font-bold leading-tight">{s.t}</span>
-                </div>
-                <span className="mt-1 text-[11px] text-default-400">{s.who}</span>
-                <span className="mt-1.5 text-[11px] font-semibold tnum" style={{ color: s.tone ?? "var(--text-3)" }}>{s.metric}</span>
-              </div>
-              <ChevronRight className="hidden h-4 w-4 shrink-0 self-center text-default-300 lg:block" style={i === LOOP.length - 1 ? { visibility: "hidden" } : undefined} />
-            </div>
-          ))}
-        </div>
-
-        {/* 回填回环:从末端绕回起点 */}
-        <div className="mt-2.5 flex items-start gap-2 rounded-xl border border-dashed border-default-300 bg-default-50 px-3 py-2 text-[11.5px] leading-relaxed text-default-500">
-          <RotateCcw className="mt-px h-3.5 w-3.5 shrink-0" style={{ color: "var(--brand)" }} />
-          <span><b style={{ color: "var(--brand)" }}>回填 / 再校准</b> —— 误报偏高或事后确认成案,就<b>回到「建模」调整规则权重</b>,重新走一圈。<b className="text-foreground">制裁 / 名单类硬规则不在此环</b>(命中即拦,不靠权重与阈值)。</span>
-        </div>
-      </div>
 
       {/* 状态分桶 tiles */}
       <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
