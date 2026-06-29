@@ -108,17 +108,26 @@ export default function RuleDetail() {
   };
   const doDelete = () => { ruleStore.remove(rule.id); setDelOpen(false); toast.success(`已删除「${rule.name}」`); nav("/rules"); };
 
-  // 规则概要字段
+  // 规则概要字段 —— 详尽覆盖列表所有列 + Rule 全部有效字段(自成一张规格表,不依赖页头 / KPI)
+  const rollouts = rolloutBadges(rule);
   const summary: [string, React.ReactNode][] = [
-    ["触发条件", <span className="text-right">{rule.cond}</span>],
-    ["适用范围", rule.scope || (rule.cat === "金额阈值" ? "充值 / 提现" : rule.action.includes("提现") ? "提现" : "全业务线")],
-    ["适用对象", <span className="text-right">{audienceText(rule.audience)}</span>],
-    ["执行场景", <Pill tone={ven.tone} dot={false}>{ven.short}</Pill>],
-    ["命中动作", rule.action],
+    ["规则编号", <span className="tnum">{rule.id}</span>],                                                    // 列表:名称 / 类别(id)
+    ["规则类别", <span className="inline-flex items-center gap-1.5"><CIcon className="h-3.5 w-3.5 text-default-400" />{rule.cat}</span>], // 列表:名称 / 类别
+    ["当前状态", <Pill tone={sd.tone}>{sd.label}</Pill>],                                                     // 列表:状态
+    ["执行场景", <Pill tone={ven.tone} dot={false}>{ven.short}</Pill>],                                       // 列表:名称 / 类别(venue 徽标)
+    ["命中权重", <span className="inline-flex items-center gap-1.5"><span className="tnum">{rule.weight}</span><Pill tone={risk.tone} dot={false}>{risk.label}</Pill></span>],
+    ["上线策略", rollouts.length ? <span className="flex flex-wrap justify-end gap-1">{rollouts.map((b) => <Pill key={b.label} tone={b.tone} dot={false}>{b.label}</Pill>)}</span> : <span className="text-default-400">全量实拦 · 长期有效</span>], // 列表:上线策略徽标
+    ["触发条件", <span className="text-right">{rule.cond}</span>],                                             // 列表:触发条件
+    ["命中动作", <span className="text-right">{rule.action}</span>],                                           // 列表:命中处置
+    ["适用范围", rule.scope || (rule.cat === "金额阈值" ? "充值 / 提现" : rule.action.includes("提现") ? "提现" : "全业务线")], // 列表:触发条件下「适用」
+    ["适用对象", <span className="text-right">{audienceText(rule.audience)}</span>],                          // 列表:触发条件下「适用」
+    ["近30天命中", st === "live" ? <span className="tnum">{rule.hits30} 笔 · 误报 {rule.fp30}</span> : <span className="text-default-400">— · 未上线</span>], // 列表:近30天命中
     ["升级路径", risk.tone === "red" ? "升级 MLRO" : "L1 研判"],
-    ["处置策略", "告警工作台 · STR"],
+    ["来源", rule.to ? <button onClick={() => nav(rule.to!)} className="text-primary hover:opacity-80">{rule.src} {rule.srcId}</button> : rule.src], // 列表:来源
+    ["负责人", owner ? <span className="inline-flex items-center gap-1.5"><Initials p={owner} size={18} />{owner.n}</span> : "—"],                       // 列表:负责人
+    ["最近更新", <span className="tnum">{rule.updated}</span>],
+    ["版本", <button onClick={() => setTab("version")} className="text-primary hover:opacity-80">{versions.length} 个版本 · 查看</button>],
     ["数据来源", "订单 + 行为 + KYW + 链上溯源 + 名单"],
-    ["版本", rule.src === "手动新建" ? "v1.0（新建）" : "v4.0"],
   ];
   const effect: [string, number, string][] = [["命中有效率", 100 - fpNum, "green"], ["误报率", fpNum, "amber"], ["升级转案率", 17, "blue"]];
 
@@ -282,7 +291,15 @@ export default function RuleDetail() {
           {/* 规则概要 + 实际效果 */}
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
             <div className="card p-5 lg:col-span-2">
-              <div className="mb-2 text-[11px] font-bold uppercase tracking-wider text-default-400">规则概要</div>
+              <div className="mb-2 flex items-center justify-between">
+                <div className="text-[11px] font-bold uppercase tracking-wider text-default-400">规则概要</div>
+                <div className="text-[11px] text-default-400">{rule.name}</div>
+              </div>
+              {rule.desc && (
+                <div className="mb-3 rounded-xl border border-divider bg-default-50 p-3 text-[12.5px] leading-relaxed text-default-600">
+                  <span className="mr-1.5 font-semibold text-default-500">规则描述</span>{rule.desc}
+                </div>
+              )}
               <div className="grid grid-cols-1 gap-x-8 sm:grid-cols-2">
                 {summary.map(([k, v]) => <div key={k} className="flex items-baseline justify-between gap-3 border-b border-dashed border-default-200 py-2 text-[12.5px]"><span className="shrink-0 text-default-500">{k}</span><span className="text-right font-semibold">{v}</span></div>)}
               </div>
