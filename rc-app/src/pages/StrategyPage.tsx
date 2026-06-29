@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { Switch } from "@heroui/react";
-import { Shield, ShieldCheck, Scale, Gauge, Database, Clock, Lock, Landmark, UserCheck, Power, AlertTriangle, GitBranch, ListChecks, Info } from "lucide-react";
+import { Shield, ShieldCheck, Scale, Gauge, Database, Clock, Lock, Landmark, UserCheck, GitBranch, ListChecks, Info } from "lucide-react";
 import { Shell, PageHead } from "@/components/Shell";
 import { toneVar } from "@/components/bits";
 import type { Tone } from "@/lib/data";
@@ -24,12 +24,17 @@ function Section({ icon: Icon, title, hint, children }: { icon: typeof Shield; t
 
 // 单条策略:名称 + 当前取值 + 说明,右侧定宽列放「法定锁定」徽标或可调开关
 // 取值徽标只用 红(关键/硬约束)/ 黄(需谨慎)/ 中性 三色,避免花花绿绿
+// 三种性质各有其形:法定锁定(只读·灰条+封条)/ 可调兜底(品牌条+「可调」标+开关)/ 固定基线(轻量信息行)
 function Policy({ title, desc, value, valueTone, locked, lockNote, on, onToggle }: { title: string; desc: string; value?: string; valueTone?: Tone; locked?: boolean; lockNote?: string; on?: boolean; onToggle?: () => void }) {
   const tone = valueTone === "red" || valueTone === "amber" ? valueTone : undefined;
+  const kind = locked ? "locked" : onToggle ? "tunable" : "fixed";
+  const rail = kind === "locked" ? "#94a3b8" : kind === "tunable" ? "var(--brand)" : "transparent";
   return (
-    <div className="flex items-start gap-3 border-b border-default-100 py-3 last:border-0">
+    <div className="flex items-start gap-3 border-b border-default-100 py-3 pl-3 last:border-0" style={{ borderLeft: `3px solid ${rail}` }}>
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
+          {kind === "locked" && <span className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] font-bold" style={{ background: "var(--track)", color: "var(--text-3)" }}><Lock className="h-2.5 w-2.5" />法定</span>}
+          {kind === "tunable" && <span className="rounded px-1.5 py-0.5 text-[10px] font-bold" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>可调</span>}
           <span className="text-[13px] font-semibold">{title}</span>
           {value && <span className="rounded-md px-1.5 py-0.5 text-[11px] font-semibold" style={tone ? { background: `color-mix(in srgb, ${toneVar(tone)} 13%, transparent)`, color: toneVar(tone) } : { background: "var(--track)", color: "var(--text-2)" }}>{value}</span>}
         </div>
@@ -37,7 +42,7 @@ function Policy({ title, desc, value, valueTone, locked, lockNote, on, onToggle 
       </div>
       <div className="flex w-[84px] shrink-0 justify-end pt-0.5">
         {locked ? (
-          <span className="inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-[10.5px] font-bold" style={{ background: "var(--chip-bg)", color: "var(--text-3)" }} title={lockNote}><Lock className="h-3 w-3" />锁定</span>
+          <span className="inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-[10.5px] font-bold" style={{ background: "var(--chip-bg)", color: "var(--text-3)" }} title={lockNote}><Lock className="h-3 w-3" />只读</span>
         ) : onToggle ? (
           <Switch size="sm" isSelected={on} onValueChange={onToggle} aria-label={title} />
         ) : null}
@@ -100,26 +105,33 @@ export default function StrategyPage() {
       <div className="flex flex-col gap-5">
         {/* ① 决策基线 · 风险分处置矩阵 */}
         <Section icon={Gauge} title="决策基线 · 风险分处置矩阵" hint="当没有任何具体规则命中时,系统按交易的综合风险分落入下列区间,执行对应默认处置。这是兜底的「最后一道分诊」。">
-          <div className="overflow-hidden rounded-xl border border-default-200">
-            <table className="w-full text-[12.5px]">
-              <thead>
-                <tr className="border-b border-default-100 bg-default-50 text-[11px] font-bold uppercase tracking-wider text-default-400">
-                  <th className="w-[120px] px-4 py-2.5 text-left">风险分区间</th>
-                  <th className="px-4 py-2.5 text-left">默认处置</th>
-                  <th className="px-4 py-2.5 text-left">说明</th>
-                </tr>
-              </thead>
-              <tbody>
-                {BANDS.map((b) => (
-                  <tr key={b.range} className="border-b border-default-50 last:border-0">
-                    <td className="px-4 py-3"><span className="tnum inline-flex items-center gap-1.5 font-bold"><span className="h-2 w-2 rounded-full" style={{ background: toneVar(b.tone) }} />{b.range}<span className="text-[11px] font-medium text-default-400">{b.label}</span></span></td>
-                    <td className="px-4 py-3 font-semibold" style={{ color: toneVar(b.tone) }}>{b.action}</td>
-                    <td className="px-4 py-3 text-default-500">{b.note}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          {/* 渐变分段条:0–100 风险分按四档着色,宽度按区间跨度;低→高 左→右 */}
+          {(() => {
+            const lowToHigh = [...BANDS].reverse(); // <40 / 40–59 / 60–79 / ≥80
+            const widths = [40, 20, 20, 20];
+            return (
+              <>
+                <div className="flex h-10 overflow-hidden rounded-xl border border-default-200">
+                  {lowToHigh.map((b, i) => (
+                    <div key={b.range} className="flex flex-col items-center justify-center text-white" style={{ flexBasis: `${widths[i]}%`, flexGrow: 0, background: toneVar(b.tone) }} title={`${b.range} · ${b.action}`}>
+                      <span className="text-[11px] font-bold leading-none">{b.label}</span>
+                      <span className="mt-0.5 text-[9.5px] font-medium leading-none opacity-90">{b.range}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-1 flex justify-between px-0.5 text-[10px] tabular-nums text-default-400"><span>0</span><span>40</span><span>60</span><span>80</span><span>100</span></div>
+                <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                  {lowToHigh.map((b) => (
+                    <div key={b.range} className="rounded-xl border border-default-200 p-3" style={{ borderTop: `3px solid ${toneVar(b.tone)}` }}>
+                      <div className="flex items-center gap-1.5 text-[12px] font-bold"><span className="tnum">{b.range}</span><span className="text-[11px] font-medium text-default-400">{b.label}</span></div>
+                      <div className="mt-1 text-[12px] font-semibold" style={{ color: toneVar(b.tone) }}>{b.action}</div>
+                      <div className="mt-0.5 text-[11px] leading-snug text-default-500">{b.note}</div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            );
+          })()}
           <p className="mt-3 flex items-start gap-1.5 rounded-xl border-l-[3px] border-l-brand bg-default-50 p-3 text-[12px] leading-relaxed text-default-600">
             <Info className="mt-px h-4 w-4 shrink-0 text-default-400" /><span><b>兜底口径</b>:风险<b>评分缺失 / 评分服务超时</b>时,不按「低」放行,而是<b>默认按「偏高 · 转研判」</b>处理(fail-safe 从严);大额交易在评分不可用时默认<b>暂缓</b>等待人工。</span>
           </p>
