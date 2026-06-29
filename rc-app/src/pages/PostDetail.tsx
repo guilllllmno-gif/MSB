@@ -213,7 +213,7 @@ export default function PostDetail() {
               <div className="mb-3 flex flex-col gap-2">
                 {related.map((r) => { const RDI = FDIM[r.dim].icon; const rst = findingStore.statusOf(r.id, r.status) as FState; return (
                   <button key={r.id} onClick={() => nav(`/finding?id=${r.id}`)} className="flex items-center gap-2.5 rounded-xl border border-divider p-2.5 text-left transition-colors hover:bg-default-50">
-                    <Pill tone={FDIM[r.dim].tone} dot={false} icon={<RDI className="h-3 w-3" />}>{FDIM[r.dim].label}</Pill>
+                    <Pill tone="grey" dot={false} icon={<RDI className="h-3 w-3" />}>{FDIM[r.dim].label}</Pill>
                     <div className="min-w-0 flex-1"><div className="truncate text-[12.5px] font-semibold">{r.pattern} · {r.subject}</div><div className="text-[11px] text-default-400">{r.id} · {FSTATES[rst].label} · {r.amount}</div></div>
                     <ArrowUpRight className="h-4 w-4 shrink-0 text-default-300" />
                   </button>
@@ -273,7 +273,7 @@ export default function PostDetail() {
           <div className="card p-5">
             <div className="mb-2 flex items-center justify-between gap-2">
               <span className="text-[11px] font-bold uppercase tracking-wider text-default-400">{FDIM[f.dim].profileTitle}</span>
-              <Pill tone={FDIM[f.dim].tone} dot={false} icon={(() => { const DI = FDIM[f.dim].icon; return <DI className="h-3 w-3" />; })()}>{FDIM[f.dim].label}</Pill>
+              <Pill tone="grey" dot={false} icon={(() => { const DI = FDIM[f.dim].icon; return <DI className="h-3 w-3" />; })()}>{FDIM[f.dim].label}</Pill>
             </div>
             <div className="text-[14px] font-bold">{f.subject}</div>
             <div className="mb-2 text-[12px] text-default-400">{f.sub}</div>

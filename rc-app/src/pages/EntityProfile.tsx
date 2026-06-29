@@ -205,7 +205,7 @@ function Profile({ name }: { name: string }) {
           <div className="card p-5">
             <div className="mb-4 flex items-center gap-2 text-[15px] font-bold"><IdCard className="h-[18px] w-[18px] text-default-400" />主体档案</div>
             <div className="flex items-center gap-3 border-b border-default-100 pb-4">
-              <Initials p={{ i: initialsOf(name), c: AV_COLORS[avHash(name) % AV_COLORS.length] }} size={44} />
+              <Initials p={{ i: initialsOf(name), c: AV_COLORS[avHash(name) % AV_COLORS.length] }} size={44} mono />
               <div className="min-w-0 flex-1">
                 <div className="truncate text-[15px] font-bold">{name}</div>
                 <div className="tnum text-[12px] text-default-400">{merchantNo}</div>
@@ -278,7 +278,7 @@ function Profile({ name }: { name: string }) {
                 <div className="flex flex-col gap-2">
                   {related.map((r) => (
                     <button key={r.name} onClick={() => nav(`/entity?name=${encodeURIComponent(r.name)}`)} className="card-hover group flex items-center gap-2.5 rounded-xl border border-default-200 px-3 py-2.5 text-left">
-                      <Initials p={{ i: initialsOf(r.name), c: AV_COLORS[avHash(r.name) % AV_COLORS.length] }} size={32} />
+                      <Initials p={{ i: initialsOf(r.name), c: AV_COLORS[avHash(r.name) % AV_COLORS.length] }} size={32} mono />
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1.5 text-[12.5px] font-semibold"><span className="truncate">{r.name}</span><span className="shrink-0" style={{ color: toneVar(r.tone) }}>· {r.strength}</span></div>
                         <div className="truncate text-[11px] text-default-400">{r.detail}</div>
@@ -653,7 +653,7 @@ function Directory() {
                 className="cursor-pointer border-b border-default-50 transition-colors hover:bg-default-50">
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-3">
-                    <Initials p={{ i: initialsOf(e.name), c: AV_COLORS[avHash(e.key) % AV_COLORS.length] }} size={38} />
+                    <Initials p={{ i: initialsOf(e.name), c: AV_COLORS[avHash(e.key) % AV_COLORS.length] }} size={38} mono />
                     <div className="min-w-0">
                       <div className="truncate text-[13.5px] font-bold">{e.name}</div>
                       <div className="tnum text-[11px] text-default-400">{e.merchantNo}</div>

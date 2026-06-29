@@ -47,7 +47,7 @@ export function NewRingDrawer({ open, onOpenChange, onCreated }: { open: boolean
               {RING_CANDIDATES.map((m) => { const on = members.includes(m.id); return (
                 <button key={m.id} onClick={() => toggle(members, setMembers, m.id)} className="flex items-center gap-3 rounded-xl border-[1.5px] p-2.5 text-left transition-colors"
                   style={on ? { borderColor: "var(--brand)", background: "var(--brand-soft)" } : { borderColor: "var(--line)" }}>
-                  <Initials p={{ i: m.i, c: m.c }} size={30} />
+                  <Initials p={{ i: m.i, c: m.c }} size={30} mono />
                   <div className="min-w-0 flex-1"><div className="text-[13px] font-semibold">{m.name}</div><div className="text-[11px] text-default-400">{m.sub}</div></div>
                   <span className="text-[14px] font-bold" style={{ color: on ? "var(--brand)" : "var(--text-3)" }}>{on ? "✓" : "+"}</span>
                 </button>

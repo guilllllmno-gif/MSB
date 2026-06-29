@@ -167,7 +167,7 @@ export default function AlertDetail() {
                     <div className="mt-0.5 text-[11.5px] text-default-400">{ring.id} · {ring.members.length} 个主体 · 关联告警 {ring.alertCount} 条</div>
                   </div>
                   <div className="flex items-center">
-                    {ring.members.slice(0, 4).map((m, i) => <span key={m.id} style={{ marginLeft: i ? -8 : 0, zIndex: 10 - i }} className="rounded-full ring-2 ring-content1"><Initials p={{ i: m.i, c: m.c }} size={26} /></span>)}
+                    {ring.members.slice(0, 4).map((m, i) => <span key={m.id} style={{ marginLeft: i ? -8 : 0, zIndex: 10 - i }} className="rounded-full ring-2 ring-content1"><Initials p={{ i: m.i, c: m.c }} size={26} mono /></span>)}
                   </div>
                   <div className="flex items-center gap-1">
                     {DIM_ORDER.filter((d) => ring.shared.some((s) => s.dim === d)).map((d) => <span key={d} className="rounded-md px-1.5 py-0.5 text-[10.5px] font-semibold" style={{ background: "color-mix(in srgb," + DIM_META[d].color + " 14%, transparent)", color: DIM_META[d].color }}>{DIM_META[d].short}</span>)}

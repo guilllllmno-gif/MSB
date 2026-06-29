@@ -468,7 +468,7 @@ export default function CaseDetail() {
                 <div className="flex flex-col gap-1.5">
                   {candidates.map((fd) => { const DI = FDIM[fd.dim].icon; return (
                     <div key={fd.id} className="flex items-center gap-1.5 rounded-lg border border-divider bg-content1 p-1.5">
-                      <Pill tone={FDIM[fd.dim].tone} dot={false} icon={<DI className="h-2.5 w-2.5" />}>{FDIM[fd.dim].label}</Pill>
+                      <Pill tone="grey" dot={false} icon={<DI className="h-2.5 w-2.5" />}>{FDIM[fd.dim].label}</Pill>
                       <div className="min-w-0 flex-1"><div className="truncate text-[11px] font-semibold">{fd.pattern} · {fd.subject}</div><div className="text-[9.5px] text-default-400">{fd.id} · {fd.amount}</div></div>
                       <button onClick={() => intake(fd)} className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-[var(--brand-soft)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--brand)] hover:opacity-80"><Plus className="h-2.5 w-2.5" />纳入</button>
                     </div>
