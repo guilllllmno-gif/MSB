@@ -5,7 +5,7 @@ import { Eye, Plus, Search, Shield, ExternalLink, ShieldCheck } from "lucide-rea
 import { Shell, PageHead } from "@/components/Shell";
 import { Pill, SoftChip } from "@/components/bits";
 import { AddToListDrawer } from "@/components/AddToListDrawer";
-import { LISTS, LCAT, LCATS, LSTATE, LENTRY_TYPE_TONE, type ListEntry, type ListCat, type LStatus } from "@/lib/lists";
+import { LISTS, LCAT, LCATS, LSTATE, type ListEntry, type ListCat, type LStatus } from "@/lib/lists";
 import { listStore, useListVersion } from "@/lib/store";
 
 const TILES: { f: string; label: string }[] = [
@@ -115,10 +115,10 @@ export default function ListsPage() {
                 <TableCell>
                   <button onClick={() => open(e)} className="text-left">
                     <span className="inline-flex items-center gap-2 font-semibold whitespace-nowrap"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-default-100 text-default-500"><CIcon className="h-4 w-4" /></span>{e.value}</span>
-                    <div className="ml-9 mt-0.5 flex items-center gap-1.5"><Pill tone={LENTRY_TYPE_TONE[e.entryType]} dot={false}>{e.entryType}</Pill><span className="text-[11px] text-default-400">{e.risk} · {e.id}</span></div>
+                    <div className="ml-9 mt-0.5 flex items-center gap-1.5"><Pill tone="grey" dot={false}>{e.entryType}</Pill><span className="text-[11px] text-default-400">{e.risk} · {e.id}</span></div>
                   </button>
                 </TableCell>
-                <TableCell><Pill tone={LCAT[e.cat].tone} dot={false}>{LCAT[e.cat].label}</Pill></TableCell>
+                <TableCell><Pill tone="grey" dot={false}>{LCAT[e.cat].label}</Pill></TableCell>
                 <TableCell>{e.to && e.srcId ? <button onClick={() => nav(e.to!)} className="inline-flex items-center gap-1 rounded bg-[var(--brand-soft)] px-1.5 py-0.5 text-[10.5px] font-semibold text-[var(--brand)] hover:opacity-80">{e.source} · {e.srcId} <ExternalLink className="h-3 w-3" /></button> : <span className="text-[12px] text-default-500">{e.source}</span>}</TableCell>
                 <TableCell><span className="text-[12.5px] text-default-600">{e.scope}</span></TableCell>
                 <TableCell>{st === "active" && e.hits30 ? <span className="tnum font-semibold">{e.hits30}</span> : <span className="text-default-400">—</span>}</TableCell>

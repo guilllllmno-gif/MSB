@@ -110,7 +110,7 @@ export default function RulesPage() {
                 <TableCell>
                   <button onClick={() => manage(r)} className="text-left">
                     <span className="inline-flex items-center gap-2 font-semibold whitespace-nowrap"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-default-100 text-default-500"><CIcon className="h-4 w-4" /></span>{r.name}</span>
-                    <div className="ml-9 mt-0.5 flex flex-wrap items-center gap-1.5"><Pill tone={VENUE[venueOf(r)].tone} dot={false}>{VENUE[venueOf(r)].short}</Pill><span className="text-[11px] text-default-400">{r.cat} · {r.id}</span>{rolloutBadges(r).map((b) => <Pill key={b.label} tone={b.tone} dot={false}>{b.label}</Pill>)}</div>
+                    <div className="ml-9 mt-0.5 flex flex-wrap items-center gap-1.5"><Pill tone="grey" dot={false}>{VENUE[venueOf(r)].short}</Pill><span className="text-[11px] text-default-400">{r.cat} · {r.id}</span>{rolloutBadges(r).map((b) => <Pill key={b.label} tone="grey" dot={false}>{b.label}</Pill>)}</div>
                   </button>
                 </TableCell>
                 <TableCell>

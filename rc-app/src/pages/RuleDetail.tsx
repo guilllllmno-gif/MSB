@@ -114,9 +114,9 @@ export default function RuleDetail() {
     ["规则编号", <span className="tnum">{rule.id}</span>],                                                    // 列表:名称 / 类别(id)
     ["规则类别", <span className="inline-flex items-center gap-1.5"><CIcon className="h-3.5 w-3.5 text-default-400" />{rule.cat}</span>], // 列表:名称 / 类别
     ["当前状态", <Pill tone={sd.tone}>{sd.label}</Pill>],                                                     // 列表:状态
-    ["执行场景", <Pill tone={ven.tone} dot={false}>{ven.short}</Pill>],                                       // 列表:名称 / 类别(venue 徽标)
-    ["命中权重", <span className="inline-flex items-center gap-1.5"><span className="tnum">{rule.weight}</span><Pill tone={risk.tone} dot={false}>{risk.label}</Pill></span>],
-    ["上线策略", rollouts.length ? <span className="flex flex-wrap justify-end gap-1">{rollouts.map((b) => <Pill key={b.label} tone={b.tone} dot={false}>{b.label}</Pill>)}</span> : <span className="text-default-400">全量实拦 · 长期有效</span>], // 列表:上线策略徽标
+    ["执行场景", <Pill tone="grey" dot={false}>{ven.short}</Pill>],                                            // 列表:名称 / 类别(venue 徽标)
+    ["命中权重", <span className="inline-flex items-center gap-1.5"><span className="tnum">{rule.weight}</span><Pill tone="grey" dot={false}>{risk.label}</Pill></span>],
+    ["上线策略", rollouts.length ? <span className="flex flex-wrap justify-end gap-1">{rollouts.map((b) => <Pill key={b.label} tone="grey" dot={false}>{b.label}</Pill>)}</span> : <span className="text-default-400">全量实拦 · 长期有效</span>], // 列表:上线策略徽标
     ["触发条件", <span className="text-right">{rule.cond}</span>],                                             // 列表:触发条件
     ["命中动作", <span className="text-right">{rule.action}</span>],                                           // 列表:命中处置
     ["适用范围", rule.scope || (rule.cat === "金额阈值" ? "充值 / 提现" : rule.action.includes("提现") ? "提现" : "全业务线")], // 列表:触发条件下「适用」
@@ -147,8 +147,8 @@ export default function RuleDetail() {
             <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-default-100 text-default-500"><CIcon className="h-5 w-5" /></span>
             {rule.id} {rule.name}
             <Pill tone={sd.tone}>{sd.label}</Pill>
-            <Pill tone={risk.tone} dot={false}>{risk.label}</Pill>
-            {rolloutBadges(rule).map((b) => <Pill key={b.label} tone={b.tone} dot={false}>{b.label}</Pill>)}
+            <Pill tone="grey" dot={false}>{risk.label}</Pill>
+            {rolloutBadges(rule).map((b) => <Pill key={b.label} tone="grey" dot={false}>{b.label}</Pill>)}
           </h1>
           <div className="mt-2.5 text-[13px] text-default-500">{rule.cat} · {ven.label} · 创建 <span className="tnum">{rule.updated}</span> · 负责人 <b className="text-foreground">{(owner || ME).n}</b> · 来源 {rule.to ? <button onClick={() => nav(rule.to!)} className="text-primary hover:opacity-80">{rule.src} {rule.srcId}</button> : rule.src}</div>
         </div>

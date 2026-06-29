@@ -6,7 +6,7 @@ import { ArrowLeft, ChevronLeft, ChevronRight, ExternalLink, Trash2 } from "luci
 import { Shell } from "@/components/Shell";
 import { Pill, KvRow, SectionLabel } from "@/components/bits";
 import { Timeline } from "@/components/Timeline";
-import { LISTS, LCAT, LSTATE, LFLOW, LENTRY_TYPE_TONE, entryOf, detailOf, type ListEntry, type LStatus } from "@/lib/lists";
+import { LISTS, LCAT, LSTATE, LFLOW, entryOf, detailOf, type ListEntry, type LStatus } from "@/lib/lists";
 import { listStore, useListVersion } from "@/lib/store";
 import type { Person, Tone } from "@/lib/data";
 
@@ -64,8 +64,8 @@ export default function ListDetail() {
           <h1 className="flex flex-wrap items-center gap-2.5 text-[22px] font-extrabold">
             <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-default-100 text-default-500"><CIcon className="h-5 w-5" /></span>
             {entry.value}
-            <Pill tone={LENTRY_TYPE_TONE[entry.entryType]} dot={false}>{entry.entryType}</Pill>
-            <Pill tone={LCAT[entry.cat].tone} dot={false}>{LCAT[entry.cat].label}</Pill>
+            <Pill tone="grey" dot={false}>{entry.entryType}</Pill>
+            <Pill tone="grey" dot={false}>{LCAT[entry.cat].label}</Pill>
             <Pill tone={sd.tone}>{sd.label}</Pill>
           </h1>
           <div className="mt-2.5 text-[13px] text-default-500">{entry.id} · {LCAT[entry.cat].full} · 添加 <span className="tnum">{entry.addedAt}</span> · 添加人 <b className="text-foreground">{owner.n}</b> · 来源 {entry.to ? <button onClick={() => nav(entry.to!)} className="text-primary hover:opacity-80">{entry.source} {entry.srcId}</button> : entry.source}</div>
@@ -111,8 +111,8 @@ export default function ListDetail() {
             <div className="card p-5 lg:col-span-2">
               <SectionLabel>名单项概要</SectionLabel>
               <div className="grid grid-cols-1 gap-x-8 sm:grid-cols-2">
-                <KvRow label="类别"><Pill tone={LCAT[entry.cat].tone} dot={false}>{LCAT[entry.cat].label}</Pill></KvRow>
-                <KvRow label="类型"><Pill tone={LENTRY_TYPE_TONE[entry.entryType]} dot={false}>{entry.entryType}</Pill></KvRow>
+                <KvRow label="类别"><Pill tone="grey" dot={false}>{LCAT[entry.cat].label}</Pill></KvRow>
+                <KvRow label="类型"><Pill tone="grey" dot={false}>{entry.entryType}</Pill></KvRow>
                 <KvRow label="来源">{entry.to ? <button onClick={() => nav(entry.to!)} className="inline-flex items-center gap-1 text-primary hover:opacity-80">{entry.source} {entry.srcId}<ExternalLink className="h-3 w-3" /></button> : entry.source}</KvRow>
                 <KvRow label="适用范围">{entry.scope}</KvRow>
                 <KvRow label="添加人">{owner.n}</KvRow>
@@ -130,7 +130,7 @@ export default function ListDetail() {
                   {detail.matched.map((m) => (
                     <button key={m.id} onClick={() => nav(m.to)} className="flex items-center justify-between gap-2 rounded-xl border border-divider bg-default-50 px-3 py-2.5 text-left transition-colors hover:bg-default-100">
                       <span className="min-w-0">
-                        <span className="flex items-center gap-1.5 text-[12.5px] font-semibold"><Pill tone={m.kind === "案件" ? "violet" : m.kind === "团伙" ? "blue" : "amber"} dot={false}>{m.kind}</Pill>{m.id}</span>
+                        <span className="flex items-center gap-1.5 text-[12.5px] font-semibold"><Pill tone="grey" dot={false}>{m.kind}</Pill>{m.id}</span>
                         <span className="mt-0.5 block truncate text-[11.5px] text-default-500">{m.label}</span>
                       </span>
                       <ExternalLink className="h-3.5 w-3.5 shrink-0 text-default-400" />
