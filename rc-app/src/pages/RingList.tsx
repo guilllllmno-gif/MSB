@@ -83,19 +83,19 @@ export default function RingList() {
             return (
               <TableRow key={r.id} onClick={() => nav(`/ring?id=${r.id}`)}>
                 <TableCell><div className="font-semibold">{r.name}</div><div className="text-[11px] text-default-400">{r.id}</div></TableCell>
-                <TableCell><Pill tone={r.risk} dot={false}>{r.typology}</Pill></TableCell>
+                <TableCell><Pill tone="grey" dot={false}>{r.typology}</Pill></TableCell>
                 <TableCell><div className="flex items-center gap-2"><ConfBar value={r.confidence} /><span className="rounded-full bg-default-100 px-1.5 py-px text-[10.5px] font-semibold text-default-500">{confLabel(r.confidence)}</span></div></TableCell>
                 <TableCell>
                   <div className="flex items-center gap-1">
                     {DIM_ORDER.map((d) => { const on = r.shared.some((s) => s.dim === d); return (
-                      <span key={d} className="rounded-md px-1.5 py-0.5 text-[10.5px] font-semibold" style={on ? { background: "color-mix(in srgb," + DIM_META[d].color + " 14%, transparent)", color: DIM_META[d].color } : { background: "var(--default-100, #f0f1f3)", color: "var(--text-3)", opacity: 0.5 }}>{DIM_META[d].short}</span>
+                      <span key={d} className="rounded-md px-1.5 py-0.5 text-[10.5px] font-semibold" style={on ? { background: "var(--track)", color: "var(--text-2)" } : { background: "var(--default-100, #f0f1f3)", color: "var(--text-3)", opacity: 0.45 }}>{DIM_META[d].short}</span>
                     ); })}
                   </div>
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center">
                     {r.members.slice(0, 4).map((m, i) => (
-                      <span key={m.id} style={{ marginLeft: i ? -8 : 0, zIndex: 10 - i }} className="rounded-full ring-2 ring-content1"><Initials p={{ i: m.i, c: m.c }} size={24} /></span>
+                      <span key={m.id} style={{ marginLeft: i ? -8 : 0, zIndex: 10 - i }} className="rounded-full ring-2 ring-content1"><Initials p={{ i: m.i, c: m.c }} size={24} mono /></span>
                     ))}
                     <span className="ml-2 text-[12px] text-default-500">{r.members.length} 个主体</span>
                   </div>

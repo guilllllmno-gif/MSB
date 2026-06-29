@@ -132,7 +132,7 @@ function Graph({ ring, expanded, onToggle }: { ring: Ring; expanded: Set<string>
               className={`relative rounded-full transition ${cluster ? "cursor-pointer hover:brightness-95" : "cursor-default"}`}
               style={on ? { boxShadow: "0 0 0 3px var(--content1), 0 0 0 5px var(--brand)" } : undefined}
               title={cluster ? `${cnt} 个子成员 · 点击${on ? "收起" : "展开"}` : undefined}>
-              <Initials p={{ i: m.i, c: m.c }} size={size} />
+              <Initials p={{ i: m.i, c: m.c }} size={size} mono />
               {cluster && cnt > 0 && (
                 <span className="absolute -right-1.5 -top-1.5 flex items-center gap-px rounded-full border-2 border-content1 px-1 py-px text-[9px] font-bold leading-none text-white" style={{ background: "var(--brand)" }}>
                   {cnt}<ChevronDown className={`h-2.5 w-2.5 transition-transform ${on ? "rotate-180" : ""}`} />
@@ -251,7 +251,7 @@ export default function RingDetail() {
         <div className="min-w-0">
           <h1 className="flex flex-wrap items-center gap-2.5 text-[23px] font-bold tracking-tight">
             {ring.name}
-            <Pill tone={ring.risk} dot={false}>{ring.typology}</Pill>
+            <Pill tone="grey" dot={false}>{ring.typology}</Pill>
             <Pill tone={tone}>{confLabel(ring.confidence)} {ring.confidence}%</Pill>
             <Pill tone={sd.tone}>{sd.label}{caseRef ? ` · ${caseRef}` : ""}</Pill>
           </h1>
@@ -299,9 +299,9 @@ export default function RingDetail() {
                   {edges.map((e, i) => { const sc = confTone(Math.min(100, e.strength + 15)); return (
                     <div key={i} className="rounded-xl border border-divider p-3.5">
                       <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 text-[12.5px] font-semibold">
-                        <span className="inline-flex items-center gap-1.5"><Initials p={{ i: ring.members[e.a].i, c: ring.members[e.a].c }} size={22} />{ring.members[e.a].name}</span>
+                        <span className="inline-flex items-center gap-1.5"><Initials p={{ i: ring.members[e.a].i, c: ring.members[e.a].c }} size={22} mono />{ring.members[e.a].name}</span>
                         <span className="text-default-300">↔</span>
-                        <span className="inline-flex items-center gap-1.5"><Initials p={{ i: ring.members[e.b].i, c: ring.members[e.b].c }} size={22} />{ring.members[e.b].name}</span>
+                        <span className="inline-flex items-center gap-1.5"><Initials p={{ i: ring.members[e.b].i, c: ring.members[e.b].c }} size={22} mono />{ring.members[e.b].name}</span>
                         <span className="ml-auto flex items-center gap-2">
                           <span className="h-1.5 w-20 overflow-hidden rounded-full bg-default-100"><span className="block h-full rounded-full" style={{ width: `${Math.min(100, e.strength)}%`, background: toneCol(sc) }} /></span>
                           <span className="tnum text-[12px] font-bold" style={{ color: toneCol(sc) }}>{e.strength}</span>
@@ -381,9 +381,9 @@ export default function RingDetail() {
                 return (
                   <div key={m.id} id={`cm-${m.id}`} className={`rounded-xl border p-3 transition-colors ${cluster && on ? "border-primary/50 bg-primary/[0.03]" : "border-divider"} ${cluster ? "sm:col-span-2" : ""}`}>
                     <div className="flex items-center gap-3">
-                      <Initials p={{ i: m.i, c: m.c }} size={36} />
+                      <Initials p={{ i: m.i, c: m.c }} size={36} mono />
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2"><span className="truncate font-semibold">{m.name}</span><Pill tone={cluster ? "amber" : "grey"} dot={false}>{m.kind}</Pill>{cluster && cnt > 0 && <span className="rounded-full bg-default-100 px-1.5 text-[10px] font-semibold text-default-500">{cnt} 个子成员</span>}</div>
+                        <div className="flex items-center gap-2"><span className="truncate font-semibold">{m.name}</span><Pill tone="grey" dot={false}>{m.kind}</Pill>{cluster && cnt > 0 && <span className="rounded-full bg-default-100 px-1.5 text-[10px] font-semibold text-default-500">{cnt} 个子成员</span>}</div>
                         <div className="text-[11.5px] text-default-400">{m.sub} · {m.role} · 关联告警 {m.alerts} 条</div>
                       </div>
                       {cluster && cnt > 0 ? (

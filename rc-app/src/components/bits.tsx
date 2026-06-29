@@ -40,8 +40,9 @@ export function RiskBadge({ tone, children }: { tone: Tone; children: ReactNode 
   return <span style={{ background: bg, color: fg }} className="rounded-md px-1.5 py-0.5 text-[10.5px] font-bold">{children}</span>;
 }
 
-export function Initials({ p, size = 24 }: { p: { i: string; c: string }; size?: number }) {
-  return <span className="inline-flex shrink-0 items-center justify-center rounded-full font-bold text-white" style={{ width: size, height: size, fontSize: size * 0.42, background: p.c }}>{p.i}</span>;
+// mono = 中性灰头像(主体 / 商户头像不承载状态,统一灰,避免列表里一排彩色圆点抢视觉)
+export function Initials({ p, size = 24, mono = false }: { p: { i: string; c: string }; size?: number; mono?: boolean }) {
+  return <span className="inline-flex shrink-0 items-center justify-center rounded-full font-bold" style={{ width: size, height: size, fontSize: size * 0.42, background: mono ? "var(--track)" : p.c, color: mono ? "var(--text-2)" : "#fff" }}>{p.i}</span>;
 }
 
 // theme switch for the app header — guards against pre-mount theme mismatch
