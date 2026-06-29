@@ -129,7 +129,6 @@ export default function RuleDetail() {
     ["版本", <button onClick={() => setTab("version")} className="text-primary hover:opacity-80">{versions.length} 个版本 · 查看</button>],
     ["数据来源", "订单 + 行为 + KYW + 链上溯源 + 名单"],
   ];
-  const effect: [string, number, string][] = [["命中有效率", 100 - fpNum, "green"], ["误报率", fpNum, "amber"], ["升级转案率", 17, "blue"]];
 
   return (
     <Shell crumb={["检测策略", "监控规则", rule.id]} wide>
@@ -288,32 +287,19 @@ export default function RuleDetail() {
             ))}
           </div>
 
-          {/* 规则概要 + 实际效果 */}
-          <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
-            <div className="card p-5 lg:col-span-2">
-              <div className="mb-2 flex items-center justify-between">
-                <div className="text-[11px] font-bold uppercase tracking-wider text-default-400">规则概要</div>
-                <div className="text-[11px] text-default-400">{rule.name}</div>
-              </div>
-              {rule.desc && (
-                <div className="mb-3 rounded-xl border border-divider bg-default-50 p-3 text-[12.5px] leading-relaxed text-default-600">
-                  <span className="mr-1.5 font-semibold text-default-500">规则描述</span>{rule.desc}
-                </div>
-              )}
-              <div className="grid grid-cols-1 gap-x-8 sm:grid-cols-2">
-                {summary.map(([k, v]) => <div key={k} className="flex items-baseline justify-between gap-3 border-b border-dashed border-default-200 py-2 text-[12.5px]"><span className="shrink-0 text-default-500">{k}</span><span className="text-right font-semibold">{v}</span></div>)}
-              </div>
+          {/* 规则概要 —— 完整规格表(实际效果已并入:误报率见 KPI / 命中有效率为派生值,不再单列重复卡) */}
+          <div className="card p-5">
+            <div className="mb-2 flex items-center justify-between">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-default-400">规则概要</div>
+              <div className="text-[11px] text-default-400">{rule.name}</div>
             </div>
-            <div className="card p-5">
-              <div className="mb-3 text-[11px] font-bold uppercase tracking-wider text-default-400">实际效果</div>
-              <div className="flex flex-col gap-3.5">
-                {effect.map(([k, v, t]) => (
-                  <div key={k}>
-                    <div className="mb-1 flex items-center justify-between text-[12px]"><span className="text-default-500">{k}</span><span className="font-bold tnum" style={{ color: tc(t) }}>{v}%</span></div>
-                    <div className="h-2 w-full overflow-hidden rounded-full bg-default-100"><div className="h-full rounded-full" style={{ width: `${v}%`, background: tc(t) }} /></div>
-                  </div>
-                ))}
+            {rule.desc && (
+              <div className="mb-3 rounded-xl border border-divider bg-default-50 p-3 text-[12.5px] leading-relaxed text-default-600">
+                <span className="mr-1.5 font-semibold text-default-500">规则描述</span>{rule.desc}
               </div>
+            )}
+            <div className="grid grid-cols-1 gap-x-8 sm:grid-cols-2 lg:grid-cols-3">
+              {summary.map(([k, v]) => <div key={k} className="flex items-baseline justify-between gap-3 border-b border-dashed border-default-200 py-2 text-[12.5px]"><span className="shrink-0 text-default-500">{k}</span><span className="text-right font-semibold">{v}</span></div>)}
             </div>
           </div>
 
