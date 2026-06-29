@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { Switch } from "@heroui/react";
-import { Shield, ShieldCheck, Scale, Gauge, Database, Clock, Lock, Landmark, UserCheck, GitBranch, ListChecks, Info } from "lucide-react";
+import { Shield, ShieldCheck, Scale, Gauge, Database, Clock, Lock, Landmark, UserCheck, GitBranch, ListChecks, Info,
+  ShieldAlert, Banknote, FileText, Archive, ListOrdered, Layers, UserX, Eye, SlidersHorizontal, Globe, Unlink, ServerOff, ZapOff, FileQuestion, Network, AlarmClock, Briefcase, CalendarClock, CalendarX, Users, ScrollText, FlaskConical } from "lucide-react";
 import { Shell, PageHead } from "@/components/Shell";
 import { toneVar } from "@/components/bits";
 import type { Tone } from "@/lib/data";
@@ -22,30 +23,32 @@ function Section({ icon: Icon, title, hint, children }: { icon: typeof Shield; t
   );
 }
 
-// 单条策略:名称 + 当前取值 + 说明,右侧定宽列放「法定锁定」徽标或可调开关
-// 取值徽标只用 红(关键/硬约束)/ 黄(需谨慎)/ 中性 三色,避免花花绿绿
-// 三种性质各有其形:法定锁定(只读·灰条+封条)/ 可调兜底(品牌条+「可调」标+开关)/ 固定基线(轻量信息行)
-function Policy({ title, desc, value, valueTone, locked, lockNote, on, onToggle }: { title: string; desc: string; value?: string; valueTone?: Tone; locked?: boolean; lockNote?: string; on?: boolean; onToggle?: () => void }) {
-  const tone = valueTone === "red" || valueTone === "amber" ? valueTone : undefined;
+// 单条策略 —— 借鉴 Stripe Radar「Risk controls」式行:左图标方块 + 名称/取值/说明 + 右状态徽标(可调项再带开关)
+// 配色克制:取值徽标一律中性灰(取值是「设置值」不是状态);唯有右侧状态徽标(生效中 / 已关闭)用色。
+// 三种性质由右侧状态徽标区分:法定锁定(法定·只读封条)/ 可调兜底(生效中·已关闭 + 开关)/ 固定基线(默认生效)
+function Policy({ icon: Icon, title, desc, value, locked, lockNote, on, onToggle }: { icon: typeof Shield; title: string; desc: string; value?: string; locked?: boolean; lockNote?: string; on?: boolean; onToggle?: () => void }) {
   const kind = locked ? "locked" : onToggle ? "tunable" : "fixed";
-  const rail = kind === "locked" ? "#94a3b8" : kind === "tunable" ? "var(--brand)" : "transparent";
   return (
-    <div className="flex items-start gap-3 border-b border-default-100 py-3 pl-3 last:border-0" style={{ borderLeft: `3px solid ${rail}` }}>
+    <div className="flex items-start gap-3.5 border-b border-default-100 py-3.5 last:border-0">
+      <span className="mt-px flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-default-100 text-default-500"><Icon className="h-[18px] w-[18px]" strokeWidth={1.9} /></span>
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
-          {kind === "locked" && <span className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] font-bold" style={{ background: "var(--track)", color: "var(--text-3)" }}><Lock className="h-2.5 w-2.5" />法定</span>}
-          {kind === "tunable" && <span className="rounded px-1.5 py-0.5 text-[10px] font-bold" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>可调</span>}
-          <span className="text-[13px] font-semibold">{title}</span>
-          {value && <span className="rounded-md px-1.5 py-0.5 text-[11px] font-semibold" style={tone ? { background: `color-mix(in srgb, ${toneVar(tone)} 13%, transparent)`, color: toneVar(tone) } : { background: "var(--track)", color: "var(--text-2)" }}>{value}</span>}
+          <span className="text-[13.5px] font-semibold">{title}</span>
+          {value && <span className="rounded-md px-1.5 py-0.5 text-[11px] font-semibold" style={{ background: "var(--track)", color: "var(--text-2)" }}>{value}</span>}
         </div>
         <p className="mt-1 text-[12px] leading-relaxed text-default-500">{desc}</p>
       </div>
-      <div className="flex w-[84px] shrink-0 justify-end pt-0.5">
-        {locked ? (
-          <span className="inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-[10.5px] font-bold" style={{ background: "var(--chip-bg)", color: "var(--text-3)" }} title={lockNote}><Lock className="h-3 w-3" />只读</span>
-        ) : onToggle ? (
-          <Switch size="sm" isSelected={on} onValueChange={onToggle} aria-label={title} />
-        ) : null}
+      <div className="flex shrink-0 items-center gap-2.5 pt-0.5">
+        {kind === "locked" ? (
+          <span className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10.5px] font-bold" style={{ background: "var(--chip-bg)", color: "var(--text-3)" }} title={lockNote}><Lock className="h-3 w-3" />法定 · 只读</span>
+        ) : kind === "tunable" ? (
+          <>
+            <span className="rounded-full px-2 py-1 text-[10.5px] font-bold" style={on ? { background: "color-mix(in srgb, var(--success) 14%, transparent)", color: "var(--success)" } : { background: "var(--track)", color: "var(--text-3)" }}>{on ? "生效中" : "已关闭"}</span>
+            <Switch size="sm" isSelected={on} onValueChange={onToggle} aria-label={title} />
+          </>
+        ) : (
+          <span className="rounded-full px-2 py-1 text-[10.5px] font-bold" style={{ background: "var(--track)", color: "var(--text-3)" }}>默认生效</span>
+        )}
       </div>
     </div>
   );
@@ -105,6 +108,17 @@ export default function StrategyPage() {
       <div className="flex flex-col gap-5">
         {/* ① 决策基线 · 风险分处置矩阵 */}
         <Section icon={Gauge} title="决策基线 · 风险分处置矩阵" hint="当没有任何具体规则命中时,系统按交易的综合风险分落入下列区间,执行对应默认处置。这是兜底的「最后一道分诊」。">
+          {/* Stripe 式「当前处置基线」卡 —— 一眼读到当前生效阈值 + 调整入口 */}
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-default-200 p-4">
+            <div className="flex items-start gap-3">
+              <span className="mt-px flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-default-100 text-default-500"><Gauge className="h-[18px] w-[18px]" strokeWidth={1.9} /></span>
+              <div className="min-w-0">
+                <div className="text-[13.5px] font-bold">处置基线由综合风险分自动分诊</div>
+                <p className="mt-0.5 text-[12px] leading-relaxed text-default-500">当前:综合风险分 <b className="text-foreground">≥ 80 拦截 + 强制人工</b> · 60–79 转研判 · &lt; 40 直接放行。阈值由风控总管统一管理。</p>
+              </div>
+            </div>
+            <button onClick={() => toast("处置基线阈值由风控总管在仪表盘「风险评分分布」拖拽调整 · 变更走双人复核")} className="shrink-0 rounded-full px-3.5 py-2 text-[12.5px] font-semibold" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>调整基线</button>
+          </div>
           {/* 渐变分段条:0–100 风险分按四档着色,宽度按区间跨度;低→高 左→右 */}
           {(() => {
             const lowToHigh = [...BANDS].reverse(); // <40 / 40–59 / 60–79 / ≥80
@@ -122,9 +136,9 @@ export default function StrategyPage() {
                 <div className="mt-1 flex justify-between px-0.5 text-[10px] tabular-nums text-default-400"><span>0</span><span>40</span><span>60</span><span>80</span><span>100</span></div>
                 <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
                   {lowToHigh.map((b) => (
-                    <div key={b.range} className="rounded-xl border border-default-200 p-3" style={{ borderTop: `3px solid ${toneVar(b.tone)}` }}>
-                      <div className="flex items-center gap-1.5 text-[12px] font-bold"><span className="tnum">{b.range}</span><span className="text-[11px] font-medium text-default-400">{b.label}</span></div>
-                      <div className="mt-1 text-[12px] font-semibold" style={{ color: toneVar(b.tone) }}>{b.action}</div>
+                    <div key={b.range} className="rounded-xl border border-default-200 p-3">
+                      <div className="flex items-center gap-1.5 text-[12px] font-bold"><span className="h-2 w-2 rounded-full" style={{ background: toneVar(b.tone) }} /><span className="tnum">{b.range}</span><span className="text-[11px] font-medium text-default-400">{b.label}</span></div>
+                      <div className="mt-1 text-[12px] font-semibold text-foreground">{b.action}</div>
                       <div className="mt-0.5 text-[11px] leading-snug text-default-500">{b.note}</div>
                     </div>
                   ))}
@@ -139,49 +153,49 @@ export default function StrategyPage() {
 
         {/* ② 法定硬约束 */}
         <Section icon={Landmark} title="法定硬约束 · 始终生效" hint="基于 PCMLTFA / FINTRAC 要求,任何规则、名单或人工都不能关闭或豁免。本页仅可查看。">
-          <Policy locked lockNote="OFAC / UN / SEMA" title="制裁与恐怖融资筛查" value="实时 · 硬拦截" valueTone="red" desc="每笔交易实时筛查 OFAC SDN / UN 1267 / 加拿大 SEMA 名单;命中即冻结资金 + 立即生成 TPR 上报。白名单与任何评分规则均不可豁免。" />
-          <Policy locked title="LVCTR 大额虚拟货币报送" value="≥ CAD 10,000" valueTone="amber" desc="单笔或日累计 ≥ CAD 10,000 的虚拟货币交易,系统按客观阈值自动归集生成 LVCTR,无需可疑判定,5 个工作日内报送。" />
-          <Policy locked title="STR 可疑交易报送时限" value="30 日内" valueTone="amber" desc="确定可疑(MLRO 签发)后 30 日内向 FINTRAC 报送 STR;系统在临期前自动加急提醒并升级。" />
-          <Policy locked title="记录保留" value="≥ 5 年" desc="交易、KYC/KYB、报送与处置记录依法保留至少 5 年;审计日志全程留痕、不可删改。" />
+          <Policy icon={ShieldAlert} locked lockNote="OFAC / UN / SEMA" title="制裁与恐怖融资筛查" value="实时 · 硬拦截" desc="每笔交易实时筛查 OFAC SDN / UN 1267 / 加拿大 SEMA 名单;命中即冻结资金 + 立即生成 TPR 上报。白名单与任何评分规则均不可豁免。" />
+          <Policy icon={Banknote} locked title="LVCTR 大额虚拟货币报送" value="≥ CAD 10,000" desc="单笔或日累计 ≥ CAD 10,000 的虚拟货币交易,系统按客观阈值自动归集生成 LVCTR,无需可疑判定,5 个工作日内报送。" />
+          <Policy icon={FileText} locked title="STR 可疑交易报送时限" value="30 日内" desc="确定可疑(MLRO 签发)后 30 日内向 FINTRAC 报送 STR;系统在临期前自动加急提醒并升级。" />
+          <Policy icon={Archive} locked title="记录保留" value="≥ 5 年" desc="交易、KYC/KYB、报送与处置记录依法保留至少 5 年;审计日志全程留痕、不可删改。" />
         </Section>
 
         {/* ③ 冲突仲裁 · 优先级 */}
         <Section icon={Scale} title="冲突仲裁 · 优先级" hint="多条规则 / 名单同时命中,或彼此结论冲突时的全局裁决顺序。">
-          <Policy title="多命中处置仲裁" value="最严生效" valueTone="red" desc="同一笔交易被多条规则命中时,取所有命中里最严的处置动作(冻结 > 暂缓 > 转研判 > 放行),绝不取最宽松。" />
-          <Policy title="名单优先级" value="制裁 > 黑 > 关注 > 白" desc="制裁名单 > 内部黑名单 > 关注名单 > 白名单。白名单仅豁免「评分类」规则减少误报,不能豁免制裁 / 黑名单的硬拦截。" />
-          <Policy title="策略层级" value="法定 > 名单 > 模型 > 规则 > 基线" desc="法定硬约束 > 名单硬拦截 > 评分模型 > 行为规则 > 风险分默认基线。上层覆盖下层,确保兜底永远不弱于显式规则。" />
+          <Policy icon={Scale} title="多命中处置仲裁" value="最严生效" desc="同一笔交易被多条规则命中时,取所有命中里最严的处置动作(冻结 > 暂缓 > 转研判 > 放行),绝不取最宽松。" />
+          <Policy icon={ListOrdered} title="名单优先级" value="制裁 > 黑 > 关注 > 白" desc="制裁名单 > 内部黑名单 > 关注名单 > 白名单。白名单仅豁免「评分类」规则减少误报,不能豁免制裁 / 黑名单的硬拦截。" />
+          <Policy icon={Layers} title="策略层级" value="法定 > 名单 > 模型 > 规则 > 基线" desc="法定硬约束 > 名单硬拦截 > 评分模型 > 行为规则 > 风险分默认基线。上层覆盖下层,确保兜底永远不弱于显式规则。" />
         </Section>
 
         {/* ④ 准入与默认限额 */}
         <Section icon={UserCheck} title="准入门槛与默认限额" hint="商户 / 账户在没有专门授权时的默认权限边界——「先收紧、后按尽调放开」。">
-          <Policy title="未完成 KYB 商户" value="禁提现 · 入金限额 CAD 1,000" valueTone="amber" desc="KYB 未完成的商户默认禁止提现、单笔入金封顶 CAD 1,000、不开放币币兑换;完成尽调后按分级放开。" on={strictNewMerchant} onToggle={() => flip(setStrictNewMerchant, strictNewMerchant, "新商户加严准入")} />
-          <Policy title="新商户首充观察期" value="7 天 · 首 5 笔人工" desc="新入网商户前 7 天加严阈值,首 5 笔入金强制人工复核,观察期内不进信任白名单。" />
-          <Policy title="默认限额体系" value="按 KYC 分级三档" valueTone="blue" desc="基础 / 标准 / 加强 三档对应单笔、日、月限额;超限默认转人工审批,不自动放行。" />
-          <Policy title="高风险辖区" value="默认加严 + 强制 EDD" valueTone="amber" desc="高风险辖区主体默认提高风险基线并触发强化尽调(EDD);受制裁辖区直接禁止。" />
+          <Policy icon={UserX} title="未完成 KYB 商户" value="禁提现 · 入金限额 CAD 1,000" desc="KYB 未完成的商户默认禁止提现、单笔入金封顶 CAD 1,000、不开放币币兑换;完成尽调后按分级放开。" on={strictNewMerchant} onToggle={() => flip(setStrictNewMerchant, strictNewMerchant, "新商户加严准入")} />
+          <Policy icon={Eye} title="新商户首充观察期" value="7 天 · 首 5 笔人工" desc="新入网商户前 7 天加严阈值,首 5 笔入金强制人工复核,观察期内不进信任白名单。" />
+          <Policy icon={SlidersHorizontal} title="默认限额体系" value="按 KYC 分级三档" desc="基础 / 标准 / 加强 三档对应单笔、日、月限额;超限默认转人工审批,不自动放行。" />
+          <Policy icon={Globe} title="高风险辖区" value="默认加严 + 强制 EDD" desc="高风险辖区主体默认提高风险基线并触发强化尽调(EDD);受制裁辖区直接禁止。" />
         </Section>
 
         {/* ⑤ 数据缺失 / 系统降级兜底(核心) */}
         <Section icon={Database} title="数据缺失 / 系统降级兜底" hint="当依赖的数据源或检测服务不可用时,系统如何「失效安全」地保守处置——这是兜底策略的核心。">
-          <Policy title="链上溯源失败 / 超时" value={conserveOnTraceFail ? "保守 · 转人工暂缓" : "放行 + 留痕"} valueTone={conserveOnTraceFail ? "amber" : "grey"} desc="无法完成链上来源追溯(节点超时 / 地址无标签)时,默认转人工并暂缓放行;关闭则降级为放行留痕(不建议)。" on={conserveOnTraceFail} onToggle={() => flip(setConserveOnTraceFail, conserveOnTraceFail, "链上溯源失败兜底")} />
-          <Policy locked title="制裁名单源不可达" value="fail-closed · 暂停放行" valueTone="red" desc="制裁名单服务不可达时,法定要求 fail-closed:暂停受影响交易的放行直至恢复,不得默认放行。此项不可改。" />
-          <Policy title="评分服务不可用 · 熔断" value={circuitBreaker ? "全局保守模式" : "关闭"} valueTone={circuitBreaker ? "red" : "grey"} desc="风险评分服务故障时自动熔断:全局切换保守模式——大额默认暂缓、更多交易转人工、提高拦截倾向,直至服务恢复。" on={circuitBreaker} onToggle={() => flip(setCircuitBreaker, circuitBreaker, "评分熔断保守模式")} />
-          <Policy title="KYC / KYB 数据缺失" value="按最高风险档" valueTone="amber" desc="主体核验数据缺失或过期时,默认按最高风险档处置,不给予任何信任豁免。" />
-          <Policy title="实时通道拥塞降级" value="低额优先 · 余者排队" desc="事中实时通道拥塞时降级:仅放行低额低风险交易,其余进入人工队列,避免为保时延而漏检。" />
+          <Policy icon={Unlink} title="链上溯源失败 / 超时" value={conserveOnTraceFail ? "保守 · 转人工暂缓" : "放行 + 留痕"} desc="无法完成链上来源追溯(节点超时 / 地址无标签)时,默认转人工并暂缓放行;关闭则降级为放行留痕(不建议)。" on={conserveOnTraceFail} onToggle={() => flip(setConserveOnTraceFail, conserveOnTraceFail, "链上溯源失败兜底")} />
+          <Policy icon={ServerOff} locked title="制裁名单源不可达" value="fail-closed · 暂停放行" desc="制裁名单服务不可达时,法定要求 fail-closed:暂停受影响交易的放行直至恢复,不得默认放行。此项不可改。" />
+          <Policy icon={ZapOff} title="评分服务不可用 · 熔断" value={circuitBreaker ? "全局保守模式" : "关闭"} desc="风险评分服务故障时自动熔断:全局切换保守模式——大额默认暂缓、更多交易转人工、提高拦截倾向,直至服务恢复。" on={circuitBreaker} onToggle={() => flip(setCircuitBreaker, circuitBreaker, "评分熔断保守模式")} />
+          <Policy icon={FileQuestion} title="KYC / KYB 数据缺失" value="按最高风险档" desc="主体核验数据缺失或过期时,默认按最高风险档处置,不给予任何信任豁免。" />
+          <Policy icon={Network} title="实时通道拥塞降级" value="低额优先 · 余者排队" desc="事中实时通道拥塞时降级:仅放行低额低风险交易,其余进入人工队列,避免为保时延而漏检。" />
         </Section>
 
         {/* ⑥ SLA 超时兜底 */}
         <Section icon={Clock} title="SLA 超时兜底" hint="处置环节超时未完成时的默认动作——防止「超时即默认放行」造成漏网。">
-          <Policy title="事中告警 SLA 超时" value={holdOnAlertSLA ? "自动暂缓冻结" : "自动升级 L2"} valueTone={holdOnAlertSLA ? "amber" : "blue"} desc="事中告警在 SLA 内未处置时,默认自动暂缓冻结该笔(从严),而非超时放行;可改为自动升级 L2 复核。" on={holdOnAlertSLA} onToggle={() => flip(setHoldOnAlertSLA, holdOnAlertSLA, "告警超时兜底")} />
-          <Policy title="案件超 SLA" value="自动升级 MLRO" valueTone="violet" desc="案件超出处置时限自动升级至 MLRO,并在工作台置顶提醒。" />
-          <Policy title="STR 临期" value="< 5 天 加急升级" valueTone="red" desc="距 FINTRAC 30 日报送时限不足 5 天的 STR,自动加急提醒并升级,防止逾期未报。" />
-          <Policy title="名单项到期未复核" value={keepListOnExpiry ? "维持生效(从严)" : "自动失效"} valueTone={keepListOnExpiry ? "amber" : "grey"} desc="名单项到期但未完成复核时,默认维持生效(从严,避免自动失效放开拦截);可改为到期自动失效。" on={keepListOnExpiry} onToggle={() => flip(setKeepListOnExpiry, keepListOnExpiry, "名单到期兜底")} />
+          <Policy icon={AlarmClock} title="事中告警 SLA 超时" value={holdOnAlertSLA ? "自动暂缓冻结" : "自动升级 L2"} desc="事中告警在 SLA 内未处置时,默认自动暂缓冻结该笔(从严),而非超时放行;可改为自动升级 L2 复核。" on={holdOnAlertSLA} onToggle={() => flip(setHoldOnAlertSLA, holdOnAlertSLA, "告警超时兜底")} />
+          <Policy icon={Briefcase} title="案件超 SLA" value="自动升级 MLRO" desc="案件超出处置时限自动升级至 MLRO,并在工作台置顶提醒。" />
+          <Policy icon={CalendarClock} title="STR 临期" value="< 5 天 加急升级" desc="距 FINTRAC 30 日报送时限不足 5 天的 STR,自动加急提醒并升级,防止逾期未报。" />
+          <Policy icon={CalendarX} title="名单项到期未复核" value={keepListOnExpiry ? "维持生效(从严)" : "自动失效"} desc="名单项到期但未完成复核时,默认维持生效(从严,避免自动失效放开拦截);可改为到期自动失效。" on={keepListOnExpiry} onToggle={() => flip(setKeepListOnExpiry, keepListOnExpiry, "名单到期兜底")} />
         </Section>
 
         {/* ⑦ 变更治理 */}
         <Section icon={GitBranch} title="变更治理" hint="谁能改、怎么改、改了能不能追溯。">
-          <Policy title="全局策略变更" value="双人复核" valueTone="violet" desc="可调策略的任何修改需 MLRO + 风控负责人双人复核后生效;法定硬约束不可修改,仅可查看。" />
-          <Policy title="审计与回溯" value="全量留痕" valueTone="green" desc="每次调整记录变更人、时间、前后取值与理由,进审计日志,可按版本回溯与回滚。" />
-          <Policy title="灰度与回测" value="先回测 → 审批 → 灰度" desc="涉及检测逻辑的策略变更默认先进回测、审批、灰度放量,不直接全量上线(与「监控规则」治理一致)。" />
+          <Policy icon={Users} title="全局策略变更" value="双人复核" desc="可调策略的任何修改需 MLRO + 风控负责人双人复核后生效;法定硬约束不可修改,仅可查看。" />
+          <Policy icon={ScrollText} title="审计与回溯" value="全量留痕" desc="每次调整记录变更人、时间、前后取值与理由,进审计日志,可按版本回溯与回滚。" />
+          <Policy icon={FlaskConical} title="灰度与回测" value="先回测 → 审批 → 灰度" desc="涉及检测逻辑的策略变更默认先进回测、审批、灰度放量,不直接全量上线(与「监控规则」治理一致)。" />
         </Section>
 
         <div className="flex items-start gap-2 rounded-xl border border-default-200 p-3.5 text-[12px] leading-relaxed text-default-500">
