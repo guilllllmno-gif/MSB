@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { toast } from "sonner";
-import { Switch } from "@heroui/react";
+import { Switch, Button, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter } from "@heroui/react";
 import { Shield, ShieldCheck, Scale, Gauge, Database, Clock, Lock, Landmark, UserCheck, GitBranch, ListChecks, Info,
   ShieldAlert, Banknote, FileText, Archive, ListOrdered, Layers, UserX, Eye, SlidersHorizontal, Globe, Unlink, ServerOff, ZapOff, FileQuestion, Network, AlarmClock, Briefcase, CalendarClock, CalendarX, Users, ScrollText, FlaskConical } from "lucide-react";
 import { Shell, PageHead } from "@/components/Shell";
@@ -54,12 +54,22 @@ function Policy({ icon: Icon, title, desc, value, locked, lockNote, on, onToggle
   );
 }
 
-// 风险分处置矩阵的一行
-const BANDS: { range: string; label: string; tone: Tone; action: string; note: string }[] = [
-  { range: "≥ 80", label: "高危", tone: "red", action: "拦截 + 强制人工复核", note: "fail-closed;高额可触发资金暂缓冻结" },
-  { range: "60–79", label: "偏高", tone: "amber", action: "放行 + 转告警研判 + 留痕", note: "不阻断,但进研判队列复核" },
-  { range: "40–59", label: "中低", tone: "blue", action: "放行 + 留痕(按比例抽样复核)", note: "默认放行,留痕备查" },
-  { range: "< 40", label: "低", tone: "green", action: "直接放行", note: "仅记录,不干预" },
+// 处置基线 = 三个风险分切点(拦截 / 转研判 / 留痕),其余区间派生
+type Thresholds = { block: number; review: number; log: number };
+const DEFAULT_THRESH: Thresholds = { block: 80, review: 60, log: 40 };
+// 预设档(对标 Stripe「Select risk setting」)—— 选一档即设定三个切点
+const BASELINE_PRESETS: { key: string; name: string; desc: string; t: Thresholds }[] = [
+  { key: "conservative", name: "保守 · 更早拦截", desc: "下调各档阈值,更多交易进入拦截 / 研判 —— 适合风险高发期、新制裁生效。", t: { block: 70, review: 50, log: 30 } },
+  { key: "standard", name: "标准 · 平衡(推荐)", desc: "默认平衡档:高分拦截、中高分转研判、低分放行留痕。", t: { block: 80, review: 60, log: 40 } },
+  { key: "loose", name: "宽松 · 减少打扰", desc: "上调各档阈值,仅最高风险拦截 —— 适合直通率优先、误报偏高时。", t: { block: 90, review: 70, log: 50 } },
+];
+const presetOf = (t: Thresholds) => BASELINE_PRESETS.find((p) => p.t.block === t.block && p.t.review === t.review && p.t.log === t.log);
+// 由切点派生四档处置区间(高→低)
+const makeBands = (t: Thresholds): { range: string; label: string; tone: Tone; action: string; note: string }[] => [
+  { range: `≥ ${t.block}`, label: "高危", tone: "red", action: "拦截 + 强制人工复核", note: "fail-closed;高额可触发资金暂缓冻结" },
+  { range: `${t.review}–${t.block - 1}`, label: "偏高", tone: "amber", action: "放行 + 转告警研判 + 留痕", note: "不阻断,但进研判队列复核" },
+  { range: `${t.log}–${t.review - 1}`, label: "中低", tone: "blue", action: "放行 + 留痕(按比例抽样复核)", note: "默认放行,留痕备查" },
+  { range: `< ${t.log}`, label: "低", tone: "green", action: "直接放行", note: "仅记录,不干预" },
 ];
 
 export default function StrategyPage() {
@@ -70,6 +80,20 @@ export default function StrategyPage() {
   const [strictNewMerchant, setStrictNewMerchant] = useState(true);
   const [keepListOnExpiry, setKeepListOnExpiry] = useState(true);
   const flip = (set: (v: boolean) => void, cur: boolean, name: string) => { set(!cur); toast.success(`${name} 已${!cur ? "开启" : "关闭"} · 记入审计日志(需双人复核生效)`); };
+
+  // 处置基线:当前切点 + 调整弹窗(原型:本地 state + toast;接后端落 policyStore + 双人复核)
+  const [thresh, setThresh] = useState<Thresholds>(DEFAULT_THRESH);
+  const [baselineOpen, setBaselineOpen] = useState(false);
+  const [draftPreset, setDraftPreset] = useState("standard");
+  const bands = makeBands(thresh);
+  const curPreset = presetOf(thresh);
+  const openBaseline = () => { setDraftPreset(curPreset?.key ?? "standard"); setBaselineOpen(true); };
+  const applyBaseline = () => {
+    const p = BASELINE_PRESETS.find((x) => x.key === draftPreset);
+    if (p) setThresh(p.t);
+    setBaselineOpen(false);
+    toast.success(`处置基线已更新为「${p?.name}」· 已提交双人复核(记入审计日志)`);
+  };
 
   return (
     <Shell crumb={["风控", "配置", "全局策略"]} wide>
@@ -113,16 +137,16 @@ export default function StrategyPage() {
             <div className="flex items-start gap-3">
               <span className="mt-px flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-default-100 text-default-500"><Gauge className="h-[18px] w-[18px]" strokeWidth={1.9} /></span>
               <div className="min-w-0">
-                <div className="text-[13.5px] font-bold">处置基线由综合风险分自动分诊</div>
-                <p className="mt-0.5 text-[12px] leading-relaxed text-default-500">当前:综合风险分 <b className="text-foreground">≥ 80 拦截 + 强制人工</b> · 60–79 转研判 · &lt; 40 直接放行。阈值由风控总管统一管理。</p>
+                <div className="flex flex-wrap items-center gap-2 text-[13.5px] font-bold">处置基线由综合风险分自动分诊<span className="rounded-md px-1.5 py-0.5 text-[11px] font-semibold" style={{ background: "var(--track)", color: "var(--text-2)" }}>{curPreset ? curPreset.name : "自定义"}</span></div>
+                <p className="mt-0.5 text-[12px] leading-relaxed text-default-500">当前:综合风险分 <b className="text-foreground">≥ {thresh.block} 拦截 + 强制人工</b> · {thresh.review}–{thresh.block - 1} 转研判 · &lt; {thresh.log} 直接放行。变更走双人复核。</p>
               </div>
             </div>
-            <button onClick={() => toast("处置基线阈值由风控总管在仪表盘「风险评分分布」拖拽调整 · 变更走双人复核")} className="shrink-0 rounded-full px-3.5 py-2 text-[12.5px] font-semibold" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>调整基线</button>
+            <button onClick={openBaseline} className="shrink-0 rounded-full px-3.5 py-2 text-[12.5px] font-semibold" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>调整基线</button>
           </div>
           {/* 渐变分段条:0–100 风险分按四档着色,宽度按区间跨度;低→高 左→右 */}
           {(() => {
-            const lowToHigh = [...BANDS].reverse(); // <40 / 40–59 / 60–79 / ≥80
-            const widths = [40, 20, 20, 20];
+            const lowToHigh = [...bands].reverse(); // <log / log–review / review–block / ≥block
+            const widths = [thresh.log, thresh.review - thresh.log, thresh.block - thresh.review, 100 - thresh.block];
             return (
               <>
                 <div className="flex h-10 overflow-hidden rounded-xl border border-default-200">
@@ -203,6 +227,41 @@ export default function StrategyPage() {
           <span>原型说明:可调开关为本地演示态(toast + 审计提示),接后端后落 `policyStore` 并经双人复核生效;法定硬约束项恒为只读。本页与 <b>监控规则</b>(显式拦截逻辑)、<b>名单管理</b>(筛查数据)共同构成「逻辑 + 数据 + 兜底」三层风控配置。</span>
         </div>
       </div>
+
+      {/* 调整处置基线 —— 对标 Stripe「Select risk setting」:选一档风险设定,重设拦截/研判/留痕切点 */}
+      <Modal isOpen={baselineOpen} onOpenChange={setBaselineOpen} size="lg" placement="center" scrollBehavior="inside">
+        <ModalContent>
+          <ModalHeader className="flex flex-col gap-1">
+            <div className="flex items-center gap-2 text-[15px]"><span className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Gauge className="h-4 w-4" /></span>调整处置基线</div>
+            <p className="text-[12px] font-normal leading-relaxed text-default-500">选择一档风险设定,系统据此设定「拦截 / 转研判 / 留痕」的风险分切点。这只影响<b className="text-default-600">无规则命中时的兜底分诊</b>,变更需 MLRO + 风控负责人双人复核后生效。</p>
+          </ModalHeader>
+          <ModalBody className="gap-2.5">
+            {BASELINE_PRESETS.map((p) => {
+              const on = draftPreset === p.key;
+              return (
+                <button key={p.key} onClick={() => setDraftPreset(p.key)} className={`rounded-2xl border p-3.5 text-left transition-colors ${on ? "border-[var(--brand)] bg-[var(--brand-soft)]" : "border-default-200 hover:bg-default-50"}`}>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[13.5px] font-bold">{p.name}</span>
+                    <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${on ? "border-[var(--brand)]" : "border-default-300"}`}>{on && <span className="h-2 w-2 rounded-full" style={{ background: "var(--brand)" }} />}</span>
+                  </div>
+                  <p className="mt-1 text-[12px] leading-relaxed text-default-500">{p.desc}</p>
+                  <div className="mt-2 flex flex-wrap gap-1.5 text-[11px] font-semibold text-default-600">
+                    <span className="rounded-md bg-default-100 px-1.5 py-0.5">≥ {p.t.block} 拦截</span>
+                    <span className="rounded-md bg-default-100 px-1.5 py-0.5">{p.t.review}–{p.t.block - 1} 转研判</span>
+                    <span className="rounded-md bg-default-100 px-1.5 py-0.5">{p.t.log}–{p.t.review - 1} 留痕</span>
+                    <span className="rounded-md bg-default-100 px-1.5 py-0.5">{"<"} {p.t.log} 放行</span>
+                  </div>
+                </button>
+              );
+            })}
+            <p className="mt-1 flex items-start gap-1.5 text-[11px] leading-relaxed text-default-400"><Info className="mt-px h-3.5 w-3.5 shrink-0" />法定硬约束(制裁筛查 / LVCTR / STR)不受基线影响,始终生效。需任意自定义切点时由风控总管在评分模型侧配置。</p>
+          </ModalBody>
+          <ModalFooter>
+            <Button variant="bordered" onPress={() => setBaselineOpen(false)}>取消</Button>
+            <Button color="primary" isDisabled={draftPreset === (curPreset?.key ?? "")} onPress={applyBaseline}>提交双人复核</Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
     </Shell>
   );
 }
