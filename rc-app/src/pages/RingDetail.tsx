@@ -18,45 +18,44 @@ const DIM_ICON: Record<RingDim, typeof Coins> = { funds: Coins, address: Link2, 
 const THRESHOLD = 60;
 const toneCol = (t: string) => (t === "red" ? "var(--danger)" : t === "amber" ? "var(--warning)" : "var(--text-2)");
 
-// deterministic force-directed layout (Fruchterman–Reingold + centripetal gravity).
-// Used for larger rings where a single circle tangles; seeded on a circle so the
-// result is stable across renders (no randomness). Returns unit-space coords.
-function forceLayout(n: number, edges: RingEdge[]): { x: number; y: number }[] {
-  const p = Array.from({ length: n }, (_, i) => {
-    const a = -Math.PI / 2 + (i * 2 * Math.PI) / n;
-    return { x: Math.cos(a), y: Math.sin(a) };
-  });
-  if (n <= 2) return p;
-  const k = 2.0 / Math.sqrt(n); // ideal edge length
-  let temp = 0.9;
-  for (let it = 0; it < 400; it++) {
-    const disp = p.map(() => ({ x: 0, y: 0 }));
-    for (let i = 0; i < n; i++)
-      for (let j = i + 1; j < n; j++) {
-        let dx = p[i].x - p[j].x, dy = p[i].y - p[j].y;
-        const d = Math.hypot(dx, dy) || 1e-3;
-        const f = (k * k) / d;
-        dx = (dx / d) * f; dy = (dy / d) * f;
-        disp[i].x += dx; disp[i].y += dy;
-        disp[j].x -= dx; disp[j].y -= dy;
-      }
-    for (const e of edges) {
-      let dx = p[e.a].x - p[e.b].x, dy = p[e.a].y - p[e.b].y;
-      const d = Math.hypot(dx, dy) || 1e-3;
-      const f = ((d * d) / k) * (0.5 + e.strength / 100); // stronger edge → shorter spring
-      dx = (dx / d) * f; dy = (dy / d) * f;
-      disp[e.a].x -= dx; disp[e.a].y -= dy;
-      disp[e.b].x += dx; disp[e.b].y += dy;
-    }
-    for (let i = 0; i < n; i++) { disp[i].x += -p[i].x * 0.3; disp[i].y += -p[i].y * 0.3; } // gravity
-    for (let i = 0; i < n; i++) {
-      const dl = Math.hypot(disp[i].x, disp[i].y) || 1e-3;
-      p[i].x += (disp[i].x / dl) * Math.min(dl, temp);
-      p[i].y += (disp[i].y / dl) * Math.min(dl, temp);
-    }
-    temp *= 0.985;
+// deterministic layered layout for larger rings (a single circle tangles, and a
+// force sim overlaps nodes/labels). We BFS from the highest-degree node (the hub)
+// and place nodes in columns by graph distance: every edge then spans adjacent
+// columns, so nothing crosses and the money-flow reads left→right. Pixel-space.
+// Edge direction in the data is inconsistent, so we treat the graph as undirected.
+function layeredLayout(n: number, edges: RingEdge[], W: number, size: number, labelW: number): { pos: { x: number; y: number }[]; H: number } {
+  const adj: Set<number>[] = Array.from({ length: n }, () => new Set());
+  for (const e of edges) { adj[e.a].add(e.b); adj[e.b].add(e.a); }
+  // hub = max degree (ties → lowest index, for determinism)
+  let hub = 0;
+  for (let i = 1; i < n; i++) if (adj[i].size > adj[hub].size) hub = i;
+  // BFS distance → column index
+  const layer = Array<number>(n).fill(-1);
+  layer[hub] = 0;
+  const queue = [hub];
+  for (let h = 0; h < queue.length; h++) {
+    const u = queue[h];
+    for (const v of adj[u]) if (layer[v] === -1) { layer[v] = layer[u] + 1; queue.push(v); }
   }
-  return p;
+  let maxL = Math.max(...layer);
+  for (let i = 0; i < n; i++) if (layer[i] === -1) layer[i] = ++maxL; // disconnected → own trailing column
+  const cols = maxL + 1;
+  const byLayer: number[][] = Array.from({ length: cols }, () => []);
+  for (let i = 0; i < n; i++) byLayer[layer[i]].push(i);
+
+  const padX = labelW / 2 + 14;
+  const innerW = W - 2 * padX;
+  const colX = (l: number) => (cols > 1 ? padX + (innerW * l) / (cols - 1) : W / 2);
+  const rowGap = size + 48;
+  const maxRows = Math.max(...byLayer.map((c) => c.length));
+  const H = Math.max(300, maxRows * rowGap + 36);
+  const cy = H / 2;
+  const pos: { x: number; y: number }[] = new Array(n);
+  byLayer.forEach((col, l) => {
+    const m = col.length;
+    col.forEach((idx, k) => { pos[idx] = { x: colX(l), y: cy + (k - (m - 1) / 2) * rowGap }; });
+  });
+  return { pos, H };
 }
 
 // relationship graph — single circle for small rings, force-directed for large
@@ -64,41 +63,24 @@ function Graph({ ring, expanded, onToggle }: { ring: Ring; expanded: Set<string>
   const n = ring.members.length;
   // adapt to member count so it stays legible as the ring grows
   const size = n <= 5 ? 50 : n <= 8 ? 42 : 34;
-  const W = 520;
+  const layered = n >= 6; // small rings read best as a clean circle; larger ones as layered columns
+  const W = layered ? 640 : 520; // wider canvas so columns + labels breathe
   const labelW = Math.round(size * 2.6);
   const showChipText = n <= 8; // hide the "强度" word when dense, keep dots + number
-  const force = n >= 6; // small rings read best as a clean circle
 
   const { pos, H } = useMemo(() => {
-    if (!force) {
-      const r = n <= 5 ? 112 : 134;
-      const Hc = Math.max(340, Math.round(2 * r + size + 110));
-      const cx = W / 2, cy = Hc / 2;
-      return {
-        H: Hc,
-        pos: ring.members.map((_, i) => {
-          const a = -Math.PI / 2 + (i * 2 * Math.PI) / n;
-          return { x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) };
-        }),
-      };
-    }
-    // force layout → fit unit-space bbox into the canvas with padding for labels
-    const u = forceLayout(n, ring.edges);
-    const xs = u.map((q) => q.x), ys = u.map((q) => q.y);
-    const minX = Math.min(...xs), maxX = Math.max(...xs);
-    const minY = Math.min(...ys), maxY = Math.max(...ys);
-    const bw = maxX - minX || 1, bh = maxY - minY || 1;
-    const padX = labelW / 2 + 10, padYTop = size / 2 + 14, padYBot = size / 2 + 30;
-    const innerW = W - 2 * padX;
-    const scale = Math.min(innerW / bw, 460 / bh); // cap height so very tall chains stay bounded
-    const cw = bw * scale, ch = bh * scale;
-    const Hc = Math.round(ch + padYTop + padYBot);
-    const offX = (W - cw) / 2, offY = padYTop;
+    if (layered) return layeredLayout(n, ring.edges, W, size, labelW);
+    const r = n <= 5 ? 112 : 134;
+    const Hc = Math.max(340, Math.round(2 * r + size + 110));
+    const cx = W / 2, cy = Hc / 2;
     return {
       H: Hc,
-      pos: u.map((q) => ({ x: offX + (q.x - minX) * scale, y: offY + (q.y - minY) * scale })),
+      pos: ring.members.map((_, i) => {
+        const a = -Math.PI / 2 + (i * 2 * Math.PI) / n;
+        return { x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) };
+      }),
     };
-  }, [ring, n, force, size, labelW]);
+  }, [ring, n, layered, W, size, labelW]);
 
   const pc = (v: number, max: number) => `${(v / max) * 100}%`;
   return (
