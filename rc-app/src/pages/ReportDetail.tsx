@@ -343,7 +343,7 @@ function StrPreview({ doc }: { doc: StrDoc }) {
             {doc.parties.map((p) => (
               <div key={p.name} className="rounded-xl border border-divider bg-default-50 p-3">
                 <div className="mb-2 flex items-center gap-2">
-                  <Pill tone={p.kind === "实体" ? "blue" : "amber"} dot={false}>{p.role}</Pill>
+                  <Pill tone="grey" dot={false}>{p.role}</Pill>
                   <span className="text-[12.5px] font-bold">{p.name}</span>
                   <span className="ml-auto text-[10.5px] text-default-400">{p.roleEn}</span>
                 </div>

@@ -95,8 +95,8 @@ export default function ListDetail() {
             {[
               { k: "近30天命中", v: st === "active" ? entry.hits30 : 0, sub: "拦截 / 监控触发", tone: entry.hits30 > 15 ? "amber" : "" },
               { k: "状态", v: sd.label, sub: "当前生命周期", tone: sd.tone },
-              { k: "来源", v: entry.source, sub: entry.srcId || "—", tone: "blue" },
-              { k: "适用范围", v: entry.scope, sub: "事中筛查范围", tone: "violet" },
+              { k: "来源", v: entry.source, sub: entry.srcId || "—", tone: "" },
+              { k: "适用范围", v: entry.scope, sub: "事中筛查范围", tone: "" },
             ].map((s) => (
               <div key={s.k} className="card p-4">
                 <div className="text-[12px] text-default-500">{s.k}</div>

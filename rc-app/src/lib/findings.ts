@@ -16,10 +16,10 @@ export const FSTATES: Record<FState, { label: string; tone: Tone; active: boolea
   progress: { label: "处理中", tone: "amber", active: true },          // ②
   pending: { label: "待补充材料", tone: "blue", active: true },        // ③
   escalated: { label: "已升级", tone: "violet", active: true },        // ④
-  tracing: { label: "已出账·追溯中", tone: "red", active: true },      // ⑧ 确认可疑后进入(资金已出,追溯/损失评估)
-  closed_fp: { label: "已结·误报", tone: "grey", active: false },       // ⑤
-  closed_str: { label: "已结·确认可疑·转报送", tone: "red", active: false }, // ⑥
-  closed_case: { label: "已结·转案件", tone: "violet", active: false }, // ⑦
+  tracing: { label: "已出账 · 追溯中", tone: "red", active: true },      // ⑧ 确认可疑后进入(资金已出,追溯/损失评估)
+  closed_fp: { label: "已结 · 误报", tone: "grey", active: false },       // ⑤
+  closed_str: { label: "已结 · 确认可疑 · 转报送", tone: "red", active: false }, // ⑥
+  closed_case: { label: "已结 · 转案件", tone: "violet", active: false }, // ⑦
 };
 
 // 步进动作 → 目标状态(认领 / 补料 / 升级 等;确认可疑、规则回填走详情页特殊处置)

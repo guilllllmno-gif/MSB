@@ -23,6 +23,7 @@ export const strLabel = (s: CState): { text: string; tone: Tone; link: boolean }
     case "queued": return { text: "待报送", tone: "amber", link: true };
     case "filed": return { text: "已报送", tone: "green", link: true };
     case "closed": return { text: "已报送", tone: "grey", link: true };
+    case "merged": return { text: "并入主案", tone: "grey", link: false };
     default: return { text: "—", tone: "grey", link: false };
   }
 };
