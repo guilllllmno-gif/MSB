@@ -397,11 +397,11 @@ export default function Dashboard() {
       />
 
       {/* 职责分工条 —— 当前视角是谁、能做什么(随角色切换) */}
-      <div className="card mb-5 flex flex-wrap items-center gap-x-3 gap-y-1.5 border-l-[3px] p-3.5 pl-4" style={{ borderLeftColor: who.c }}>
+      <div className="card mb-5 flex flex-wrap items-center gap-x-3 gap-y-1.5 border-l-[3px] border-l-default-200 p-3.5 pl-4">
         <Initials p={who} size={28} />
         <div className="flex items-center gap-2">
           <span className="text-[13.5px] font-bold">{who.n}</span>
-          <span className="rounded-full px-2 py-0.5 text-[11px] font-bold" style={{ background: `color-mix(in srgb, ${who.c} 14%, transparent)`, color: who.c }}>{isHead ? "风控总管 · 兼 MLRO" : "一线分析师"}</span>
+          <span className="rounded-full px-2 py-0.5 text-[11px] font-bold" style={{ background: "var(--track)", color: "var(--text-2)" }}>{isHead ? "风控总管 · 兼 MLRO" : "一线分析师"}</span>
         </div>
         <span className="text-[12px] leading-snug text-default-500">
           {isHead
