@@ -11,7 +11,7 @@ import { Shell } from "@/components/Shell";
 import { Pill } from "@/components/bits";
 import { Timeline } from "@/components/Timeline";
 import { CaseFundGraph } from "@/components/CaseFundGraph";
-import { CASES, CSTATE, PRIO_TONE, SUBJ_TONE, recToOp, dossierOf, factorContrib, caseScore, type Case, type CState, type SubjType } from "@/lib/cases";
+import { CASES, CSTATE, recToOp, dossierOf, factorContrib, caseScore, type Case, type CState, type SubjType } from "@/lib/cases";
 import { CaseReviewDrawer } from "@/components/CaseReviewDrawer";
 import { RSTATE, caseStrState } from "@/lib/reports";
 import { FINDINGS, FDIM, dimSubjType } from "@/lib/findings";
@@ -165,7 +165,7 @@ export default function CaseDetail() {
           <h1 className="flex flex-wrap items-center gap-2.5 text-[22px] font-extrabold">
             {c.id} {c.subject}
             <Pill tone={sd.tone}>{sd.label}</Pill>
-            <Pill tone={PRIO_TONE[c.priority]} dot={false}>{c.priority}优先</Pill>
+            <Pill tone="grey" dot={false}>{c.priority}优先</Pill>
           </h1>
           <div className="mt-2.5 text-[13px] text-default-500">{c.type} · {c.risk} · 涉及 <b className="text-foreground">{c.amount}</b> · 分配给 {owner ? <b className="text-foreground">{owner.n}</b> : <span className="text-default-400">未分配</span>} · SLA {c.sla.text} · 来源 {c.linkTo ? <button onClick={() => nav(c.linkTo!)} className="text-primary hover:opacity-80">{c.src}</button> : c.src}</div>
         </div>
@@ -186,7 +186,7 @@ export default function CaseDetail() {
               <span className="rounded-full px-1.5 py-px text-[9.5px] font-bold uppercase" style={{ background: "var(--chip-bg)", color: "var(--chip-fg)" }}>弱建议 · 供参考</span>
             </div>
             <div className="flex flex-wrap items-center gap-2 text-[15px] font-extrabold">
-              <Pill tone={d.rec.risk} dot={false}>{d.rec.riskLabel}</Pill>
+              <Pill tone="grey" dot={false}>{d.rec.riskLabel}</Pill>
               <span>建议:{d.rec.label}</span>
             </div>
             <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
@@ -344,7 +344,7 @@ export default function CaseDetail() {
                   {subs.map((s, i) => { const on = i === Math.min(subjIdx, subs.length - 1); return (
                     <button key={i} onClick={() => setSubjIdx(i)} className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11.5px] font-semibold transition-colors"
                       style={on ? { borderColor: "var(--brand)", background: "var(--brand-soft)", color: "var(--brand)" } : { borderColor: "var(--line)", color: "var(--text-2)" }}>
-                      <span className="h-1.5 w-1.5 rounded-full" style={{ background: tc(SUBJ_TONE[s.type]) }} />{s.name}
+                      <span className="h-1.5 w-1.5 rounded-full" style={{ background: "var(--text-3)" }} />{s.name}
                     </button>
                   ); })}
                 </div>
@@ -352,7 +352,7 @@ export default function CaseDetail() {
                 {/* 选中主体页头 */}
                 <div className="mb-3 flex flex-wrap items-center gap-2">
                   <span className="text-[15px] font-bold">{sel?.name}</span>
-                  <Pill tone={SUBJ_TONE[sel?.type || "商户"]} dot={false}>{sel?.type}</Pill>
+                  <Pill tone="grey" dot={false}>{sel?.type}</Pill>
                   <span className="text-[12px] text-default-400">{sel?.role}</span>
                   {sel?.name && <button onClick={() => nav(`/entity?name=${encodeURIComponent(sel.name)}`)} className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-brand hover:underline"><Fingerprint className="h-3.5 w-3.5" />主体360</button>}
                   {sel?.amount && <span className="ml-auto text-[13px] font-semibold tnum">{sel.amount}</span>}
@@ -412,7 +412,7 @@ export default function CaseDetail() {
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               {subs.map((s, i) => (
                 <div key={i} className="flex items-center gap-2.5 rounded-xl border border-divider p-2.5">
-                  <Pill tone={SUBJ_TONE[s.type]} dot={false}>{s.type}</Pill>
+                  <Pill tone="grey" dot={false}>{s.type}</Pill>
                   <div className="min-w-0 flex-1"><div className="truncate text-[12.5px] font-semibold">{s.name}</div><div className="text-[11px] text-default-400">{s.role}{s.kyc ? ` · ${s.kyc}` : ""}</div></div>
                   {s.amount && <span className="shrink-0 text-[12px] font-semibold tnum">{s.amount}</span>}
                 </div>
@@ -435,8 +435,8 @@ export default function CaseDetail() {
                 <div key={r.id} className="rounded-xl border p-3" style={{ borderColor: merged ? "var(--success-bd)" : "var(--line)", background: merged ? "var(--success-bg)" : undefined }}>
                   <div className="flex flex-wrap items-center gap-2">
                     <button onClick={() => nav(r.id.startsWith("CASE") ? `/case?id=${r.id}` : r.id.startsWith("RING") ? `/ring?id=${r.id}` : "/cases")} className="text-[13px] font-bold text-primary hover:opacity-80">{r.id}</button>
-                    <Pill tone={r.relTone} dot={false}>{r.relType}</Pill>
-                    {r.conf !== "—" && <span className="rounded-md px-1.5 py-0.5 text-[10px] font-semibold" style={{ background: tbg(r.relTone), color: tc(r.relTone) }}>{r.conf}</span>}
+                    <Pill tone="grey" dot={false}>{r.relType}</Pill>
+                    {r.conf !== "—" && <span className="rounded-md px-1.5 py-0.5 text-[10px] font-semibold" style={{ background: "var(--track)", color: "var(--text-2)" }}>{r.conf}</span>}
                     <span className="ml-auto text-[11.5px] text-default-500">主体 <b className="text-foreground">{r.subject}</b>{r.state !== "—" ? ` · 状态 ${r.state}` : ""}{r.amount !== "—" ? ` · 金额 ${r.amount}` : ""}{r.score ? ` · 风险分 ${r.score}` : ""}</span>
                   </div>
                   <div className="mt-2 flex items-start gap-1.5 rounded-lg bg-default-50 p-2 text-[11.5px] leading-snug text-default-600"><Link2 className="mt-0.5 h-3 w-3 shrink-0 text-default-400" /><span><b className="text-default-700">关联依据:</b>{r.basis}</span></div>

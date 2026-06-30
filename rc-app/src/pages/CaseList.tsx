@@ -5,7 +5,7 @@ import { Eye, Clock, Search, UserRound, UserPlus, ClipboardCheck, Plus, External
 import { Shell, PageHead } from "@/components/Shell";
 import { Pill, Initials } from "@/components/bits";
 import { NewCaseDrawer } from "@/components/NewCaseDrawer";
-import { CASES, CSTATE, strLabel, PRIO_TONE, RISK_TYPES, type Case, type CState } from "@/lib/cases";
+import { CASES, CSTATE, strLabel, RISK_TYPES, type Case, type CState } from "@/lib/cases";
 import { caseStore, useCaseVersion } from "@/lib/store";
 
 const ME = { i: "JL", n: "James Liu", c: "var(--brand)" };
@@ -93,7 +93,7 @@ export default function CaseList() {
                 <TableCell><button onClick={() => review(c)} className="text-left"><span className="font-semibold">{c.id}</span><div className="mt-0.5"><span className="rounded bg-default-100 px-1.5 py-0.5 text-[10px] font-semibold text-default-500">{c.src}</span></div></button></TableCell>
                 <TableCell><span className="font-medium">{c.subject}</span><div className="text-[11px] text-default-400">{c.sub}</div></TableCell>
                 <TableCell><span className="text-default-600">{c.type}</span></TableCell>
-                <TableCell><Pill tone={PRIO_TONE[c.priority]} dot={false}>{c.priority}</Pill></TableCell>
+                <TableCell><Pill tone="grey" dot={false}>{c.priority}</Pill></TableCell>
                 <TableCell><span className="font-semibold tnum">{c.amount}</span></TableCell>
                 <TableCell>{c.linkTo ? <button onClick={() => nav(c.linkTo!)} className="inline-flex items-center gap-1 text-primary hover:opacity-80">{c.links} 项</button> : <span className="text-default-500">{c.links} 项</span>}</TableCell>
                 <TableCell>{str.link ? <button onClick={() => nav("/reports")} className="inline-flex items-center gap-1 text-[12.5px] font-medium hover:opacity-80" style={{ color: str.tone === "green" ? "var(--success)" : str.tone === "amber" ? "var(--warning)" : "var(--brand)" }}>{str.text}<ExternalLink className="h-3 w-3" /></button> : <span className="text-[12.5px] text-default-400">{str.text}</span>}</TableCell>
