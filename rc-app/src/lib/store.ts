@@ -301,3 +301,29 @@ export const tagStore = {
 export function useTagVersion() {
   return useSyncExternalStore(tagStore.subscribe, tagStore.getVersion, tagStore.getVersion);
 }
+
+// ── 演示态全局操作员身份 —— 一线分析师 James Liu ↔ 风控总管(兼MLRO)Emma Zhang ──
+// 顶栏(铃铛通知集 / 操作员菜单)与仪表盘视角共享同一身份,切换即全站联动。内存态,刷新重置。
+export type Role = "analyst" | "head";
+export const PERSONS: Record<Role, Person> = {
+  analyst: { i: "JL", n: "James Liu", c: "var(--brand)" },
+  head: { i: "EZ", n: "Emma Zhang", c: "var(--violet)" },
+};
+export const ROLE_META: Record<Role, { role: string; tier: string; chip: string }> = {
+  analyst: { role: "一线分析师", tier: "风控 L1", chip: "风控 · L1" },
+  head: { role: "风控总管 · 兼 MLRO", tier: "风控负责人", chip: "风控 · 总管" },
+};
+let roleVal: Role = "analyst";
+let roleVersion = 0;
+const roleListeners = new Set<() => void>();
+export const roleStore = {
+  subscribe(cb: () => void) { roleListeners.add(cb); return () => { roleListeners.delete(cb); }; },
+  getVersion() { return roleVersion; },
+  get() { return roleVal; },
+  person() { return PERSONS[roleVal]; },
+  set(r: Role) { if (r === roleVal) return; roleVal = r; roleVersion++; roleListeners.forEach((l) => l()); },
+};
+export function useRoleVersion() {
+  useSyncExternalStore(roleStore.subscribe, roleStore.getVersion, roleStore.getVersion);
+  return roleVal;
+}

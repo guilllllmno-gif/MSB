@@ -6,11 +6,13 @@ import { alerts, INVESTIGATION_STATES } from "./data";
 import { CASES, CSTATE, type CState } from "./cases";
 import { rings, type RingStateKey } from "./rings";
 import { allReports, liveStatus } from "./reportsAll";
-import { alertStore, caseStore, ringStore } from "./store";
+import { alertStore, caseStore, ringStore, type Role } from "./store";
 
 export interface Notif { n: number; label: string; sub: string; icon: typeof Clock; to: string }
 
-export function liveNotifications(): Notif[] {
+// role-aware,与仪表盘「需立即处理」banner 同口径:
+// 分析师 = 团队态势全量;总管 = 只留团队 SLA 告急(报送已在「待我审批」、待认领已并入「团队负荷」,不重复)。
+export function liveNotifications(role: Role = "analyst"): Notif[] {
   // 团伙:pending = 待认领(RingList 同口径)
   const allRings = [...ringStore.created(), ...rings];
   const ringPending = allRings.filter((r) => (ringStore.stateOf(r.id, r.state) as RingStateKey) === "pending").length;
@@ -21,6 +23,11 @@ export function liveNotifications(): Notif[] {
   const alertsOverSla = alerts.filter((a) => INVESTIGATION_STATES.includes(alertStore.stateOf(a.id, a.state)) && a.sla.color === "red").length;
   // 报告报送:待 MLRO 复核 + 被退回需补正(ReportFiling「需立即处理」同口径)
   const reportsNeedAction = allReports().filter((r) => ["review", "returned"].includes(liveStatus(r))).length;
+
+  if (role === "head")
+    return [
+      { n: alertsOverSla, label: `${alertsOverSla} 笔告警超 SLA`, sub: "团队需介入 · 优先清理", icon: Clock, to: "/alerts" },
+    ].filter((u) => u.n > 0);
 
   return [
     { n: alertsOverSla, label: `${alertsOverSla} 笔告警超 SLA`, sub: "调查车道 · 需优先清理", icon: Clock, to: "/alerts" },

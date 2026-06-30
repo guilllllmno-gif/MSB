@@ -1,10 +1,10 @@
 import { useState, type ReactNode } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { Button, Popover, PopoverTrigger, PopoverContent } from "@heroui/react";
-import { LayoutDashboard, Bell, Search, ListChecks, SlidersHorizontal, Shield, FolderOpen, FileText, Clock, ChevronDown, ChevronsLeft, ChevronsRight, HelpCircle, LogOut, Network, FileCheck, History, Fingerprint, Activity, CheckCircle2, ChevronRight } from "lucide-react";
+import { LayoutDashboard, Bell, Search, ListChecks, SlidersHorizontal, Shield, FolderOpen, FileText, Clock, ChevronDown, ChevronsLeft, ChevronsRight, HelpCircle, LogOut, Network, FileCheck, History, Fingerprint, Activity, CheckCircle2, ChevronRight, Check } from "lucide-react";
 import { Initials, ThemeToggle } from "./bits";
 import { liveNotifications } from "@/lib/notifications";
-import { useAlertVersion, useCaseVersion, useReportVersion, useRingVersion } from "@/lib/store";
+import { useAlertVersion, useCaseVersion, useReportVersion, useRingVersion, useRoleVersion, roleStore, PERSONS, ROLE_META, type Role } from "@/lib/store";
 import logoIcon from "@/assets/logo-icon.svg";
 import logoFull from "@/assets/logo-full.svg";
 
@@ -35,7 +35,10 @@ export function Shell({ crumb, wide, children }: { crumb: string[]; wide?: boole
   const nav = useNavigate();
   // 顶栏铃铛实时联动:任意模块的认领/处置/报送动作即时反映到通知数(与仪表盘「需立即处理」同源)
   useAlertVersion(); useCaseVersion(); useReportVersion(); useRingVersion();
-  const notifs = liveNotifications();
+  const role = useRoleVersion(); // 全局操作员身份(与仪表盘视角共享),切换即全站联动
+  const who = roleStore.person();
+  const meta = ROLE_META[role];
+  const notifs = liveNotifications(role); // role-aware:总管只看团队 SLA 告急
   const notifTotal = notifs.reduce((s, n) => s + n.n, 0);
   const goNotif = (to: string) => { setNotifOpen(false); nav(to); };
   return (
@@ -132,25 +135,39 @@ export function Shell({ crumb, wide, children }: { crumb: string[]; wide?: boole
 
             <ThemeToggle />
 
-            {/* 当前操作员 — 身份卡 + 入口 */}
+            {/* 当前操作员 — 身份卡 + 切换身份(全局,与仪表盘视角共享)+ 入口 */}
             <Popover placement="bottom-end" showArrow>
               <PopoverTrigger>
                 <button className="flex items-center gap-2 rounded-full py-1 pl-3 pr-1 outline-none transition-colors hover:bg-default-100">
-                  <span className="text-[13px] font-medium text-default-600">风控 · L1</span>
+                  <span className="text-[13px] font-medium text-default-600">{meta.chip}</span>
                   <ChevronDown className="h-3.5 w-3.5 text-default-400" />
-                  <Initials p={{ i: "JL", c: "var(--brand)" }} size={30} />
+                  <Initials p={who} size={30} />
                 </button>
               </PopoverTrigger>
-              <PopoverContent className="w-[216px] items-stretch p-0">
+              <PopoverContent className="w-[244px] items-stretch p-0">
                 <div className="flex items-center gap-2.5 border-b border-default-100 px-3.5 py-3">
-                  <Initials p={{ i: "JL", c: "var(--brand)" }} size={36} />
+                  <Initials p={who} size={36} />
                   <span className="min-w-0">
-                    <span className="block truncate text-[13px] font-bold">James Liu</span>
-                    <span className="block truncate text-[11px] text-default-400">一线分析师 · 风控 L1</span>
+                    <span className="block truncate text-[13px] font-bold">{who.n}</span>
+                    <span className="block truncate text-[11px] text-default-400">{meta.role} · {meta.tier}</span>
                   </span>
                 </div>
-                <button onClick={() => nav("/entity")} className="flex items-center gap-2.5 px-3.5 py-2.5 text-left text-[12.5px] transition-colors hover:bg-default-50"><Fingerprint className="h-4 w-4 text-default-400" strokeWidth={1.9} />主体档案 360</button>
-                <button onClick={() => nav("/dashboard")} className="flex items-center gap-2.5 border-t border-default-100 px-3.5 py-2.5 text-left text-[12.5px] text-danger transition-colors hover:bg-default-50"><LogOut className="h-4 w-4" strokeWidth={1.9} />退出登录</button>
+                <div className="px-3.5 pb-1 pt-2 text-[10px] font-bold uppercase tracking-wider text-default-400">切换身份 · 演示</div>
+                {(["analyst", "head"] as Role[]).map((r) => {
+                  const p = PERSONS[r]; const m = ROLE_META[r]; const active = r === role;
+                  return (
+                    <button key={r} onClick={() => roleStore.set(r)} aria-pressed={active} className={`flex items-center gap-2.5 px-3.5 py-2 text-left transition-colors hover:bg-default-50 ${active ? "bg-default-50" : ""}`}>
+                      <Initials p={p} size={28} />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-[12.5px] font-semibold">{p.n}</span>
+                        <span className="block truncate text-[10.5px] text-default-400">{m.role}</span>
+                      </span>
+                      {active && <Check className="h-4 w-4 shrink-0 text-brand" />}
+                    </button>
+                  );
+                })}
+                <button onClick={() => nav("/entity")} className="flex items-center gap-2.5 border-t border-default-100 px-3.5 py-2.5 text-left text-[12.5px] transition-colors hover:bg-default-50"><Fingerprint className="h-4 w-4 text-default-400" strokeWidth={1.9} />主体档案 360</button>
+                <button onClick={() => nav("/dashboard")} className="flex items-center gap-2.5 px-3.5 py-2.5 text-left text-[12.5px] text-danger transition-colors hover:bg-default-50"><LogOut className="h-4 w-4" strokeWidth={1.9} />退出登录</button>
               </PopoverContent>
             </Popover>
           </div>

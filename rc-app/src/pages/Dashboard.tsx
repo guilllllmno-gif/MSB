@@ -21,14 +21,13 @@ import { LISTS } from "@/lib/lists";
 import {
   ringStore, useRingVersion, alertStore, useAlertVersion,
   caseStore, useCaseVersion, useReportVersion, listStore, useListVersion,
-  ruleStore, useRuleVersion,
+  ruleStore, useRuleVersion, useRoleVersion, roleStore, PERSONS, type Role,
 } from "@/lib/store";
 
 const BRAND = "var(--brand)";
 const GREY = "var(--text-3)";
-const ME = { i: "JL", n: "James Liu", c: "var(--brand)" };           // 一线分析师视角
-const HEAD = { i: "EZ", n: "Emma Zhang", c: "var(--violet)" };       // 风控总管(兼 MLRO)视角
-type Role = "analyst" | "head";
+const ME = PERSONS.analyst;   // 一线分析师视角(James Liu)
+const HEAD = PERSONS.head;    // 风控总管(兼 MLRO)视角(Emma Zhang)
 
 // ── MSB business lines: every product the system runs, each with its own risk posture today ──
 const LINES: { name: string; en: string; flow: string; vol: number; amt: string; alerts: number; pass: number; risk: "red" | "amber" | "green"; note: string; to: string }[] = [
@@ -258,7 +257,7 @@ function Funnel() {
 
 export default function Dashboard() {
   const nav = useNavigate();
-  const [role, setRole] = useState<Role>("analyst"); // 演示态:分析师 ↔ 风控总管,切换仪表盘视角
+  const role = useRoleVersion(); // 全局操作员身份(与顶栏共享):分析师 ↔ 风控总管,切换全站联动
   const [sel, setSel] = useState<Analyst | null>(null); // 总管下钻:某分析师的队列
   const isHead = role === "head";
   const who = isHead ? HEAD : ME;
@@ -378,7 +377,7 @@ export default function Dashboard() {
             {/* 演示态角色切换 —— 同一仪表盘按角色换内容 */}
             <div className="flex items-center rounded-full bg-default-100 p-0.5 text-[12.5px] font-semibold">
               {([["analyst", "分析师", User], ["head", "风控总管", ShieldCheck]] as const).map(([k, label, Icon]) => (
-                <button key={k} onClick={() => setRole(k)} aria-pressed={role === k}
+                <button key={k} onClick={() => roleStore.set(k)} aria-pressed={role === k}
                   className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 transition-colors ${role === k ? "bg-content1 text-foreground shadow-soft" : "text-default-500 hover:text-default-700"}`}>
                   <Icon className="h-3.5 w-3.5" />{label}
                 </button>
