@@ -25,9 +25,10 @@ const ReportDetail = lazy(() => import("@/pages/ReportDetail"));
 const ListsPage = lazy(() => import("@/pages/ListsPage"));
 const ListDetail = lazy(() => import("@/pages/ListDetail"));
 const StrategyPage = lazy(() => import("@/pages/StrategyPage"));
+const AuditLog = lazy(() => import("@/pages/AuditLog"));
 const Placeholder = lazy(() => import("@/pages/Placeholder"));
 
-const STUBS = ["/strategy", "/audit"];
+const STUBS = ["/strategy"];
 
 export default function App() {
   return (
@@ -57,6 +58,7 @@ export default function App() {
             <Route path="/alert" element={<AlertDetail />} />
             <Route path="/rings" element={<RingList />} />
             <Route path="/ring" element={<RingDetail />} />
+            <Route path="/audit" element={<AuditLog />} />
             {STUBS.map((p) => <Route key={p} path={p} element={<Placeholder />} />)}
             <Route path="*" element={<Navigate to="/alerts" replace />} />
           </Routes>

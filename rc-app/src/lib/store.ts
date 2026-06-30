@@ -20,6 +20,7 @@ export const alertStore = {
   stateOf(id: string, base: string) { return data[id]?.state || base; },
   assigneeOf(id: string, base: Person | null) { const o = data[id]; return o && o.assignee !== undefined ? o.assignee : base; },
   eventsOf(id: string) { return data[id]?.events || []; },
+  allEvents() { return Object.entries(data).flatMap(([id, v]) => (v.events || []).map((e) => ({ id, ...e }))); },
   set(id: string, state: string, opts: { assignee?: Person | null; event?: string; reason?: string }) {
     const cur = data[id] || { events: [] };
     cur.state = state;
@@ -49,6 +50,7 @@ export const ringStore = {
   ownerOf(id: string, base: Person | null | undefined) { const o = ringData[id]; return o && o.owner !== undefined ? o.owner : base ?? null; },
   caseRefOf(id: string, base?: string) { return ringData[id]?.caseRef ?? base; },
   eventsOf(id: string) { return ringData[id]?.events || []; },
+  allEvents() { return Object.entries(ringData).flatMap(([id, v]) => (v.events || []).map((e) => ({ id, ...e }))); },
   set(id: string, state: string, owner?: Person | null, event?: string, caseRef?: string) {
     const cur = ringData[id] || {};
     cur.state = state;
@@ -83,6 +85,7 @@ export const findingStore = {
   restrictedOf(id: string) { return !!findingData[id]?.restricted; },
   listedOf(id: string) { return !!findingData[id]?.listed; },
   eventsOf(id: string) { return findingData[id]?.events || []; },
+  allEvents() { return Object.entries(findingData).flatMap(([id, v]) => (v.events || []).map((e) => ({ id, ...e }))); },
   set(id: string, opts: { status?: string; owner?: Person | null; trace?: string; backfill?: boolean; frozen?: boolean; lossReported?: boolean; restricted?: boolean; listed?: boolean; event?: string }) {
     const cur = findingData[id] || {};
     if (opts.status !== undefined) cur.status = opts.status;
@@ -119,6 +122,7 @@ export const reportStore = {
   mlroOf(id: string, base: Person | null) { const o = reportData[id]; return o && o.mlro !== undefined ? o.mlro : base; },
   refOf(id: string, base?: string) { const o = reportData[id]; return o && o.ref !== undefined ? o.ref : base; },
   eventsOf(id: string) { return reportData[id]?.events || []; },
+  allEvents() { return Object.entries(reportData).flatMap(([id, v]) => (v.events || []).map((e) => ({ id, ...e }))); },
   set(id: string, status: string, opts: { mlro?: Person | null; ref?: string; event?: string; reason?: string } = {}) {
     const cur = reportData[id] || {};
     cur.status = status;
@@ -154,6 +158,7 @@ export const ruleStore = {
   stateOf(id: string, base: string) { return ruleData[id]?.state || base; },
   ownerOf(id: string, base: Person | null) { const o = ruleData[id]; return o && o.owner !== undefined ? o.owner : base; },
   eventsOf(id: string) { return ruleData[id]?.events || []; },
+  allEvents() { return Object.entries(ruleData).flatMap(([id, v]) => (v.events || []).map((e) => ({ id, ...e }))); },
   editsOf(id: string) { return ruleEdits[id]; },
   isRemoved(id: string) { return ruleRemoved.has(id); },
   // 版本历史:首次查看时用种子谱系懒初始化(不触发通知);回滚 / 变更追加新版本(最新在前,自动编号 + 时间戳)
@@ -227,6 +232,7 @@ export const listStore = {
   statusOf(id: string, base: string) { return listData[id]?.status || base; },
   ownerOf(id: string, base: Person | null) { const o = listData[id]; return o && o.owner !== undefined ? o.owner : base; },
   eventsOf(id: string) { return listData[id]?.events || []; },
+  allEvents() { return Object.entries(listData).flatMap(([id, v]) => (v.events || []).map((e) => ({ id, ...e }))); },
   add(e: ListEntry) { listCreated = [e, ...listCreated]; listNotify(); },
   set(id: string, status: string, opts: { owner?: Person | null; event?: string; reason?: string } = {}) {
     const cur = listData[id] || {};
@@ -257,6 +263,7 @@ export const caseStore = {
   stateOf(id: string, base: string) { return caseData[id]?.state || base; },
   ownerOf(id: string, base: Person | null) { const o = caseData[id]; return o && o.owner !== undefined ? o.owner : base; },
   eventsOf(id: string) { return caseData[id]?.events || []; },
+  allEvents() { return Object.entries(caseData).flatMap(([id, v]) => (v.events || []).map((e) => ({ id, ...e }))); },
   subjectsOf(id: string, base: CaseSubject[]) { return [...base, ...(caseExtraSubjects[id] || [])]; },
   addSubject(id: string, subj: CaseSubject) { caseExtraSubjects[id] = [...(caseExtraSubjects[id] || []), subj]; caseNotify(); },
   add(c: Case) { caseCreated = [c, ...caseCreated]; caseNotify(); },
