@@ -5,7 +5,7 @@ import { Button, Tabs, Tab, Textarea } from "@heroui/react";
 import {
   ArrowLeft, ChevronLeft, ChevronRight, ChevronDown, UserPlus, ExternalLink, ArrowUpRight, Link2, Plus,
   Lightbulb, Check, X, ArrowRight, ArrowDownToLine, GitMerge, ArrowLeftRight, Shuffle, Waypoints, CircleOff, Coins,
-  Gauge, ShieldAlert, CheckCircle2, Wallet, Landmark, BellRing, FileText, Eye, Download, FileSignature, Save, Send, ClipboardCheck, Fingerprint,
+  Gauge, ShieldAlert, CheckCircle2, Wallet, Landmark, BellRing, FileText, Eye, Download, FileSignature, Save, Send, ClipboardCheck, Fingerprint, Inbox,
 } from "lucide-react";
 import { Shell } from "@/components/Shell";
 import { Pill } from "@/components/bits";
@@ -221,7 +221,12 @@ export default function CaseDetail() {
         <div className="card mb-5 flex flex-wrap items-center gap-x-3 gap-y-1.5 border-l-[3px] p-3.5" style={{ borderLeftColor: repSt === "ack" ? "var(--success)" : "var(--brand)" }}>
           <CheckCircle2 className="h-4 w-4" style={{ color: repSt === "ack" ? "var(--success)" : "var(--brand)" }} />
           <span className="text-[12.5px]">关联 STR <b>{RSTATE[repSt as keyof typeof RSTATE].label}</b> —— 由 MLRO 在报告报送推进。{repSt === "filed" || repSt === "ack" ? "本案可「结案归档」收尾。" : "报送中。"}</span>
-          <button onClick={() => nav("/reports")} className="ml-auto inline-flex items-center gap-1 text-[12px] font-semibold text-primary hover:opacity-80">查看报送<ArrowUpRight className="h-3.5 w-3.5" /></button>
+          <div className="ml-auto flex items-center gap-3">
+            {(repSt === "filed" || repSt === "ack") && owner && (
+              <Button size="sm" color="primary" startContent={<Inbox className="h-4 w-4" />} onPress={() => { setPreselect("archive"); setReviewOpen(true); }}>结案归档</Button>
+            )}
+            <button onClick={() => nav("/reports")} className="inline-flex items-center gap-1 text-[12px] font-semibold text-primary hover:opacity-80">查看报送<ArrowUpRight className="h-3.5 w-3.5" /></button>
+          </div>
         </div>
       )}
 

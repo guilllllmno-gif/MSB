@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Drawer, DrawerContent, DrawerHeader, DrawerBody, DrawerFooter, Button, Select, SelectItem, Textarea, Checkbox } from "@heroui/react";
 import { Initials, SectionLabel, Pill } from "./bits";
-import { CASE_OP_GROUPS, CASE_OPS, ARCHIVE_REASONS, MATERIALS, CSTATE, CASES, type Case, type CState } from "@/lib/cases";
+import { caseOpGroupsFor, CASE_OPS, ARCHIVE_REASONS, MATERIALS, CSTATE, CASES, type Case, type CState } from "@/lib/cases";
 import { caseStore } from "@/lib/store";
 import type { Person } from "@/lib/data";
 
@@ -68,7 +68,7 @@ export function CaseReviewDrawer({ caseItem, open, onOpenChange, preselect, recO
             <div className="flex items-center justify-between rounded-xl border border-divider bg-default-50 p-3 text-[12.5px] text-default-500"><span>案件未认领 —— 认领后方可处置。</span><Button size="sm" color="primary" onPress={() => { caseStore.set(c.id, st, { owner: L1, event: "认领案件 · 开始调查" }); toast.success(`${c.id} · 已认领`); }}>认领案件</Button></div>
           ) : (
             <>
-              {CASE_OP_GROUPS.map((g) => (
+              {caseOpGroupsFor(st).map((g) => (
                 <div key={g.title}><SectionLabel>{g.title}</SectionLabel>
                   <div className="grid grid-cols-3 gap-2">
                     {g.ops.map((o) => { const Icon = o.icon; const on = choice === o.k; const isRec = o.k === recOp; return (

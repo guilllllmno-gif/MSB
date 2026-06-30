@@ -154,6 +154,20 @@ export const CASE_OP_GROUPS: { title: string; ops: CaseOp[] }[] = [
   ] },
 ];
 export const CASE_OPS: CaseOp[] = CASE_OP_GROUPS.flatMap((g) => g.ops);
+
+// 审核动作按当前状态门控:排除「回退 / 自环」与时序上不合理的处置,只留前进 + 终态 + 过程动作。
+// 否则 filed/mlro 态仍显「起草STR」(回退到 str_draft)、「转MLRO」(自环)等死路 / 错路。
+const CASE_ORDER: Record<string, number> = { investigating: 0, str_draft: 1, mlro: 2, queued: 3, filed: 4 };
+export function caseOpAllowed(op: CaseOp, st: CState): boolean {
+  if (op.k === "fp") return (CASE_ORDER[st] ?? 99) <= CASE_ORDER.mlro; // 误报放行:STR 入队/已报送后不可,改走作废 / 归档
+  if (!op.to) return true;                                            // 过程动作:请求信息 / 升级 L2 / 关联
+  if (op.to === "closed" || op.to === "merged") return true;         // 终态处置:结案归档 / 合并,任意活动态可达
+  const a = CASE_ORDER[st], b = CASE_ORDER[op.to];
+  return a !== undefined && b !== undefined && b > a;                // 状态机动作:仅允许前进,排除回退 / 自环
+}
+export const caseOpGroupsFor = (st: CState) =>
+  CASE_OP_GROUPS.map((g) => ({ ...g, ops: g.ops.filter((o) => caseOpAllowed(o, st)) })).filter((g) => g.ops.length > 0);
+
 export const ARCHIVE_REASONS = ["已放行(误报)· 结案", "已上报 STR · 结案归档", "无需报送 · 调查排除可疑", "已移交执法 · 结案", "其它(见备注)"];
 export const MATERIALS = ["KYB 主体证明", "资金来源证明", "交易用途说明", "受益所有人(UBO)信息", "银行流水 / 对账单"];
 // 系统建议 rec.disp → 审核操作 key 映射
