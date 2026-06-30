@@ -1,8 +1,10 @@
 import { useState, type ReactNode } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
-import { Button } from "@heroui/react";
-import { LayoutDashboard, Bell, Search, ListChecks, SlidersHorizontal, Shield, FolderOpen, FileText, Clock, ChevronDown, ChevronsLeft, ChevronsRight, HelpCircle, LogOut, Network, FileCheck, History, Fingerprint, Activity } from "lucide-react";
+import { Button, Popover, PopoverTrigger, PopoverContent } from "@heroui/react";
+import { LayoutDashboard, Bell, Search, ListChecks, SlidersHorizontal, Shield, FolderOpen, FileText, Clock, ChevronDown, ChevronsLeft, ChevronsRight, HelpCircle, LogOut, Network, FileCheck, History, Fingerprint, Activity, CheckCircle2, ChevronRight } from "lucide-react";
 import { Initials, ThemeToggle } from "./bits";
+import { liveNotifications } from "@/lib/notifications";
+import { useAlertVersion, useCaseVersion, useReportVersion, useRingVersion } from "@/lib/store";
 import logoIcon from "@/assets/logo-icon.svg";
 import logoFull from "@/assets/logo-full.svg";
 
@@ -29,7 +31,13 @@ const NAV: ({ group: string } | Item)[] = [
 
 export function Shell({ crumb, wide, children }: { crumb: string[]; wide?: boolean; children: ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
   const nav = useNavigate();
+  // 顶栏铃铛实时联动:任意模块的认领/处置/报送动作即时反映到通知数(与仪表盘「需立即处理」同源)
+  useAlertVersion(); useCaseVersion(); useReportVersion(); useRingVersion();
+  const notifs = liveNotifications();
+  const notifTotal = notifs.reduce((s, n) => s + n.n, 0);
+  const goNotif = (to: string) => { setNotifOpen(false); nav(to); };
   return (
     <div className="flex h-screen overflow-hidden bg-[var(--page)]">
       <aside className={`no-scrollbar flex shrink-0 flex-col overflow-y-auto overflow-x-hidden px-3 py-4 transition-[width] duration-300 ease-in-out ${collapsed ? "w-[78px]" : "w-[252px]"}`}>
@@ -84,10 +92,67 @@ export function Shell({ crumb, wide, children }: { crumb: string[]; wide?: boole
           </div>
           <div className="ml-auto flex items-center gap-2">
             <Button isIconOnly size="sm" radius="full" variant="flat" className="bg-default-100" aria-label="主体档案 360" onPress={() => nav("/entity")}><Search className="h-[18px] w-[18px] text-default-500" strokeWidth={1.9} /></Button>
-            <Button isIconOnly size="sm" radius="full" variant="flat" className="relative bg-default-100"><Bell className="h-[18px] w-[18px] text-default-500" strokeWidth={1.9} /><span className="absolute right-1.5 top-1.5 h-[7px] w-[7px] rounded-full ring-2 ring-content1" style={{ background: "var(--danger)" }} /></Button>
+
+            {/* 通知中心 — 团队级「需立即处理」实时派生,深链到各模块 */}
+            <Popover placement="bottom-end" showArrow isOpen={notifOpen} onOpenChange={setNotifOpen}>
+              <PopoverTrigger>
+                <Button isIconOnly size="sm" radius="full" variant="flat" className="relative bg-default-100" aria-label={notifTotal ? `通知 · ${notifTotal} 项待处理` : "通知 · 已清空"}>
+                  <Bell className="h-[18px] w-[18px] text-default-500" strokeWidth={1.9} />
+                  {notifTotal > 0 && <span className="absolute -right-0.5 -top-0.5 flex h-[15px] min-w-[15px] items-center justify-center rounded-full px-[3px] text-[9.5px] font-bold leading-none text-white ring-2 ring-content1" style={{ background: "var(--danger)" }}>{notifTotal > 9 ? "9+" : notifTotal}</span>}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[316px] items-stretch p-0">
+                <div className="flex items-center justify-between border-b border-default-100 px-3.5 py-2.5">
+                  <span className="text-[12.5px] font-bold">需立即处理</span>
+                  {notifTotal > 0 && <span className="rounded-full bg-default-100 px-2 py-0.5 text-[10.5px] font-bold text-default-500">{notifTotal} 项</span>}
+                </div>
+                {notifs.length ? (
+                  <div className="flex flex-col">
+                    {notifs.map((n) => (
+                      <button key={n.to} onClick={() => goNotif(n.to)} className="flex items-center gap-3 px-3.5 py-2.5 text-left transition-colors hover:bg-default-50">
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-default-100"><n.icon className="h-4 w-4 text-default-500" strokeWidth={1.9} /></span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-[12.5px] font-semibold">{n.label}</span>
+                          <span className="block truncate text-[11px] text-default-400">{n.sub}</span>
+                        </span>
+                        <ChevronRight className="h-4 w-4 shrink-0 text-default-300" />
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center gap-1.5 px-3.5 py-7 text-center">
+                    <CheckCircle2 className="h-6 w-6 text-success" />
+                    <span className="text-[12.5px] font-semibold text-default-600">已全部清空</span>
+                    <span className="text-[11px] text-default-400">暂无超时告警、待报送或待认领</span>
+                  </div>
+                )}
+                <button onClick={() => goNotif("/ops")} className="border-t border-default-100 px-3.5 py-2.5 text-center text-[11.5px] font-semibold text-brand transition-colors hover:bg-default-50">查看运营总览 →</button>
+              </PopoverContent>
+            </Popover>
+
             <ThemeToggle />
-            <Button size="sm" radius="full" variant="flat" className="bg-default-100" endContent={<ChevronDown className="h-3.5 w-3.5" />}>风控 · L1</Button>
-            <Initials p={{ i: "JL", c: "var(--brand)" }} size={34} />
+
+            {/* 当前操作员 — 身份卡 + 入口 */}
+            <Popover placement="bottom-end" showArrow>
+              <PopoverTrigger>
+                <button className="flex items-center gap-2 rounded-full py-1 pl-3 pr-1 outline-none transition-colors hover:bg-default-100">
+                  <span className="text-[13px] font-medium text-default-600">风控 · L1</span>
+                  <ChevronDown className="h-3.5 w-3.5 text-default-400" />
+                  <Initials p={{ i: "JL", c: "var(--brand)" }} size={30} />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[216px] items-stretch p-0">
+                <div className="flex items-center gap-2.5 border-b border-default-100 px-3.5 py-3">
+                  <Initials p={{ i: "JL", c: "var(--brand)" }} size={36} />
+                  <span className="min-w-0">
+                    <span className="block truncate text-[13px] font-bold">James Liu</span>
+                    <span className="block truncate text-[11px] text-default-400">一线分析师 · 风控 L1</span>
+                  </span>
+                </div>
+                <button onClick={() => nav("/entity")} className="flex items-center gap-2.5 px-3.5 py-2.5 text-left text-[12.5px] transition-colors hover:bg-default-50"><Fingerprint className="h-4 w-4 text-default-400" strokeWidth={1.9} />主体档案 360</button>
+                <button onClick={() => nav("/dashboard")} className="flex items-center gap-2.5 border-t border-default-100 px-3.5 py-2.5 text-left text-[12.5px] text-danger transition-colors hover:bg-default-50"><LogOut className="h-4 w-4" strokeWidth={1.9} />退出登录</button>
+              </PopoverContent>
+            </Popover>
           </div>
         </header>
         <main className="no-scrollbar flex-1 overflow-y-auto px-7 pb-8 pt-2"><div className={`mx-auto ${wide ? "max-w-[1480px]" : "max-w-[1180px]"}`}>{children}</div></main>
