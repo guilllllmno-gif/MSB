@@ -104,6 +104,7 @@
   <div class="grid">
     <nav class="toc" aria-label="目录">
       <div class="lbl">目录</div>
+      <a href="#sflow"><span class="n">·</span>流水线总览</a>
       <a href="#s0"><span class="n">0</span>两个前提</a>
       <a href="#s1"><span class="n">1</span>命名与描述</a>
       <a href="#s2"><span class="n">2</span>触发条件</a>
@@ -116,6 +117,25 @@
     </nav>
 
     <main>
+      <section id="sflow">
+        <h2><span class="sn">·</span>风控流水线 · 一笔交易怎么流动</h2>
+        <p>一笔命中规则的交易,按生命周期在各模块间<strong>串行流转</strong>,任一时刻只属于一个环节:</p>
+        <div class="flow">
+          <span class="pill p-grey">事中监控</span><span class="arr">→</span>
+          <span class="pill p-grey">告警研判</span><span class="arr">→</span>
+          <span class="pill p-grey">案件管理</span><span class="arr">→</span>
+          <span class="pill p-grey">报告报送</span><span class="arr">→</span>
+          <span class="pill p-grey">处置记录</span>
+          <span class="branch">转研判 / 升级建案 / 起草 STR / 结案 —— 逐级推进</span>
+        </div>
+        <ul>
+          <li><b>旁路汇入</b>:事后监控(批量回溯)/ 关联团伙(团伙识别)不走事中环节,<strong>直连 告警研判 / 案件管理</strong>(钱已动;资金已出账则走资金追溯)。</li>
+          <li><b>反馈闭环</b>:事后确认的可疑 typology <strong>规则回填 → 监控规则 → 回到事中实时拦截</strong>同类,堵下一笔。</li>
+          <li>不是每笔都走完:事中能当场放行 / 拒绝的,直接进处置记录。</li>
+        </ul>
+        <div class="callout">这张流转图原先挂在仪表盘顶部 —— 教学 / 说明类内容不在操作页占位,收到使用说明这里。</div>
+      </section>
+
       <section id="s0">
         <h2><span class="sn">0</span>先理解两件事</h2>
 

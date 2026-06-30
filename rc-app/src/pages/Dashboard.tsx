@@ -11,7 +11,6 @@ import { SectionLabel, Initials } from "@/components/bits";
 import { LineChart, AnalystLoad } from "@/components/charts";
 import { AnalystQueueDrawer } from "@/components/AnalystQueueDrawer";
 import { queueHealth, DAYS14, QUEUE, type Analyst } from "@/lib/opsMetrics";
-import { PipelineMap } from "@/components/PipelineMap";
 import { rings, RING_STATES, confTone, type RingStateKey } from "@/lib/rings";
 import { alerts, INVESTIGATION_STATES } from "@/lib/data";
 import { CASES, CSTATE, type CState } from "@/lib/cases";
@@ -410,8 +409,6 @@ export default function Dashboard() {
         </span>
       </div>
 
-      {/* 风控流水线总览 — 给第一次用的人一张流程地图 */}
-      <PipelineMap />
 
       {/* 需立即处理 — single red accent for urgency; green & calm when the queue is clear */}
       <div className="card mb-5 flex flex-wrap items-center gap-x-4 gap-y-2 border-l-[3px] p-3.5 pl-4" style={{ borderLeftColor: urgent.length ? "var(--danger)" : "var(--success)" }}>
