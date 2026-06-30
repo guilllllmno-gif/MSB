@@ -145,7 +145,7 @@ export default function ReportDetail() {
           {r.type === "LVCTR" ? (
             <>交易批次 <b className="text-foreground">{d.batch?.window || r.sub}</b> · 来源 <b className="text-foreground">{r.src}</b> · 触发阈值 <b className="text-foreground">{d.batch?.threshold}</b> · 共 <b className="text-foreground">{d.batch?.count} 笔</b></>
           ) : (
-            <>涉事主体 <b className="text-foreground">{r.subject}</b> · 来源 {r.to ? <button onClick={() => nav(r.to!)} className="font-semibold text-primary hover:opacity-80">{r.src} {r.srcId}</button> : <b className="text-foreground">{r.src}</b>} · 起草人 <b className="text-foreground">{r.officer.n}</b>{r.officer.i !== "⚙" && "（风控）"} · 金额 <b className="text-foreground tnum">{r.amount}</b></>
+            <>涉事主体 <b className="text-foreground">{r.subject}</b> · 来源 {r.to ? <button onClick={() => nav(r.to!)} className="font-semibold text-primary hover:opacity-80">{r.src} {r.srcId}</button> : <b className="text-foreground">{r.src}</b>} · 起草人 <b className="text-foreground">{r.officer.n}</b>{r.officer.i !== "系" && "（风控）"} · 金额 <b className="text-foreground tnum">{r.amount}</b></>
           )}
         </p>
 
@@ -235,7 +235,7 @@ export default function ReportDetail() {
               <>
                 <InfoRow k="监管口径">FINTRAC（加拿大）</InfoRow>
                 {r.srcId && <InfoRow k={r.type === "TPR" ? "来源" : "来源案件"}>{r.to ? <button onClick={() => nav(r.to!)} className="inline-flex items-center gap-1 text-primary hover:opacity-80">{r.srcId}<ExternalLink className="h-3 w-3" /></button> : r.srcId}</InfoRow>}
-                <InfoRow k="起草人"><span className="inline-flex items-center gap-1.5"><Initials p={r.officer} size={20} />{r.officer.n} · {r.officer.i === "⚙" ? "系统" : "分析师"}</span></InfoRow>
+                <InfoRow k="起草人"><span className="inline-flex items-center gap-1.5"><Initials p={r.officer} size={20} />{r.officer.n} · {r.officer.i === "系" ? "系统" : "分析师"}</span></InfoRow>
                 <InfoRow k="签发人">{mlro ? <span className="inline-flex items-center gap-1.5"><Initials p={mlro} size={20} />{mlro.n} · MLRO</span> : <span className="text-default-400">待签发</span>}</InfoRow>
               </>
             )}

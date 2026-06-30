@@ -54,11 +54,11 @@ const D14 = {
   fp: [34, 33.5, 33, 33.2, 32.5, 32, 32.4, 31.8, 31.5, 31.6, 31.2, 31.4, 31.1, 31],
 };
 
-const NETWORKS: { sym: string; name: string; pct: number }[] = [
-  { sym: "◈", name: "ERC-20", pct: 64 },
-  { sym: "₿", name: "BTC", pct: 22 },
-  { sym: "◎", name: "TRC-20", pct: 11 },
-  { sym: "◎", name: "SOL", pct: 3 },
+const NETWORKS: { name: string; pct: number }[] = [
+  { name: "ERC-20", pct: 64 },
+  { name: "BTC", pct: 22 },
+  { name: "TRC-20", pct: 11 },
+  { name: "SOL", pct: 3 },
 ];
 
 // 跨业务线的高风险交易信号 —— On/Off-ramp、兑换、充提共有的洗钱形态
@@ -742,7 +742,7 @@ export default function Dashboard() {
           <div className="mt-3 flex flex-col">
             {NETWORKS.map((nw) => (
               <div key={nw.name} title={`${nw.name} · 占比 ${nw.pct}%`} className="flex items-center gap-3 border-b border-divider py-2.5 last:border-0">
-                <span className="flex w-[88px] shrink-0 items-center gap-1.5 text-[12px] font-semibold"><span className="text-default-400">{nw.sym}</span>{nw.name}</span>
+                <span className="flex w-[88px] shrink-0 items-center gap-1.5 text-[12px] font-semibold">{nw.name}</span>
                 <div className="h-2 flex-1 overflow-hidden rounded-full bg-default-100"><div className="h-full rounded-full" style={{ width: `${nw.pct}%`, background: "var(--brand)" }} /></div>
                 <span className="tnum w-10 text-right text-[12.5px] font-bold">{nw.pct}%</span>
               </div>

@@ -1,5 +1,5 @@
 // 事后监控:回溯命中(findings)数据 + 命中项状态机 + 批次历史。状态/处置存 store.ts 的 findingStore(内存)。
-import { Layers, Network, Zap, Repeat, Coins, Shuffle, UserPlus, FileQuestion, RotateCcw, ArrowUpCircle, XCircle, Send, FolderPlus, Store, Wallet } from "lucide-react";
+import { Layers, Network, Zap, Repeat, Coins, Shuffle, UserPlus, FileQuestion, RotateCcw, ArrowUpCircle, XCircle, Send, FolderPlus, Store, Wallet, TrendingUp, Clock, Link2, Moon, Globe, Boxes, Ban, BarChart3, Users, Target } from "lucide-react";
 import type { Tone, Person } from "./data";
 
 // 检测维度 —— 事后监控是批量回溯,主体维度不统一(不像事中/告警的单笔单商户)
@@ -89,7 +89,7 @@ export const findingOf = (id?: string) => FINDINGS.find((f) => f.id === id) || F
 
 // 命中详情证据(供详情页审研判 / 给结论)
 export interface TxRow { id?: string; t: string; party: string; amount: string; note: string } // id = 订单号 / 交易ID;归集/汇总类逐笔不适用则留空
-export interface Factor { emoji: string; title: string; desc: string; tone: Tone }
+export interface Factor { icon: typeof Layers; title: string; desc: string; tone: Tone }
 // 资金路径节点:角色(来源/归集/中转/混淆/跨链/出口/失联)+ 风险色 + 每跳金额/说明
 export interface PathNode { label: string; role: string; tone: Tone; meta?: string }
 // 分布构成(对手集中度等)—— 用占比条而非逐笔表格更直观
@@ -98,9 +98,9 @@ export interface Detail { factors: Factor[]; profile: { country: string; kyc: st
 export const DETAIL: Record<string, Detail> = {
   "PM-2026-031": {
     factors: [
-      { emoji: "🧩", title: "14 笔均 < CAD 1,000,单笔都不触阈", desc: "刻意压在大额申报线下", tone: "red" },
-      { emoji: "📈", title: "7 日累计 CAD 12,600,超阈 26%", desc: "跨日累计才显形", tone: "red" },
-      { emoji: "⏱", title: "集中在 3 个交易日完成", desc: "节奏接近自动化拆分", tone: "amber" },
+      { icon: Layers, title: "14 笔均 < CAD 1,000,单笔都不触阈", desc: "刻意压在大额申报线下", tone: "red" },
+      { icon: TrendingUp, title: "7 日累计 CAD 12,600,超阈 26%", desc: "跨日累计才显形", tone: "red" },
+      { icon: Clock, title: "集中在 3 个交易日完成", desc: "节奏接近自动化拆分", tone: "amber" },
     ],
     profile: { country: "加拿大", kyc: "完成", registered: "1.4 年", history: "近 30 天 42 笔 · 无历史违规" },
     txList: [
@@ -114,9 +114,9 @@ export const DETAIL: Record<string, Detail> = {
   },
   "PM-2026-030": {
     factors: [
-      { emoji: "🕸", title: "6 个商户向同一地址归集", desc: "扇入(fan-in)归集结构", tone: "red" },
-      { emoji: "💰", title: "14 天归集 CAD 86,400", desc: "归集后疑似统一中转", tone: "red" },
-      { emoji: "🔗", title: "归集地址非任一商户托管", desc: "第三方控制,典型分层", tone: "amber" },
+      { icon: Network, title: "6 个商户向同一地址归集", desc: "扇入(fan-in)归集结构", tone: "red" },
+      { icon: Coins, title: "14 天归集 CAD 86,400", desc: "归集后疑似统一中转", tone: "red" },
+      { icon: Link2, title: "归集地址非任一商户托管", desc: "第三方控制,典型分层", tone: "amber" },
     ],
     profile: { country: "—(链上地址)", kyc: "不适用", registered: "地址活跃 22 天", history: "关联 6 商户 · 网络内高频", tags: ["扇入归集", "第三方控制", "多商户关联", "高风险"] },
     txList: [
@@ -135,9 +135,9 @@ export const DETAIL: Record<string, Detail> = {
   },
   "PM-2026-029": {
     factors: [
-      { emoji: "😴", title: "休眠 90 天后突然激活", desc: "行为基线突变", tone: "amber" },
-      { emoji: "⚡", title: "单日 8 笔高额出金", desc: "激活即大额提走", tone: "red" },
-      { emoji: "🌐", title: "出金集中高风险地区", desc: "去向风险偏高", tone: "amber" },
+      { icon: Moon, title: "休眠 90 天后突然激活", desc: "行为基线突变", tone: "amber" },
+      { icon: Zap, title: "单日 8 笔高额出金", desc: "激活即大额提走", tone: "red" },
+      { icon: Globe, title: "出金集中高风险地区", desc: "去向风险偏高", tone: "amber" },
     ],
     profile: { country: "美国", kyc: "完成", registered: "2.1 年", history: "休眠 90 天 · 激活前均值 CAD 1,200/日" },
     txList: [
@@ -151,9 +151,9 @@ export const DETAIL: Record<string, Detail> = {
   },
   "PM-2026-028": {
     factors: [
-      { emoji: "🔀", title: "兑入隐私币后跨链提走", desc: "BTC→XMR 切断链上溯源", tone: "red" },
-      { emoji: "🧱", title: "多笔分散兑换", desc: "规避单笔大额识别", tone: "amber" },
-      { emoji: "🚫", title: "去向不可追溯", desc: "进入隐私链后失联", tone: "red" },
+      { icon: Shuffle, title: "兑入隐私币后跨链提走", desc: "BTC→XMR 切断链上溯源", tone: "red" },
+      { icon: Boxes, title: "多笔分散兑换", desc: "规避单笔大额识别", tone: "amber" },
+      { icon: Ban, title: "去向不可追溯", desc: "进入隐私链后失联", tone: "red" },
     ],
     profile: { country: "—(链上地址)", kyc: "不适用", registered: "多链活跃", history: "30 天 11 笔 · 关联混币器", tags: ["隐私币兑换", "跨链桥", "溯源切断", "高风险"] },
     txList: [
@@ -171,8 +171,8 @@ export const DETAIL: Record<string, Detail> = {
   },
   "PM-2026-027": {
     factors: [
-      { emoji: "📊", title: "笔频较 30 天基线 5.2×", desc: "远超自身常态", tone: "amber" },
-      { emoji: "👥", title: "高于同业商户群 P95", desc: "群体对比离群", tone: "amber" },
+      { icon: BarChart3, title: "笔频较 30 天基线 5.2×", desc: "远超自身常态", tone: "amber" },
+      { icon: Users, title: "高于同业商户群 P95", desc: "群体对比离群", tone: "amber" },
     ],
     profile: { country: "美国", kyc: "完成", registered: "8 个月", history: "基线 9 笔/日 · 当前 46 笔/48h" },
     txList: [
@@ -183,8 +183,8 @@ export const DETAIL: Record<string, Detail> = {
   },
   "PM-2026-026": {
     factors: [
-      { emoji: "🎯", title: "80% 出金流向单一交易所", desc: "对手高度集中", tone: "amber" },
-      { emoji: "🌐", title: "对手位于高风险辖区", desc: "FATF 关注地区", tone: "amber" },
+      { icon: Target, title: "80% 出金流向单一交易所", desc: "对手高度集中", tone: "amber" },
+      { icon: Globe, title: "对手位于高风险辖区", desc: "FATF 关注地区", tone: "amber" },
     ],
     profile: { country: "离岸", kyc: "完成", registered: "1.1 年", history: "30 天 19 笔 · 对手集中" },
     txList: [],
@@ -197,21 +197,21 @@ export const DETAIL: Record<string, Detail> = {
     rec: "核实业务合理性;异常则升级 / 加强监控;回填对手集中度规则。",
   },
   "PM-2026-022": {
-    factors: [{ emoji: "🧩", title: "拆分入金规避阈值", desc: "确认漏判,已补 STR", tone: "red" }],
+    factors: [{ icon: Layers, title: "拆分入金规避阈值", desc: "确认漏判,已补 STR", tone: "red" }],
     profile: { country: "美国", kyc: "完成", registered: "10 个月", history: "已结案 · 转报送" },
     txList: [{ t: "06-11", party: "多笔", amount: "CAD 9,800", note: "11 笔拆分" }],
     gap: "同结构化拆分:事中缺累计维度。已回填累计规则。",
     rec: "已补 STR · 已回填规则 · 部分可追溯。",
   },
   "PM-2026-021": {
-    factors: [{ emoji: "📊", title: "促销致笔频上升", desc: "回看为正常波动", tone: "amber" }],
+    factors: [{ icon: BarChart3, title: "促销致笔频上升", desc: "回看为正常波动", tone: "amber" }],
     profile: { country: "加拿大", kyc: "完成", registered: "2.3 年", history: "已结案 · 误报" },
     txList: [{ t: "06-16", party: "多对手", amount: "CAD 6,400", note: "28 笔(促销)" }],
     gap: "速度上升由促销活动解释,非可疑。",
     rec: "误报关闭,加入复盘样本以校准速度基线。",
   },
   "PM-2026-020": {
-    factors: [{ emoji: "🕸", title: "确认洗钱归集网络", desc: "并入案件深查", tone: "red" }],
+    factors: [{ icon: Network, title: "确认洗钱归集网络", desc: "并入案件深查", tone: "red" }],
     profile: { country: "—(链上地址)", kyc: "不适用", registered: "已结案 · 转案件", history: "不可追溯 · 已上报损失", tags: ["扇入归集", "洗钱网络", "已列黑名单"] },
     txList: [{ t: "近 14 天", party: "多商户 → 0x71Be", amount: "CAD 124,000", note: "31 笔归集" }],
     gap: "扇入归集,事中缺跨主体图关系。已回填规则。",

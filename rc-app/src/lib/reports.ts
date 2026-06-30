@@ -89,7 +89,7 @@ const JL: Person = { i: "JL", n: "James Liu", c: "var(--brand)" };
 const SC: Person = { i: "SC", n: "Sarah Chen", c: "var(--violet)" };
 const DW: Person = { i: "DW", n: "David Wu", c: "#0ea5e9" };
 const EZ: Person = { i: "EZ", n: "Emma Zhang", c: "var(--success)" }; // MLRO
-const SYS: Person = { i: "⚙", n: "系统自动", c: "var(--chip-fg)" };
+const SYS: Person = { i: "系", n: "系统自动", c: "var(--chip-fg)" };
 export const MLRO: Person = EZ;
 
 // 静态报告样本。STR 一律由案件管理派生(案件 = STR 唯一发起点,见 page);

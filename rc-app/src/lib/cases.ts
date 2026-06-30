@@ -165,13 +165,13 @@ export type GNodeKind = "mixer" | "mule" | "hub" | "platform" | "exit" | "normal
 export interface GraphNode { id: string; label: string; sub?: string; col: number; kind: GNodeKind }
 export interface GraphEdge { from: string; to: string; w?: string }
 export interface CaseGraph { cols: string[]; dividerAfter: number; nodes: GraphNode[]; edges: GraphEdge[]; stats: { label: string; value: string }[]; leftWorld?: string; rightWorld?: string }
-export const GKIND: Record<GNodeKind, { tone: Tone; glyph: string; label: string }> = {
-  mixer: { tone: "red", glyph: "🌀", label: "高危源头 / 混币器" },
-  mule: { tone: "amber", glyph: "👤", label: "中转 mule" },
-  hub: { tone: "red", glyph: "🎯", label: "归集节点" },
-  platform: { tone: "blue", glyph: "🏦", label: "平台账户" },
-  exit: { tone: "grey", glyph: "↗", label: "外部出口" },
-  normal: { tone: "green", glyph: "✓", label: "正常 / 已核实" },
+export const GKIND: Record<GNodeKind, { tone: Tone; label: string }> = {
+  mixer: { tone: "red", label: "高危源头 / 混币器" },
+  mule: { tone: "amber", label: "中转 mule" },
+  hub: { tone: "red", label: "归集节点" },
+  platform: { tone: "blue", label: "平台账户" },
+  exit: { tone: "grey", label: "外部出口" },
+  normal: { tone: "green", label: "正常 / 已核实" },
 };
 // 加权评分因子:raw 为该因子 0–100 原始分,weight 为权重(同团伙识别口径),contrib = raw×weight
 export interface ScoreFactor { key: string; label: string; cat: string; weight: number; raw: number; tone: Tone; evidence: string[] }
@@ -219,7 +219,7 @@ export const CASE_DOSSIER: Record<string, CaseDossier> = {
       { id: "ALT-50231", sev: "amber", sevLabel: "中", desc: "入金到账后 14 分钟内即发起全额提现,呈典型「过水」模式(转入即兑换即提现)。", rule: "R-XSYS-03", time: "2026-03-15 09:44" },
     ],
     tx: { id: "DEP-20260315-001", network: "ERC-20", type: "充值", frozen: "8,180 USDT · CAD 8,200", destination: "0x7a…dE2(外部)", duration: "1d 18h · 自动暂缓" },
-    profile: { kyc: "高风险", country: "🇺🇸 美国", sanctions: "间接命中(经混币器)", pep: "非 PEP", vol30: "CAD 8,200", limit: "CAD 5,000", tier: "red" },
+    profile: { kyc: "高风险", country: "美国", sanctions: "间接命中(经混币器)", pep: "非 PEP", vol30: "CAD 8,200", limit: "CAD 5,000", tier: "red" },
     baseline: [
       { label: "单笔金额", norm: "均值 CAD 1,150", current: "CAD 8,200(×7)", abnormal: true },
       { label: "常用对手方", norm: "Coinbase / Kraken", current: "全新混币关联地址", abnormal: true },
@@ -292,7 +292,7 @@ export const CASE_DOSSIER: Record<string, CaseDossier> = {
     evidence: ["收款钱包 KYW 风险评分 88,远超阈值 70", "关联高风险司法管辖区交易所(FATF 灰名单)", "单笔 CAD 21,400,为限额 7×"],
     alerts: [{ id: "ALT-50229", sev: "red", sevLabel: "高", desc: "出金收款钱包 KYW 风险评分 88,超阈值 70,关联高风险辖区交易所。", rule: "R-SCORE-02", time: "2026-03-14 08:54" }],
     tx: { id: "WD-20260314-058", network: "BTC", type: "提现", frozen: "0.34 BTC · CAD 21,400", destination: "bc1q…7h2k(外部)", duration: "出金暂缓" },
-    profile: { kyc: "中风险", country: "🇺🇸 美国", sanctions: "未命中", pep: "非 PEP", vol30: "CAD 96,000", limit: "CAD 3,000", tier: "amber" },
+    profile: { kyc: "中风险", country: "美国", sanctions: "未命中", pep: "非 PEP", vol30: "CAD 96,000", limit: "CAD 3,000", tier: "amber" },
     baseline: [
       { label: "单笔金额", norm: "限额 CAD 3,000", current: "CAD 21,400(×7)", abnormal: true },
       { label: "收款对手", norm: "历史固定地址", current: "全新 · KYW 88", abnormal: true },

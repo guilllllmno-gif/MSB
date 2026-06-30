@@ -82,7 +82,7 @@ export const rings: Ring[] = [
     members: [
       { id: "M1", name: "NovaPay Technologies", sub: "商户 · 美国", kind: "商户", i: "NP", c: "var(--brand)", alerts: 3, role: "入金商户" },
       { id: "M2", name: "0x5078…Ec8c", sub: "发送方地址", kind: "地址", i: "0x", c: "var(--violet)", alerts: 2, role: "归集源" },
-      { id: "M3", name: "中转钱包 ×3", sub: "资金在 3 个钱包间短暂过账后归集，用于打散、切断链上溯源", kind: "群组", i: "⛓", c: "var(--warning)", alerts: 1, role: "资金中转 · 分层" },
+      { id: "M3", name: "中转钱包 ×3", sub: "资金在 3 个钱包间短暂过账后归集，用于打散、切断链上溯源", kind: "群组", i: "中", c: "var(--warning)", alerts: 1, role: "资金中转 · 分层" },
       { id: "M4", name: "BlockTrade Corp.", sub: "商户 · 美国", kind: "商户", i: "BT", c: "var(--success)", alerts: 1, role: "出金商户" },
     ],
     edges: [
@@ -176,7 +176,7 @@ export const rings: Ring[] = [
     members: [
       { id: "M1", name: "PayBridge Inc.", sub: "商户 · 加拿大", kind: "商户", i: "PB", c: "var(--brand)", alerts: 2, role: "代付商户" },
       { id: "M2", name: "0x4c9a…71Bd", sub: "归集地址", kind: "地址", i: "0x", c: "var(--violet)", alerts: 1, role: "归集源" },
-      { id: "M3", name: "收款地址 ×4", sub: "4 个收款钱包 · 多账户代付集中归集", kind: "群组", i: "✦", c: "var(--success)", alerts: 1, role: "代付出口" },
+      { id: "M3", name: "收款地址 ×4", sub: "4 个收款钱包 · 多账户代付集中归集", kind: "群组", i: "收", c: "var(--success)", alerts: 1, role: "代付出口" },
     ],
     edges: [
       { a: 0, b: 1, dims: ["funds", "address"], strength: 60, note: "多笔代付资金集中归集 + 复用归集地址" },
@@ -198,7 +198,7 @@ export const rings: Ring[] = [
     members: [
       { id: "M1", name: "OffshoreFX Ltd.", sub: "商户 · 离岸", kind: "商户", i: "OF", c: "var(--brand)", alerts: 3, role: "高风险商户" },
       { id: "M2", name: "0x7F4a…9c21", sub: "OFAC SDN 制裁地址", kind: "地址", i: "0x", c: "var(--danger)", alerts: 2, role: "制裁实体" },
-      { id: "M3", name: "中转钱包 ×2", sub: "资金经 2 个钱包过账以规避制裁筛查", kind: "群组", i: "⛓", c: "var(--warning)", alerts: 1, role: "资金中转 · 规避", children: [
+      { id: "M3", name: "中转钱包 ×2", sub: "资金经 2 个钱包过账以规避制裁筛查", kind: "群组", i: "中", c: "var(--warning)", alerts: 1, role: "资金中转 · 规避", children: [
         { v: "0x3Be1…A77c", meta: "OFAC 制裁地址下游 1 跳 · 过账 CAD 31,000", tone: "red" },
         { v: "0xC09f…12Ed", meta: "2 跳过账后注入 OffshoreFX 托管钱包", tone: "amber" },
       ] },
@@ -245,8 +245,8 @@ export const rings: Ring[] = [
       { id: "M1", name: "RapidPay Ltd.", sub: "商户 · 美国", kind: "商户", i: "RP", c: "var(--brand)", alerts: 3, role: "入金商户" },
       { id: "M2", name: "发送方群组 #C2", sub: "6 个拆分地址", kind: "群组", i: "C2", c: "var(--warning)", alerts: 2, role: "拆分源" },
       { id: "M3", name: "0xAb3f…D2", sub: "归集地址", kind: "地址", i: "0x", c: "var(--violet)", alerts: 1, role: "归集源" },
-      { id: "M4", name: "中转钱包 ×2", sub: "2 个中转地址", kind: "群组", i: "⛓", c: "var(--success)", alerts: 1, role: "中转层" },
-      { id: "M5", name: "收款地址 ×4", sub: "4 个出口钱包", kind: "群组", i: "✦", c: "#0ea5e9", alerts: 1, role: "资金出口" },
+      { id: "M4", name: "中转钱包 ×2", sub: "2 个中转地址", kind: "群组", i: "中", c: "var(--success)", alerts: 1, role: "中转层" },
+      { id: "M5", name: "收款地址 ×4", sub: "4 个出口钱包", kind: "群组", i: "收", c: "#0ea5e9", alerts: 1, role: "资金出口" },
       { id: "M6", name: "QuickWallet Inc.", sub: "商户 · 加拿大", kind: "商户", i: "QW", c: "var(--danger)", alerts: 1, role: "关联商户" },
       { id: "M7", name: "设备群 DV-7", sub: "4 个共享设备指纹", kind: "群组", i: "DV", c: "var(--text-2)", alerts: 1, role: "共享设备" },
     ],
@@ -279,10 +279,10 @@ export const rings: Ring[] = [
       { id: "M3", name: "拆分群组 #B2", sub: "4 个拆分地址", kind: "群组", i: "B2", c: "var(--warning)", alerts: 2, role: "拆分源" },
       { id: "M4", name: "拆分群组 #B3", sub: "3 个拆分地址", kind: "群组", i: "B3", c: "var(--warning)", alerts: 1, role: "拆分源" },
       { id: "M5", name: "0x9Df2…A4c0", sub: "归集地址", kind: "地址", i: "0x", c: "var(--violet)", alerts: 2, role: "归集源" },
-      { id: "M6", name: "中转钱包 ×2", sub: "2 个中转地址", kind: "群组", i: "⛓", c: "var(--success)", alerts: 1, role: "中转层" },
-      { id: "M7", name: "中转钱包 ×3", sub: "3 个中转地址", kind: "群组", i: "⛓", c: "var(--success)", alerts: 1, role: "中转层" },
-      { id: "M8", name: "出口地址 ×3", sub: "3 个出口钱包", kind: "群组", i: "✦", c: "#0ea5e9", alerts: 1, role: "资金出口" },
-      { id: "M9", name: "出口地址 ×2", sub: "2 个出口钱包", kind: "群组", i: "✦", c: "#0ea5e9", alerts: 1, role: "资金出口" },
+      { id: "M6", name: "中转钱包 ×2", sub: "2 个中转地址", kind: "群组", i: "中", c: "var(--success)", alerts: 1, role: "中转层" },
+      { id: "M7", name: "中转钱包 ×3", sub: "3 个中转地址", kind: "群组", i: "中", c: "var(--success)", alerts: 1, role: "中转层" },
+      { id: "M8", name: "出口地址 ×3", sub: "3 个出口钱包", kind: "群组", i: "出", c: "#0ea5e9", alerts: 1, role: "资金出口" },
+      { id: "M9", name: "出口地址 ×2", sub: "2 个出口钱包", kind: "群组", i: "出", c: "#0ea5e9", alerts: 1, role: "资金出口" },
       { id: "M10", name: "HavenPay Inc.", sub: "商户 · 离岸", kind: "商户", i: "HP", c: "var(--danger)", alerts: 2, role: "出金商户" },
       { id: "M11", name: "设备群 DV-9", sub: "4 个共享设备指纹", kind: "群组", i: "DV", c: "var(--text-2)", alerts: 1, role: "共享设备" },
       { id: "M12", name: "SwiftNode Corp.", sub: "商户 · 加拿大", kind: "商户", i: "SN", c: "var(--brand)", alerts: 1, role: "关联商户" },

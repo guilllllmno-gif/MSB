@@ -147,8 +147,8 @@ export default function PostDetail() {
               <div className="flex flex-col gap-2">
                 {d.factors.map((fa, i) => (
                   <div key={i} className="flex items-start gap-3 rounded-xl border border-divider p-3">
-                    <span className="text-[18px] leading-none">{fa.emoji}</span>
-                    <div className="min-w-0"><div className="text-[13px] font-semibold" style={{ color: tc(fa.tone) }}>{fa.title}</div><div className="text-[11.5px] text-default-400">{fa.desc}</div></div>
+                    <span className="mt-px flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-default-100 text-default-500"><fa.icon className="h-4 w-4" strokeWidth={1.9} /></span>
+                    <div className="min-w-0"><div className="text-[13px] font-semibold">{fa.title}</div><div className="text-[11.5px] text-default-400">{fa.desc}</div></div>
                   </div>
                 ))}
               </div>
