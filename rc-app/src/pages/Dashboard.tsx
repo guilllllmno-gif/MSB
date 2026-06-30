@@ -434,7 +434,7 @@ export default function Dashboard() {
         <div className="card mb-5 p-5">
           <div className="mb-3 flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <span className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ background: "color-mix(in srgb, var(--violet) 12%, transparent)", color: "var(--violet)" }}><Stamp className="h-4 w-4" /></span>
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-default-100 text-default-500"><Stamp className="h-4 w-4" /></span>
               <span className="text-[15px] font-bold">待我审批</span>
               <span className="rounded-full bg-default-100 px-2 py-0.5 text-[11.5px] font-semibold text-default-500 tnum">{approvals.length} 项待决策</span>
             </div>
@@ -447,7 +447,7 @@ export default function Dashboard() {
                   <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-default-100 text-default-500"><a.icon className="h-3.5 w-3.5" /></span>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5">
-                      <span className="rounded-md px-1.5 py-0.5 text-[10px] font-bold" style={{ background: "color-mix(in srgb, var(--violet) 12%, transparent)", color: "var(--violet)" }}>{a.kind}</span>
+                      <span className="rounded-md px-1.5 py-0.5 text-[10px] font-bold" style={{ background: "var(--track)", color: "var(--text-2)" }}>{a.kind}</span>
                       <span className="truncate text-[12.5px] font-semibold">{a.subject}</span>
                     </div>
                     <div className="mt-0.5 truncate text-[11px] text-default-400">{a.meta}</div>
