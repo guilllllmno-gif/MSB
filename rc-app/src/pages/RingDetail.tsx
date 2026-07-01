@@ -2,9 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { Card, CardHeader, CardBody, Button, Drawer, DrawerContent, DrawerHeader, DrawerBody, DrawerFooter, Textarea, Select, SelectItem } from "@heroui/react";
-import { ArrowLeft, FolderPlus, ListPlus, FileDown, Coins, Link2, Smartphone, Globe, Bell, Sparkles, Info, ArrowUpCircle, XCircle, ClipboardCheck, Clock, UserPlus, ChevronDown, FileQuestion, ExternalLink } from "lucide-react";
+import { ArrowLeft, FolderPlus, ListPlus, FileDown, Coins, Link2, Smartphone, Globe, Bell, Sparkles, Info, ArrowUpCircle, XCircle, ClipboardCheck, Clock, UserPlus, ChevronDown, FileQuestion, ExternalLink, Waypoints, BellRing, ArrowRight } from "lucide-react";
 import { Shell } from "@/components/Shell";
-import { Pill, Initials, SectionLabel } from "@/components/bits";
+import { Pill, Initials, SectionLabel, toneVar } from "@/components/bits";
+import { alerts, sevMeta, type Tone } from "@/lib/data";
 import { RingBasis } from "@/components/RingBasis";
 import { Timeline } from "@/components/Timeline";
 import { ringOf, caseRefFor, clusterCount, clusterChildren, DIM_META, DIM_ORDER, confTone, confLabel, RING_FIELDS, RING_STATES, DISP_STATE, ringActions, type RingDim, type Ring, type RingEdge, type RingStateKey } from "@/lib/rings";
@@ -126,6 +127,74 @@ function Graph({ ring, expanded, onToggle }: { ring: Ring; expanded: Set<string>
           </div>
         );
       })}
+    </div>
+  );
+}
+
+// ── 资金路径:按洗钱手法 + 成员 + 金额确定性合成的分阶段资金流(入金 → 归集 →〔中转〕→ 出金)──
+const parseAmt = (s: string) => { const n = Number(s.replace(/[^0-9.]/g, "")); return isFinite(n) ? n : 0; };
+const fmtAmt = (n: number) => `CAD ${Math.round(n).toLocaleString("en-CA")}`;
+type FStage = { key: string; title: string; desc: string; amount: string; tone: Tone };
+function fundStages(ring: Ring): FStage[] {
+  const total = parseAmt(ring.amount);
+  const sources = ring.members.filter((m) => m.kind === "群组" || /拆分|入金|源/.test(m.role)).length || Math.max(1, ring.members.length - 1);
+  const layered = /分层|洗钱|过账|规避|归集/.test(ring.typology);
+  const stages: FStage[] = [
+    { key: "in", title: "分散入金", desc: `${sources} 个来源 / 拆分地址分散入金`, amount: ring.amount, tone: "blue" },
+    { key: "agg", title: "归集", desc: "资金归集至核心地址", amount: ring.amount, tone: "amber" },
+  ];
+  if (layered) stages.push({ key: "relay", title: "中转分层", desc: "经中转钱包多跳过账 · 切断链上溯源", amount: ring.amount, tone: "violet" });
+  stages.push({ key: "out", title: "分发出金", desc: total >= 10000 ? "分发至出口地址 · 部分超 LCTR 阈值" : "分发至出口地址", amount: total ? fmtAmt(total * 0.92) : ring.amount, tone: "red" });
+  return stages;
+}
+function FundFlow({ ring }: { ring: Ring }) {
+  const stages = fundStages(ring);
+  return (
+    <div className="flex flex-col gap-2.5 sm:flex-row sm:items-stretch">
+      {stages.map((s, i) => (
+        <div key={s.key} className="flex flex-1 items-center gap-2.5">
+          <div className="flex-1 rounded-xl border p-3.5" style={{ borderColor: `color-mix(in srgb, ${toneVar(s.tone)} 30%, transparent)`, background: `color-mix(in srgb, ${toneVar(s.tone)} 5%, transparent)` }}>
+            <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider" style={{ color: toneVar(s.tone) }}>{`0${i + 1}`.slice(-2)} · {s.title}</div>
+            <div className="mt-1 tnum text-[15px] font-extrabold">{s.amount}</div>
+            <div className="mt-0.5 text-[11.5px] leading-snug text-default-500">{s.desc}</div>
+          </div>
+          {i < stages.length - 1 && <ArrowRight className="hidden h-4 w-4 shrink-0 text-default-300 sm:block" />}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── 关联告警:按商户成员名匹配真实告警(lib/data),行跳告警详情 ──
+const nameMatch = (member: string, am: string) => am.startsWith(member) || member.startsWith(am) || am.split(" ")[0] === member.split(" ")[0];
+function LinkedAlerts({ ring, onOpen }: { ring: Ring; onOpen: (id: string) => void }) {
+  const merchants = ring.members.filter((m) => m.kind === "商户").map((m) => m.name);
+  const hit = alerts.filter((a) => merchants.some((mn) => nameMatch(mn, a.merchant)));
+  if (!hit.length) {
+    return (
+      <div className="flex items-center justify-between gap-2 rounded-xl border border-divider bg-default-50 px-4 py-3 text-[12.5px] text-default-500">
+        <span>本团伙关联 <b className="text-foreground">{ring.alertCount}</b> 条告警 · 明细见「告警研判」</span>
+      </div>
+    );
+  }
+  return (
+    <div className="overflow-x-auto no-scrollbar">
+      <table className="w-full text-[12.5px]">
+        <thead><tr className="border-b border-divider text-left text-[11.5px] text-default-400">
+          <th className="py-2 pr-3 font-medium">告警 ID</th><th className="py-2 pr-3 font-medium">商户成员</th><th className="py-2 pr-3 font-medium">类型</th><th className="py-2 pr-3 font-medium">严重度</th><th className="py-2 pr-3 font-medium">金额</th>
+        </tr></thead>
+        <tbody>
+          {hit.map((a) => { const sm = sevMeta[a.sev]; return (
+            <tr key={a.id} className="border-b border-default-100 last:border-0 transition-colors hover:bg-default-50">
+              <td className="py-2.5 pr-3"><button onClick={() => onOpen(a.id)} className="font-semibold text-primary hover:underline">{a.id}</button></td>
+              <td className="py-2.5 pr-3 text-default-600">{a.merchant}</td>
+              <td className="py-2.5 pr-3 text-default-500">{a.type}</td>
+              <td className="py-2.5 pr-3"><Pill tone={sm?.tone ?? "grey"} dot={false}>{sm?.label ?? a.sev} · {a.score}</Pill></td>
+              <td className="py-2.5 pr-3 tnum text-default-600">{a.amount}</td>
+            </tr>
+          ); })}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -335,6 +404,11 @@ export default function RingDetail() {
             </CardBody>
           </Card>
 
+          {/* 资金路径 — 分阶段资金流 */}
+          <Card shadow="none" className="card"><CardHeader><div><div className="flex items-center gap-1.5 text-[15px] font-bold"><Waypoints className="h-4 w-4 text-default-400" />资金路径</div><div className="text-[12px] text-default-400">团伙资金自左向右:分散入金 → 归集 →〔中转分层〕→ 分发出金 · 金额为网络内累计敞口</div></div></CardHeader>
+            <CardBody className="pt-0"><FundFlow ring={ring} /></CardBody>
+          </Card>
+
           {/* confidence + members */}
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_1fr]">
           <Card shadow="none" className="card"><CardHeader><div><div className="text-[15px] font-bold">置信度构成</div><div className="text-[12px] text-default-400">各维度关联强度叠加 → 累计置信度</div></div></CardHeader>
@@ -437,6 +511,11 @@ export default function RingDetail() {
           </CardBody>
         </Card>
         </div>
+
+        {/* 关联告警 — 按商户成员匹配的真实告警 */}
+        <Card shadow="none" className="card"><CardHeader className="flex items-center justify-between gap-2"><div className="flex items-center gap-1.5 text-[15px] font-bold"><BellRing className="h-4 w-4 text-default-400" />关联告警</div><Button size="sm" variant="light" className="h-7 min-w-0 px-2 text-[12px] text-brand" onPress={() => nav("/alerts")}>全部告警</Button></CardHeader>
+          <CardBody className="pt-0"><LinkedAlerts ring={ring} onOpen={(id) => nav(`/alert?id=${id}`)} /></CardBody>
+        </Card>
       </div>
       )}
 
