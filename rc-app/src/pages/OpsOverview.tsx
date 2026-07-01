@@ -6,9 +6,10 @@ import { SectionLabel, Initials } from "@/components/bits";
 import { LineChart, AnalystLoad } from "@/components/charts";
 import { AnalystQueueDrawer } from "@/components/AnalystQueueDrawer";
 import { QUEUE, queueHealth, DAYS14, type Analyst } from "@/lib/opsMetrics";
+import { urgencyColor } from "@/lib/data";
 
 const BRAND = "var(--brand)";
-const toneC = (t: string) => (t === "red" ? "var(--danger)" : t === "amber" ? "var(--warning)" : "var(--success)");
+const toneC = (t: string) => urgencyColor(t, "var(--success)"); // 见 lib/data
 
 export default function OpsOverview() {
   const nav = useNavigate();

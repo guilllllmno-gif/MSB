@@ -4,10 +4,10 @@ import { Drawer, DrawerContent, DrawerHeader, DrawerBody, DrawerFooter, Button, 
 import { Initials, SectionLabel, Pill } from "./bits";
 import { caseOpGroupsFor, CASE_OPS, ARCHIVE_REASONS, MATERIALS, CSTATE, CASES, type Case, type CState } from "@/lib/cases";
 import { caseStore } from "@/lib/store";
-import type { Person } from "@/lib/data";
+import { toneColor, type Person } from "@/lib/data";
 
 const L1: Person = { i: "JL", n: "James Liu", c: "var(--brand)" };
-const tc = (t: string) => (t === "red" ? "var(--danger)" : t === "amber" ? "var(--warning)" : t === "green" ? "var(--success)" : t === "violet" ? "var(--violet)" : t === "blue" ? "var(--brand)" : "var(--text-3)");
+const tc = toneColor; // 见 lib/data toneColor(单一来源)
 const onStyle = { borderColor: "var(--brand)", background: "var(--brand-soft)", color: "var(--brand)" };
 const offStyle = { borderColor: "var(--line)", color: "var(--text-2)" };
 

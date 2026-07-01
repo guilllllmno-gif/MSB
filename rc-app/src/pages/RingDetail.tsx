@@ -5,7 +5,7 @@ import { Card, CardHeader, CardBody, Button, Drawer, DrawerContent, DrawerHeader
 import { ArrowLeft, FolderPlus, ListPlus, FileDown, Coins, Link2, Smartphone, Globe, Bell, Sparkles, Info, ArrowUpCircle, XCircle, ClipboardCheck, Clock, UserPlus, ChevronDown, FileQuestion, ExternalLink, Waypoints, BellRing, ArrowRight } from "lucide-react";
 import { Shell } from "@/components/Shell";
 import { Pill, Initials, SectionLabel } from "@/components/bits";
-import { alerts, sevMeta, toneVar, RC_STATES, GATE_STATES, INVESTIGATION_STATES, type Tone } from "@/lib/data";
+import { alerts, sevMeta, toneVar, urgencyColor, RC_STATES, GATE_STATES, INVESTIGATION_STATES, type Tone } from "@/lib/data";
 import { RingBasis } from "@/components/RingBasis";
 import { Timeline } from "@/components/Timeline";
 import { ringOf, caseRefFor, clusterCount, clusterChildren, DIM_META, DIM_ORDER, confTone, confLabel, RING_FIELDS, RING_STATES, DISP_STATE, ringActions, slaOfRing, type RingDim, type Ring, type RingEdge, type RingStateKey } from "@/lib/rings";
@@ -18,7 +18,7 @@ const ME = { i: "JL", n: "James Liu", c: "var(--brand)" };
 
 const DIM_ICON: Record<RingDim, typeof Coins> = { funds: Coins, address: Link2, device: Smartphone, ip: Globe };
 const THRESHOLD = 60;
-const toneCol = (t: string) => (t === "red" ? "var(--danger)" : t === "amber" ? "var(--warning)" : "var(--text-2)");
+const toneCol = (t: string) => urgencyColor(t, "var(--text-2)"); // 见 lib/data
 
 // deterministic layered layout for larger rings (a single circle tangles, and a
 // force sim overlaps nodes/labels). We BFS from the highest-degree node (the hub)

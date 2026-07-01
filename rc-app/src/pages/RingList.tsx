@@ -9,13 +9,14 @@ import { RingBasis } from "@/components/RingBasis";
 import { NewRingDrawer } from "@/components/NewRingDrawer";
 import { rings, DIM_META, DIM_ORDER, confTone, confLabel, RING_STATES, RING_TILES, matchRingTile, ringActions, slaOfRing, attentionScore, type RingStateKey, type Ring } from "@/lib/rings";
 import { ringStore, useRingVersion } from "@/lib/store";
+import { urgencyColor } from "@/lib/data";
 
 const ME = { i: "JL", n: "James Liu", c: "var(--brand)" };
 
 // compact weighted-confidence bar
 function ConfBar({ value }: { value: number }) {
   const tone = confTone(value);
-  const col = tone === "red" ? "var(--danger)" : tone === "amber" ? "var(--warning)" : "var(--text-2)";
+  const col = urgencyColor(tone, "var(--text-2)");
   return (
     <div className="flex items-center gap-2.5">
       <div className="h-1.5 w-16 overflow-hidden rounded-full bg-default-100">
@@ -76,7 +77,7 @@ export default function RingList() {
       </div>
 
       <Table aria-label="关联团伙" radius="lg"
-        classNames={{ wrapper: "card no-scrollbar p-0 rounded-2xl overflow-x-auto", th: "bg-default-50 text-default-500 text-[12px] font-medium h-12 border-b border-divider whitespace-nowrap", td: "py-5 text-[13px] whitespace-nowrap", tr: "border-b border-default-100 last:border-0 transition-colors hover:bg-default-50 cursor-pointer" }}>
+        classNames={{ wrapper: "card no-scrollbar p-0 rounded-2xl overflow-x-auto", th: "bg-default-50 text-default-500 text-[12px] font-medium h-12 border-b border-divider whitespace-nowrap", td: "py-5 text-[13px] whitespace-nowrap", tr: "border-b border-default-100 last:border-0 transition-colors hover:bg-default-50" }}>
         <TableHeader>
           <TableColumn>团伙 / 名称</TableColumn><TableColumn>洗钱手法</TableColumn><TableColumn>置信度</TableColumn>
           <TableColumn>共享维度</TableColumn><TableColumn>成员</TableColumn><TableColumn>涉及金额</TableColumn>
@@ -87,8 +88,8 @@ export default function RingList() {
             const sd = RING_STATES[st];
             const owner = ringStore.ownerOf(r.id, r.owner);
             return (
-              <TableRow key={r.id} onClick={() => nav(`/ring?id=${r.id}`)}>
-                <TableCell><div className="font-semibold">{r.name}</div><div className="text-[11px] text-default-400">{r.id}</div></TableCell>
+              <TableRow key={r.id}>
+                <TableCell><button onClick={() => nav(`/ring?id=${r.id}`)} className="text-left"><div className="font-semibold">{r.name}</div><div className="text-[11px] text-default-400">{r.id}</div></button></TableCell>
                 <TableCell><Pill tone="grey" dot={false}>{r.typology}</Pill></TableCell>
                 <TableCell><div className="flex items-center gap-2"><ConfBar value={r.confidence} /><span className="rounded-full bg-default-100 px-1.5 py-px text-[10.5px] font-semibold text-default-500">{confLabel(r.confidence)}</span></div></TableCell>
                 <TableCell>
@@ -110,12 +111,12 @@ export default function RingList() {
                 <TableCell><span className="text-default-600 tnum">{r.alertCount} 条</span></TableCell>
                 <TableCell><Pill tone={sd.tone}>{sd.label}{ringStore.caseRefOf(r.id, r.caseRef) ? ` · ${ringStore.caseRefOf(r.id, r.caseRef)}` : ""}</Pill></TableCell>
                 <TableCell>{owner ? <span className="inline-flex items-center gap-1.5"><Initials p={owner} size={22} />{owner.n}</span> : <span className="inline-flex items-center gap-1.5 text-default-400"><UserRound className="h-3.5 w-3.5" />未分配</span>}</TableCell>
-                <TableCell>{sla ? <span className="inline-flex items-center gap-1" style={{ color: sla.tone === "red" ? "var(--danger)" : sla.tone === "amber" ? "var(--warning)" : "var(--text-3)" }}><Clock className="h-3.5 w-3.5" />{sla.text}</span> : <span className="text-default-300">无时限</span>}</TableCell>
+                <TableCell>{sla ? <span className="inline-flex items-center gap-1" style={{ color: urgencyColor(sla.tone) }}><Clock className="h-3.5 w-3.5" />{sla.text}</span> : <span className="text-default-300">无时限</span>}</TableCell>
                 <TableCell>
                   <div className="flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
-                    {st === "pending" && <Tooltip content="认领 · 转调查中" size="sm" delay={300}><Button isIconOnly size="sm" radius="full" variant="flat" className="bg-default-100" onPress={() => claim(r)}><UserPlus className="h-4 w-4 text-default-500" strokeWidth={1.9} /></Button></Tooltip>}
-                    <Tooltip content="查看图谱" size="sm" delay={300}><Button isIconOnly size="sm" radius="full" variant="flat" className="bg-default-100" onPress={() => nav(`/ring?id=${r.id}`)}><Eye className="h-4 w-4 text-default-500" strokeWidth={1.9} /></Button></Tooltip>
-                    {ringActions(st).includes("case") && <Tooltip content="并入案件 · 填写处置" size="sm" delay={300}><Button isIconOnly size="sm" radius="full" variant="flat" className="bg-primary/10 text-primary" onPress={() => nav(`/ring?id=${r.id}&action=case`)}><FolderPlus className="h-4 w-4" strokeWidth={1.9} /></Button></Tooltip>}
+                    {st === "pending" && <Tooltip content="认领 · 转调查中" size="sm" delay={300}><Button isIconOnly aria-label="认领 · 转调查中" size="sm" radius="full" variant="flat" className="bg-default-100" onPress={() => claim(r)}><UserPlus className="h-4 w-4 text-default-500" strokeWidth={1.9} /></Button></Tooltip>}
+                    <Tooltip content="查看图谱" size="sm" delay={300}><Button isIconOnly aria-label="查看图谱" size="sm" radius="full" variant="flat" className="bg-default-100" onPress={() => nav(`/ring?id=${r.id}`)}><Eye className="h-4 w-4 text-default-500" strokeWidth={1.9} /></Button></Tooltip>
+                    {ringActions(st).includes("case") && <Tooltip content="并入案件 · 填写处置" size="sm" delay={300}><Button isIconOnly aria-label="并入案件 · 填写处置" size="sm" radius="full" variant="flat" className="bg-primary/10 text-primary" onPress={() => nav(`/ring?id=${r.id}&action=case`)}><FolderPlus className="h-4 w-4" strokeWidth={1.9} /></Button></Tooltip>}
                   </div>
                 </TableCell>
               </TableRow>

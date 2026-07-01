@@ -174,13 +174,13 @@ export default function AlertList() {
                 <TableCell>
                   <div className="flex items-center justify-end gap-2">
                     <Tooltip content="查看详情" size="sm" delay={300}>
-                      <Button isIconOnly size="sm" radius="full" variant="flat" className="bg-default-100" onPress={() => nav(`/alert?id=${a.id}`)}><Eye className="h-4 w-4 text-default-500" strokeWidth={1.9} /></Button>
+                      <Button isIconOnly aria-label="查看告警详情" size="sm" radius="full" variant="flat" className="bg-default-100" onPress={() => nav(`/alert?id=${a.id}`)}><Eye className="h-4 w-4 text-default-500" strokeWidth={1.9} /></Button>
                     </Tooltip>
                     <Tooltip content="审核研判" size="sm" delay={300}>
-                      <Button isIconOnly size="sm" radius="full" variant="flat" className="bg-default-100" isDisabled={!sd.active} onPress={() => openReview(a.id)}><Pencil className="h-4 w-4 text-default-500" strokeWidth={1.9} /></Button>
+                      <Button isIconOnly aria-label="审核告警" size="sm" radius="full" variant="flat" className="bg-default-100" isDisabled={!sd.active} onPress={() => openReview(a.id)}><Pencil className="h-4 w-4 text-default-500" strokeWidth={1.9} /></Button>
                     </Tooltip>
                     <Tooltip content="忽略 · 标记误报" size="sm" delay={300}>
-                      <Button isIconOnly size="sm" radius="full" variant="flat" className="bg-danger/10 text-danger" isDisabled={!sd.active} onPress={() => dismiss(a.id)}><Trash2 className="h-4 w-4" strokeWidth={1.9} /></Button>
+                      <Button isIconOnly aria-label="驳回误报" size="sm" radius="full" variant="flat" className="bg-danger/10 text-danger" isDisabled={!sd.active} onPress={() => dismiss(a.id)}><Trash2 className="h-4 w-4" strokeWidth={1.9} /></Button>
                     </Tooltip>
                   </div>
                 </TableCell>

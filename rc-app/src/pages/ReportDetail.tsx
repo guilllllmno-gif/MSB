@@ -9,7 +9,7 @@ import { ReportDrawer } from "@/components/ReportDrawer";
 import { RTYPE, RSTATE, RSTEPS, reportStep, reportDetail, type Report, type RType, type RState, type StrDoc, type KV } from "@/lib/reports";
 import { findReport, liveStatus } from "@/lib/reportsAll";
 import { reportStore, useReportVersion, useCaseVersion } from "@/lib/store";
-import { toneVar, type Person, type Tone } from "@/lib/data";
+import { toneVar, urgencyColor, TONE, type Person, type Tone } from "@/lib/data";
 
 const SC: Person = { i: "SC", n: "Sarah Chen", c: "var(--violet)" };
 const DW: Person = { i: "DW", n: "David Wu", c: "#0ea5e9" };
@@ -134,7 +134,7 @@ export default function ReportDetail() {
             <Pill tone={sd.tone}>{sd.label}</Pill>
           </div>
           <div className="ml-auto flex items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-[12.5px] font-semibold" style={{ borderColor: r.due.tone === "red" ? "var(--danger-bd)" : "var(--warning-bd)", background: r.due.tone === "red" ? "var(--danger-bg)" : "var(--warning-bg)", color: r.due.tone === "red" ? "var(--danger)" : "var(--warning)" }}><Clock className="h-3.5 w-3.5" />报送时限 {r.due.text}</span>
+            <span className="inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-[12.5px] font-semibold" style={{ background: TONE[r.due.tone][0], color: TONE[r.due.tone][1], borderColor: TONE[r.due.tone][2] }}><Clock className="h-3.5 w-3.5" />报送时限 {r.due.text}</span>
             <Button variant="bordered" startContent={<Eye className="h-4 w-4" />} onPress={() => toast.success(`已导出 ${r.type} 报文 (JSON)`)}>预览报文</Button>
             {sd.active && <Button color={r.type === "LVCTR" ? "primary" : "secondary"} className={r.type === "STR" ? "bg-[var(--violet)] text-white" : ""} startContent={<PrimaryIcon className="h-4 w-4" />} onPress={() => setOpen(true)}>{primaryLabel}</Button>}
           </div>
@@ -239,7 +239,7 @@ export default function ReportDetail() {
                 <InfoRow k="签发人">{mlro ? <span className="inline-flex items-center gap-1.5"><Initials p={mlro} size={20} />{mlro.n} · MLRO</span> : <span className="text-default-400">待签发</span>}</InfoRow>
               </>
             )}
-            <InfoRow k="法定时限"><span style={{ color: r.due.tone === "red" ? "var(--danger)" : r.due.tone === "amber" ? "var(--warning)" : undefined }}>{ty.deadline.includes("30") ? "30 日内" : ty.deadline} · {r.due.text}</span></InfoRow>
+            <InfoRow k="法定时限"><span style={{ color: r.due.tone === "red" || r.due.tone === "amber" ? urgencyColor(r.due.tone) : undefined }}>{ty.deadline.includes("30") ? "30 日内" : ty.deadline} · {r.due.text}</span></InfoRow>
             {ref && <InfoRow k="FINTRAC 回执"><span className="text-success">{ref}</span></InfoRow>}
           </Card>
 

@@ -129,7 +129,7 @@ export default function RulesPage() {
                 <TableCell>{owner ? <span className="inline-flex items-center gap-1.5"><Initials p={owner} size={22} />{owner.n}</span> : "—"}</TableCell>
                 <TableCell>
                   <div className="flex items-center justify-end gap-1.5">
-                    <Tooltip content="查看 / 管理" size="sm" delay={300}><Button isIconOnly size="sm" radius="full" variant="flat" className="bg-default-100" onPress={() => manage(r)}><Eye className="h-4 w-4 text-default-500" strokeWidth={1.9} /></Button></Tooltip>
+                    <Tooltip content="查看 / 管理" size="sm" delay={300}><Button isIconOnly aria-label="查看 / 管理" size="sm" radius="full" variant="flat" className="bg-default-100" onPress={() => manage(r)}><Eye className="h-4 w-4 text-default-500" strokeWidth={1.9} /></Button></Tooltip>
                     <Tooltip content="变更治理" size="sm" delay={300}><Button size="sm" radius="full" color="primary" variant="flat" startContent={<Settings2 className="h-3.5 w-3.5" />} onPress={() => manage(r)}>管理</Button></Tooltip>
                   </div>
                 </TableCell>

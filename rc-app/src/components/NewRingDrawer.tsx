@@ -5,8 +5,9 @@ import { Info } from "lucide-react";
 import { Initials, SectionLabel } from "./bits";
 import { RING_TYPOLOGIES, RING_CANDIDATES, DIM_META, DIM_ORDER, buildRing, confTone, confLabel, type RingDim } from "@/lib/rings";
 import { ringStore } from "@/lib/store";
+import { urgencyColor } from "@/lib/data";
 
-const toneCol = (t: string) => (t === "red" ? "var(--danger)" : t === "amber" ? "var(--warning)" : "var(--text-2)");
+const toneCol = (t: string) => urgencyColor(t, "var(--text-2)"); // 见 lib/data
 
 export function NewRingDrawer({ open, onOpenChange, onCreated }: { open: boolean; onOpenChange: (o: boolean) => void; onCreated?: (id: string) => void }) {
   const [name, setName] = useState("");

@@ -8,10 +8,10 @@ import { Pill, KvRow, SectionLabel } from "@/components/bits";
 import { Timeline } from "@/components/Timeline";
 import { LISTS, LCAT, LSTATE, LFLOW, entryOf, detailOf, type ListEntry, type LStatus } from "@/lib/lists";
 import { listStore, useListVersion } from "@/lib/store";
-import type { Person, Tone } from "@/lib/data";
+import { toneColor, type Person, type Tone } from "@/lib/data";
 
 const ME: Person = { i: "JL", n: "James Liu", c: "var(--brand)" };
-const tc = (t: Tone) => (t === "red" ? "var(--danger)" : t === "amber" ? "var(--warning)" : t === "green" ? "var(--success)" : t === "violet" ? "var(--violet)" : t === "blue" ? "var(--brand)" : "var(--text-3)");
+const tc = toneColor; // 见 lib/data toneColor(单一来源)
 
 function resolve(id: string | null): ListEntry {
   const created = listStore.created().find((e) => e.id === id);

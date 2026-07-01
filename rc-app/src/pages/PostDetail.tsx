@@ -9,10 +9,11 @@ import { FindingReviewDialog } from "@/components/FindingReviewDialog";
 import { TraceDrawer } from "@/components/TraceDrawer";
 import { findingOf, detailOf, FINDINGS, FSTATES, FDIM, dimSubjType, type FState } from "@/lib/findings";
 import { findingStore, caseStore, useFindingVersion } from "@/lib/store";
+import { toneColor } from "@/lib/data";
 import type { Case } from "@/lib/cases";
 
 const ME = { i: "JL", n: "James Liu", c: "var(--brand)" };
-const tc = (t: string) => (t === "red" ? "var(--danger)" : t === "amber" ? "var(--warning)" : t === "green" ? "var(--success)" : t === "violet" ? "var(--violet)" : t === "blue" ? "var(--brand)" : "var(--text-3)");
+const tc = toneColor; // 见 lib/data toneColor(单一来源)
 const tbg = (t: string) => (t === "red" ? "var(--danger-bg)" : t === "amber" ? "var(--warning-bg)" : t === "green" ? "var(--success-bg)" : t === "violet" ? "var(--violet-bg)" : t === "blue" ? "var(--brand-soft)" : "var(--chip-bg)");
 // 资金路径节点角色 → 图标
 const ROLE_ICON: Record<string, typeof Coins> = { 来源: ArrowDownToLine, 归集: GitMerge, 中转: ArrowLeftRight, 混淆: Shuffle, 跨链: Waypoints, 出口: ArrowUpRight, 失联: CircleOff };

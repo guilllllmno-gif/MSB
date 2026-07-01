@@ -12,7 +12,7 @@ import { LineChart, AnalystLoad } from "@/components/charts";
 import { AnalystQueueDrawer } from "@/components/AnalystQueueDrawer";
 import { queueHealth, DAYS14, QUEUE, type Analyst } from "@/lib/opsMetrics";
 import { rings, RING_STATES, confTone, slaOfRing, type RingStateKey } from "@/lib/rings";
-import { alerts, INVESTIGATION_STATES } from "@/lib/data";
+import { alerts, INVESTIGATION_STATES, urgencyColor } from "@/lib/data";
 import { CASES, CSTATE, type CState } from "@/lib/cases";
 import { RSTATE } from "@/lib/reports";
 import { allReports, liveStatus } from "@/lib/reportsAll";
@@ -481,7 +481,7 @@ export default function Dashboard() {
             <tbody>
               {LINES.map((l) => (
                 <tr key={l.en} className="cursor-pointer border-b border-default-100 transition-colors last:border-0 hover:bg-default-50" onClick={() => nav(l.to)}>
-                  <td className="py-2.5"><span className="inline-flex items-center gap-2 font-semibold whitespace-nowrap"><span className="h-1.5 w-1.5 rounded-full" style={{ background: l.risk === "red" ? "var(--danger)" : l.risk === "amber" ? "var(--warning)" : "var(--success)" }} />{l.name}</span></td>
+                  <td className="py-2.5"><span className="inline-flex items-center gap-2 font-semibold whitespace-nowrap"><span className="h-1.5 w-1.5 rounded-full" style={{ background: urgencyColor(l.risk, "var(--success)") }} />{l.name}</span></td>
                   <td className="py-2.5 text-default-500 whitespace-nowrap">{l.flow}</td>
                   <td className="py-2.5 text-right tnum text-default-600">{l.vol.toLocaleString()}</td>
                   <td className="py-2.5 text-right tnum font-semibold">{l.amt}</td>
@@ -576,7 +576,7 @@ export default function Dashboard() {
       {/* 告警队列健康度 — 一行摘要(完整图表见运营总览 /ops) */}
       {(() => {
         const h = queueHealth();
-        const toneC = (t: string) => (t === "red" ? "var(--danger)" : t === "amber" ? "var(--warning)" : "var(--success)");
+        const toneC = (t: string) => urgencyColor(t, "var(--success)"); // 见 lib/data
         const slaTone = h.sla >= 95 ? "green" : h.sla >= 90 ? "amber" : "red";
         const cells = [
           { k: "待处理积压", v: `${h.open}`, sub: `今日净 ${h.net > 0 ? "−" : "+"}${Math.abs(h.net)} · ${h.net > 0 ? "队列在消" : "队列在涨"}`, subTone: h.net > 0 ? "green" : "red" },
@@ -698,7 +698,7 @@ export default function Dashboard() {
                     <div className="truncate text-[12.5px] font-semibold">{r.name}</div>
                     <div className="text-[11px] text-default-400">{r.id} · {r.members.length} 主体 · {r.typology}</div>
                   </div>
-                  <span className="tnum shrink-0 text-[12.5px] font-bold" style={{ color: ct === "red" ? "var(--danger)" : ct === "amber" ? "var(--warning)" : "var(--text-2)" }}>{r.confidence}%</span>
+                  <span className="tnum shrink-0 text-[12.5px] font-bold" style={{ color: urgencyColor(ct, "var(--text-2)") }}>{r.confidence}%</span>
                   <span className="shrink-0 rounded-md bg-default-100 px-1.5 py-0.5 text-[10.5px] font-semibold text-default-500">{RING_STATES[st].label}</span>
                 </button>
               );
@@ -720,7 +720,7 @@ export default function Dashboard() {
           <div className="mt-3 flex flex-col gap-2">
             {EXSIGNALS.map((s) => (
               <div key={s.name} className="flex items-center gap-3 rounded-xl border border-divider p-3">
-                <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: s.tone === "red" ? "var(--danger)" : s.tone === "amber" ? "var(--warning)" : "var(--text-3)" }} />
+                <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: urgencyColor(s.tone) }} />
                 <div className="min-w-0 flex-1">
                   <div className="text-[13px] font-semibold">{s.name}</div>
                   <div className="mt-0.5 truncate text-[11px] text-default-400">{s.desc}</div>

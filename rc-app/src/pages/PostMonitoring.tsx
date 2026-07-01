@@ -8,7 +8,7 @@ import { Pill, Initials } from "@/components/bits";
 import { FindingReviewDialog } from "@/components/FindingReviewDialog";
 import { FINDINGS, FSTATES, FDIM, BATCHES, type Finding, type FState } from "@/lib/findings";
 import { findingStore, useFindingVersion } from "@/lib/store";
-import type { Person } from "@/lib/data";
+import { urgencyColor, type Person } from "@/lib/data";
 
 const ME: Person = { i: "JL", n: "James Liu", c: "var(--brand)" };
 
@@ -109,10 +109,10 @@ export default function PostMonitoring() {
                   </div>
                 </TableCell>
                 <TableCell>{owner ? <span className="inline-flex items-center gap-1.5"><Initials p={owner} size={22} />{owner.n}</span> : <span className="inline-flex items-center gap-1.5 text-default-400"><UserRound className="h-3.5 w-3.5" />未分配</span>}</TableCell>
-                <TableCell><span className="inline-flex items-center gap-1" style={{ color: f.sla.tone === "red" ? "var(--danger)" : f.sla.tone === "amber" ? "var(--warning)" : "var(--text-3)" }}><Clock className="h-3.5 w-3.5" />{f.sla.text}</span></TableCell>
+                <TableCell><span className="inline-flex items-center gap-1" style={{ color: urgencyColor(f.sla.tone) }}><Clock className="h-3.5 w-3.5" />{f.sla.text}</span></TableCell>
                 <TableCell>
                   <div className="flex items-center justify-end gap-1.5">
-                    <Tooltip content="查看详情工作台" size="sm" delay={300}><Button isIconOnly size="sm" radius="full" variant="flat" className="bg-default-100" onPress={() => nav(`/finding?id=${f.id}`)}><Eye className="h-4 w-4 text-default-500" strokeWidth={1.9} /></Button></Tooltip>
+                    <Tooltip content="查看详情工作台" size="sm" delay={300}><Button isIconOnly aria-label="查看详情工作台" size="sm" radius="full" variant="flat" className="bg-default-100" onPress={() => nav(`/finding?id=${f.id}`)}><Eye className="h-4 w-4 text-default-500" strokeWidth={1.9} /></Button></Tooltip>
                     {st === "new"
                       ? <Tooltip content="认领 · 开始回溯" size="sm" delay={300}><Button size="sm" radius="full" color="primary" variant="flat" startContent={<UserPlus className="h-3.5 w-3.5" />} onPress={() => claim(f)}>认领</Button></Tooltip>
                       : FSTATES[st].active

@@ -4,8 +4,9 @@ import { Drawer, DrawerContent, DrawerHeader, DrawerBody, Button, Dropdown, Drop
 import { AlertTriangle, FolderOpen, SendHorizontal, UserPlus, Check } from "lucide-react";
 import { Initials, SectionLabel } from "./bits";
 import { analystQueue, spareAnalysts, type Analyst, type QItem } from "@/lib/opsMetrics";
+import { urgencyColor } from "@/lib/data";
 
-const toneC = (t: string) => (t === "red" ? "var(--danger)" : t === "amber" ? "var(--warning)" : "var(--success)");
+const toneC = (t: string) => urgencyColor(t, "var(--success)"); // 见 lib/data
 const KIND_ICON = { 告警: AlertTriangle, 案件: FolderOpen, 报送: SendHorizontal };
 
 // 总管下钻:点开某分析师 → 看他手头具体背着什么 → 把超载的件改派给有余力的人(演示态本地状态)

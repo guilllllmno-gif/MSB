@@ -8,6 +8,7 @@ import { NewReportDrawer } from "@/components/NewReportDrawer";
 import { RTYPE, RSTATE, type Report } from "@/lib/reports";
 import { allReports, liveStatus } from "@/lib/reportsAll";
 import { reportStore, useReportVersion, useCaseVersion } from "@/lib/store";
+import { urgencyColor } from "@/lib/data";
 
 const TILES: { f: string; label: string }[] = [
   { f: "all", label: "全部" },
@@ -138,10 +139,10 @@ export default function ReportFiling() {
                   </div>
                 </TableCell>
                 <TableCell>{mlro ? <span className="inline-flex items-center gap-1.5"><Initials p={mlro} size={22} />{mlro.n}</span> : <span className="inline-flex items-center gap-1.5 text-default-400"><UserRound className="h-3.5 w-3.5" />待指派</span>}</TableCell>
-                <TableCell><span className="inline-flex items-center gap-1" style={{ color: r.due.tone === "red" ? "var(--danger)" : r.due.tone === "amber" ? "var(--warning)" : "var(--text-3)" }}><Clock className="h-3.5 w-3.5" />{r.due.text}</span></TableCell>
+                <TableCell><span className="inline-flex items-center gap-1" style={{ color: urgencyColor(r.due.tone) }}><Clock className="h-3.5 w-3.5" />{r.due.text}</span></TableCell>
                 <TableCell>
                   <div className="flex items-center justify-end gap-1.5">
-                    <Tooltip content="查看详情" size="sm" delay={300}><Button isIconOnly size="sm" radius="full" variant="flat" className="bg-default-100" onPress={() => review(r)}><Eye className="h-4 w-4 text-default-500" strokeWidth={1.9} /></Button></Tooltip>
+                    <Tooltip content="查看详情" size="sm" delay={300}><Button isIconOnly aria-label="查看详情" size="sm" radius="full" variant="flat" className="bg-default-100" onPress={() => review(r)}><Eye className="h-4 w-4 text-default-500" strokeWidth={1.9} /></Button></Tooltip>
                     {active && <Tooltip content="进详情复核 / 报送" size="sm" delay={300}><Button size="sm" radius="full" color="primary" variant="flat" endContent={<ArrowRight className="h-3.5 w-3.5" />} onPress={() => review(r)}>复核</Button></Tooltip>}
                   </div>
                 </TableCell>

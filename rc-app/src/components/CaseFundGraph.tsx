@@ -1,10 +1,10 @@
 import { GKIND, type CaseGraph, type GNodeKind } from "@/lib/cases";
-import type { Tone } from "@/lib/data";
+import { toneColor, type Tone } from "@/lib/data";
 import { Shuffle, UserRound, GitMerge, Landmark, ArrowUpRight, Check, Coins } from "lucide-react";
 
 // 节点图标 —— 与全站 lucide 图标语言一致(替代 emoji),与事后监控资金路径同源
 const ICON: Record<GNodeKind, typeof Coins> = { mixer: Shuffle, mule: UserRound, hub: GitMerge, platform: Landmark, exit: ArrowUpRight, normal: Check };
-const tc = (t: Tone) => (t === "red" ? "var(--danger)" : t === "amber" ? "var(--warning)" : t === "green" ? "var(--success)" : t === "violet" ? "var(--violet)" : t === "blue" ? "var(--brand)" : "var(--text-3)");
+const tc = toneColor; // 见 lib/data toneColor(单一来源)
 const tbg = (t: Tone) => (t === "red" ? "var(--danger-bg)" : t === "amber" ? "var(--warning-bg)" : t === "green" ? "var(--success-bg)" : t === "blue" ? "var(--brand-soft)" : "var(--chip-bg)");
 
 const W = 980, H = 468, PADX = 76, TOP = 78, BOT = H - 46, R = 19;

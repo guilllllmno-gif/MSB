@@ -127,7 +127,7 @@ export default function ListsPage() {
                 <TableCell><span className={`text-[12px] ${e.expiry === "长期有效" ? "text-default-500" : "tnum text-default-600"}`}>{e.expiry || "—"}</span></TableCell>
                 <TableCell>
                   <div className="flex items-center justify-end gap-1.5">
-                    <Tooltip content="查看 / 管理" size="sm" delay={300}><Button isIconOnly size="sm" radius="full" variant="flat" className="bg-default-100" onPress={() => open(e)}><Eye className="h-4 w-4 text-default-500" strokeWidth={1.9} /></Button></Tooltip>
+                    <Tooltip content="查看 / 管理" size="sm" delay={300}><Button isIconOnly aria-label="查看 / 管理" size="sm" radius="full" variant="flat" className="bg-default-100" onPress={() => open(e)}><Eye className="h-4 w-4 text-default-500" strokeWidth={1.9} /></Button></Tooltip>
                     {quick && <Tooltip content={st === "pending" ? "复核生效" : "状态管理"} size="sm" delay={300}><Button size="sm" radius="full" color="primary" variant="flat" startContent={<ShieldCheck className="h-3.5 w-3.5" />} onPress={() => open(e)}>{st === "pending" ? "复核" : "管理"}</Button></Tooltip>}
                   </div>
                 </TableCell>

@@ -12,6 +12,19 @@ export const TONE: Record<Tone, [string, string, string]> = {
 };
 export const toneVar = (t: Tone) => TONE[t][1];
 
+// tone → 前景色(完整映射,每个 tone 落自己的语义色;grey / 未知落静默灰 --text-3)。
+// 取代散落各页的本地 `tc()` 副本(语义完全一致)。入参用 string 以兼容非 Tone 的取值。
+export const toneColor = (t: string): string =>
+  t === "red" ? "var(--danger)" : t === "amber" ? "var(--warning)" :
+  t === "green" ? "var(--success)" : t === "violet" ? "var(--violet)" :
+  t === "blue" ? "var(--brand)" : "var(--text-3)";
+
+// 紧迫度前景色:只有 red / amber 上色,其余(正常态)落 `fallback`。
+// fallback 显式传参 —— 各处"正常态"用的静默色本就不同(--text-3 / --text-2 / --success / --brand),
+// 保留其语义、不强行统一,只消除重复的三元副本。
+export const urgencyColor = (t: string, fallback = "var(--text-3)"): string =>
+  t === "red" ? "var(--danger)" : t === "amber" ? "var(--warning)" : fallback;
+
 export interface Person { i: string; n: string; c: string }
 export interface Rule { name: string; cat: string; cond: string; hit: string; weight: string }
 export interface Factor { emoji: string; bg: string; fg: string; title: string; desc: string }

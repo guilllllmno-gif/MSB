@@ -11,11 +11,11 @@ import { RuleBacktestDrawer } from "@/components/RuleBacktestDrawer";
 import { RULES, RUSTATE, CAT_ICON, VENUE, venueOf, bfrMeta, bfrDefault, condText, groupsText, audienceText, rolloutBadges, seedVersions, ruleFieldDiffs, type Rule, type RuState, type RuleVersion } from "@/lib/rules";
 import { FINDINGS } from "@/lib/findings";
 import { findingStore, ruleStore, useRuleVersion, useFindingVersion } from "@/lib/store";
-import type { Person } from "@/lib/data";
+import { toneColor, type Person } from "@/lib/data";
 
 const ME: Person = { i: "JL", n: "James Liu", c: "var(--brand)" };
 const HEAD: Person = { i: "EZ", n: "Emma Zhang", c: "var(--violet)" }; // 风控总管 · 审批人
-const tc = (t: string) => (t === "red" ? "var(--danger)" : t === "amber" ? "var(--warning)" : t === "green" ? "var(--success)" : t === "violet" ? "var(--violet)" : t === "blue" ? "var(--brand)" : "var(--text-3)");
+const tc = toneColor; // 见 lib/data toneColor(单一来源)
 
 // 解析 id → 规则(内置 / 新建 / 回填派生)
 function resolve(id: string | null): Rule {
@@ -162,7 +162,7 @@ export default function RuleDetail() {
             <Button size="sm" color="primary" startContent={<Pencil className="h-4 w-4" />} onPress={() => setEditOpen(true)}>{governed ? "提议变更" : "编辑规则"}</Button>
           )}
           <Dropdown placement="bottom-end">
-            <DropdownTrigger><Button isIconOnly size="sm" variant="flat" className="bg-default-100"><MoreHorizontal className="h-4 w-4" /></Button></DropdownTrigger>
+            <DropdownTrigger><Button isIconOnly aria-label="更多操作" size="sm" variant="flat" className="bg-default-100"><MoreHorizontal className="h-4 w-4" /></Button></DropdownTrigger>
             <DropdownMenu aria-label="规则操作" onAction={(k) => { if (k === "disable") toggle(); else if (k === "backtest") setBtOpen(true); else if (k === "copy") doCopy(); else if (k === "delete") setDelOpen(true); }}>
               <DropdownItem key="backtest" startContent={<FlaskConical className="h-4 w-4" />}>回测模拟</DropdownItem>
               <DropdownItem key="copy" startContent={<Copy className="h-4 w-4" />}>复制规则</DropdownItem>

@@ -151,7 +151,7 @@ export default function Dispositions() {
                 <TableCell><span className="text-default-500 tnum">{r.time}</span></TableCell>
                 <TableCell>
                   <div className="flex items-center justify-end">
-                    <Button isIconOnly size="sm" radius="full" variant="flat" className="bg-default-100" onPress={() => view(r)}><Eye className="h-4 w-4 text-default-500" strokeWidth={1.9} /></Button>
+                    <Button isIconOnly aria-label="查看处置详情" size="sm" radius="full" variant="flat" className="bg-default-100" onPress={() => view(r)}><Eye className="h-4 w-4 text-default-500" strokeWidth={1.9} /></Button>
                   </div>
                 </TableCell>
               </TableRow>

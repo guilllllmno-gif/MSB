@@ -7,6 +7,7 @@ import { Pill, Initials } from "@/components/bits";
 import { NewCaseDrawer } from "@/components/NewCaseDrawer";
 import { CASES, CSTATE, strLabel, RISK_TYPES, type Case, type CState } from "@/lib/cases";
 import { caseStore, useCaseVersion } from "@/lib/store";
+import { urgencyColor } from "@/lib/data";
 
 const ME = { i: "JL", n: "James Liu", c: "var(--brand)" };
 const TILES: { f: string; label: string }[] = [
@@ -99,10 +100,10 @@ export default function CaseList() {
                 <TableCell>{str.link ? <button onClick={() => nav("/reports")} className="inline-flex items-center gap-1 text-[12.5px] font-medium hover:opacity-80" style={{ color: str.tone === "green" ? "var(--success)" : str.tone === "amber" ? "var(--warning)" : "var(--brand)" }}>{str.text}<ExternalLink className="h-3 w-3" /></button> : <span className="text-[12.5px] text-default-400">{str.text}</span>}</TableCell>
                 <TableCell><Pill tone={CSTATE[st].tone}>{CSTATE[st].label}</Pill></TableCell>
                 <TableCell>{owner ? <span className="inline-flex items-center gap-1.5"><Initials p={owner} size={22} />{owner.n}</span> : <span className="inline-flex items-center gap-1.5 text-default-400"><UserRound className="h-3.5 w-3.5" />未分配</span>}</TableCell>
-                <TableCell><span className="inline-flex items-center gap-1" style={{ color: c.sla.tone === "red" ? "var(--danger)" : c.sla.tone === "amber" ? "var(--warning)" : "var(--text-3)" }}><Clock className="h-3.5 w-3.5" />{c.sla.text}</span></TableCell>
+                <TableCell><span className="inline-flex items-center gap-1" style={{ color: urgencyColor(c.sla.tone) }}><Clock className="h-3.5 w-3.5" />{c.sla.text}</span></TableCell>
                 <TableCell>
                   <div className="flex items-center justify-end gap-1.5">
-                    <Tooltip content="查看 / 推进" size="sm" delay={300}><Button isIconOnly size="sm" radius="full" variant="flat" className="bg-default-100" onPress={() => review(c)}><Eye className="h-4 w-4 text-default-500" strokeWidth={1.9} /></Button></Tooltip>
+                    <Tooltip content="查看 / 推进" size="sm" delay={300}><Button isIconOnly aria-label="查看 / 推进" size="sm" radius="full" variant="flat" className="bg-default-100" onPress={() => review(c)}><Eye className="h-4 w-4 text-default-500" strokeWidth={1.9} /></Button></Tooltip>
                     {active && (!owner
                       ? <Tooltip content="认领案件" size="sm" delay={300}><Button size="sm" radius="full" color="primary" variant="flat" startContent={<UserPlus className="h-3.5 w-3.5" />} onPress={() => { caseStore.set(c.id, st, { owner: ME, event: "认领案件 · 开始调查" }); }}>认领</Button></Tooltip>
                       : <Tooltip content="研判推进" size="sm" delay={300}><Button size="sm" radius="full" color="primary" variant="flat" startContent={<ClipboardCheck className="h-3.5 w-3.5" />} onPress={() => review(c)}>审核</Button></Tooltip>

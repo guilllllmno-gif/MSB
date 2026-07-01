@@ -5,10 +5,10 @@ import { Clock, ClipboardCheck, Eye } from "lucide-react";
 import { Shell, PageHead } from "@/components/Shell";
 import { Pill } from "@/components/bits";
 import { ReviewDialog } from "@/components/ReviewDialog";
-import { alerts, RC_STATES, GATE_STATES, type Alert } from "@/lib/data";
+import { alerts, RC_STATES, GATE_STATES, urgencyColor, type Alert } from "@/lib/data";
 import { alertStore, useAlertVersion } from "@/lib/store";
 
-const toneCss = (t: string) => (t === "green" ? "var(--success)" : t === "red" ? "var(--danger)" : t === "amber" ? "var(--warning)" : "var(--brand)");
+const toneCss = (t: string) => (t === "green" ? "var(--success)" : urgencyColor(t, "var(--brand)")); // 见 lib/data
 const sevShort = (s: string) => (s === "high" ? "高" : s === "mid" ? "中" : "低");
 
 export default function Monitoring() {
@@ -64,7 +64,7 @@ export default function Monitoring() {
           </Tabs>
           <span className="text-[11.5px] text-default-400">按 SLA 紧迫度排序 · 越靠上越急</span>
         </div>
-        <Table aria-label="在途待审" radius="lg" classNames={{ wrapper: "card no-scrollbar p-0 rounded-2xl overflow-x-auto", th: "bg-default-50 text-default-500 text-[12px] font-medium h-12 border-b border-divider whitespace-nowrap", td: "py-4 text-[13px] whitespace-nowrap", tr: "cursor-pointer border-b border-default-100 last:border-0 transition-colors data-[hover=true]:bg-default-50 hover:bg-default-50" }}>
+        <Table aria-label="在途待审" radius="lg" classNames={{ wrapper: "card no-scrollbar p-0 rounded-2xl overflow-x-auto", th: "bg-default-50 text-default-500 text-[12px] font-medium h-12 border-b border-divider whitespace-nowrap", td: "py-4 text-[13px] whitespace-nowrap", tr: "border-b border-default-100 last:border-0 transition-colors data-[hover=true]:bg-default-50 hover:bg-default-50" }}>
           <TableHeader>
             <TableColumn>商户名称/交易ID</TableColumn><TableColumn>风险评分</TableColumn><TableColumn>命中规则</TableColumn>
             <TableColumn>交易金额</TableColumn><TableColumn>状态</TableColumn><TableColumn>SLA剩余</TableColumn><TableColumn align="end">操作</TableColumn>
@@ -83,7 +83,7 @@ export default function Monitoring() {
                   <TableCell>
                     <div className="flex items-center justify-end gap-1.5">
                       <Tooltip content="查看详情" size="sm" delay={300}>
-                        <Button isIconOnly size="sm" radius="full" variant="flat" className="bg-default-100" onPress={() => nav(`/alert?id=${a.id}`)}><Eye className="h-4 w-4 text-default-500" strokeWidth={1.9} /></Button>
+                        <Button isIconOnly aria-label="查看告警详情" size="sm" radius="full" variant="flat" className="bg-default-100" onPress={() => nav(`/alert?id=${a.id}`)}><Eye className="h-4 w-4 text-default-500" strokeWidth={1.9} /></Button>
                       </Tooltip>
                       <Tooltip content="审核 · 放行 / 拒绝 / 补料 / 转研判" size="sm" delay={300}>
                         <Button size="sm" radius="full" color="primary" variant="flat" startContent={<ClipboardCheck className="h-3.5 w-3.5" />} onPress={() => openReview(a.id)}>审核</Button>
