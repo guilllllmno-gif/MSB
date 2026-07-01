@@ -11,6 +11,7 @@ import { Timeline } from "@/components/Timeline";
 import { ringOf, caseRefFor, clusterCount, clusterChildren, DIM_META, DIM_ORDER, confTone, confLabel, RING_FIELDS, RING_STATES, DISP_STATE, ringActions, type RingDim, type Ring, type RingEdge, type RingStateKey } from "@/lib/rings";
 import { ringStore, useRingVersion, alertStore, useAlertVersion } from "@/lib/store";
 import { intakeCase } from "@/lib/caseIntake";
+import { intakeList } from "@/lib/listIntake";
 import type { CaseSubject } from "@/lib/cases";
 
 const ME = { i: "JL", n: "James Liu", c: "var(--brand)" };
@@ -341,14 +342,27 @@ export default function RingDetail() {
     const d = ACTIONS.find((x) => x.k === disp);
     // 转案件 → 在案件管理生成 / 并入案件(案件 = STR 唯一漏斗),涉案主体取团伙成员
     let newCaseRef: string | undefined;
+    let extra = "";
     if (disp === "case") {
       const subjects: CaseSubject[] = ring.members.slice(0, 8).map((m) => ({ name: m.name, type: m.kind === "商户" ? "商户" : "链上地址", role: m.role }));
       const { id, attached } = intakeCase({ subject: ring.name, sub: `团伙 · ${ring.members.length} 主体`, type: ring.typology, risk: "团伙网络", amount: ring.amount, src: "团伙转案件", linkIds: `${ring.id} · ${ring.members.length} 主体`, linkTo: `/ring?id=${ring.id}`, subjects });
       newCaseRef = id;
       toast(attached ? `已并入在办案件 ${id}` : `已聚案 ${id} · 在案件管理确认可疑后起草 STR`);
     }
-    ringStore.set(ring.id, DISP_STATE[disp], undefined, `${d?.label ?? "提交研判"}${newCaseRef ? ` · ${newCaseRef}` : ""}`, newCaseRef);
-    if (disp !== "case") toast.success(`${ring.id} · ${d?.msg ?? "已提交研判"}`);
+    // 批量列名单 → 在名单管理真实写入条目(每条回链本团伙),收口闭环
+    if (disp === "watch") {
+      const listtype = fieldVals.listtype?.[0] ?? "加强监控名单";
+      const { count } = intakeList({
+        ringId: ring.id, ringName: ring.name, typology: ring.typology,
+        members: ring.members.map((m) => ({ name: m.name, kind: m.kind, role: m.role })),
+        listtype, entities: fieldVals.entities ?? [], duration: fieldVals.duration?.[0] ?? "180 天",
+        reason: note, operator: ME,
+      });
+      extra = ` · ${count} 个对象`;
+      toast.success(`已将 ${count} 个对象列入${listtype} · 已写入名单管理`);
+    }
+    ringStore.set(ring.id, DISP_STATE[disp], undefined, `${d?.label ?? "提交研判"}${newCaseRef ? ` · ${newCaseRef}` : extra}`, newCaseRef);
+    if (disp !== "case" && disp !== "watch") toast.success(`${ring.id} · ${d?.msg ?? "已提交研判"}`);
     setOpen(false);
   };
 
