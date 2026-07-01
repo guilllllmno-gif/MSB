@@ -131,6 +131,18 @@ function Graph({ ring, expanded, onToggle }: { ring: Ring; expanded: Set<string>
   );
 }
 
+// ── 共享要素:把连线证据的抽象维度落到「具体共享的值」(坐实关联)。确定性合成(seed=ring.id〔+边序〕)──
+// 地址/IP 按团伙取同一值(体现「多商户共用同一提现白名单地址 / 同一 IP 段」);设备优先从文案提取 DV 群;资金按边取跳数。
+const HEXF = "0123456789abcdef";
+function h32(s: string) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+function fragHex(seed: number, n: number) { let x = seed >>> 0, o = ""; for (let i = 0; i < n; i++) { x = (Math.imul(x, 1103515245) + 12345) >>> 0; o += HEXF[(x >>> 16) & 15]; } return o; }
+function sharedArtifact(dim: RingDim, ringId: string, edgeIdx: number, note: string): string {
+  if (dim === "address") { const m = note.match(/0x[0-9a-fA-F]{2,4}…[0-9a-fA-F]{2,4}|bc1[0-9a-z]{2,4}…[0-9a-z]{2,4}|T[0-9A-Za-z]{2,4}…[0-9A-Za-z]{2,4}/); if (m) return m[0]; const s = h32(ringId + "wl"); return `0x${fragHex(s, 4)}…${fragHex(s >>> 5, 4)}`; }
+  if (dim === "device") { const m = note.match(/DV-\d+/); if (m) return m[0]; return `DV-${(h32(ringId + "dv") % 9) + 1}`; }
+  if (dim === "ip") { const s = h32(ringId + "ip"); return `${45 + (s % 190)}.${s % 254}.${(s >>> 3) % 254}.0/24`; }
+  return `${1 + (h32(ringId + edgeIdx) % 3)} 跳归集`; // funds
+}
+
 // ── 资金路径:按洗钱手法 + 成员 + 金额确定性合成的分阶段资金流(入金 → 归集 →〔中转〕→ 出金)──
 const parseAmt = (s: string) => { const n = Number(s.replace(/[^0-9.]/g, "")); return isFinite(n) ? n : 0; };
 const fmtAmt = (n: number) => `CAD ${Math.round(n).toLocaleString("en-CA")}`;
@@ -409,6 +421,17 @@ export default function RingDetail() {
                       <div className="mt-2 flex flex-wrap items-center gap-1.5">
                         {e.dims.map((d) => { const Icon = DIM_ICON[d]; return <span key={d} className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10.5px] font-semibold" style={{ background: "color-mix(in srgb," + DIM_META[d].color + " 14%, transparent)", color: DIM_META[d].color }}><Icon className="h-3 w-3" />{DIM_META[d].label}</span>; })}
                         <span className="text-[11.5px] text-default-500">· {e.note}</span>
+                      </div>
+                      {/* 共享要素:每个维度落到具体共享的值 */}
+                      <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-dashed border-default-100 pt-2">
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-default-400">共享要素</span>
+                        {e.dims.map((d) => (
+                          <span key={d} className="inline-flex items-center gap-1 text-[11px]">
+                            <span className="h-1.5 w-1.5 rounded-full" style={{ background: DIM_META[d].color }} />
+                            <span className="text-default-400">{DIM_META[d].short}</span>
+                            <span className="font-mono font-semibold text-default-600">{sharedArtifact(d, ring.id, i, e.note)}</span>
+                          </span>
+                        ))}
                       </div>
                     </div>
                   ); })}
