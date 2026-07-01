@@ -5,11 +5,11 @@ import { Card, CardHeader, CardBody, Button, Drawer, DrawerContent, DrawerHeader
 import { ArrowLeft, FolderPlus, ListPlus, FileDown, Coins, Link2, Smartphone, Globe, Bell, Sparkles, Info, ArrowUpCircle, XCircle, ClipboardCheck, Clock, UserPlus, ChevronDown, FileQuestion, ExternalLink, Waypoints, BellRing, ArrowRight } from "lucide-react";
 import { Shell } from "@/components/Shell";
 import { Pill, Initials, SectionLabel, toneVar } from "@/components/bits";
-import { alerts, sevMeta, type Tone } from "@/lib/data";
+import { alerts, sevMeta, RC_STATES, GATE_STATES, INVESTIGATION_STATES, type Tone } from "@/lib/data";
 import { RingBasis } from "@/components/RingBasis";
 import { Timeline } from "@/components/Timeline";
 import { ringOf, caseRefFor, clusterCount, clusterChildren, DIM_META, DIM_ORDER, confTone, confLabel, RING_FIELDS, RING_STATES, DISP_STATE, ringActions, type RingDim, type Ring, type RingEdge, type RingStateKey } from "@/lib/rings";
-import { ringStore, useRingVersion } from "@/lib/store";
+import { ringStore, useRingVersion, alertStore, useAlertVersion } from "@/lib/store";
 import { intakeCase } from "@/lib/caseIntake";
 import type { CaseSubject } from "@/lib/cases";
 
@@ -165,31 +165,44 @@ function FundFlow({ ring }: { ring: Ring }) {
   );
 }
 
-// ── 关联告警:按商户成员名匹配真实告警(lib/data),行跳告警详情 ──
+// ── 关联告警:按商户成员名匹配真实告警(lib/data),状态与「告警研判」队列同源 ──
+// 队列(/alerts)只含 INVESTIGATION_STATES;new 归事中监控、closed 归处置记录。团伙调查要看
+// 跨车道的全部关联告警,故不过滤,但用实时 alertStore.stateOf + RC_STATES 标注状态与车道,口径与队列一致。
 const nameMatch = (member: string, am: string) => am.startsWith(member) || member.startsWith(am) || am.split(" ")[0] === member.split(" ")[0];
+const laneOf = (st: string): { label: string; tone: Tone; pri: number } =>
+  INVESTIGATION_STATES.includes(st) ? { label: "告警研判", tone: "amber", pri: 0 }
+    : GATE_STATES.includes(st) ? { label: "事中监控", tone: "blue", pri: 1 }
+    : { label: "已处置", tone: "grey", pri: 2 };
 function LinkedAlerts({ ring, onOpen }: { ring: Ring; onOpen: (id: string) => void }) {
+  useAlertVersion(); // 订阅会话内状态改写,与队列实时一致
   const merchants = ring.members.filter((m) => m.kind === "商户").map((m) => m.name);
-  const hit = alerts.filter((a) => merchants.some((mn) => nameMatch(mn, a.merchant)));
+  const hit = alerts
+    .filter((a) => merchants.some((mn) => nameMatch(mn, a.merchant)))
+    .map((a) => ({ a, st: alertStore.stateOf(a.id, a.state) }))
+    .sort((x, y) => laneOf(x.st).pri - laneOf(y.st).pri || y.a.score - x.a.score);
   if (!hit.length) {
     return (
-      <div className="flex items-center justify-between gap-2 rounded-xl border border-divider bg-default-50 px-4 py-3 text-[12.5px] text-default-500">
-        <span>本团伙关联 <b className="text-foreground">{ring.alertCount}</b> 条告警 · 明细见「告警研判」</span>
+      <div className="rounded-xl border border-divider bg-default-50 px-4 py-3 text-[12.5px] text-default-500">
+        本团伙关联 <b className="text-foreground">{ring.alertCount}</b> 条告警 · 未匹配到当前告警库中的成员告警(明细见「告警研判」)
       </div>
     );
   }
+  const inQueue = hit.filter((h) => INVESTIGATION_STATES.includes(h.st)).length;
   return (
     <div className="overflow-x-auto no-scrollbar">
+      <div className="mb-2.5 text-[11.5px] text-default-400">共 <b className="text-default-600">{hit.length}</b> 条 · 其中 <b className="text-default-600">{inQueue}</b> 条在「告警研判」队列,余归事中监控 / 已处置</div>
       <table className="w-full text-[12.5px]">
         <thead><tr className="border-b border-divider text-left text-[11.5px] text-default-400">
-          <th className="py-2 pr-3 font-medium">告警 ID</th><th className="py-2 pr-3 font-medium">商户成员</th><th className="py-2 pr-3 font-medium">类型</th><th className="py-2 pr-3 font-medium">严重度</th><th className="py-2 pr-3 font-medium">金额</th>
+          <th className="py-2 pr-3 font-medium">告警 ID</th><th className="py-2 pr-3 font-medium">商户成员</th><th className="py-2 pr-3 font-medium">类型</th><th className="py-2 pr-3 font-medium">严重度</th><th className="py-2 pr-3 font-medium">状态 · 车道</th><th className="py-2 pr-3 font-medium">金额</th>
         </tr></thead>
         <tbody>
-          {hit.map((a) => { const sm = sevMeta[a.sev]; return (
+          {hit.map(({ a, st }) => { const sm = sevMeta[a.sev]; const sd = RC_STATES[st]; const lane = laneOf(st); return (
             <tr key={a.id} className="border-b border-default-100 last:border-0 transition-colors hover:bg-default-50">
               <td className="py-2.5 pr-3"><button onClick={() => onOpen(a.id)} className="font-semibold text-primary hover:underline">{a.id}</button></td>
               <td className="py-2.5 pr-3 text-default-600">{a.merchant}</td>
               <td className="py-2.5 pr-3 text-default-500">{a.type}</td>
               <td className="py-2.5 pr-3"><Pill tone={sm?.tone ?? "grey"} dot={false}>{sm?.label ?? a.sev} · {a.score}</Pill></td>
+              <td className="py-2.5 pr-3"><span className="inline-flex items-center gap-1.5"><Pill tone={sd?.cls ?? "grey"} dot={false}>{sd?.label ?? st}</Pill><span className="text-[10.5px] text-default-400">{lane.label}</span></span></td>
               <td className="py-2.5 pr-3 tnum text-default-600">{a.amount}</td>
             </tr>
           ); })}
