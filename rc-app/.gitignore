@@ -23,3 +23,6 @@ dist-ssr
 *.sln
 *.sw?
 .vercel
+
+# claude worktrees (git worktree dirs, not part of source)
+.claude/worktrees/

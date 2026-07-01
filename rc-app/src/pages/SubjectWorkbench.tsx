@@ -124,7 +124,7 @@ export default function SubjectWorkbench() {
           {rows.map((s) => {
             const kycM = KYC_META[s.kycStatus];
             return (
-              <TableRow key={s.id} onClick={() => nav(`/entity?id=${s.id}`)}>
+              <TableRow key={s.id} onClick={() => nav(`/subject?id=${s.id}`)}>
                 <TableCell>
                   <div className="flex items-center gap-2.5">
                     <Initials p={{ i: s.avatar, c: "var(--brand)" }} size={28} mono />
@@ -193,7 +193,7 @@ function CandidateCard({ cand }: { cand: MergeCandidate }) {
           <div className="flex items-center gap-2 text-[13px]">
             <span className="rounded-md bg-default-100 px-1.5 py-0.5 font-mono text-[11.5px] font-semibold text-default-600">{cand.accountId}</span>
             <GitMerge className="h-3.5 w-3.5 shrink-0 text-default-400" />
-            <button className="truncate font-semibold text-primary hover:underline" onClick={() => nav(`/entity?id=${cand.targetSubjectId}`)}>{cand.targetSubjectName}</button>
+            <button className="truncate font-semibold text-primary hover:underline" onClick={() => nav(`/subject?id=${cand.targetSubjectId}`)}>{cand.targetSubjectName}</button>
           </div>
           <div className="mt-1 text-[11px] text-default-400">检出于 {cand.detectedAt.slice(0, 10)} · 目标主体 {cand.targetSubjectId}</div>
         </div>

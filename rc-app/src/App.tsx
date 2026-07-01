@@ -27,6 +27,7 @@ const ListDetail = lazy(() => import("@/pages/ListDetail"));
 const StrategyPage = lazy(() => import("@/pages/StrategyPage"));
 const AuditLog = lazy(() => import("@/pages/AuditLog"));
 const SubjectWorkbench = lazy(() => import("@/pages/SubjectWorkbench"));
+const SubjectDetail = lazy(() => import("@/pages/SubjectDetail"));
 
 export default function App() {
   return (
@@ -53,6 +54,7 @@ export default function App() {
             <Route path="/case" element={<CaseDetail />} />
             <Route path="/entity" element={<EntityProfile />} />
             <Route path="/subjects" element={<SubjectWorkbench />} />
+            <Route path="/subject" element={<SubjectDetail />} />
             <Route path="/alerts" element={<AlertList />} />
             <Route path="/alert" element={<AlertDetail />} />
             <Route path="/rings" element={<RingList />} />
