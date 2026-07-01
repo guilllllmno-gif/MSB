@@ -21,6 +21,8 @@ const RuleDetail = lazy(() => import("@/pages/RuleDetail"));
 const CaseList = lazy(() => import("@/pages/CaseList"));
 const CaseDetail = lazy(() => import("@/pages/CaseDetail"));
 const EntityProfile = lazy(() => import("@/pages/EntityProfile"));
+const SubjectList = lazy(() => import("@/pages/SubjectList"));
+const SubjectDetail = lazy(() => import("@/pages/SubjectDetail"));
 const ReportDetail = lazy(() => import("@/pages/ReportDetail"));
 const ListsPage = lazy(() => import("@/pages/ListsPage"));
 const ListDetail = lazy(() => import("@/pages/ListDetail"));
@@ -51,6 +53,8 @@ export default function App() {
             <Route path="/cases" element={<CaseList />} />
             <Route path="/case" element={<CaseDetail />} />
             <Route path="/entity" element={<EntityProfile />} />
+            <Route path="/subjects" element={<SubjectList />} />
+            <Route path="/subject" element={<SubjectDetail />} />
             <Route path="/alerts" element={<AlertList />} />
             <Route path="/alert" element={<AlertDetail />} />
             <Route path="/rings" element={<RingList />} />
