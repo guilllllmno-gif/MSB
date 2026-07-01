@@ -1,19 +1,8 @@
 import type { ReactNode } from "react";
-import { useEffect, useState } from "react";
 import { useTheme } from "next-themes";
 import { Button } from "@heroui/react";
 import { Moon, Sun } from "lucide-react";
-import type { Tone } from "@/lib/data";
-
-const TONE: Record<Tone, [string, string, string]> = {
-  green: ["var(--success-bg)", "var(--success)", "var(--success-bd)"],
-  amber: ["var(--warning-bg)", "var(--warning)", "var(--warning-bd)"],
-  red: ["var(--danger-bg)", "var(--danger)", "var(--danger-bd)"],
-  blue: ["var(--brand-soft)", "var(--brand)", "var(--brand-bd)"],
-  violet: ["var(--violet-bg)", "var(--violet)", "var(--violet-bd)"],
-  grey: ["var(--chip-bg)", "var(--chip-fg)", "var(--chip-bd)"],
-};
-export const toneVar = (t: Tone) => TONE[t][1];
+import { TONE, type Tone } from "@/lib/data";
 
 // soft colored pill — matches the Figma status/severity chips (theme-independent)
 export function Pill({ tone = "grey", dot = true, icon, children }: { tone?: Tone; dot?: boolean; icon?: ReactNode; children: ReactNode }) {
@@ -48,13 +37,12 @@ export function Initials({ p, size = 24, mono = false }: { p: { i: string; c: st
 // theme switch for the app header — guards against pre-mount theme mismatch
 export function ThemeToggle() {
   const { resolvedTheme, setTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  // 首帧 resolvedTheme 为 undefined → 默认 Moon,主题解析后自动纠正(SPA 无 SSR,无需 mounted 守卫)
   const dark = resolvedTheme === "dark";
   return (
     <Button isIconOnly size="sm" variant="light" aria-label="切换深色模式"
       onPress={() => setTheme(dark ? "light" : "dark")}>
-      {mounted && dark
+      {dark
         ? <Sun className="h-[18px] w-[18px] text-default-500" strokeWidth={1.9} />
         : <Moon className="h-[18px] w-[18px] text-default-500" strokeWidth={1.9} />}
     </Button>

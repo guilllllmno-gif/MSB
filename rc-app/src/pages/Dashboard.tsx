@@ -21,7 +21,7 @@ import { LISTS } from "@/lib/lists";
 import {
   ringStore, useRingVersion, alertStore, useAlertVersion,
   caseStore, useCaseVersion, useReportVersion, listStore, useListVersion,
-  ruleStore, useRuleVersion, useRoleVersion, roleStore, PERSONS, type Role,
+  ruleStore, useRuleVersion, useRoleVersion, roleStore, PERSONS,
 } from "@/lib/store";
 
 const BRAND = "var(--brand)";

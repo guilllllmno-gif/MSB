@@ -4,12 +4,12 @@ import { toast } from "sonner";
 import { Button } from "@heroui/react";
 import { ArrowLeft, Clock, Eye, FileSignature, Send, Check, Info, ExternalLink, FileText, ClipboardList, Landmark, Coins, Users, ShieldAlert, ArrowDownToLine, ArrowUpFromLine } from "lucide-react";
 import { Shell } from "@/components/Shell";
-import { Pill, Initials, toneVar } from "@/components/bits";
+import { Pill, Initials } from "@/components/bits";
 import { ReportDrawer } from "@/components/ReportDrawer";
 import { RTYPE, RSTATE, RSTEPS, reportStep, reportDetail, type Report, type RType, type RState, type StrDoc, type KV } from "@/lib/reports";
 import { findReport, liveStatus } from "@/lib/reportsAll";
 import { reportStore, useReportVersion, useCaseVersion } from "@/lib/store";
-import type { Person, Tone } from "@/lib/data";
+import { toneVar, type Person, type Tone } from "@/lib/data";
 
 const SC: Person = { i: "SC", n: "Sarah Chen", c: "var(--violet)" };
 const DW: Person = { i: "DW", n: "David Wu", c: "#0ea5e9" };

@@ -59,10 +59,8 @@ describe("回归对照表 (policy = ground truth)", () => {
       };
     });
     // 打印对照表
-    // eslint-disable-next-line no-console
     console.table(rows.map(({ _pass, ...r }) => r));
     const failures = rows.filter((r) => !r._pass).map((r) => `#${r["#"]} ${r.场景}: 期望 ${r.期望动作} 实得 ${r.实际动作}`);
-    // eslint-disable-next-line no-console
     console.log(`\n回归结果:${rows.filter((r) => r._pass).length}/${rows.length} PASS`);
     expect(failures).toEqual([]);
   });

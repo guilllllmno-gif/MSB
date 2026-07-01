@@ -4,8 +4,7 @@ import { Switch, Button, Modal, ModalContent, ModalHeader, ModalBody, ModalFoote
 import { Shield, ShieldCheck, Scale, Gauge, Database, Clock, Lock, Landmark, UserCheck, GitBranch, ListChecks, Info,
   ShieldAlert, Banknote, FileText, Archive, ListOrdered, Layers, UserX, Eye, SlidersHorizontal, Globe, Unlink, ServerOff, ZapOff, FileQuestion, Network, AlarmClock, Briefcase, CalendarClock, CalendarX, Users, ScrollText, FlaskConical } from "lucide-react";
 import { Shell, PageHead } from "@/components/Shell";
-import { toneVar } from "@/components/bits";
-import type { Tone } from "@/lib/data";
+import { toneVar, type Tone } from "@/lib/data";
 
 // 区块容器
 function Section({ icon: Icon, title, hint, children }: { icon: typeof Shield; title: string; hint?: string; children: React.ReactNode }) {

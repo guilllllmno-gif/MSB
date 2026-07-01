@@ -144,10 +144,14 @@ export default function CaseDetail() {
   };
 
   const scoreTone = score >= 80 ? "red" : score >= 60 ? "amber" : "blue";
-  // 瀑布累计
-  let cum = 0;
-  const waterfall = d.factors.map((f) => { const ctb = factorContrib(f); const start = cum; cum += ctb; return { f, ctb, start, end: cum }; });
-  const floorStart = cum;
+  // 瀑布累计(纯 reduce,避免渲染期外部 let 变量,过 react-compiler immutability 校验)
+  const waterfall = d.factors.reduce<{ f: typeof d.factors[number]; ctb: number; start: number; end: number }[]>((acc, f) => {
+    const ctb = factorContrib(f);
+    const start = acc.length ? acc[acc.length - 1].end : 0;
+    acc.push({ f, ctb, start, end: start + ctb });
+    return acc;
+  }, []);
+  const floorStart = waterfall.length ? waterfall[waterfall.length - 1].end : 0;
 
   return (
     <Shell crumb={["调查", "案件管理", c.id]} wide>
@@ -275,7 +279,7 @@ export default function CaseDetail() {
             <div className="mt-4 flex flex-col gap-1.5">
               {d.factors.map((f) => { const open = openF.has(f.key); return (
                 <div key={f.key} className="rounded-xl border border-divider">
-                  <button onClick={() => setOpenF((p) => { const n = new Set(p); n.has(f.key) ? n.delete(f.key) : n.add(f.key); return n; })} className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left">
+                  <button onClick={() => setOpenF((p) => { const n = new Set(p); if (n.has(f.key)) n.delete(f.key); else n.add(f.key); return n; })} className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left">
                     <ChevronDown className={`h-3.5 w-3.5 shrink-0 text-default-400 transition-transform ${open ? "" : "-rotate-90"}`} />
                     <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: tc(f.tone) }} />
                     <span className="text-[12.5px] font-semibold">{f.label}</span><span className="text-[11px] text-default-400">{f.cat}</span>

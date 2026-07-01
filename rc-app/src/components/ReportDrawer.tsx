@@ -41,7 +41,7 @@ export function ReportDrawer({ report, open, onOpenChange, onDone }: { report: R
   const needsReason = !!action && (action.to === "void" || action.to === "draft" || action.to === "returned");
   const isStr = report.type === "STR";
 
-  const toggle = (label: string) => setChecked((p) => { const n = new Set(p); n.has(label) ? n.delete(label) : n.add(label); return n; });
+  const toggle = (label: string) => setChecked((p) => { const n = new Set(p); if (n.has(label)) n.delete(label); else n.add(label); return n; });
 
   const submit = () => {
     if (!action) { toast.error("请选择处置动作"); return; }

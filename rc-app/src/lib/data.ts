@@ -1,6 +1,17 @@
 // ── Risk Control System · 交易警报 dataset (ported from rc-alerts-data.js, faithful to the Figma) ──
 export type Tone = "green" | "amber" | "red" | "blue" | "violet" | "grey";
 
+// tone → [底色, 主色, 描边] CSS 变量三元组。与 Tone 类型同处一源。
+export const TONE: Record<Tone, [string, string, string]> = {
+  green: ["var(--success-bg)", "var(--success)", "var(--success-bd)"],
+  amber: ["var(--warning-bg)", "var(--warning)", "var(--warning-bd)"],
+  red: ["var(--danger-bg)", "var(--danger)", "var(--danger-bd)"],
+  blue: ["var(--brand-soft)", "var(--brand)", "var(--brand-bd)"],
+  violet: ["var(--violet-bg)", "var(--violet)", "var(--violet-bd)"],
+  grey: ["var(--chip-bg)", "var(--chip-fg)", "var(--chip-bd)"],
+};
+export const toneVar = (t: Tone) => TONE[t][1];
+
 export interface Person { i: string; n: string; c: string }
 export interface Rule { name: string; cat: string; cond: string; hit: string; weight: string }
 export interface Factor { emoji: string; bg: string; fg: string; title: string; desc: string }

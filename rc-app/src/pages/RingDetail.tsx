@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { Card, CardHeader, CardBody, Button, Drawer, DrawerContent, DrawerHeader, DrawerBody, DrawerFooter, Textarea, Select, SelectItem } from "@heroui/react";
 import { ArrowLeft, FolderPlus, ListPlus, FileDown, Coins, Link2, Smartphone, Globe, Bell, Sparkles, Info, ArrowUpCircle, XCircle, ClipboardCheck, Clock, UserPlus, ChevronDown, FileQuestion, ExternalLink, Waypoints, BellRing, ArrowRight } from "lucide-react";
 import { Shell } from "@/components/Shell";
-import { Pill, Initials, SectionLabel, toneVar } from "@/components/bits";
-import { alerts, sevMeta, RC_STATES, GATE_STATES, INVESTIGATION_STATES, type Tone } from "@/lib/data";
+import { Pill, Initials, SectionLabel } from "@/components/bits";
+import { alerts, sevMeta, toneVar, RC_STATES, GATE_STATES, INVESTIGATION_STATES, type Tone } from "@/lib/data";
 import { RingBasis } from "@/components/RingBasis";
 import { Timeline } from "@/components/Timeline";
 import { ringOf, caseRefFor, clusterCount, clusterChildren, DIM_META, DIM_ORDER, confTone, confLabel, RING_FIELDS, RING_STATES, DISP_STATE, ringActions, type RingDim, type Ring, type RingEdge, type RingStateKey } from "@/lib/rings";
@@ -310,7 +310,7 @@ export default function RingDetail() {
   const [errs, setErrs] = useState<Set<string>>(new Set());
   const [expDim, setExpDim] = useState<RingDim | null>(null);
   const [expClusters, setExpClusters] = useState<Set<string>>(new Set());
-  const toggleCluster = (id: string) => setExpClusters((p) => { const next = new Set(p); next.has(id) ? next.delete(id) : next.add(id); return next; });
+  const toggleCluster = (id: string) => setExpClusters((p) => { const next = new Set(p); if (next.has(id)) next.delete(id); else next.add(id); return next; });
   const [tab, setTab] = useState<"info" | "log">("info");
   const edges = [...ring.edges].sort((a, b) => b.strength - a.strength);
 
@@ -323,9 +323,15 @@ export default function RingDetail() {
 
   // open the disposition drawer, selecting `preset` if it's allowed else the smart default
   const openDisp = (preset?: string) => { setDisp(preset && allowed.includes(preset) ? preset : defaultDisp()); setFieldVals({}); setErrs(new Set()); setOpen(true); };
-  // deep-link from the list ("并入案件" shortcut) → open drawer pre-selected to that disposition
+  // deep-link from the list ("并入案件" shortcut) → open drawer pre-selected to that disposition.
+  // React-sanctioned "adjust state during render when an input changes" (not setState-in-effect):
+  // re-opens whenever the ?action= param transitions to a new allowed value.
   const action = sp.get("action");
-  useEffect(() => { if (action && allowed.includes(action)) openDisp(action); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [action]);
+  const [lastAction, setLastAction] = useState<string | null>(null);
+  if (action !== lastAction) {
+    setLastAction(action);
+    if (action && allowed.includes(action)) openDisp(action);
+  }
   const pickDisp = (k: string) => { setDisp(k); setFieldVals({}); setErrs(new Set()); };
   const toggleField = (k: string, val: string, multi: boolean) => setFieldVals((p) => {
     const cur = p[k] || [];

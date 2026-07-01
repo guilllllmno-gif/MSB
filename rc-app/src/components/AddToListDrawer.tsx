@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { Drawer, DrawerContent, DrawerHeader, DrawerBody, DrawerFooter, Button, Input, Select, SelectItem, Textarea } from "@heroui/react";
 import { SectionLabel } from "./bits";
-import { LCAT, LCATS, LENTRY_TYPE_TONE, type ListCat, type EntryType, type ListEntry } from "@/lib/lists";
+import { LCAT, LCATS, type ListCat, type EntryType, type ListEntry } from "@/lib/lists";
 import { listStore } from "@/lib/store";
 import type { Person } from "@/lib/data";
 
@@ -29,18 +29,21 @@ export function AddToListDrawer({ open, onOpenChange, preset }: { open: boolean;
   const [expiry, setExpiry] = useState("");
   const [errs, setErrs] = useState<Set<string>>(new Set());
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (open) {
-      setErrs(new Set());
-      setValue(preset?.value || "");
-      setEntryType((preset?.entryType as EntryType) || "");
-      setCat((preset?.cat as ListCat) || "");
-      setScope(preset?.scope || "");
-      setReason(preset?.reason || "");
-      setExpiry(preset?.expiry || "");
-    }
-  }, [open, preset]);
+  // reset the form to `preset` each time the drawer transitions closed → open.
+  // render-time state adjustment (React-sanctioned) instead of setState-in-effect.
+  const [wasOpen, setWasOpen] = useState(false);
+  if (open && !wasOpen) {
+    setWasOpen(true);
+    setErrs(new Set());
+    setValue(preset?.value || "");
+    setEntryType((preset?.entryType as EntryType) || "");
+    setCat((preset?.cat as ListCat) || "");
+    setScope(preset?.scope || "");
+    setReason(preset?.reason || "");
+    setExpiry(preset?.expiry || "");
+  } else if (!open && wasOpen) {
+    setWasOpen(false);
+  }
 
   const submit = () => {
     const e = new Set<string>();
