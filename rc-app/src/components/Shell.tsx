@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { Button, Popover, PopoverTrigger, PopoverContent } from "@heroui/react";
-import { LayoutDashboard, Bell, Search, ListChecks, SlidersHorizontal, Shield, FolderOpen, FileText, Clock, ChevronDown, ChevronsLeft, ChevronsRight, HelpCircle, LogOut, Network, FileCheck, History, Fingerprint, Activity, CheckCircle2, ChevronRight, Check, GitMerge } from "lucide-react";
+import { LayoutDashboard, Bell, Search, ListChecks, SlidersHorizontal, Shield, FolderOpen, FileText, Clock, ChevronDown, ChevronsLeft, ChevronsRight, HelpCircle, LogOut, Network, FileCheck, History, Fingerprint, Activity, CheckCircle2, ChevronRight, Check, Store } from "lucide-react";
 import { Initials, ThemeToggle } from "./bits";
 import { liveNotifications } from "@/lib/notifications";
 import { useAlertVersion, useCaseVersion, useReportVersion, useRingVersion, useRoleVersion, roleStore, PERSONS, ROLE_META, type Role } from "@/lib/store";
@@ -20,7 +20,7 @@ const NAV: ({ group: string } | Item)[] = [
   { to: "/entity", label: "主体档案", icon: Fingerprint },
   { group: "检测策略" },
   { to: "/rings", label: "团伙识别", icon: Network },
-  { to: "/subjects", label: "主体归并", icon: GitMerge },
+  { to: "/subjects", label: "商户档案", icon: Store },
   { to: "/rules", label: "监控规则", icon: ListChecks },
   { to: "/strategy", label: "全局策略", icon: SlidersHorizontal },
   { group: "治理与合规" },

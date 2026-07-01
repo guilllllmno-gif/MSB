@@ -8,7 +8,7 @@ export type RingDim = "funds" | "address" | "device" | "ip";
 
 export const DIM_META: Record<RingDim, { label: string; short: string; color: string; weight: number }> = {
   funds: { label: "资金路径", short: "资金", color: "var(--danger)", weight: 40 },
-  address: { label: "链上地址", short: "地址", color: "var(--violet)", weight: 30 },
+  address: { label: "提现白名单地址", short: "白名单", color: "var(--violet)", weight: 30 },
   device: { label: "设备指纹", short: "设备", color: "var(--warning)", weight: 20 },
   ip: { label: "IP / 网络", short: "IP", color: "var(--brand)", weight: 10 },
 };
@@ -415,6 +415,21 @@ export function buildRing(input: { name: string; typology: string; members: Ring
     recommendation: "分析师手动建立的关联团伙，关联依据待核实；建议补充资金 / 地址等强维度证据后再处置。",
   };
 }
+
+// 团伙商户成员 → 商户档案(SUBJ-)id 映射,用于「成员 → 商户档案」下钻(修正模型:成员=商户主体)。
+// 原型按名称对齐 mocks/fixtures/subjects.ts 的商户主体;未在档案库的成员(名单群组/纯地址/未建档商户)无下钻。
+const SUBJECT_ID_BY_NAME: Record<string, string> = {
+  "NovaPay Technologies": "SUBJ-0001",
+  "BlockTrade Corp.": "SUBJ-0002",
+  "Eastwind Exchange": "SUBJ-0003",
+  "RapidPay Ltd.": "SUBJ-0004",
+  "GlobalRemit Ltd.": "SUBJ-0005",
+  "HavenPay Inc.": "SUBJ-0006",
+  "OffshoreFX Ltd.": "SUBJ-0010",
+  "QuickWallet Inc.": "SUBJ-0011",
+};
+export const subjectIdForMember = (m: RingMember): string | undefined =>
+  m.kind === "商户" ? SUBJECT_ID_BY_NAME[m.name] : undefined;
 
 export const ringOf = (id?: string) => rings.find((r) => r.id === id) || rings[0];
 // case reference for a ring once it is merged into a case — reuse an existing one or derive from the ring id

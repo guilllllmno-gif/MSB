@@ -1,39 +1,16 @@
-// 主体详情页(/subject?id=SUBJ-xxxx)—— 调查工作台 Phase 4。
-// 消费新数据层 useSubject → SubjectDetail:概览 + 归属钱包地址表(拆分 useSplitAccount + §7.5 风控主管封条)
-// + 归并依据(mergeEvidence)+ AML 命中(amlHits)+ 待复核候选(pendingCandidates)+ 归并日志(mergeLog)。
+// 商户档案(/subject?id=SUBJ-xxxx)—— 只读档案页(团伙成员下钻目标)。
+// 领域修正后:提现地址由商户自行加入白名单(申报即绑定),不存在「钱包归属」这一风控决策;
+// 本页只呈现档案事实:基本信息 + 提现白名单地址 + 所属团伙 + AML 命中。消费 useSubject → SubjectDetail。
 // 视觉基准=rc-app 现有页面(Shell/PageHead/Pill/Initials/card 复用,只有「状态」用色)。
-import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { toast } from "sonner";
-import {
-  Table, TableHeader, TableColumn, TableBody, TableRow, TableCell,
-  Button, Spinner, Tooltip,
-  Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Textarea,
-} from "@heroui/react";
-import {
-  ArrowLeft, GitMerge, Split, ShieldCheck, UserRound, AlertTriangle,
-  Anchor, ChevronRight, Bot, ShieldAlert,
-} from "lucide-react";
+import { Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Button, Spinner } from "@heroui/react";
+import { ArrowLeft, ChevronRight, ShieldCheck, ShieldAlert, AlertTriangle, Wallet, Network } from "lucide-react";
 import { Shell, PageHead } from "@/components/Shell";
 import { Pill, Initials, SectionLabel } from "@/components/bits";
-import { useSubject, useSplitAccount } from "@/hooks/useSubjects";
-import type { MergedWallet, MergeLogEntry } from "@/schemas/subject";
-import type { DimensionKey } from "@/schemas/common";
-import { LEVEL_TONE, LEVEL_LABEL, DIM_META, DIM_ORDER } from "@/schemas/common";
-import { KYC_META, REQUIRED_ROLE } from "@/lib/domain";
+import { useSubject } from "@/hooks/useSubjects";
+import { LEVEL_TONE, LEVEL_LABEL } from "@/schemas/common";
+import { KYC_META } from "@/lib/domain";
 import { fmtCad, fmtCadCompact, fmtDate, fmtAge } from "@/lib/format";
-
-// 关联强度条(非状态量 → 中性灰,不承载语义色)
-function StrengthBar({ value }: { value: number }) {
-  return (
-    <div className="flex items-center gap-2">
-      <div className="h-1.5 w-14 overflow-hidden rounded-full bg-default-100">
-        <div className="h-full rounded-full bg-default-400" style={{ width: `${value}%` }} />
-      </div>
-      <span className="tnum text-[12px] font-semibold text-default-600">{value}</span>
-    </div>
-  );
-}
 
 // 概览小卡
 function Stat({ label, value, sub }: { label: string; value: React.ReactNode; sub?: React.ReactNode }) {
@@ -46,58 +23,40 @@ function Stat({ label, value, sub }: { label: string; value: React.ReactNode; su
   );
 }
 
-const MERGE_LOG_META: Record<MergeLogEntry["action"], { label: string; icon: React.ReactNode }> = {
-  auto_merge: { label: "自动归并", icon: <Bot className="h-3.5 w-3.5 text-default-400" /> },
-  manual_merge: { label: "人工归并", icon: <GitMerge className="h-3.5 w-3.5 text-default-400" /> },
-  manual_split: { label: "人工拆分", icon: <Split className="h-3.5 w-3.5 text-default-400" /> },
-};
-
 export default function SubjectDetail() {
   const nav = useNavigate();
   const [sp] = useSearchParams();
   const id = sp.get("id") || undefined;
   const { data: s, isLoading, isError } = useSubject(id);
-  const split = useSplitAccount();
-
-  const [target, setTarget] = useState<MergedWallet | null>(null);
-  const [reason, setReason] = useState("");
-
-  const openSplit = (a: MergedWallet) => { setReason(""); setTarget(a); };
-  const submitSplit = () => {
-    if (!target || !s) return;
-    split.mutate({ id: s.id, address: target.address, reason }, {
-      onSuccess: () => { toast.success(`已剔除钱包 ${target.address} · 触发风险重算 · 已记入审计`); setTarget(null); },
-      onError: () => toast.error("拆分失败"),
-    });
-  };
 
   if (isLoading) {
     return (
-      <Shell crumb={["风控", "检测策略", "主体归并", "主体详情"]} wide>
-        <div className="flex items-center justify-center gap-2 py-24 text-[13px] text-default-400"><Spinner size="sm" />加载主体档案…</div>
+      <Shell crumb={["风控", "检测策略", "商户档案", "详情"]} wide>
+        <div className="flex items-center justify-center gap-2 py-24 text-[13px] text-default-400"><Spinner size="sm" />加载商户档案…</div>
       </Shell>
     );
   }
   if (isError || !s) {
     return (
-      <Shell crumb={["风控", "检测策略", "主体归并", "主体详情"]} wide>
+      <Shell crumb={["风控", "检测策略", "商户档案", "详情"]} wide>
         <div className="flex flex-col items-center justify-center gap-3 py-24 text-center">
           <AlertTriangle className="h-6 w-6 text-default-300" />
           <div className="text-[13px] text-default-500">{id ? "未找到该主体或加载失败" : "缺少主体 ID"}</div>
-          <Button size="sm" radius="full" variant="flat" startContent={<ArrowLeft className="h-3.5 w-3.5" />} onPress={() => nav("/subjects")}>返回工作台</Button>
+          <Button size="sm" radius="full" variant="flat" startContent={<ArrowLeft className="h-3.5 w-3.5" />} onPress={() => nav("/subjects")}>返回列表</Button>
         </div>
       </Shell>
     );
   }
 
   const kycM = KYC_META[s.kycStatus];
+  const isMerchant = s.type === "entity";
 
   return (
-    <Shell crumb={["风控", "检测策略", "主体归并", s.name]} wide>
+    <Shell crumb={["风控", "检测策略", "商户档案", s.name]} wide>
       <PageHead
         title={s.name}
-        sub={`${s.id} · ${s.type === "entity" ? "商户" : "自然人"} · 首现 ${fmtDate(s.firstSeen)} · 账龄 ${fmtAge(s.accountAgeDays)}`}
-        actions={<Button size="sm" radius="full" variant="flat" startContent={<ArrowLeft className="h-3.5 w-3.5" />} onPress={() => nav("/subjects")}>返回工作台</Button>}
+        sub={`${s.id} · ${isMerchant ? "商户" : "自然人"} · 首现 ${fmtDate(s.firstSeen)} · 账龄 ${fmtAge(s.accountAgeDays)}`}
+        actions={<Button size="sm" radius="full" variant="flat" startContent={<ArrowLeft className="h-3.5 w-3.5" />} onPress={() => nav("/subjects")}>返回列表</Button>}
       />
 
       {/* ── 身份 + 状态徽标 ── */}
@@ -108,7 +67,7 @@ export default function SubjectDetail() {
           <Pill tone={kycM.tone} dot={false}>KYC {kycM.label}</Pill>
           {s.ringId
             ? <button className="inline-flex items-center gap-1 rounded-full border border-default-200 bg-default-50 px-2.5 py-0.5 text-[11.5px] font-semibold text-primary hover:underline" onClick={() => nav(`/ring?id=${s.ringId}`)}>
-                关联团伙 {s.ringId}{s.ringRole ? ` · ${s.ringRole}` : ""}<ChevronRight className="h-3 w-3" />
+                所属团伙 {s.ringId}{s.ringRole ? ` · ${s.ringRole}` : ""}<ChevronRight className="h-3 w-3" />
               </button>
             : <Pill tone="grey" dot={false}>无关联团伙</Pill>}
         </div>
@@ -116,93 +75,66 @@ export default function SubjectDetail() {
 
       {/* ── 概览 ── */}
       <div className="mb-8 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
-        <Stat label="归并置信度" value={`${s.mergeConfidence}%`} sub={s.mergeConfidence >= 75 ? "≥75 自动归并" : s.mergeConfidence >= 50 ? "50–74 复核区间" : "<50 不归并"} />
-        <Stat label="归属钱包" value={`${s.walletCount} 个`} sub="多钱包地址归属单一主体" />
+        <Stat label="提现白名单地址" value={`${s.walletCount} 个`} sub="商户自行申报加白" />
         <Stat label="涉及金额" value={fmtCadCompact(s.totalAmountCad)} sub={fmtCad(s.totalAmountCad)} />
         <Stat label="AML 命中" value={s.amlHitCount} sub={`规则命中 ${s.ruleHitCount}`} />
+        <Stat label="风险分" value={s.riskScore} sub={`${LEVEL_LABEL[s.riskLevel]}风险`} />
         <Stat label="账龄" value={fmtAge(s.accountAgeDays)} sub={`首现 ${fmtDate(s.firstSeen)}`} />
       </div>
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-        {/* ── 主区:归属钱包地址表 + 归并日志 ── */}
+        {/* ── 主区:提现白名单地址 ── */}
         <div className="lg:col-span-2">
-          <div className="mb-3 flex items-center justify-between">
-            <SectionLabel>归属钱包地址（{s.wallets.length}）</SectionLabel>
-            <Tooltip content={`拆分为高敏操作 · 需 ${REQUIRED_ROLE.split} 权限 · 全量记入审计`} size="sm" delay={200}>
-              <span className="inline-flex items-center gap-1 text-[11px] text-default-400"><UserRound className="h-3.5 w-3.5" />拆分需 {REQUIRED_ROLE.split}</span>
-            </Tooltip>
+          <div className="mb-3 flex items-center gap-2">
+            <SectionLabel>提现白名单地址（{s.wallets.length}）</SectionLabel>
+            <span className="text-[11px] text-default-400">· 商户侧提现前须先加入白名单</span>
           </div>
-          <Table aria-label="归属钱包地址" radius="lg"
+          <Table aria-label="提现白名单地址" radius="lg"
             classNames={{ wrapper: "card no-scrollbar p-0 rounded-2xl overflow-x-auto", th: "bg-default-50 text-default-500 text-[12px] font-medium h-11 border-b border-divider whitespace-nowrap", td: "py-4 text-[13px] align-top", tr: "border-b border-default-100 last:border-0" }}>
             <TableHeader>
-              <TableColumn>钱包地址</TableColumn><TableColumn>归属依据</TableColumn><TableColumn>关联强度</TableColumn><TableColumn>登记日</TableColumn><TableColumn> </TableColumn>
+              <TableColumn>钱包地址</TableColumn><TableColumn>类型</TableColumn><TableColumn>备注</TableColumn><TableColumn>登记日</TableColumn>
             </TableHeader>
             <TableBody>
               {s.wallets.map((a) => (
                 <TableRow key={a.address}>
                   <TableCell>
                     <div className="flex items-center gap-2">
+                      <Wallet className="h-3.5 w-3.5 text-default-300" />
                       <span className="rounded-md bg-default-100 px-1.5 py-0.5 font-mono text-[11.5px] font-semibold text-default-600">{a.address}</span>
-                      {a.isAnchor && (
-                        <Tooltip content="登记地址 · 商户注册主地址,不可拆分" size="sm" delay={150}>
-                          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-default-500"><Anchor className="h-3 w-3" />登记地址</span>
-                        </Tooltip>
-                      )}
                     </div>
                   </TableCell>
+                  <TableCell>{a.isAnchor
+                    ? <span className="text-[12px] font-semibold text-default-600">主结算地址</span>
+                    : <span className="text-[12px] text-default-400">提现地址</span>}</TableCell>
                   <TableCell><span className="text-default-500">{a.meta}</span></TableCell>
-                  <TableCell>{a.linkStrength == null ? <span className="text-default-300">—</span> : <StrengthBar value={a.linkStrength} />}</TableCell>
                   <TableCell><span className="tnum text-default-500">{fmtDate(a.registeredAt)}</span></TableCell>
-                  <TableCell>
-                    {a.isAnchor
-                      ? <span className="text-[11px] text-default-300">—</span>
-                      : <Button size="sm" radius="full" variant="flat" startContent={<Split className="h-3.5 w-3.5" />} isDisabled={split.isPending} onPress={() => openSplit(a)}>拆分</Button>}
-                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
-
-          {/* 归并日志 */}
-          <div className="mb-3 mt-8"><SectionLabel>归并日志</SectionLabel></div>
-          <div className="card p-4">
-            <ol className="relative ml-1 border-l border-default-200 pl-5">
-              {s.mergeLog.map((e, i) => {
-                const m = MERGE_LOG_META[e.action];
-                return (
-                  <li key={i} className="relative pb-4 last:pb-0">
-                    <span className="absolute -left-[26px] top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-default-100">{m.icon}</span>
-                    <div className="flex flex-wrap items-baseline gap-x-2 text-[12.5px]">
-                      <span className="font-semibold">{m.label}</span>
-                      <span className="rounded bg-default-100 px-1 font-mono text-[11px] text-default-600">{e.wallet}</span>
-                      <span className="text-default-400">· {e.operator}</span>
-                      <span className="ml-auto tnum text-[11px] text-default-400">{fmtDate(e.at)}</span>
-                    </div>
-                    {e.reason && <div className="mt-0.5 text-[11.5px] text-default-500">{e.reason}</div>}
-                  </li>
-                );
-              })}
-            </ol>
-          </div>
         </div>
 
-        {/* ── 侧栏:归并依据 + AML 命中 + 待复核候选 ── */}
+        {/* ── 侧栏:所属团伙 + AML 命中 ── */}
         <div className="space-y-8">
           <div>
-            <div className="mb-3"><SectionLabel>归并依据</SectionLabel></div>
-            <div className="card space-y-2.5 p-4">
-              {DIM_ORDER.filter((d) => s.mergeEvidence.some((e) => e.dimension === d)).map((d) => {
-                const e = s.mergeEvidence.find((x) => x.dimension === d)!;
-                return <EvidenceRow key={d} dim={d} strength={e.strength} weight={e.weight} note={e.note} />;
-              })}
-              {s.mergeEvidence.length === 0 && <div className="py-2 text-[12px] text-default-400">无归并依据(单账户主体)</div>}
-            </div>
+            <div className="mb-3"><SectionLabel>所属团伙</SectionLabel></div>
+            {s.ringId ? (
+              <button onClick={() => nav(`/ring?id=${s.ringId}`)}
+                className="card flex w-full items-center gap-3 p-4 text-left transition-colors hover:bg-default-50">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-default-100"><Network className="h-4 w-4 text-default-500" /></span>
+                <div className="min-w-0 flex-1">
+                  <div className="font-semibold">{s.ringId}</div>
+                  <div className="text-[11.5px] text-default-400">{s.ringRole ? `本商户角色 · ${s.ringRole}` : "关联团伙成员"}</div>
+                </div>
+                <ChevronRight className="h-4 w-4 shrink-0 text-default-300" />
+              </button>
+            ) : (
+              <div className="card flex items-center justify-center gap-2 py-6 text-[12px] text-default-400"><ShieldCheck className="h-4 w-4 text-success" />未关联任何团伙</div>
+            )}
           </div>
 
           <div>
-            <div className="mb-3 flex items-center justify-between">
-              <SectionLabel>AML 命中（{s.amlHits.length}）</SectionLabel>
-            </div>
+            <div className="mb-3"><SectionLabel>AML 命中（{s.amlHits.length}）</SectionLabel></div>
             <div className="space-y-2.5">
               {s.amlHits.length === 0
                 ? <div className="card flex items-center justify-center gap-2 py-6 text-[12px] text-default-400"><ShieldCheck className="h-4 w-4 text-success" />无 AML 命中</div>
@@ -215,67 +147,8 @@ export default function SubjectDetail() {
                   ))}
             </div>
           </div>
-
-          {s.pendingCandidates.length > 0 && (
-            <div>
-              <div className="mb-3"><SectionLabel>待复核归并候选（{s.pendingCandidates.length}）</SectionLabel></div>
-              <div className="card p-4">
-                <div className="space-y-2">
-                  {s.pendingCandidates.map((c) => (
-                    <div key={c.id} className="flex items-center justify-between gap-2 text-[12.5px]">
-                      <span className="rounded bg-default-100 px-1.5 py-0.5 font-mono text-[11px] font-semibold text-default-600">{c.address}</span>
-                      <span className="text-default-400">置信度 {c.confidence}%</span>
-                    </div>
-                  ))}
-                </div>
-                <Button size="sm" radius="full" variant="flat" className="mt-3 w-full" startContent={<GitMerge className="h-3.5 w-3.5" />} onPress={() => nav("/subjects")}>去复核队列处理</Button>
-              </div>
-            </div>
-          )}
         </div>
       </div>
-
-      {/* 拆分确认弹窗(§7.5 高敏封条 + 理由必填)*/}
-      <Modal isOpen={!!target} onOpenChange={(o) => !o && setTarget(null)} size="md" placement="center">
-        <ModalContent>
-          {(close) => (
-            <>
-              <ModalHeader className="flex flex-col gap-1">
-                <span className="text-[15px]">确认剔除钱包归属</span>
-                <span className="text-[12px] font-normal text-default-500">将钱包地址 {target?.address} 从主体 {s.name} 剔除归属,并触发风险重算</span>
-              </ModalHeader>
-              <ModalBody>
-                <div className="rounded-lg border border-default-200 bg-default-50 px-3 py-2 text-[11.5px] text-default-500">
-                  <ShieldCheck className="mr-1 inline h-3.5 w-3.5 text-default-400" />
-                  高敏操作 · 需 {REQUIRED_ROLE.split} 权限 · 提交后全量记入审计日志(原型不实际鉴权)
-                </div>
-                <Textarea size="sm" label="拆分理由" labelPlacement="outside" placeholder="填写拆分依据(如:关联证据被推翻 / 误归并)…" value={reason} onValueChange={setReason} minRows={2} />
-              </ModalBody>
-              <ModalFooter>
-                <Button size="sm" radius="full" variant="light" onPress={close} isDisabled={split.isPending}>取消</Button>
-                <Button size="sm" radius="full" color="danger" variant="flat" isLoading={split.isPending} isDisabled={!reason.trim()} onPress={submitSplit}>确认拆分</Button>
-              </ModalFooter>
-            </>
-          )}
-        </ModalContent>
-      </Modal>
     </Shell>
-  );
-}
-
-// 归并依据单行(维度色圆点 + 强/弱信号 + 权重 + 说明)
-function EvidenceRow({ dim, strength, weight, note }: { dim: DimensionKey; strength: "strong" | "weak"; weight: number; note: string }) {
-  const m = DIM_META[dim];
-  return (
-    <div className="flex items-start gap-2.5 border-b border-dashed border-default-100 pb-2.5 last:border-0 last:pb-0" style={{ opacity: strength === "weak" ? 0.72 : 1 }}>
-      <span className="mt-1 h-2 w-2 shrink-0 rounded-full" style={{ background: m.color }} />
-      <div className="min-w-0 flex-1">
-        <div className="flex items-baseline justify-between gap-2">
-          <span className="text-[12.5px] font-semibold">{m.label}</span>
-          <span className="shrink-0 text-[10.5px] text-default-400">{strength === "strong" ? "强信号" : "弱信号"} · 权重 {weight}</span>
-        </div>
-        <div className="mt-0.5 text-[11.5px] text-default-500">{note}</div>
-      </div>
-    </div>
   );
 }

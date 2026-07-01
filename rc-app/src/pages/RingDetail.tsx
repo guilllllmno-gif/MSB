@@ -2,12 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { Card, CardHeader, CardBody, Button, Drawer, DrawerContent, DrawerHeader, DrawerBody, DrawerFooter, Textarea, Select, SelectItem } from "@heroui/react";
-import { ArrowLeft, FolderPlus, ListPlus, FileDown, Coins, Link2, Smartphone, Globe, Bell, Sparkles, Info, ArrowUpCircle, XCircle, ClipboardCheck, Clock, UserPlus, ChevronDown, FileQuestion } from "lucide-react";
+import { ArrowLeft, FolderPlus, ListPlus, FileDown, Coins, Link2, Smartphone, Globe, Bell, Sparkles, Info, ArrowUpCircle, XCircle, ClipboardCheck, Clock, UserPlus, ChevronDown, FileQuestion, ExternalLink } from "lucide-react";
 import { Shell } from "@/components/Shell";
 import { Pill, Initials, SectionLabel } from "@/components/bits";
 import { RingBasis } from "@/components/RingBasis";
 import { Timeline } from "@/components/Timeline";
-import { ringOf, caseRefFor, clusterCount, clusterChildren, DIM_META, DIM_ORDER, confTone, confLabel, RING_FIELDS, RING_STATES, DISP_STATE, ringActions, type RingDim, type Ring, type RingEdge, type RingStateKey } from "@/lib/rings";
+import { ringOf, caseRefFor, clusterCount, clusterChildren, subjectIdForMember, DIM_META, DIM_ORDER, confTone, confLabel, RING_FIELDS, RING_STATES, DISP_STATE, ringActions, type RingDim, type Ring, type RingEdge, type RingStateKey } from "@/lib/rings";
 import { ringStore, useRingVersion } from "@/lib/store";
 import { intakeCase } from "@/lib/caseIntake";
 import type { CaseSubject } from "@/lib/cases";
@@ -126,6 +126,40 @@ function Graph({ ring, expanded, onToggle }: { ring: Ring; expanded: Set<string>
           </div>
         );
       })}
+    </div>
+  );
+}
+
+// 核心关联证据 banner —— 修正模型:团伙 = 多商户经「共用提现白名单地址 / 设备 / 资金归集」聚成。
+// 提现须先加白,故「多个商户共用同一提现白名单地址」是同一控制人的最强信号,置顶突出。
+function CoreEvidence({ ring }: { ring: Ring }) {
+  const merchants = ring.members.filter((m) => m.kind === "商户");
+  const addr = ring.shared.find((s) => s.dim === "address");
+  const addrNotes = ring.edges.filter((e) => e.dims.includes("address")).map((e) => e.note);
+  const top = [...ring.shared].sort((a, b) => b.contrib - a.contrib)[0];
+  const whitelist = !!addr && merchants.length >= 2;
+  const tintCol = whitelist ? DIM_META.address.color : top ? DIM_META[top.dim].color : "var(--text-2)";
+  return (
+    <div className="rounded-2xl border p-4" style={{ background: `color-mix(in srgb, ${tintCol} 6%, transparent)`, borderColor: `color-mix(in srgb, ${tintCol} 28%, transparent)` }}>
+      <div className="flex items-center gap-2 text-[13px] font-bold" style={{ color: tintCol }}>
+        <Link2 className="h-4 w-4" />核心关联证据 · 为什么判定为同一团伙
+      </div>
+      {whitelist ? (
+        <>
+          <p className="mt-2 text-[12.5px] leading-relaxed text-default-600">
+            本团伙 <b className="text-foreground">{merchants.length}</b> 个商户经 <b className="text-foreground">{addr!.count}</b> 个<b style={{ color: tintCol }}>共用提现白名单地址</b>关联归集。提现须由商户先加入白名单,<b>多个商户共用同一白名单地址</b>是同一实际控制人的最强信号。
+          </p>
+          <ul className="mt-2 space-y-1">
+            {addrNotes.slice(0, 3).map((t, i) => (
+              <li key={i} className="flex items-start gap-1.5 text-[11.5px] text-default-500"><span className="mt-1 h-1 w-1 shrink-0 rounded-full" style={{ background: tintCol }} />{t}</li>
+            ))}
+          </ul>
+        </>
+      ) : (
+        <p className="mt-2 text-[12.5px] leading-relaxed text-default-600">
+          主要靠 <b style={{ color: tintCol }}>{top ? DIM_META[top.dim].label : "多维"}</b> 关联{top ? `(共享 ${top.count} 项 · 贡献 ${top.contrib} 分)` : ""},暂无「共用提现白名单地址」等强信号,关联偏弱,建议观察或要求补充材料。
+        </p>
+      )}
     </div>
   );
 }
@@ -267,6 +301,7 @@ export default function RingDetail() {
         </CardBody></Card>
       ) : (
       <div className="flex flex-col gap-5">
+        <CoreEvidence ring={ring} />
         {/* graph + its evidence — the edges ARE the evidence, so they live together */}
         <Card shadow="none" className="card"><CardHeader className="flex flex-wrap items-center justify-between gap-2"><div><div className="text-[15px] font-bold">关系图谱</div><div className="text-[12px] text-default-400">节点 = 主体 · 连线 = 共享关系（颜色 / 圆点 = 维度）· 连线标签「强度」= 关联强度，越高越可靠</div></div>
             <div className="flex flex-wrap items-center gap-2.5">{DIM_ORDER.map((d) => <span key={d} className="flex items-center gap-1 text-[11px] text-default-500"><span className="h-2 w-2 rounded-full" style={{ background: DIM_META[d].color }} />{DIM_META[d].short}</span>)}</div>
@@ -360,12 +395,18 @@ export default function RingDetail() {
                 const cnt = cluster ? clusterCount(m) : 0;
                 const on = expClusters.has(m.id);
                 const children = on ? clusterChildren(m) : [];
+                const sid = subjectIdForMember(m); // 商户成员 → 商户档案下钻
                 return (
                   <div key={m.id} id={`cm-${m.id}`} className={`rounded-xl border p-3 transition-colors ${cluster && on ? "border-primary/50 bg-primary/[0.03]" : "border-divider"} ${cluster ? "sm:col-span-2" : ""}`}>
                     <div className="flex items-center gap-3">
                       <Initials p={{ i: m.i, c: m.c }} size={36} mono />
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2"><span className="truncate font-semibold">{m.name}</span><Pill tone="grey" dot={false}>{m.kind}</Pill>{cluster && cnt > 0 && <span className="rounded-full bg-default-100 px-1.5 text-[10px] font-semibold text-default-500">{cnt} 个子成员</span>}</div>
+                        <div className="flex items-center gap-2">
+                          {sid
+                            ? <button onClick={() => nav(`/subject?id=${sid}`)} className="inline-flex items-center gap-1 truncate font-semibold text-primary hover:underline" title="查看商户档案">{m.name}<ExternalLink className="h-3 w-3 shrink-0" /></button>
+                            : <span className="truncate font-semibold">{m.name}</span>}
+                          <Pill tone="grey" dot={false}>{m.kind}</Pill>{cluster && cnt > 0 && <span className="rounded-full bg-default-100 px-1.5 text-[10px] font-semibold text-default-500">{cnt} 个子成员</span>}
+                        </div>
                         <div className="text-[11.5px] text-default-400">{m.sub} · {m.role} · 关联告警 {m.alerts} 条</div>
                       </div>
                       {cluster && cnt > 0 ? (
