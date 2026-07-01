@@ -1,0 +1,145 @@
+import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
+import { Drawer, DrawerContent, DrawerHeader, DrawerBody, DrawerFooter, Button } from "@heroui/react";
+import { ShieldAlert, ArrowRight, ArrowDownLeft, ArrowUpRight, ExternalLink, ListPlus } from "lucide-react";
+import { Pill, SectionLabel } from "./bits";
+import { toneVar } from "@/lib/data";
+import { CAT_META, VERDICT_META, scoreLevel, policyVerdict, KYT_POLICY, shortAddr, type AddrRisk } from "@/lib/onchain";
+
+export function AddrRiskDrawer({ addr, onClose }: { addr: AddrRisk | null; onClose: () => void }) {
+  const nav = useNavigate();
+  if (!addr) return null;
+  const lv = scoreLevel(addr.score);
+  const { verdict, reason } = policyVerdict(addr);
+  const v = VERDICT_META[verdict];
+  const exps = [...addr.exposures].sort((a, b) => b.pct - a.pct);
+
+  return (
+    <Drawer isOpen={!!addr} onOpenChange={(o) => { if (!o) onClose(); }} placement="right" size="lg">
+      <DrawerContent>
+        <DrawerHeader className="flex-col items-start gap-1 border-b border-divider">
+          <div className="flex items-center gap-2">
+            <span className="text-[17px] font-bold tracking-tight">{shortAddr(addr.address)}</span>
+            <Pill tone="grey" dot={false}>{addr.chain}</Pill>
+            <Pill tone={lv.tone}>供应商风险 {addr.score} · {lv.label}</Pill>
+          </div>
+          <div className="text-[11.5px] text-default-400">{addr.ownEntity ? `归属:${addr.ownEntity} · ` : ""}最近筛查 {addr.lastScreened} · 首次见于 {addr.firstSeen}</div>
+        </DrawerHeader>
+
+        <DrawerBody className="gap-5 py-5">
+          {/* 处置判定 —— 本系统策略层(供应商给信号,这里给动作)*/}
+          <div className="rounded-xl border p-3.5" style={{ borderColor: `color-mix(in srgb, ${toneVar(v.tone)} 30%, transparent)`, background: `color-mix(in srgb, ${toneVar(v.tone)} 6%, transparent)` }}>
+            <div className="flex items-center gap-2">
+              <ShieldAlert className="h-4 w-4" style={{ color: toneVar(v.tone) }} />
+              <span className="text-[11px] font-bold uppercase tracking-wider text-default-400">本系统处置判定</span>
+              <Pill tone={v.tone}>{v.label}</Pill>
+            </div>
+            <div className="mt-2 text-[13px] font-semibold">{reason}</div>
+            <div className="mt-0.5 text-[12px] text-default-500">{v.hint}</div>
+          </div>
+
+          {/* 供应商风险分 */}
+          <div>
+            <SectionLabel>供应商风险分</SectionLabel>
+            <div className="flex items-center gap-3">
+              <span className="text-[30px] font-extrabold leading-none tnum" style={{ color: toneVar(lv.tone) }}>{addr.score}</span>
+              <div className="flex-1">
+                <div className="h-2 w-full overflow-hidden rounded-full bg-default-100">
+                  <div className="h-full rounded-full" style={{ width: `${addr.score}%`, background: toneVar(lv.tone) }} />
+                </div>
+                <div className="mt-1 text-[11.5px] text-default-400">情报源:KYT 供应商(原型内 mock)· 0–100,越高越危</div>
+              </div>
+            </div>
+          </div>
+
+          {/* 类别归属 —— 属性,中性灰 */}
+          <div>
+            <SectionLabel>类别归属</SectionLabel>
+            <div className="flex flex-wrap gap-1.5">
+              {addr.categories.map((c) => (
+                <span key={c} className="inline-flex items-center gap-1 rounded-md border border-divider bg-default-50 px-2 py-0.5 text-[11.5px] font-semibold text-default-600">
+                  {CAT_META[c].severe && <ShieldAlert className="h-3 w-3 text-default-400" />}{CAT_META[c].label}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          {/* 资金敞口 */}
+          <div>
+            <SectionLabel>资金敞口(占该地址资金流的比例 · 最短跳数)</SectionLabel>
+            <div className="flex flex-col gap-2.5">
+              {exps.map((e, i) => {
+                const meta = CAT_META[e.cat];
+                const col = meta.severe ? (e.hops <= 1 ? "var(--danger)" : "var(--warning)") : "var(--text-3)";
+                return (
+                  <div key={i}>
+                    <div className="mb-0.5 flex items-center gap-1.5 text-[12.5px]">
+                      {e.direction === "in" ? <ArrowDownLeft className="h-3.5 w-3.5 text-default-400" /> : <ArrowUpRight className="h-3.5 w-3.5 text-default-400" />}
+                      <span className="font-semibold" style={{ color: meta.severe ? col : undefined }}>{meta.label}</span>
+                      <span className="text-default-400">· {e.direction === "in" ? "流入" : "流出"} · {e.hops} 跳</span>
+                      <span className="ml-auto tnum font-bold" style={{ color: col }}>{e.pct}%</span>
+                    </div>
+                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-default-100">
+                      <div className="h-full rounded-full" style={{ width: `${e.pct}%`, background: col }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* 对手方 */}
+          {addr.counterparties.length > 0 && (
+            <div>
+              <SectionLabel>主要对手方</SectionLabel>
+              <div className="flex flex-col gap-1.5">
+                {addr.counterparties.map((c, i) => (
+                  <div key={i} className="flex items-center gap-2 text-[12.5px]">
+                    <span className="font-semibold">{c.name}</span>
+                    <span className="rounded-md bg-default-100 px-1.5 py-px text-[10.5px] font-semibold text-default-500">{c.kind}</span>
+                    <span className="ml-auto tnum text-default-500">{c.pct}%</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 见于本系统 —— 交叉回链 */}
+          {addr.seenIn.length > 0 && (
+            <div>
+              <SectionLabel>见于本系统</SectionLabel>
+              <div className="flex flex-col gap-1.5">
+                {addr.seenIn.map((s, i) => (
+                  <button key={i} onClick={() => { onClose(); nav(s.to); }} className="flex items-center gap-2 rounded-lg border border-divider px-2.5 py-2 text-left text-[12.5px] transition-colors hover:bg-default-50">
+                    <span className="rounded-md bg-default-100 px-1.5 py-px text-[10.5px] font-semibold text-default-500">{s.kind}</span>
+                    <span className="font-medium">{s.label}</span>
+                    <ExternalLink className="ml-auto h-3.5 w-3.5 text-default-400" />
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 风险策略 —— 本系统自建层 */}
+          <div className="rounded-xl border border-divider bg-default-50 p-3">
+            <div className="mb-1.5 flex items-center gap-1.5">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-default-400">生效风险策略</span>
+              <span className="rounded-full bg-default-100 px-1.5 py-px text-[10.5px] font-semibold text-default-500">本系统 · 风控总管可调 · 待定</span>
+            </div>
+            <ul className="space-y-0.5 text-[12px] text-default-500">
+              <li>· 直接敞口到被制裁地址(≤{KYT_POLICY.sanctionHops} 跳)→ 拒绝</li>
+              <li>· 供应商风险分 ≥ {KYT_POLICY.scoreBlock} → 拒绝;≥ {KYT_POLICY.scoreReview} → 转人工</li>
+              <li>· 混币器敞口 ≥ {KYT_POLICY.mixerReview}% / 暗网 ≥ {KYT_POLICY.darknetReview}% / 诈骗 ≥ {KYT_POLICY.scamReview}% / 盗币 ≥ {KYT_POLICY.stolenReview}% → 转人工</li>
+            </ul>
+          </div>
+        </DrawerBody>
+
+        <DrawerFooter className="border-t border-divider">
+          <Button variant="flat" size="sm" startContent={<ListPlus className="h-3.5 w-3.5" />} onPress={() => toast.success(`已将 ${shortAddr(addr.address)} 列入观察名单`)}>列入观察名单</Button>
+          <Button variant="flat" size="sm" endContent={<ArrowRight className="h-3.5 w-3.5" />} onPress={() => { onClose(); nav("/rules"); }}>去监控规则</Button>
+          <Button color="primary" size="sm" onPress={onClose}>关闭</Button>
+        </DrawerFooter>
+      </DrawerContent>
+    </Drawer>
+  );
+}

@@ -25,6 +25,7 @@ const ReportDetail = lazy(() => import("@/pages/ReportDetail"));
 const ListsPage = lazy(() => import("@/pages/ListsPage"));
 const ListDetail = lazy(() => import("@/pages/ListDetail"));
 const StrategyPage = lazy(() => import("@/pages/StrategyPage"));
+const OnChainIntel = lazy(() => import("@/pages/OnChainIntel"));
 const AuditLog = lazy(() => import("@/pages/AuditLog"));
 
 export default function App() {
@@ -46,6 +47,7 @@ export default function App() {
             <Route path="/lists" element={<ListsPage />} />
             <Route path="/list-entry" element={<ListDetail />} />
             <Route path="/strategy" element={<StrategyPage />} />
+            <Route path="/onchain" element={<OnChainIntel />} />
             <Route path="/rules" element={<RulesPage />} />
             <Route path="/rule" element={<RuleDetail />} />
             <Route path="/cases" element={<CaseList />} />
