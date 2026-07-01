@@ -52,21 +52,21 @@ export const handlers = [
 
   http.post("*/api/subjects/:id/merge", async ({ params, request }) => {
     await lat();
-    const body = (await request.json().catch(() => ({}))) as { accountId?: string };
+    const body = (await request.json().catch(() => ({}))) as { address?: string };
     const s = subjects.find((x) => x.id === params.id);
     if (!s) return new HttpResponse(null, { status: 404 });
-    // 归并:消费对应候选 + 主体账户数 +1
-    candidates = candidates.filter((c) => !(c.targetSubjectId === params.id && c.accountId === body.accountId));
-    subjects = subjects.map((x) => (x.id === params.id ? { ...x, accountCount: x.accountCount + 1 } : x));
+    // 归并:消费对应候选(钱包地址归属该主体)+ 主体钱包数 +1
+    candidates = candidates.filter((c) => !(c.targetSubjectId === params.id && c.address === body.address));
+    subjects = subjects.map((x) => (x.id === params.id ? { ...x, walletCount: x.walletCount + 1 } : x));
     return HttpResponse.json({ ok: true, auditId: nextAuditId() });
   }),
 
   http.post("*/api/subjects/:id/split", async ({ params, request }) => {
     await lat();
-    const body = (await request.json().catch(() => ({}))) as { accountId?: string };
+    const body = (await request.json().catch(() => ({}))) as { address?: string };
     const s = subjects.find((x) => x.id === params.id);
     if (!s) return new HttpResponse(null, { status: 404 });
-    subjects = subjects.map((x) => (x.id === params.id ? { ...x, accountCount: Math.max(1, x.accountCount - 1) } : x));
+    subjects = subjects.map((x) => (x.id === params.id ? { ...x, walletCount: Math.max(1, x.walletCount - 1) } : x));
     void body;
     return HttpResponse.json({ ok: true, auditId: nextAuditId(), recalcTriggered: true });
   }),

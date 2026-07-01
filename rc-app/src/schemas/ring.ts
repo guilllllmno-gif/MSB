@@ -13,8 +13,8 @@ export const Ring = z.object({
   confidence: Confidence,
   confidenceScore: z.number().min(0).max(100),
   hitDimensions: z.array(AssocEvidence),
-  memberCount: z.number().int().nonnegative(), // 真实主体数(已归并)
-  accountCount: z.number().int().nonnegative(), // 涉及账户数
+  memberCount: z.number().int().nonnegative(), // 真实主体数(商户/自然人,已归并)
+  walletCount: z.number().int().nonnegative(), // 涉及钱包地址数
   totalAmountCad: z.number().nonnegative(),
   overLctr: z.boolean(),
   alertCount: z.number().int().nonnegative(),
@@ -32,7 +32,7 @@ export const RingMember = z.object({
   avatar: z.string(),
   color: z.string(),
   role: z.string(),
-  accountCount: z.number().int().nonnegative(),
+  walletCount: z.number().int().nonnegative(),
 });
 export type RingMember = z.infer<typeof RingMember>;
 

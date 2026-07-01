@@ -21,7 +21,7 @@ export const useMergeCandidates = () =>
 export function useMergeAccount() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (v: { id: string; accountId: string; reason: string }) => apiPost(`/subjects/${v.id}/merge`, { accountId: v.accountId, reason: v.reason }, OkResp),
+    mutationFn: (v: { id: string; address: string; reason: string }) => apiPost(`/subjects/${v.id}/merge`, { address: v.address, reason: v.reason }, OkResp),
     onSuccess: (_d, v) => { qc.invalidateQueries({ queryKey: ["subject", v.id] }); qc.invalidateQueries({ queryKey: ["subjects"] }); qc.invalidateQueries({ queryKey: ["merge-candidates"] }); },
   });
 }
@@ -29,7 +29,7 @@ export function useMergeAccount() {
 export function useSplitAccount() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (v: { id: string; accountId: string; reason: string }) => apiPost(`/subjects/${v.id}/split`, { accountId: v.accountId, reason: v.reason }, OkResp),
+    mutationFn: (v: { id: string; address: string; reason: string }) => apiPost(`/subjects/${v.id}/split`, { address: v.address, reason: v.reason }, OkResp),
     onSuccess: (_d, v) => { qc.invalidateQueries({ queryKey: ["subject", v.id] }); qc.invalidateQueries({ queryKey: ["subjects"] }); },
   });
 }

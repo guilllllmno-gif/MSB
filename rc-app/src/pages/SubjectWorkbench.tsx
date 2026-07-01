@@ -68,7 +68,7 @@ export default function SubjectWorkbench() {
     <Shell crumb={["风控", "检测策略", "主体归并"]} wide>
       <PageHead
         title="主体归并工作台"
-        sub={`同一自然人/实体的多账户经跨维度关联(资金/设备/提现地址/IP)归并为单一主体。置信度 ≥${MERGE.auto} 自动归并、${MERGE.reviewLow}–${MERGE.reviewHigh} 进入人工复核队列、<${MERGE.reviewLow} 不归并。`}
+        sub={`同一商户/自然人的多个钱包地址经跨维度关联(资金/设备/提现地址/IP)归属至单一主体。置信度 ≥${MERGE.auto} 自动归属、${MERGE.reviewLow}–${MERGE.reviewHigh} 进入人工复核队列、<${MERGE.reviewLow} 不归属。`}
       />
 
       {/* ── 归并候选复核队列(50–74)── */}
@@ -114,7 +114,7 @@ export default function SubjectWorkbench() {
       <Table aria-label="主体档案" radius="lg"
         classNames={{ wrapper: "card no-scrollbar p-0 rounded-2xl overflow-x-auto", th: "bg-default-50 text-default-500 text-[12px] font-medium h-12 border-b border-divider whitespace-nowrap", td: "py-5 text-[13px] whitespace-nowrap", tr: "border-b border-default-100 last:border-0 transition-colors hover:bg-default-50 cursor-pointer" }}>
         <TableHeader>
-          <TableColumn>主体 / ID</TableColumn><TableColumn>风险</TableColumn><TableColumn>归并账户</TableColumn>
+          <TableColumn>主体 / ID</TableColumn><TableColumn>风险</TableColumn><TableColumn>归属钱包</TableColumn>
           <TableColumn>涉及金额</TableColumn><TableColumn>AML 命中</TableColumn><TableColumn>KYC</TableColumn><TableColumn>关联团伙</TableColumn>
         </TableHeader>
         <TableBody
@@ -128,11 +128,11 @@ export default function SubjectWorkbench() {
                 <TableCell>
                   <div className="flex items-center gap-2.5">
                     <Initials p={{ i: s.avatar, c: "var(--brand)" }} size={28} mono />
-                    <div><div className="font-semibold">{s.name}</div><div className="text-[11px] text-default-400">{s.id} · {s.type === "entity" ? "实体" : "个人"}</div></div>
+                    <div><div className="font-semibold">{s.name}</div><div className="text-[11px] text-default-400">{s.id} · {s.type === "entity" ? "商户" : "自然人"}</div></div>
                   </div>
                 </TableCell>
                 <TableCell><Pill tone={LEVEL_TONE[s.riskLevel]}>{LEVEL_LABEL[s.riskLevel]} · {s.riskScore}</Pill></TableCell>
-                <TableCell><span className="font-semibold tnum">{s.accountCount}</span> <span className="text-default-400">个</span></TableCell>
+                <TableCell><span className="font-semibold tnum">{s.walletCount}</span> <span className="text-default-400">个</span></TableCell>
                 <TableCell><span className="font-semibold tnum">{fmtCadCompact(s.totalAmountCad)}</span></TableCell>
                 <TableCell><span className="tnum text-default-600">{s.amlHitCount}</span> <span className="text-default-400 text-[11px]">/ 规则 {s.ruleHitCount}</span></TableCell>
                 <TableCell><Pill tone={kycM.tone} dot={false}>{kycM.label}</Pill></TableCell>
@@ -172,13 +172,13 @@ function CandidateCard({ cand }: { cand: MergeCandidate }) {
   const submit = () => {
     if (!confirm) return;
     if (confirm.kind === "merge") {
-      merge.mutate({ id: cand.targetSubjectId, accountId: cand.accountId, reason }, {
-        onSuccess: () => { toast.success(`已归并 ${cand.accountId} → ${cand.targetSubjectName} · 已记入审计`); setConfirm(null); },
-        onError: () => toast.error("归并失败"),
+      merge.mutate({ id: cand.targetSubjectId, address: cand.address, reason }, {
+        onSuccess: () => { toast.success(`已归属 ${cand.address} → ${cand.targetSubjectName} · 已记入审计`); setConfirm(null); },
+        onError: () => toast.error("归属失败"),
       });
     } else {
       reject.mutate({ candidateId: cand.id, reason }, {
-        onSuccess: () => { toast.success(`已驳回候选 · ${cand.accountId} 保留独立主体`); setConfirm(null); },
+        onSuccess: () => { toast.success(`已驳回 · ${cand.address} 不归属 ${cand.targetSubjectName}`); setConfirm(null); },
         onError: () => toast.error("驳回失败"),
       });
     }
@@ -191,7 +191,7 @@ function CandidateCard({ cand }: { cand: MergeCandidate }) {
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2 text-[13px]">
-            <span className="rounded-md bg-default-100 px-1.5 py-0.5 font-mono text-[11.5px] font-semibold text-default-600">{cand.accountId}</span>
+            <span className="rounded-md bg-default-100 px-1.5 py-0.5 font-mono text-[11.5px] font-semibold text-default-600">{cand.address}</span>
             <GitMerge className="h-3.5 w-3.5 shrink-0 text-default-400" />
             <button className="truncate font-semibold text-primary hover:underline" onClick={() => nav(`/subject?id=${cand.targetSubjectId}`)}>{cand.targetSubjectName}</button>
           </div>
@@ -209,7 +209,7 @@ function CandidateCard({ cand }: { cand: MergeCandidate }) {
       </div>
 
       <div className="mt-3.5 flex items-center gap-2 border-t border-default-100 pt-3">
-        <Button size="sm" radius="full" color="primary" startContent={<GitMerge className="h-3.5 w-3.5" />} isDisabled={busy} onPress={() => open("merge")}>归并</Button>
+        <Button size="sm" radius="full" color="primary" startContent={<GitMerge className="h-3.5 w-3.5" />} isDisabled={busy} onPress={() => open("merge")}>归属</Button>
         <Button size="sm" radius="full" variant="flat" startContent={<X className="h-3.5 w-3.5" />} isDisabled={busy} onPress={() => open("reject")}>驳回</Button>
         <Tooltip content={`高敏操作 · 需 ${REQUIRED_ROLE.merge} 权限 · 全量记入审计`} size="sm" delay={200}>
           <span className="ml-auto inline-flex items-center gap-1 text-[11px] text-default-400"><UserRound className="h-3.5 w-3.5" />需 {REQUIRED_ROLE.merge}</span>
@@ -221,11 +221,11 @@ function CandidateCard({ cand }: { cand: MergeCandidate }) {
           {(close) => (
             <>
               <ModalHeader className="flex flex-col gap-1">
-                <span className="text-[15px]">{confirm?.kind === "merge" ? "确认归并账户" : "驳回归并候选"}</span>
+                <span className="text-[15px]">{confirm?.kind === "merge" ? "确认归属钱包地址" : "驳回归属候选"}</span>
                 <span className="text-[12px] font-normal text-default-500">
                   {confirm?.kind === "merge"
-                    ? `将 ${cand.accountId} 归并入主体 ${cand.targetSubjectName}（置信度 ${cand.confidence}%）`
-                    : `保留 ${cand.accountId} 为独立主体，移出复核队列`}
+                    ? `将钱包地址 ${cand.address} 归属至主体 ${cand.targetSubjectName}（置信度 ${cand.confidence}%）`
+                    : `不归属 ${cand.address}，移出该主体的复核队列`}
                 </span>
               </ModalHeader>
               <ModalBody>
@@ -238,7 +238,7 @@ function CandidateCard({ cand }: { cand: MergeCandidate }) {
               <ModalFooter>
                 <Button size="sm" radius="full" variant="light" onPress={close} isDisabled={busy}>取消</Button>
                 <Button size="sm" radius="full" color={confirm?.kind === "merge" ? "primary" : "default"} isLoading={busy} isDisabled={!reason.trim()} onPress={submit}>
-                  {confirm?.kind === "merge" ? "确认归并" : "确认驳回"}
+                  {confirm?.kind === "merge" ? "确认归属" : "确认驳回"}
                 </Button>
               </ModalFooter>
             </>

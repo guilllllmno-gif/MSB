@@ -80,15 +80,15 @@ describe("认领状态机(§7.6)", () => {
 });
 
 describe("归并 / 拆分 mock 真实改状态(§5)", () => {
-  it("merge:消费候选 + 账户数 +1", async () => {
+  it("merge:消费候选 + 钱包数 +1", async () => {
     const before = await getJson("/api/subjects/SUBJ-0001", SubjectDetail);
-    await fetch(BASE + "/api/subjects/SUBJ-0001/merge", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ accountId: "ACCT-N4471", reason: "复核同提现地址,人工归并" }) });
+    await fetch(BASE + "/api/subjects/SUBJ-0001/merge", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ address: "0x91Ad…77F2", reason: "复核同提现地址,人工归属" }) });
     const after = await getJson("/api/subjects/SUBJ-0001", SubjectDetail);
-    expect(after.accountCount).toBe(before.accountCount + 1);
+    expect(after.walletCount).toBe(before.walletCount + 1);
     expect(after.pendingCandidates.length).toBe(before.pendingCandidates.length - 1);
   });
   it("split:返回 recalcTriggered + auditId", async () => {
-    const j = await (await fetch(BASE + "/api/subjects/SUBJ-0001/split", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ accountId: "ACCT-00012", reason: "误并,拆出" }) })).json();
+    const j = await (await fetch(BASE + "/api/subjects/SUBJ-0001/split", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ address: "0x0a1b…2c3d", reason: "误归属,拆出" }) })).json();
     expect(j.recalcTriggered).toBe(true);
     expect(j.auditId).toMatch(/^AUD-/);
   });
