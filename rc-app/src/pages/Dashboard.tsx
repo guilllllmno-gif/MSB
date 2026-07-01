@@ -11,7 +11,7 @@ import { SectionLabel, Initials } from "@/components/bits";
 import { LineChart, AnalystLoad } from "@/components/charts";
 import { AnalystQueueDrawer } from "@/components/AnalystQueueDrawer";
 import { queueHealth, DAYS14, QUEUE, type Analyst } from "@/lib/opsMetrics";
-import { rings, RING_STATES, confTone, type RingStateKey } from "@/lib/rings";
+import { rings, RING_STATES, confTone, slaOfRing, type RingStateKey } from "@/lib/rings";
 import { alerts, INVESTIGATION_STATES } from "@/lib/data";
 import { CASES, CSTATE, type CState } from "@/lib/cases";
 import { RSTATE } from "@/lib/reports";
@@ -310,10 +310,13 @@ export default function Dashboard() {
   // 团伙:我拥有的、仍有未决处置的
   const myRings: Task[] = allRings
     .filter((r) => ringStore.ownerOf(r.id, r.owner)?.n === ME.n && ["pending", "investigating", "watching"].includes(stOf(r.id, r.state)))
-    .map((r) => ({
-      kind: "团伙", subject: r.name, meta: `${r.id} · ${r.members.length} 主体 · 置信 ${r.confidence}%`,
-      due: r.sla?.text ?? "无时限", overdue: r.sla?.tone === "red", to: `/ring?id=${r.id}`, icon: Network,
-    }));
+    .map((r) => {
+      const sla = slaOfRing(r, stOf(r.id, r.state));
+      return {
+        kind: "团伙", subject: r.name, meta: `${r.id} · ${r.members.length} 主体 · 置信 ${r.confidence}%`,
+        due: sla?.text ?? "无时限", overdue: sla?.overdue ?? false, to: `/ring?id=${r.id}`, icon: Network,
+      };
+    });
   // 告警:未结案、归我 / 待认领,深链到真实告警
   const myAlerts: Task[] = alerts
     .filter((a) => !alertStore.stateOf(a.id, a.state).startsWith("closed") && mine(alertStore.assigneeOf(a.id, a.assignee)))

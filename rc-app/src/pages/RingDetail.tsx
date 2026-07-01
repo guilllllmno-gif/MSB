@@ -8,7 +8,7 @@ import { Pill, Initials, SectionLabel } from "@/components/bits";
 import { alerts, sevMeta, toneVar, RC_STATES, GATE_STATES, INVESTIGATION_STATES, type Tone } from "@/lib/data";
 import { RingBasis } from "@/components/RingBasis";
 import { Timeline } from "@/components/Timeline";
-import { ringOf, caseRefFor, clusterCount, clusterChildren, DIM_META, DIM_ORDER, confTone, confLabel, RING_FIELDS, RING_STATES, DISP_STATE, ringActions, type RingDim, type Ring, type RingEdge, type RingStateKey } from "@/lib/rings";
+import { ringOf, caseRefFor, clusterCount, clusterChildren, DIM_META, DIM_ORDER, confTone, confLabel, RING_FIELDS, RING_STATES, DISP_STATE, ringActions, slaOfRing, type RingDim, type Ring, type RingEdge, type RingStateKey } from "@/lib/rings";
 import { ringStore, useRingVersion, alertStore, useAlertVersion } from "@/lib/store";
 import { intakeCase } from "@/lib/caseIntake";
 import { intakeList } from "@/lib/listIntake";
@@ -390,7 +390,7 @@ export default function RingDetail() {
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2.5">
-          {ring.sla && <Pill tone={ring.sla.tone} icon={<Clock className="h-3.5 w-3.5" />}>SLA {ring.sla.text}</Pill>}
+          {(() => { const sla = slaOfRing(ring, state); return sla ? <Pill tone={sla.tone} icon={<Clock className="h-3.5 w-3.5" />}>SLA {sla.text}</Pill> : null; })()}
           {owner ? <span className="flex items-center gap-1.5 text-[13px] font-semibold"><Initials p={owner} size={26} />{owner.n}</span> : <Pill tone="grey">未分配</Pill>}
           <RingBasis ring={ring} />
           {state === "pending" && <Button size="sm" variant="bordered" startContent={<UserPlus className="h-4 w-4" />} onPress={claim}>认领</Button>}

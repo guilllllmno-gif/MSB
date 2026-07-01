@@ -3,6 +3,7 @@
 // strength → confidence. Weights reflect 区分度 (discriminative power):
 // funds/address (hard to fake) ≫ device > ip (easily coincidental).
 import type { Tone, Person } from "./data";
+import { computeSla, slaTier, synthElapsedH, type SlaView } from "./sla";
 
 export type RingDim = "funds" | "address" | "device" | "ip";
 
@@ -61,13 +62,39 @@ export interface Ring {
   edges: RingEdge[];
   amount: string; alertCount: number; span: string;
   state: RingStateKey; caseRef?: string;
-  owner?: Person | null; sla?: { text: string; pct: number; tone: Tone };
+  owner?: Person | null; // SLA 不再静态存储:改由 slaOfRing() 按占位时限口径计算(见 lib/sla.ts · B2)
   recommendation: string;
   hubNote?: string; // excluded super-node (avoids cluster collapse)
 }
 
 export const confTone = (c: number): Tone => (c >= 80 ? "red" : c >= 60 ? "amber" : "grey");
 export const confLabel = (c: number): string => (c >= 80 ? "高置信" : c >= 60 ? "中置信" : "弱关联");
+
+// SLA 处置时限 —— 只作用于「待处理」车道(待认领 / 调查中);观察中 / 终态无时限。
+// 计算口径与占位时长见 lib/sla.ts(B2 · 待定)。
+export function slaOfRing(ring: Ring, state: RingStateKey): SlaView | undefined {
+  if (state !== "pending" && state !== "investigating") return undefined;
+  const tier = slaTier(ring.confidence);
+  return computeSla(synthElapsedH(ring.id, tier), tier);
+}
+
+// ── 需关注度排序(优化项 B1 · 待定口径)──────────────────────────────────────
+// ⚠️ 以下权重为**占位默认值**,须风控负责人定义并记入配置。前端只实现算法框架。
+//    参数确认见 docs/OPEN_QUESTIONS.md(B1)。
+//    需关注度 = 风险(置信度)+ 待办(状态)+ 趋势(SLA)+ 关联告警量(封顶)。
+export const ATTENTION_WEIGHTS = {
+  conf: { high: 40, medium: 20, low: 5 },                                            // 置信度 ≥80 / ≥60 / <60
+  state: { pending: 30, investigating: 20, watching: 5, handled: -50, closed: -50 }, // 按状态 bucket
+  sla: { overdue: 40, soon: 20, normal: 0 },                                         // SLA 趋势(逾期 / 临期 / 正常)
+  alertEach: 2, alertCap: 20,                                                        // 每条关联告警权重 · 封顶
+};
+export function attentionScore(ring: Ring, state: RingStateKey, sla?: SlaView): number {
+  const w = ATTENTION_WEIGHTS;
+  const conf = ring.confidence >= 80 ? w.conf.high : ring.confidence >= 60 ? w.conf.medium : w.conf.low;
+  const st = w.state[RING_STATES[state].bucket as keyof typeof w.state] ?? 0;
+  const slaW = sla?.overdue ? w.sla.overdue : sla && sla.hoursLeft <= sla.allotH * 0.25 ? w.sla.soon : w.sla.normal;
+  return conf + st + slaW + Math.min(w.alertCap, ring.alertCount * w.alertEach);
+}
 
 export const rings: Ring[] = [
   {
@@ -122,7 +149,7 @@ export const rings: Ring[] = [
       { a: 0, b: 2, dims: ["device"], strength: 22, note: "共享 1 设备指纹" },
     ],
     amount: "CAD 42,000", alertCount: 7, span: "近 7 天",
-    state: "investigating", owner: { i: "SC", n: "Sarah Chen", c: "var(--brand)" }, sla: { text: "剩 16h", pct: 70, tone: "amber" },
+    state: "investigating", owner: { i: "SC", n: "Sarah Chen", c: "var(--brand)" },
     recommendation: "四维全命中（地址+设备+IP+资金），高置信结构化拆分。建议对群组 #A7 全部地址列入加强监控名单，对 Eastwind 入金加严阈值并人工复核。",
   },
   {
@@ -143,7 +170,7 @@ export const rings: Ring[] = [
       { a: 1, b: 2, dims: ["funds"], strength: 30, note: "资金继续下游过账" },
     ],
     amount: "CAD 19,500", alertCount: 3, span: "近 10 天",
-    state: "pending", sla: { text: "剩 1d 04h", pct: 38, tone: "blue" },
+    state: "pending",
     recommendation: "资金过账特征明显，但设备维度仅 1 项、关联偏中等。建议要求商户说明资金用途，补充材料后再判定是否聚案。",
   },
   {
@@ -260,7 +287,7 @@ export const rings: Ring[] = [
       { a: 5, b: 6, dims: ["device"], strength: 24, note: "QuickWallet 复用设备群指纹" },
     ],
     amount: "CAD 61,200", alertCount: 9, span: "近 15 天",
-    state: "investigating", owner: { i: "SC", n: "Sarah Chen", c: "var(--brand)" }, sla: { text: "剩 12h", pct: 78, tone: "amber" },
+    state: "investigating", owner: { i: "SC", n: "Sarah Chen", c: "var(--brand)" },
     recommendation: "6 地址群组向 RapidPay 拆分入金、经归集与中转后分发至 4 个出口钱包，且与 QuickWallet 共享设备群——典型众包养卡 / 结构化拆分网络。建议并入案件，对群组 #C2 全部地址批量列名单，对两商户加严入金阈值。",
     hubNote: "已剔除超级节点：交易所充值热钱包（网络内高频公共节点，不计入聚类）",
   },
@@ -304,7 +331,7 @@ export const rings: Ring[] = [
       { a: 0, b: 11, dims: ["device", "ip"], strength: 22, note: "GlobalRemit 与 SwiftNode 共享设备 / 出口 IP" },
     ],
     amount: "CAD 128,400", alertCount: 12, span: "近 21 天",
-    state: "investigating", owner: { i: "SC", n: "Sarah Chen", c: "var(--brand)" }, sla: { text: "剩 9h", pct: 82, tone: "amber" },
+    state: "investigating", owner: { i: "SC", n: "Sarah Chen", c: "var(--brand)" },
     recommendation: "三个拆分群组向 GlobalRemit 集中拆分入金，经归集地址与两层中转钱包过账后分发至 5 个出口钱包，最终注入离岸 HavenPay——典型跨境分层归集网络，且拆分源与 SwiftNode 共享设备群。建议并入案件统一调查，对全部拆分 / 出口地址批量列名单，对 GlobalRemit、HavenPay 加严入金阈值并升级 MLRO 评估 STR。",
     hubNote: "已剔除超级节点：跨链桥接合约地址（网络内 9+ 主体共用，区分度低，不计入聚类）",
   },
@@ -411,7 +438,6 @@ export function buildRing(input: { name: string; typology: string; members: Ring
     shared, members: input.members, edges,
     amount: "—", alertCount: 0, span: "手动新增",
     state: confidence >= 60 ? "pending" : "watching",
-    sla: confidence >= 60 ? { text: "剩 2d", pct: 15, tone: "blue" } : undefined,
     recommendation: "分析师手动建立的关联团伙，关联依据待核实；建议补充资金 / 地址等强维度证据后再处置。",
   };
 }

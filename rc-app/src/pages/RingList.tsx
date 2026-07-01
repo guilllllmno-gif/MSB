@@ -7,7 +7,7 @@ import { Shell, PageHead } from "@/components/Shell";
 import { Pill, Initials } from "@/components/bits";
 import { RingBasis } from "@/components/RingBasis";
 import { NewRingDrawer } from "@/components/NewRingDrawer";
-import { rings, DIM_META, DIM_ORDER, confTone, confLabel, RING_STATES, RING_TILES, matchRingTile, ringActions, type RingStateKey, type Ring } from "@/lib/rings";
+import { rings, DIM_META, DIM_ORDER, confTone, confLabel, RING_STATES, RING_TILES, matchRingTile, ringActions, slaOfRing, attentionScore, type RingStateKey, type Ring } from "@/lib/rings";
 import { ringStore, useRingVersion } from "@/lib/store";
 
 const ME = { i: "JL", n: "James Liu", c: "var(--brand)" };
@@ -37,7 +37,11 @@ export default function RingList() {
   const stateOf = (r: Ring) => ringStore.stateOf(r.id, r.state) as RingStateKey;
   const matchQ = (r: Ring) => !q.trim() || (r.id + r.name + r.typology + r.members.map((m) => m.name).join("")).toLowerCase().includes(q.toLowerCase());
   const count = (f: string) => all.filter((r) => matchRingTile(f, stateOf(r)) && matchQ(r)).length;
-  const rows = all.filter((r) => matchRingTile(filter, stateOf(r)) && matchQ(r));
+  // 按「需关注度」降序:风险 × 待办 × SLA 趋势 × 关联告警(权重待定,见 lib/rings ATTENTION_WEIGHTS)
+  const rows = all
+    .filter((r) => matchRingTile(filter, stateOf(r)) && matchQ(r))
+    .map((r) => { const st = stateOf(r); const sla = slaOfRing(r, st); return { r, st, sla, score: attentionScore(r, st, sla) }; })
+    .sort((a, b) => b.score - a.score);
   const claim = (r: Ring) => { ringStore.set(r.id, "investigating", ME, "认领 · 进入调查中"); toast.success(`${r.id} 已认领 · 进入调查中`); };
 
   return (
@@ -66,6 +70,9 @@ export default function RingList() {
         <Input size="sm" radius="full" value={q} onValueChange={setQ} placeholder="搜索团伙ID、手法或主体…"
           startContent={<Search className="h-4 w-4 text-default-400" />} className="max-w-[360px] flex-1"
           classNames={{ inputWrapper: "bg-default-100 shadow-none data-[hover=true]:bg-default-200 h-10" }} />
+        <Tooltip content="需关注度 = 风险(置信度)+ 待办(状态)+ SLA 趋势 + 关联告警量。权重与 SLA 时限均为占位默认值,待风控 / 合规确认(见 OPEN_QUESTIONS)。" size="sm">
+          <span className="ml-auto inline-flex items-center gap-1 text-[12px] text-default-400">按需关注度排序<span className="rounded-full bg-default-100 px-1.5 py-px text-[10.5px] font-semibold text-default-500">权重待定</span></span>
+        </Tooltip>
       </div>
 
       <Table aria-label="关联团伙" radius="lg"
@@ -76,8 +83,7 @@ export default function RingList() {
           <TableColumn>关联告警</TableColumn><TableColumn>状态</TableColumn><TableColumn>经手人</TableColumn><TableColumn>SLA</TableColumn><TableColumn align="end">操作</TableColumn>
         </TableHeader>
         <TableBody emptyContent="没有符合条件的团伙">
-          {rows.map((r) => {
-            const st = stateOf(r);
+          {rows.map(({ r, st, sla }) => {
             const sd = RING_STATES[st];
             const owner = ringStore.ownerOf(r.id, r.owner);
             return (
@@ -104,7 +110,7 @@ export default function RingList() {
                 <TableCell><span className="text-default-600 tnum">{r.alertCount} 条</span></TableCell>
                 <TableCell><Pill tone={sd.tone}>{sd.label}{ringStore.caseRefOf(r.id, r.caseRef) ? ` · ${ringStore.caseRefOf(r.id, r.caseRef)}` : ""}</Pill></TableCell>
                 <TableCell>{owner ? <span className="inline-flex items-center gap-1.5"><Initials p={owner} size={22} />{owner.n}</span> : <span className="inline-flex items-center gap-1.5 text-default-400"><UserRound className="h-3.5 w-3.5" />未分配</span>}</TableCell>
-                <TableCell>{r.sla ? <span className="inline-flex items-center gap-1 text-default-500"><Clock className="h-3.5 w-3.5" />{r.sla.text}</span> : <span className="text-default-300">无时限</span>}</TableCell>
+                <TableCell>{sla ? <span className="inline-flex items-center gap-1" style={{ color: sla.tone === "red" ? "var(--danger)" : sla.tone === "amber" ? "var(--warning)" : "var(--text-3)" }}><Clock className="h-3.5 w-3.5" />{sla.text}</span> : <span className="text-default-300">无时限</span>}</TableCell>
                 <TableCell>
                   <div className="flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
                     {st === "pending" && <Tooltip content="认领 · 转调查中" size="sm" delay={300}><Button isIconOnly size="sm" radius="full" variant="flat" className="bg-default-100" onPress={() => claim(r)}><UserPlus className="h-4 w-4 text-default-500" strokeWidth={1.9} /></Button></Tooltip>}
