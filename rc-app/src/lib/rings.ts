@@ -416,21 +416,6 @@ export function buildRing(input: { name: string; typology: string; members: Ring
   };
 }
 
-// 团伙商户成员 → 商户档案(SUBJ-)id 映射,用于「成员 → 商户档案」下钻(修正模型:成员=商户主体)。
-// 原型按名称对齐 mocks/fixtures/subjects.ts 的商户主体;未在档案库的成员(名单群组/纯地址/未建档商户)无下钻。
-const SUBJECT_ID_BY_NAME: Record<string, string> = {
-  "NovaPay Technologies": "SUBJ-0001",
-  "BlockTrade Corp.": "SUBJ-0002",
-  "Eastwind Exchange": "SUBJ-0003",
-  "RapidPay Ltd.": "SUBJ-0004",
-  "GlobalRemit Ltd.": "SUBJ-0005",
-  "HavenPay Inc.": "SUBJ-0006",
-  "OffshoreFX Ltd.": "SUBJ-0010",
-  "QuickWallet Inc.": "SUBJ-0011",
-};
-export const subjectIdForMember = (m: RingMember): string | undefined =>
-  m.kind === "商户" ? SUBJECT_ID_BY_NAME[m.name] : undefined;
-
 export const ringOf = (id?: string) => rings.find((r) => r.id === id) || rings[0];
 // case reference for a ring once it is merged into a case — reuse an existing one or derive from the ring id
 export const caseRefFor = (r: Ring) => r.caseRef ?? r.id.replace(/^RING-/, "CASE-");

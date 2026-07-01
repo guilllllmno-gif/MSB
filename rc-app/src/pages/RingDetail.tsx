@@ -7,7 +7,7 @@ import { Shell } from "@/components/Shell";
 import { Pill, Initials, SectionLabel } from "@/components/bits";
 import { RingBasis } from "@/components/RingBasis";
 import { Timeline } from "@/components/Timeline";
-import { ringOf, caseRefFor, clusterCount, clusterChildren, subjectIdForMember, DIM_META, DIM_ORDER, confTone, confLabel, RING_FIELDS, RING_STATES, DISP_STATE, ringActions, type RingDim, type Ring, type RingEdge, type RingStateKey } from "@/lib/rings";
+import { ringOf, caseRefFor, clusterCount, clusterChildren, DIM_META, DIM_ORDER, confTone, confLabel, RING_FIELDS, RING_STATES, DISP_STATE, ringActions, type RingDim, type Ring, type RingEdge, type RingStateKey } from "@/lib/rings";
 import { ringStore, useRingVersion } from "@/lib/store";
 import { intakeCase } from "@/lib/caseIntake";
 import type { CaseSubject } from "@/lib/cases";
@@ -395,15 +395,15 @@ export default function RingDetail() {
                 const cnt = cluster ? clusterCount(m) : 0;
                 const on = expClusters.has(m.id);
                 const children = on ? clusterChildren(m) : [];
-                const sid = subjectIdForMember(m); // 商户成员 → 商户档案下钻
+                const drill = m.kind === "商户"; // 商户成员 → 主体档案 360 下钻
                 return (
                   <div key={m.id} id={`cm-${m.id}`} className={`rounded-xl border p-3 transition-colors ${cluster && on ? "border-primary/50 bg-primary/[0.03]" : "border-divider"} ${cluster ? "sm:col-span-2" : ""}`}>
                     <div className="flex items-center gap-3">
                       <Initials p={{ i: m.i, c: m.c }} size={36} mono />
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
-                          {sid
-                            ? <button onClick={() => nav(`/subject?id=${sid}`)} className="inline-flex items-center gap-1 truncate font-semibold text-primary hover:underline" title="查看商户档案">{m.name}<ExternalLink className="h-3 w-3 shrink-0" /></button>
+                          {drill
+                            ? <button onClick={() => nav(`/entity?name=${encodeURIComponent(m.name)}`)} className="inline-flex items-center gap-1 truncate font-semibold text-primary hover:underline" title="查看主体档案 360">{m.name}<ExternalLink className="h-3 w-3 shrink-0" /></button>
                             : <span className="truncate font-semibold">{m.name}</span>}
                           <Pill tone="grey" dot={false}>{m.kind}</Pill>{cluster && cnt > 0 && <span className="rounded-full bg-default-100 px-1.5 text-[10px] font-semibold text-default-500">{cnt} 个子成员</span>}
                         </div>
