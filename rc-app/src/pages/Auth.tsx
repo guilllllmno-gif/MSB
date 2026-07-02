@@ -25,11 +25,11 @@ const MODE_LABEL: Record<string, string> = { signup: "Sign up", login: "Login", 
 const modeOf = (s: Step) => s.split(":")[0] as "signup" | "login" | "forgot";
 const emailOk = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
 
-// 品牌区随流程切换的欢迎语
+// 品牌区随流程切换的欢迎语(大标题 + 一句副文案)
 const HERO: Record<string, { title: string; sub: string }> = {
-  signup: { title: "Welcome!", sub: "创建您的 FuturePayCA 账户,几步即可接入风控控制台。" },
-  login: { title: "Welcome back!", sub: "登录以继续处理告警、案件与合规报送。" },
-  forgot: { title: "No worries.", sub: "输入注册邮箱,我们会协助您重置密码。" },
+  signup: { title: "Welcome!", sub: "只需几步,即可创建账户并接入 FuturePayCA —— 交易监控、告警研判与合规报送,一处搞定。" },
+  login: { title: "Welcome back!", sub: "很高兴又见到您。登录后继续处理今日的告警、案件与合规报送。" },
+  forgot: { title: "No worries.", sub: "别担心,这很常见。输入注册邮箱,我们会协助您安全地重置密码。" },
 };
 
 export default function Auth() {
@@ -72,17 +72,20 @@ export default function Auth() {
                 style={{ background: "rgba(190,120,255,.5)", filter: "blur(64px)" }}
               />
               <AnimatePresence mode="wait">
-                <motion.h1
+                <motion.div
                   key={mode}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
                   transition={{ duration: 0.28 }}
-                  className="relative font-extrabold leading-none tracking-tight"
-                  style={{ marginTop: "clamp(70px,15vh,150px)", fontSize: "clamp(38px,3.4vw,52px)" }}
+                  className="relative"
+                  style={{ marginTop: "clamp(70px,15vh,150px)" }}
                 >
-                  {hero.title}
-                </motion.h1>
+                  <h1 className="font-extrabold leading-none tracking-tight" style={{ fontSize: "clamp(38px,3.4vw,52px)" }}>
+                    {hero.title}
+                  </h1>
+                  <p className="mt-5 max-w-[300px] text-[14.5px] leading-relaxed text-white/75">{hero.sub}</p>
+                </motion.div>
               </AnimatePresence>
               <div className="absolute bottom-10 left-11 text-[13px] font-medium text-white/70">FuturePay © 2026</div>
             </aside>
