@@ -3,7 +3,6 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { Button, Input } from "@heroui/react";
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowLeft, Check, Eye, EyeOff, Mail, ShieldCheck } from "lucide-react";
-import logoFull from "@/assets/logo-full.svg";
 
 /* ── FuturePayCA · 一整套登录/注册/找回密码流程 ──────────────────────────────
    两栏卡片:左侧蓝→紫渐变品牌区,右侧白色表单区,外缘发光边框。
@@ -45,60 +44,61 @@ export default function Auth() {
   const hero = HERO[mode];
 
   return (
-    <div className="min-h-screen w-full bg-[#1b1b1e] p-3 sm:p-6 lg:p-8">
-      {/* 发光渐变边框包裹 */}
-      <div
-        className="mx-auto min-h-[calc(100vh-1.5rem)] max-w-[1440px] rounded-[28px] p-px sm:min-h-[calc(100vh-3rem)] lg:min-h-[calc(100vh-4rem)]"
-        style={{
-          background: "linear-gradient(135deg,#6d4bff 0%,#a44bff 42%,#ff9ecb 100%)",
-          boxShadow: "0 0 70px -12px rgba(124,58,237,.55), 0 0 120px -30px rgba(255,120,200,.35)",
-        }}
-      >
-        <div className="flex min-h-[inherit] overflow-hidden rounded-[27px] bg-white">
-          {/* 左:品牌渐变区 */}
-          <aside className="relative hidden w-[38%] max-w-[520px] shrink-0 flex-col justify-between overflow-hidden p-10 text-white lg:flex">
-            <div
-              className="absolute inset-0"
-              style={{ background: "linear-gradient(158deg,#1712c9 0%,#3a1fd6 46%,#8b3ef5 100%)" }}
-            />
-            {/* 柔光点缀 */}
-            <div className="pointer-events-none absolute -left-16 top-1/3 h-72 w-72 rounded-full bg-white/10 blur-3xl" />
-            <div className="pointer-events-none absolute -bottom-10 right-0 h-64 w-64 rounded-full bg-[#ff9ecb]/20 blur-3xl" />
+    <div className="flex min-h-screen w-full bg-[#1b1b1e] p-5 sm:p-8 lg:p-14">
+      <div className="m-auto flex w-full max-w-[1600px] flex-col gap-3 sm:gap-4">
+        {/* 卡片外·深色底左上角页面标签(与设计稿一致) */}
+        <div className="pl-0.5 text-[15px] font-medium text-[#8b8b93]">{MODE_LABEL[mode]}</div>
 
-            <div className="relative text-[15px] font-semibold text-white/70">{MODE_LABEL[mode]}</div>
-
-            <div className="relative">
+        {/* 发光渐变边框包裹 */}
+        <div
+          className="w-full rounded-[26px] p-px"
+          style={{
+            minHeight: "min(770px, calc(100vh - 150px))",
+            background: "linear-gradient(135deg,#3a2fae 0%,#7d43e8 46%,#c86bd6 74%,#ffb2cf 100%)",
+            boxShadow: "0 0 60px -18px rgba(150,70,230,.55), 0 0 120px -40px rgba(255,140,205,.4)",
+          }}
+        >
+          <div className="flex min-h-[inherit] overflow-hidden rounded-[25px] bg-white">
+            {/* 左:品牌渐变区 — 上三分之一放 Welcome!,底部版权 */}
+            <aside className="relative hidden w-[28%] max-w-[470px] shrink-0 flex-col overflow-hidden p-11 text-white lg:flex">
+              <div
+                className="absolute inset-0"
+                style={{ background: "linear-gradient(158deg,#1a17c4 0%,#341fce 38%,#6b2fe6 72%,#a34ff4 100%)" }}
+              />
+              {/* 柔光点缀 */}
+              <div className="pointer-events-none absolute -left-16 top-[30%] h-72 w-72 rounded-full bg-white/10 blur-3xl" />
+              <div
+                className="pointer-events-none absolute -bottom-12 -left-8 h-64 w-64 rounded-full"
+                style={{ background: "rgba(190,120,255,.5)", filter: "blur(64px)" }}
+              />
               <AnimatePresence mode="wait">
-                <motion.div
+                <motion.h1
                   key={mode}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
                   transition={{ duration: 0.28 }}
+                  className="relative font-extrabold leading-none tracking-tight"
+                  style={{ marginTop: "clamp(70px,15vh,150px)", fontSize: "clamp(38px,3.4vw,52px)" }}
                 >
-                  <h1 className="text-[52px] font-extrabold leading-none tracking-tight">{hero.title}</h1>
-                  <p className="mt-5 max-w-[320px] text-[14.5px] leading-relaxed text-white/75">{hero.sub}</p>
-                </motion.div>
+                  {hero.title}
+                </motion.h1>
               </AnimatePresence>
-            </div>
+              <div className="absolute bottom-10 left-11 text-[13px] font-medium text-white/70">FuturePay © 2026</div>
+            </aside>
 
-            <div className="relative text-[13px] font-medium text-white/60">FuturePay © 2026</div>
-          </aside>
-
-          {/* 右:表单区 */}
-          <section className="flex min-w-0 flex-1 flex-col">
-            <div className="flex items-center justify-between px-6 pt-6 sm:px-10">
-              <img src={logoFull} alt="FuturePayCA" className="h-11 w-auto lg:invisible" />
-              <span className="text-[12.5px] text-default-400">安全登录 · SSL</span>
-            </div>
-            <div className="flex flex-1 items-center justify-center px-6 py-10 sm:px-10">
-              <div className="w-full max-w-[420px]">
+            {/* 右:表单区 — 顶部对齐,水平居中 */}
+            <section
+              className="flex min-w-0 flex-1 items-start justify-center px-6 pb-12 sm:px-10"
+              style={{ paddingTop: "clamp(64px,13vh,150px)" }}
+            >
+              <div className="w-full max-w-[600px]">
                 <AnimatePresence mode="wait">
                   <motion.div
                     key={step}
-                    initial={{ opacity: 0, x: 16 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -16 }}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }}
                     transition={{ duration: 0.24 }}
                   >
                     <StepView
@@ -113,8 +113,8 @@ export default function Auth() {
                   </motion.div>
                 </AnimatePresence>
               </div>
-            </div>
-          </section>
+            </section>
+          </div>
         </div>
       </div>
     </div>
@@ -162,9 +162,9 @@ function StepView(p: ViewProps) {
 // ── 复用小组件 ───────────────────────────────────────────────────────────────
 function Header({ title, sub }: { title: string; sub?: ReactNode }) {
   return (
-    <div className="mb-7">
-      <h2 className="text-[24px] font-extrabold tracking-tight text-[#0b1220]">{title}</h2>
-      {sub && <p className="mt-2 text-[14px] text-default-500">{sub}</p>}
+    <div className="mb-9">
+      <h2 className="text-[27px] font-extrabold tracking-tight text-[#0b1220]">{title}</h2>
+      {sub && <p className="mt-3 text-[15px] text-default-500">{sub}</p>}
     </div>
   );
 }
@@ -180,8 +180,8 @@ function PrimaryBtn({ children, onPress, isDisabled }: { children: ReactNode; on
       onPress={onPress}
       isDisabled={isDisabled}
       radius="full"
-      className="h-[52px] w-full text-[15px] font-semibold text-white"
-      style={{ background: isDisabled ? "#9db8ee" : "#005df5" }}
+      className="h-[56px] w-full text-[16px] font-semibold text-white"
+      style={{ background: isDisabled ? "#9db8ee" : "#2f5cf6" }}
     >
       {children}
     </Button>
@@ -190,15 +190,15 @@ function PrimaryBtn({ children, onPress, isDisabled }: { children: ReactNode; on
 
 const inputClasses = {
   inputWrapper:
-    "h-[52px] rounded-[10px] border border-default-200 bg-white shadow-none data-[hover=true]:border-default-300 group-data-[focus=true]:border-[#005df5] group-data-[focus=true]:border-2",
-  input: "text-[14.5px]",
+    "h-[56px] rounded-[10px] border border-default-200 bg-white shadow-none data-[hover=true]:border-default-300 group-data-[focus=true]:border-[#2f5cf6] group-data-[focus=true]:border-2",
+  input: "text-[15px]",
 };
 
 function BackLink({ onPress, children }: { onPress: () => void; children: ReactNode }) {
   return (
     <button
       onClick={onPress}
-      className="mt-6 inline-flex items-center gap-1.5 text-[13px] font-semibold text-default-500 transition-colors hover:text-[#005df5]"
+      className="mt-6 inline-flex items-center gap-1.5 text-[13px] font-semibold text-default-500 transition-colors hover:text-[#2f5cf6]"
     >
       <ArrowLeft className="h-4 w-4" /> {children}
     </button>
@@ -222,14 +222,14 @@ function EmailStep({ mode, email, setEmail, go }: ViewProps & { mode: "signup" |
           mode === "signup" ? (
             <>
               Already have an account?{" "}
-              <button onClick={() => go("login:email")} className="font-semibold text-[#005df5] hover:underline">
+              <button onClick={() => go("login:email")} className="font-semibold text-[#2f5cf6] hover:underline">
                 Log in
               </button>
             </>
           ) : (
             <>
               New to FuturePayCA?{" "}
-              <button onClick={() => go("signup:email")} className="font-semibold text-[#005df5] hover:underline">
+              <button onClick={() => go("signup:email")} className="font-semibold text-[#2f5cf6] hover:underline">
                 Create an account
               </button>
             </>
@@ -248,7 +248,6 @@ function EmailStep({ mode, email, setEmail, go }: ViewProps & { mode: "signup" |
         onKeyDown={(e) => e.key === "Enter" && next()}
         isInvalid={invalid}
         errorMessage={invalid ? "请输入有效的邮箱地址" : undefined}
-        startContent={<Mail className="h-[18px] w-[18px] text-default-400" strokeWidth={1.9} />}
         classNames={inputClasses}
       />
       <div className="mt-6">
@@ -275,7 +274,7 @@ function LoginPassword({ email, password, setPassword, go }: ViewProps) {
       <Header title="Enter your password" sub={<span className="break-all">{email}</span>} />
       <div className="mb-1 flex items-center justify-between">
         <FieldLabel>Password</FieldLabel>
-        <button onClick={() => go("forgot:email")} className="mb-2 text-[12.5px] font-semibold text-[#005df5] hover:underline">
+        <button onClick={() => go("forgot:email")} className="mb-2 text-[12.5px] font-semibold text-[#2f5cf6] hover:underline">
           Forgot password?
         </button>
       </div>
@@ -357,7 +356,7 @@ function CodeStep({ email, go, done, kind }: ViewProps & { kind: "signup" | "log
         {secs > 0 ? (
           <span className="text-default-400">{secs}s 后可重发</span>
         ) : (
-          <button onClick={() => setSecs(30)} className="font-semibold text-[#005df5] hover:underline">
+          <button onClick={() => setSecs(30)} className="font-semibold text-[#2f5cf6] hover:underline">
             重新发送
           </button>
         )}
@@ -471,7 +470,6 @@ function ForgotEmail({ email, setEmail, go }: ViewProps) {
         onKeyDown={(e) => e.key === "Enter" && submit()}
         isInvalid={invalid}
         errorMessage={invalid ? "请输入有效的邮箱地址" : undefined}
-        startContent={<Mail className="h-[18px] w-[18px] text-default-400" strokeWidth={1.9} />}
         classNames={inputClasses}
       />
       <div className="mt-6">
@@ -487,7 +485,7 @@ function ForgotSent({ email, go }: ViewProps) {
   return (
     <div className="text-center">
       <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-[#e6efff]">
-        <Mail className="h-8 w-8 text-[#005df5]" strokeWidth={1.8} />
+        <Mail className="h-8 w-8 text-[#2f5cf6]" strokeWidth={1.8} />
       </div>
       <h2 className="text-[24px] font-extrabold tracking-tight text-[#0b1220]">Check your inbox</h2>
       <p className="mt-3 text-[14px] leading-relaxed text-default-500">
@@ -581,7 +579,7 @@ function OTPInput({
             refs.current[focusIdx]?.focus();
             if (pasted.length === 6) onComplete();
           }}
-          className={`h-[54px] w-full rounded-[10px] border text-center text-[20px] font-bold text-[#0b1220] outline-none transition-colors focus:border-2 focus:border-[#005df5] ${
+          className={`h-[54px] w-full rounded-[10px] border text-center text-[20px] font-bold text-[#0b1220] outline-none transition-colors focus:border-2 focus:border-[#2f5cf6] ${
             invalid ? "border-danger" : "border-default-200"
           }`}
         />
