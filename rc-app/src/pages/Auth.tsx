@@ -51,11 +51,11 @@ export default function Auth() {
 
         {/* 发光渐变边框包裹 */}
         <div
-          className="w-full rounded-[26px] p-px"
+          className="w-full rounded-[26px] p-0.5"
           style={{
             minHeight: "min(770px, calc(100vh - 150px))",
-            background: "linear-gradient(135deg,#3a2fae 0%,#7d43e8 46%,#c86bd6 74%,#ffb2cf 100%)",
-            boxShadow: "0 0 60px -18px rgba(150,70,230,.55), 0 0 120px -40px rgba(255,140,205,.4)",
+            background: "linear-gradient(135deg,#4b32d6 0%,#8a3ff0 44%,#d06be0 72%,#ffb2cf 100%)",
+            boxShadow: "0 0 50px -12px rgba(150,70,230,.6), 0 0 140px -40px rgba(255,140,205,.5)",
           }}
         >
           <div className="flex min-h-[inherit] overflow-hidden rounded-[25px] bg-white">
@@ -247,7 +247,6 @@ function EmailStep({ mode, email, setEmail, go }: ViewProps & { mode: "signup" |
         onBlur={() => setTouched(true)}
         placeholder="Please enter"
         variant="bordered"
-        autoFocus
         onKeyDown={(e) => e.key === "Enter" && next()}
         isInvalid={invalid}
         errorMessage={invalid ? "请输入有效的邮箱地址" : undefined}
@@ -290,7 +289,6 @@ function LoginPassword({ email, password, setPassword, go }: ViewProps) {
         }}
         placeholder="Please enter"
         variant="bordered"
-        autoFocus
         onKeyDown={(e) => e.key === "Enter" && submit()}
         isInvalid={err}
         errorMessage={err ? "密码至少 6 位" : undefined}
@@ -400,7 +398,6 @@ function PasswordStep({ password, setPassword, go, kind }: ViewProps & { kind: "
         onValueChange={setPassword}
         placeholder="Please enter"
         variant="bordered"
-        autoFocus
         endContent={
           <button onClick={() => setShow((s) => !s)} aria-label={show ? "隐藏密码" : "显示密码"} className="text-default-400 hover:text-default-600">
             {show ? <EyeOff className="h-[18px] w-[18px]" /> : <Eye className="h-[18px] w-[18px]" />}
@@ -469,7 +466,6 @@ function ForgotEmail({ email, setEmail, go }: ViewProps) {
         onBlur={() => setTouched(true)}
         placeholder="Please enter"
         variant="bordered"
-        autoFocus
         onKeyDown={(e) => e.key === "Enter" && submit()}
         isInvalid={invalid}
         errorMessage={invalid ? "请输入有效的邮箱地址" : undefined}
