@@ -5,6 +5,7 @@ import type { Rule, RuleVersion } from "./rules";
 import type { Report } from "./reports";
 import type { ListEntry } from "./lists";
 import type { Case, CaseSubject } from "./cases";
+import { KYT_POLICY } from "./onchain";
 
 interface Override { state?: string; assignee?: Person | null; events: { t: string; text: string; reason: string }[] }
 
@@ -326,4 +327,23 @@ export const roleStore = {
 export function useRoleVersion() {
   useSyncExternalStore(roleStore.subscribe, roleStore.getVersion, roleStore.getVersion);
   return roleVal;
+}
+
+// ── 链上风险策略(KYT)· 风控总管可调,内存态,刷新重置 ──────────────────────────
+// 阈值把「供应商信号」映射成「本系统处置」;调这里,链上情报页 / 抽屉 / 团伙成员评分全站实时联动。
+export type KytPolicy = typeof KYT_POLICY;
+let kytPolicy: KytPolicy = { ...KYT_POLICY };
+let kytVersion = 0;
+const kytListeners = new Set<() => void>();
+export const kytPolicyStore = {
+  subscribe(cb: () => void) { kytListeners.add(cb); return () => { kytListeners.delete(cb); }; },
+  getVersion() { return kytVersion; },
+  current() { return kytPolicy; },
+  set(patch: Partial<KytPolicy>) { kytPolicy = { ...kytPolicy, ...patch }; kytVersion++; kytListeners.forEach((l) => l()); },
+  reset() { kytPolicy = { ...KYT_POLICY }; kytVersion++; kytListeners.forEach((l) => l()); },
+  isDefault() { return (Object.keys(KYT_POLICY) as (keyof KytPolicy)[]).every((k) => kytPolicy[k] === KYT_POLICY[k]); },
+};
+export function useKytVersion() {
+  useSyncExternalStore(kytPolicyStore.subscribe, kytPolicyStore.getVersion, kytPolicyStore.getVersion);
+  return kytPolicy;
 }

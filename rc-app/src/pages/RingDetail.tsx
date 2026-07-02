@@ -12,6 +12,8 @@ import { ringOf, caseRefFor, clusterCount, clusterChildren, DIM_META, DIM_ORDER,
 import { ringStore, useRingVersion, alertStore, useAlertVersion } from "@/lib/store";
 import { intakeCase } from "@/lib/caseIntake";
 import { intakeList } from "@/lib/listIntake";
+import { AddrRiskDrawer } from "@/components/AddrRiskDrawer";
+import { screen, scoreLevel, type AddrRisk } from "@/lib/onchain";
 import type { CaseSubject } from "@/lib/cases";
 
 const ME = { i: "JL", n: "James Liu", c: "var(--brand)" };
@@ -312,6 +314,7 @@ export default function RingDetail() {
   const [expClusters, setExpClusters] = useState<Set<string>>(new Set());
   const toggleCluster = (id: string) => setExpClusters((p) => { const next = new Set(p); if (next.has(id)) next.delete(id); else next.add(id); return next; });
   const [tab, setTab] = useState<"info" | "log">("info");
+  const [addrSel, setAddrSel] = useState<AddrRisk | null>(null); // 成员地址的链上风险画像抽屉
   const edges = [...ring.edges].sort((a, b) => b.strength - a.strength);
 
   // activity log: detection → in-session actions → current state
@@ -526,6 +529,8 @@ export default function RingDetail() {
                 const on = expClusters.has(m.id);
                 const children = on ? clusterChildren(m) : [];
                 const drill = m.kind === "商户"; // 商户成员 → 主体档案 360 下钻
+                const addrRisk = m.kind === "地址" ? screen(m.name) : null; // 地址成员 → 链上风险画像
+                const addrLv = addrRisk ? scoreLevel(addrRisk.score) : null;
                 return (
                   <div key={m.id} id={`cm-${m.id}`} className={`rounded-xl border p-3 transition-colors ${cluster && on ? "border-primary/50 bg-primary/[0.03]" : "border-divider"} ${cluster ? "sm:col-span-2" : ""}`}>
                     <div className="flex items-center gap-3">
@@ -534,8 +539,12 @@ export default function RingDetail() {
                         <div className="flex items-center gap-2">
                           {drill
                             ? <button onClick={() => nav(`/entity?name=${encodeURIComponent(m.name)}`)} className="inline-flex items-center gap-1 truncate font-semibold text-primary hover:underline" title="查看主体档案 360">{m.name}<ExternalLink className="h-3 w-3 shrink-0" /></button>
-                            : <span className="truncate font-semibold">{m.name}</span>}
-                          <Pill tone="grey" dot={false}>{m.kind}</Pill>{cluster && cnt > 0 && <span className="rounded-full bg-default-100 px-1.5 text-[10px] font-semibold text-default-500">{cnt} 个子成员</span>}
+                            : addrRisk
+                              ? <button onClick={() => setAddrSel(addrRisk)} className="inline-flex items-center gap-1 truncate font-semibold text-primary hover:underline" title="查看链上风险画像 (KYT)">{m.name}<ExternalLink className="h-3 w-3 shrink-0" /></button>
+                              : <span className="truncate font-semibold">{m.name}</span>}
+                          <Pill tone="grey" dot={false}>{m.kind}</Pill>
+                          {addrLv && <Pill tone={addrLv.tone}>链上风险 {addrRisk!.score}</Pill>}
+                          {cluster && cnt > 0 && <span className="rounded-full bg-default-100 px-1.5 text-[10px] font-semibold text-default-500">{cnt} 个子成员</span>}
                         </div>
                         <div className="text-[11.5px] text-default-400">{m.sub} · {m.role} · 关联告警 {m.alerts} 条</div>
                       </div>
@@ -656,6 +665,8 @@ export default function RingDetail() {
           </DrawerFooter>
         </DrawerContent>
       </Drawer>
+
+      <AddrRiskDrawer addr={addrSel} onClose={() => setAddrSel(null)} />
     </Shell>
   );
 }

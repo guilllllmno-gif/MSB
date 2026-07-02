@@ -1,20 +1,36 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Button, Input, Tooltip } from "@heroui/react";
-import { Search, Eye, Link2, ShieldCheck, Radar } from "lucide-react";
+import { Search, Eye, Link2, ShieldCheck, Radar, SlidersHorizontal, RotateCcw, ChevronDown, Lock } from "lucide-react";
 import { Shell, PageHead } from "@/components/Shell";
 import { Pill } from "@/components/bits";
 import { AddrRiskDrawer } from "@/components/AddrRiskDrawer";
 import { toneVar } from "@/lib/data";
 import { ADDRS, CAT_META, VERDICT_META, scoreLevel, policyVerdict, screen, shortAddr, type AddrRisk } from "@/lib/onchain";
+import { useKytVersion, kytPolicyStore, useRoleVersion, ROLE_META, type KytPolicy } from "@/lib/store";
+
+// 可调策略字段(供应商信号 → 本系统处置的阈值)
+const POLICY_FIELDS: { k: keyof KytPolicy; label: string; unit: string; max: number }[] = [
+  { k: "scoreBlock", label: "风险分 → 拒绝", unit: "分", max: 100 },
+  { k: "scoreReview", label: "风险分 → 转人工", unit: "分", max: 100 },
+  { k: "sanctionHops", label: "制裁「直接」敞口", unit: "跳内", max: 5 },
+  { k: "mixerReview", label: "混币器敞口 → 转人工", unit: "%", max: 100 },
+  { k: "darknetReview", label: "暗网敞口 → 转人工", unit: "%", max: 100 },
+  { k: "scamReview", label: "诈骗敞口 → 转人工", unit: "%", max: 100 },
+  { k: "stolenReview", label: "盗币敞口 → 转人工", unit: "%", max: 100 },
+];
 
 export default function OnChainIntel() {
   const [q, setQ] = useState("");
   const [sel, setSel] = useState<AddrRisk | null>(null);
+  const [polOpen, setPolOpen] = useState(false);
+  const policy = useKytVersion();
+  const role = useRoleVersion();
+  const canEdit = role === "head";
 
   const rows = ADDRS
     .filter((a) => !q.trim() || a.address.toLowerCase().includes(q.toLowerCase()) || a.categories.some((c) => CAT_META[c].label.includes(q)))
-    .map((a) => ({ a, ...policyVerdict(a) }))
+    .map((a) => ({ a, ...policyVerdict(a, policy) }))
     .sort((x, y) => y.a.score - x.a.score);
 
   const doScreen = () => {
@@ -24,8 +40,8 @@ export default function OnChainIntel() {
     if (!ADDRS.some((a) => a.address.toLowerCase() === q.trim().toLowerCase())) toast.success("已调用 KYT · 返回该地址风险画像");
   };
 
-  const block = ADDRS.filter((a) => policyVerdict(a).verdict === "block").length;
-  const review = ADDRS.filter((a) => policyVerdict(a).verdict === "review").length;
+  const block = ADDRS.filter((a) => policyVerdict(a, policy).verdict === "block").length;
+  const review = ADDRS.filter((a) => policyVerdict(a, policy).verdict === "review").length;
   const sanctioned = ADDRS.filter((a) => a.exposures.some((e) => e.cat === "sanctioned")).length;
   const tiles = [
     { label: "已筛查地址", n: ADDRS.length, tone: undefined as string | undefined },
@@ -55,6 +71,39 @@ export default function OnChainIntel() {
             <div className="mt-1.5 text-[26px] font-extrabold leading-none tnum" style={{ color: t.tone }}>{t.n}</div>
           </div>
         ))}
+      </div>
+
+      {/* ③ 风险策略(总管可调)—— 供应商信号 → 本系统处置的阈值 */}
+      <div className="card mb-5 p-0">
+        <button onClick={() => setPolOpen((o) => !o)} className="flex w-full items-center gap-2 px-4 py-3 text-left">
+          <SlidersHorizontal className="h-4 w-4 text-default-400" />
+          <span className="text-[13.5px] font-semibold">风险策略</span>
+          <span className="rounded-full bg-default-100 px-1.5 py-px text-[10.5px] font-semibold text-default-500">{canEdit ? `${ROLE_META[role].role} · 可调` : "仅风控总管可调"}</span>
+          {!kytPolicyStore.isDefault() && <span className="rounded-full px-1.5 py-px text-[10.5px] font-semibold" style={{ background: "var(--warning-bg)", color: "var(--warning)" }}>已调整</span>}
+          <ChevronDown className={`ml-auto h-4 w-4 text-default-400 transition-transform ${polOpen ? "" : "-rotate-90"}`} />
+        </button>
+        {polOpen && (
+          <div className="border-t border-divider px-4 py-4">
+            <div className="mb-3 flex items-center gap-1.5 text-[12px] text-default-500">
+              {!canEdit && <Lock className="h-3.5 w-3.5" />}
+              <span>供应商给风险分/敞口(信号),这几条阈值决定本系统处置(放行 / 转人工 / 拒绝)。改动即时重算下方所有地址判定。</span>
+            </div>
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+              {POLICY_FIELDS.map((f) => (
+                <div key={f.k}>
+                  <div className="mb-1 text-[11.5px] text-default-500">{f.label}</div>
+                  <Input size="sm" type="number" isDisabled={!canEdit} value={String(policy[f.k])}
+                    min={0} max={f.max} endContent={<span className="text-[11px] text-default-400">{f.unit}</span>}
+                    onValueChange={(val) => { const n = Number(val); if (Number.isFinite(n) && n >= 0 && n <= f.max) kytPolicyStore.set({ [f.k]: n } as Partial<KytPolicy>); }}
+                    classNames={{ inputWrapper: "bg-default-100 shadow-none data-[hover=true]:bg-default-200 h-9" }} />
+                </div>
+              ))}
+            </div>
+            {canEdit && !kytPolicyStore.isDefault() && (
+              <Button size="sm" variant="flat" className="mt-3" startContent={<RotateCcw className="h-3.5 w-3.5" />} onPress={() => { kytPolicyStore.reset(); toast.success("已恢复默认风险策略"); }}>恢复默认</Button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* 筛查 */}

@@ -8,6 +8,7 @@
 //    映射成本系统处置(放行 / 复核 / 拒绝)。阈值是风险偏好,风控总管可调(占位待定)。
 // ─────────────────────────────────────────────────────────────────────────────
 import type { Tone } from "./data";
+import type { Txn } from "./decision";
 
 export type Chain = "BTC" | "ETH" | "TRON";
 
@@ -64,9 +65,9 @@ export const VERDICT_META: Record<Verdict, { label: string; tone: Tone; hint: st
   pass: { label: "放行", tone: "green", hint: "无显著风险敞口,正常放行" },
 };
 
-// 供应商信号 → 本系统处置(带命中的策略原因)
-export function policyVerdict(a: AddrRisk): { verdict: Verdict; reason: string } {
-  const p = KYT_POLICY;
+// 供应商信号 → 本系统处置(带命中的策略原因)。
+// 策略默认取常量;传入 kytPolicyStore.current() 即用总管调过的实时阈值。
+export function policyVerdict(a: AddrRisk, p: typeof KYT_POLICY = KYT_POLICY): { verdict: Verdict; reason: string } {
   const dirSanction = a.exposures.find((e) => e.cat === "sanctioned" && e.hops <= p.sanctionHops);
   if (dirSanction) return { verdict: "block", reason: `直接敞口到被制裁地址(${dirSanction.hops} 跳 · 硬红线)` };
   if (a.score >= p.scoreBlock) return { verdict: "block", reason: `供应商风险分 ${a.score} ≥ ${p.scoreBlock}` };
@@ -131,6 +132,22 @@ export function screen(input: string): AddrRisk | null {
     { cat: "exchange", pct: 10 + (h % 25), hops: 1 + ((h >> 3) % 2), direction: "out" },
   ];
   return { address: q, chain, score, categories: cat, exposures, counterparties: [{ name: "未知服务", kind: "service", pct: exposures[0].pct }], firstSeen: "2026-06-30", lastScreened: "2026-07-02", seenIn: [] };
+}
+
+// ── KYT 画像 → 事中交易的链上信号 ──────────────────────────────────────────────
+// 把供应商地址画像转成决策引擎(lib/decision.ts)已有的链上字段,**不改引擎**:
+//   kyw ← 风险分;mixerHops ← 到 制裁/混币器 的最短跳数(引擎 R-CHN-001 ≤2 即冻结);
+//   addressTags ← severe 类别标签(引擎 R-CHN-002)。这样"接进事中闸口"= 补一个适配器。
+export function kytToSignals(a: AddrRisk): Pick<Txn, "kyw" | "mixerHops" | "addressTags"> {
+  const hopsCand = a.exposures.filter((e) => e.cat === "sanctioned" || e.cat === "mixer").map((e) => e.hops);
+  // 风险标签取「自身类别 ∪ 敞口所及的高危类别」—— 让"敞口到暗网/诈骗/盗币"也进事中信号,不只看地址本身是什么
+  const severe = new Set<RiskCat>([...a.categories, ...a.exposures.map((e) => e.cat)].filter((c) => CAT_META[c].severe));
+  const tags = [...severe].map((c) => CAT_META[c].label);
+  return {
+    kyw: a.score,
+    mixerHops: hopsCand.length ? Math.min(...hopsCand) : undefined,
+    addressTags: tags.length ? tags : undefined,
+  };
 }
 
 // 简写地址显示(不用 mono 字体,与全站一致)
