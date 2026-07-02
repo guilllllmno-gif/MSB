@@ -27,6 +27,7 @@ const ListDetail = lazy(() => import("@/pages/ListDetail"));
 const StrategyPage = lazy(() => import("@/pages/StrategyPage"));
 const OnChainIntel = lazy(() => import("@/pages/OnChainIntel"));
 const AuditLog = lazy(() => import("@/pages/AuditLog"));
+const Auth = lazy(() => import("@/pages/Auth"));
 
 export default function App() {
   return (
@@ -36,6 +37,8 @@ export default function App() {
         <Suspense fallback={<div className="flex h-screen items-center justify-center bg-[var(--page)]"><Spinner color="primary" /></div>}>
           <Routes>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/login" element={<Auth />} />
+            <Route path="/signup" element={<Auth />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/ops" element={<OpsOverview />} />
             <Route path="/monitoring" element={<Monitoring />} />

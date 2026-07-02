@@ -79,7 +79,7 @@ export function Shell({ crumb, wide, children }: { crumb: string[]; wide?: boole
 
         <div className="mt-2 flex flex-col gap-0.5 border-t border-divider pt-3">
           <button title={collapsed ? "帮助与信息" : undefined} className={`flex items-center rounded-xl text-[13.5px] font-medium text-default-500 transition-colors hover:bg-content1/60 hover:text-default-700 ${collapsed ? "mx-auto h-10 w-10 justify-center" : "gap-2.5 px-2.5 py-2.5"}`}><HelpCircle className="h-[18px] w-[18px] shrink-0" strokeWidth={1.9} />{!collapsed && "帮助与信息"}</button>
-          <button title={collapsed ? "退出登录" : undefined} className={`flex items-center rounded-xl text-[13.5px] font-medium text-default-500 transition-colors hover:bg-content1/60 hover:text-default-700 ${collapsed ? "mx-auto h-10 w-10 justify-center" : "gap-2.5 px-2.5 py-2.5"}`}><LogOut className="h-[18px] w-[18px] shrink-0" strokeWidth={1.9} />{!collapsed && "退出登录"}</button>
+          <button onClick={() => nav("/login")} title={collapsed ? "退出登录" : undefined} className={`flex items-center rounded-xl text-[13.5px] font-medium text-default-500 transition-colors hover:bg-content1/60 hover:text-default-700 ${collapsed ? "mx-auto h-10 w-10 justify-center" : "gap-2.5 px-2.5 py-2.5"}`}><LogOut className="h-[18px] w-[18px] shrink-0" strokeWidth={1.9} />{!collapsed && "退出登录"}</button>
         </div>
       </aside>
 
@@ -168,7 +168,7 @@ export function Shell({ crumb, wide, children }: { crumb: string[]; wide?: boole
                   );
                 })}
                 <button onClick={() => nav("/entity")} className="flex items-center gap-2.5 border-t border-default-100 px-3.5 py-2.5 text-left text-[12.5px] transition-colors hover:bg-default-50"><Fingerprint className="h-4 w-4 text-default-400" strokeWidth={1.9} />主体档案 360</button>
-                <button onClick={() => nav("/dashboard")} className="flex items-center gap-2.5 px-3.5 py-2.5 text-left text-[12.5px] text-danger transition-colors hover:bg-default-50"><LogOut className="h-4 w-4" strokeWidth={1.9} />退出登录</button>
+                <button onClick={() => nav("/login")} className="flex items-center gap-2.5 px-3.5 py-2.5 text-left text-[12.5px] text-danger transition-colors hover:bg-default-50"><LogOut className="h-4 w-4" strokeWidth={1.9} />退出登录</button>
               </PopoverContent>
             </Popover>
           </div>
