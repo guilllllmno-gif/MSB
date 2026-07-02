@@ -7,12 +7,16 @@ import type { ListEntry } from "./lists";
 import type { Case, CaseSubject } from "./cases";
 import { KYT_POLICY } from "./onchain";
 
+// 持久化钩子:各 store 的 notify 触发它把全量状态写入 localStorage。
+// 真正的实现在文件末尾赋值(那时所有 store 状态变量已声明);此处仅占位,保证 notify 引用有效。
+let persistSave: () => void = () => {};
+
 interface Override { state?: string; assignee?: Person | null; events: { t: string; text: string; reason: string }[] }
 
 const data: Record<string, Override> = {};
 let version = 0;
 const listeners = new Set<() => void>();
-const notify = () => { version++; listeners.forEach((l) => l()); };
+const notify = () => { version++; listeners.forEach((l) => l()); persistSave(); };
 const now = () => { const d = new Date(); return ("0" + d.getHours()).slice(-2) + ":" + ("0" + d.getMinutes()).slice(-2); };
 
 export const alertStore = {
@@ -41,7 +45,7 @@ const ringData: Record<string, { state?: string; owner?: Person | null; caseRef?
 let ringCreated: Ring[] = [];
 let ringVersion = 0;
 const ringListeners = new Set<() => void>();
-const ringNotify = () => { ringVersion++; ringListeners.forEach((l) => l()); };
+const ringNotify = () => { ringVersion++; ringListeners.forEach((l) => l()); persistSave(); };
 
 export const ringStore = {
   subscribe(cb: () => void) { ringListeners.add(cb); return () => { ringListeners.delete(cb); }; },
@@ -72,7 +76,7 @@ export function useRingVersion() {
 const findingData: Record<string, { status?: string; owner?: Person | null; trace?: string; backfill?: boolean; frozen?: boolean; lossReported?: boolean; restricted?: boolean; listed?: boolean; events?: { t: string; text: string }[] }> = {};
 let findingVersion = 0;
 const findingListeners = new Set<() => void>();
-const findingNotify = () => { findingVersion++; findingListeners.forEach((l) => l()); };
+const findingNotify = () => { findingVersion++; findingListeners.forEach((l) => l()); persistSave(); };
 
 export const findingStore = {
   subscribe(cb: () => void) { findingListeners.add(cb); return () => { findingListeners.delete(cb); }; },
@@ -112,7 +116,7 @@ const reportData: Record<string, { status?: string; mlro?: Person | null; ref?: 
 let reportCreated: Report[] = [];
 let reportVersion = 0;
 const reportListeners = new Set<() => void>();
-const reportNotify = () => { reportVersion++; reportListeners.forEach((l) => l()); };
+const reportNotify = () => { reportVersion++; reportListeners.forEach((l) => l()); persistSave(); };
 
 export const reportStore = {
   subscribe(cb: () => void) { reportListeners.add(cb); return () => { reportListeners.delete(cb); }; },
@@ -150,7 +154,7 @@ const ruleRemoved = new Set<string>();
 let ruleCreated: Rule[] = [];
 let ruleVersion = 0;
 const ruleListeners = new Set<() => void>();
-const ruleNotify = () => { ruleVersion++; ruleListeners.forEach((l) => l()); };
+const ruleNotify = () => { ruleVersion++; ruleListeners.forEach((l) => l()); persistSave(); };
 
 export const ruleStore = {
   subscribe(cb: () => void) { ruleListeners.add(cb); return () => { ruleListeners.delete(cb); }; },
@@ -224,7 +228,7 @@ const listData: Record<string, { status?: string; owner?: Person | null; events?
 let listCreated: ListEntry[] = [];
 let listVersion = 0;
 const listListeners = new Set<() => void>();
-const listNotify = () => { listVersion++; listListeners.forEach((l) => l()); };
+const listNotify = () => { listVersion++; listListeners.forEach((l) => l()); persistSave(); };
 
 export const listStore = {
   subscribe(cb: () => void) { listListeners.add(cb); return () => { listListeners.delete(cb); }; },
@@ -255,7 +259,7 @@ const caseExtraSubjects: Record<string, CaseSubject[]> = {};
 let caseCreated: Case[] = [];
 let caseVersion = 0;
 const caseListeners = new Set<() => void>();
-const caseNotify = () => { caseVersion++; caseListeners.forEach((l) => l()); };
+const caseNotify = () => { caseVersion++; caseListeners.forEach((l) => l()); persistSave(); };
 
 export const caseStore = {
   subscribe(cb: () => void) { caseListeners.add(cb); return () => { caseListeners.delete(cb); }; },
@@ -286,7 +290,7 @@ export function useCaseVersion() {
 import { entityKeys } from "./entity360";
 let tagVersion = 0;
 const tagListeners = new Set<() => void>();
-const tagNotify = () => { tagVersion++; tagListeners.forEach((l) => l()); };
+const tagNotify = () => { tagVersion++; tagListeners.forEach((l) => l()); persistSave(); };
 const tagConfirmed: Record<string, string[]> = {};
 const tagDismissed: Record<string, string[]> = {};
 const tagKey = (name: string) => entityKeys(name)[0] || name;
@@ -347,3 +351,67 @@ export function useKytVersion() {
   useSyncExternalStore(kytPolicyStore.subscribe, kytPolicyStore.getVersion, kytPolicyStore.getVersion);
   return kytPolicy;
 }
+
+// ── 持久化:内存 store ↔ localStorage(演示态跨刷新保留)────────────────────────
+// 每次任意 store 的 notify 后,把全量可变状态整体快照写入 localStorage;模块加载时回灌。
+// 纯演示用途:localStorage 不可用 / 解析失败 / 版本号不符时,静默回退到初始态。
+// 结构演进时把 PERSIST_VER +1 即可让旧快照自然失效,避免脏数据。
+const PERSIST_KEY = "rc-app:store";
+const PERSIST_VER = 1;
+const hasLS = typeof localStorage !== "undefined";
+
+function snapshotAll() {
+  return {
+    v: PERSIST_VER,
+    alert: data,
+    ringData, ringCreated,
+    findingData,
+    reportData, reportCreated,
+    ruleData, ruleEdits, ruleHistory, rulePending, ruleRemoved: [...ruleRemoved], ruleCreated,
+    listData, listCreated,
+    caseData, caseExtraSubjects, caseCreated,
+    tagConfirmed, tagDismissed,
+    // 注:操作员身份(roleVal)与 KYT 策略(kytPolicy)是演示切换项,按设计「刷新重置」,不持久化。
+  };
+}
+
+// 就地替换 const Record 的内容(保持引用不变,避免各处闭包持有旧引用)
+function replaceObj<T>(target: Record<string, T>, src: unknown) {
+  for (const k of Object.keys(target)) delete target[k];
+  if (src && typeof src === "object") Object.assign(target, src as Record<string, T>);
+}
+
+function hydrateAll() {
+  if (!hasLS) return;
+  let raw: string | null = null;
+  try { raw = localStorage.getItem(PERSIST_KEY); } catch { return; }
+  if (!raw) return;
+  try {
+    const s = JSON.parse(raw);
+    if (!s || s.v !== PERSIST_VER) return;
+    replaceObj(data, s.alert);
+    replaceObj(ringData, s.ringData); if (Array.isArray(s.ringCreated)) ringCreated = s.ringCreated;
+    replaceObj(findingData, s.findingData);
+    replaceObj(reportData, s.reportData); if (Array.isArray(s.reportCreated)) reportCreated = s.reportCreated;
+    replaceObj(ruleData, s.ruleData); replaceObj(ruleEdits, s.ruleEdits); replaceObj(ruleHistory, s.ruleHistory); replaceObj(rulePending, s.rulePending);
+    if (Array.isArray(s.ruleRemoved)) { ruleRemoved.clear(); s.ruleRemoved.forEach((x: string) => ruleRemoved.add(x)); }
+    if (Array.isArray(s.ruleCreated)) ruleCreated = s.ruleCreated;
+    replaceObj(listData, s.listData); if (Array.isArray(s.listCreated)) listCreated = s.listCreated;
+    replaceObj(caseData, s.caseData); replaceObj(caseExtraSubjects, s.caseExtraSubjects); if (Array.isArray(s.caseCreated)) caseCreated = s.caseCreated;
+    replaceObj(tagConfirmed, s.tagConfirmed); replaceObj(tagDismissed, s.tagDismissed);
+  } catch { /* 脏数据:忽略,用初始态 */ }
+}
+
+// 赋上真正的持久化实现(此前 notify 里引用的是占位空函数)
+persistSave = () => {
+  if (!hasLS) return;
+  try { localStorage.setItem(PERSIST_KEY, JSON.stringify(snapshotAll())); } catch { /* 配额 / 隐私模式:忽略 */ }
+};
+
+// 清空演示态(退出登录 / 重置演示可调用)
+export function clearPersistedState() {
+  if (!hasLS) return;
+  try { localStorage.removeItem(PERSIST_KEY); } catch { /* ignore */ }
+}
+
+hydrateAll();
