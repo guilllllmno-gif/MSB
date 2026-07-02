@@ -1,10 +1,11 @@
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Drawer, DrawerContent, DrawerHeader, DrawerBody, DrawerFooter, Button } from "@heroui/react";
-import { ShieldAlert, ArrowRight, ArrowDownLeft, ArrowUpRight, ExternalLink, ListPlus } from "lucide-react";
+import { ArrowRight, ExternalLink, ListPlus } from "lucide-react";
 import { Pill, SectionLabel } from "./bits";
-import { toneVar, type Tone } from "@/lib/data";
-import { CAT_META, VERDICT_META, scoreLevel, policyVerdict, kytToSignals, shortAddr, type AddrRisk } from "@/lib/onchain";
+import type { Tone } from "@/lib/data";
+import { OnChainRiskCard } from "./OnChainRiskCard";
+import { scoreLevel, kytToSignals, shortAddr, type AddrRisk } from "@/lib/onchain";
 import { decide, type Action } from "@/lib/decision";
 import { useKytVersion } from "@/lib/store";
 
@@ -13,16 +14,13 @@ const ACT: Record<Action, { label: string; tone: Tone }> = {
   freeze: { label: "冻结", tone: "red" }, block: { label: "拦截", tone: "red" },
   hold: { label: "暂缓 · 转人工", tone: "amber" }, review: { label: "放行 · 转研判", tone: "amber" }, allow: { label: "放行", tone: "green" },
 };
-const SIM_AMOUNT = 2500; // 示意:以该地址为收款方的一笔 CAD 2,500 提现(避开大额规则,凸显 KYT 信号本身的影响)
+const SIM_AMOUNT = 2500; // 示意:以该地址为收款方一笔 CAD 2,500 提现(避开大额规则,凸显 KYT 信号本身)
 
 export function AddrRiskDrawer({ addr, onClose }: { addr: AddrRisk | null; onClose: () => void }) {
   const nav = useNavigate();
   const policy = useKytVersion();
   if (!addr) return null;
   const lv = scoreLevel(addr.score);
-  const { verdict, reason } = policyVerdict(addr, policy);
-  const v = VERDICT_META[verdict];
-  const exps = [...addr.exposures].sort((a, b) => b.pct - a.pct);
   // ① 接进事中闸口:KYT 画像 → 链上信号 → 决策引擎(真跑 decide,不改引擎)
   const sig = kytToSignals(addr);
   const dec = decide({ id: "SIM", merchant: "(示意商户)", direction: "withdraw", amount: SIM_AMOUNT, receiver: addr.address, kybComplete: true, ...sig });
@@ -37,68 +35,34 @@ export function AddrRiskDrawer({ addr, onClose }: { addr: AddrRisk | null; onClo
             <Pill tone="grey" dot={false}>{addr.chain}</Pill>
             <Pill tone={lv.tone}>供应商风险 {addr.score} · {lv.label}</Pill>
           </div>
-          <div className="text-[11.5px] text-default-400">{addr.ownEntity ? `归属:${addr.ownEntity} · ` : ""}最近筛查 {addr.lastScreened} · 首次见于 {addr.firstSeen}</div>
+          {addr.ownEntity && <div className="text-[11.5px] text-default-400">归属:{addr.ownEntity}</div>}
         </DrawerHeader>
 
         <DrawerBody className="gap-5 py-5">
-          {/* 处置判定 —— 本系统策略层(供应商给信号,这里给动作)*/}
-          <div className="rounded-xl border p-3.5" style={{ borderColor: `color-mix(in srgb, ${toneVar(v.tone)} 30%, transparent)`, background: `color-mix(in srgb, ${toneVar(v.tone)} 6%, transparent)` }}>
-            <div className="flex items-center gap-2">
-              <ShieldAlert className="h-4 w-4" style={{ color: toneVar(v.tone) }} />
-              <span className="text-[11px] font-bold uppercase tracking-wider text-default-400">本系统处置判定</span>
-              <Pill tone={v.tone}>{v.label}</Pill>
-            </div>
-            <div className="mt-2 text-[13px] font-semibold">{reason}</div>
-            <div className="mt-0.5 text-[12px] text-default-500">{v.hint}</div>
-          </div>
+          {/* 供应商情报 + 本系统处置 —— 共享卡(与详情页 / 控制台同一渲染)*/}
+          <OnChainRiskCard addr={addr} />
 
-          {/* 供应商风险分 */}
+          {/* ① 事中闸口影响 —— 把 KYT 信号喂给决策引擎真跑一遍 */}
           <div>
-            <SectionLabel>供应商风险分</SectionLabel>
-            <div className="flex items-center gap-3">
-              <span className="text-[30px] font-extrabold leading-none tnum" style={{ color: toneVar(lv.tone) }}>{addr.score}</span>
-              <div className="flex-1">
-                <div className="h-2 w-full overflow-hidden rounded-full bg-default-100">
-                  <div className="h-full rounded-full" style={{ width: `${addr.score}%`, background: toneVar(lv.tone) }} />
-                </div>
-                <div className="mt-1 text-[11.5px] text-default-400">情报源:KYT 供应商(原型内 mock)· 0–100,越高越危</div>
+            <SectionLabel>事中闸口影响(示意 · 以该地址为收款方一笔 CAD {SIM_AMOUNT.toLocaleString()} 提现)</SectionLabel>
+            <div className="rounded-xl border border-divider p-3">
+              <div className="mb-2 flex flex-wrap items-center gap-1.5 text-[11.5px] text-default-500">
+                <span className="rounded-md bg-default-100 px-1.5 py-0.5 font-semibold">链上信号 → 引擎</span>
+                <span>KYW <b className="text-foreground">{sig.kyw}</b></span>
+                <span>· 制裁/混币最短跳 <b className="text-foreground">{sig.mixerHops ?? "未溯源"}</b></span>
+                {sig.addressTags?.length ? <span>· 风险标签 <b className="text-foreground">{sig.addressTags.join("、")}</b></span> : null}
               </div>
-            </div>
-          </div>
-
-          {/* 类别归属 —— 属性,中性灰 */}
-          <div>
-            <SectionLabel>类别归属</SectionLabel>
-            <div className="flex flex-wrap gap-1.5">
-              {addr.categories.map((c) => (
-                <span key={c} className="inline-flex items-center gap-1 rounded-md border border-divider bg-default-50 px-2 py-0.5 text-[11.5px] font-semibold text-default-600">
-                  {CAT_META[c].severe && <ShieldAlert className="h-3 w-3 text-default-400" />}{CAT_META[c].label}
-                </span>
-              ))}
-            </div>
-          </div>
-
-          {/* 资金敞口 */}
-          <div>
-            <SectionLabel>资金敞口(占该地址资金流的比例 · 最短跳数)</SectionLabel>
-            <div className="flex flex-col gap-2.5">
-              {exps.map((e, i) => {
-                const meta = CAT_META[e.cat];
-                const col = meta.severe ? (e.hops <= 1 ? "var(--danger)" : "var(--warning)") : "var(--text-3)";
-                return (
-                  <div key={i}>
-                    <div className="mb-0.5 flex items-center gap-1.5 text-[12.5px]">
-                      {e.direction === "in" ? <ArrowDownLeft className="h-3.5 w-3.5 text-default-400" /> : <ArrowUpRight className="h-3.5 w-3.5 text-default-400" />}
-                      <span className="font-semibold" style={{ color: meta.severe ? col : undefined }}>{meta.label}</span>
-                      <span className="text-default-400">· {e.direction === "in" ? "流入" : "流出"} · {e.hops} 跳</span>
-                      <span className="ml-auto tnum font-bold" style={{ color: col }}>{e.pct}%</span>
-                    </div>
-                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-default-100">
-                      <div className="h-full rounded-full" style={{ width: `${e.pct}%`, background: col }} />
-                    </div>
-                  </div>
-                );
-              })}
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-default-400">引擎判定</span>
+                <Pill tone={act.tone}>{act.label}</Pill>
+                {dec.manualReview && <span className="text-[11.5px] text-default-500">· 强制人工</span>}
+              </div>
+              {dec.reasons.length > 0 && (
+                <ul className="mt-2 space-y-0.5 text-[12px] text-default-500">
+                  {dec.reasons.slice(0, 3).map((r, i) => <li key={i}>· {r.detail}</li>)}
+                </ul>
+              )}
+              <div className="mt-2 text-[11px] text-default-400">经 lib/decision 决策引擎实跑;KYT 只提供链上信号,处置由引擎按管线综合(规则/名单/基线/降级 最严生效)。</div>
             </div>
           </div>
 
@@ -133,30 +97,6 @@ export function AddrRiskDrawer({ addr, onClose }: { addr: AddrRisk | null; onClo
               </div>
             </div>
           )}
-
-          {/* ① 事中闸口影响 —— 把 KYT 信号喂给决策引擎真跑一遍 */}
-          <div>
-            <SectionLabel>事中闸口影响(示意 · 以该地址为收款方一笔 CAD {SIM_AMOUNT.toLocaleString()} 提现)</SectionLabel>
-            <div className="rounded-xl border border-divider p-3">
-              <div className="mb-2 flex flex-wrap items-center gap-1.5 text-[11.5px] text-default-500">
-                <span className="rounded-md bg-default-100 px-1.5 py-0.5 font-semibold">链上信号 → 引擎</span>
-                <span>KYW <b className="text-foreground">{sig.kyw}</b></span>
-                <span>· 制裁/混币最短跳 <b className="text-foreground">{sig.mixerHops ?? "未溯源"}</b></span>
-                {sig.addressTags?.length ? <span>· 风险标签 <b className="text-foreground">{sig.addressTags.join("、")}</b></span> : null}
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-default-400">引擎判定</span>
-                <Pill tone={act.tone}>{act.label}</Pill>
-                {dec.manualReview && <span className="text-[11.5px] text-default-500">· 强制人工</span>}
-              </div>
-              {dec.reasons.length > 0 && (
-                <ul className="mt-2 space-y-0.5 text-[12px] text-default-500">
-                  {dec.reasons.slice(0, 3).map((r, i) => <li key={i}>· {r.detail}</li>)}
-                </ul>
-              )}
-              <div className="mt-2 text-[11px] text-default-400">经 lib/decision 决策引擎实跑;KYT 只提供链上信号,处置由引擎按管线综合(规则/名单/基线/降级 最严生效)。</div>
-            </div>
-          </div>
 
           {/* 风险策略 —— 本系统自建层(实时值)*/}
           <div className="rounded-xl border border-divider bg-default-50 p-3">

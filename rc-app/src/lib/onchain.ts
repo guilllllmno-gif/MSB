@@ -47,6 +47,48 @@ export interface AddrRisk {
 export const scoreLevel = (s: number): { label: string; tone: Tone } =>
   s >= 75 ? { label: "高危", tone: "red" } : s >= 40 ? { label: "中风险", tone: "amber" } : { label: "低风险", tone: "green" };
 
+// 类别风险等级 → 暴露条着色(高危→红、中→琥珀、低→中性)。让"红的占多少"一眼可见。
+const CAT_TIER: Record<RiskCat, "high" | "mid" | "low"> = {
+  sanctioned: "high", mixer: "high", darknet: "high", scam: "high", stolen: "high",
+  gambling: "mid", unknown: "mid", exchange: "low", defi: "low", p2p: "low",
+};
+export const catRiskTone = (c: RiskCat): Tone => (CAT_TIER[c] === "high" ? "red" : CAT_TIER[c] === "mid" ? "amber" : "grey");
+export const catRank = (c: RiskCat): number => (CAT_TIER[c] === "high" ? 0 : CAT_TIER[c] === "mid" ? 1 : 2);
+
+// 供应商侧"命中要点"(卡片上的两三条 finding)。severe 敞口 → 风险条,无制裁 → 合规确认条。
+export interface Finding { text: string; detail: string; tone: Tone; ok?: boolean }
+export function riskFindings(a: AddrRisk): Finding[] {
+  const out: Finding[] = [];
+  const sev = a.exposures.filter((e) => CAT_META[e.cat].severe).sort((x, y) => y.pct - x.pct);
+  for (const e of sev.slice(0, 2)) {
+    out.push({ text: `${CAT_META[e.cat].label}关联`, detail: `${e.direction === "in" ? "来源" : "去向"}地址 ${e.pct}% 敞口 · 最短 ${e.hops} 跳`, tone: e.hops <= 1 ? "red" : "amber" });
+  }
+  const sanction = a.exposures.find((e) => e.cat === "sanctioned");
+  out.push(sanction
+    ? { text: "命中制裁关联", detail: `距被制裁地址 ${sanction.hops} 跳 · OFAC · UN · EU · FINTRAC`, tone: "red" }
+    : { text: "未检测到直接制裁匹配", detail: "OFAC · UN · EU · FINTRAC", tone: "green", ok: true });
+  return out;
+}
+
+// 扫描历史(带当时分数,体现趋势)· 确定性合成:分数向当前值收敛,日期回溯。
+export interface ScanRecord { date: string; score: number }
+function fnv(s: string): number { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+function daysBefore(iso: string, days: number): string { return new Date(Date.parse(iso + "T00:00:00") - days * 86400000).toISOString().slice(0, 10); }
+export function scanHistory(a: AddrRisk): ScanRecord[] {
+  const h = fnv(a.address);
+  const n = 5 + (h % 3);                          // 5–7 次
+  const base = Math.max(5, a.score - (18 + (h % 22))); // 起点低于当前,体现"风险上升"
+  const recs: ScanRecord[] = [];
+  for (let i = 0; i < n; i++) {
+    const t = i / (n - 1);
+    const noise = ((h >> (i + 1)) % 7) - 3;
+    const score = Math.max(1, Math.min(100, Math.round(base + (a.score - base) * t + noise)));
+    recs.push({ date: daysBefore(a.lastScreened, (n - 1 - i) * (14 + (h % 12))), score });
+  }
+  recs[n - 1] = { date: a.lastScreened, score: a.score }; // 最近一次 = 当前
+  return recs;
+}
+
 // ── 风险策略(本系统自建)· 阈值 = 风险偏好,风控总管可调 · 占位待定 ──────────────
 export const KYT_POLICY = {
   scoreBlock: 90,       // 风险分 ≥ 此值 → 拒绝
