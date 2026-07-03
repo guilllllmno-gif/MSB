@@ -1,12 +1,13 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
-import { Switch, Button, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter } from "@heroui/react";
+import { Switch, Button, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Textarea } from "@heroui/react";
 import { Shield, ShieldCheck, Scale, Gauge, Database, Clock, Lock, Landmark, UserCheck, GitBranch, ListChecks, Info,
-  ShieldAlert, Banknote, FileText, Archive, ListOrdered, Layers, UserX, Eye, SlidersHorizontal, Globe, Unlink, ServerOff, ZapOff, FileQuestion, Network, AlarmClock, Briefcase, CalendarClock, CalendarX, Users, ScrollText, FlaskConical, ArrowRight } from "lucide-react";
+  ShieldAlert, Banknote, FileText, Archive, ListOrdered, Layers, UserX, Eye, SlidersHorizontal, Globe, Unlink, ServerOff, ZapOff, FileQuestion, Network, AlarmClock, Briefcase, CalendarClock, CalendarX, Users, ScrollText, FlaskConical, ArrowRight, Check, RotateCcw, History, CircleDot } from "lucide-react";
 import { Shell, PageHead } from "@/components/Shell";
 import { toneVar, type Tone } from "@/lib/data";
-import { Pill } from "@/components/bits";
+import { Pill, Initials } from "@/components/bits";
 import { shadowCompare, SAMPLE_TXNS, type Policy, type Action } from "@/lib/decision";
+import { policyStore, usePolicyVersion, useRoleVersion, PERSONS } from "@/lib/store";
 
 // 区块容器
 function Section({ icon: Icon, title, hint, children }: { icon: typeof Shield; title: string; hint?: string; children: React.ReactNode }) {
@@ -57,7 +58,6 @@ function Policy({ icon: Icon, title, desc, value, locked, lockNote, on, onToggle
 
 // 处置基线 = 三个风险分切点(拦截 / 转研判 / 留痕),其余区间派生
 type Thresholds = { block: number; review: number; log: number };
-const DEFAULT_THRESH: Thresholds = { block: 80, review: 60, log: 40 };
 // 预设档(对标 Stripe「Select risk setting」)—— 选一档即设定三个切点
 const BASELINE_PRESETS: { key: string; name: string; desc: string; t: Thresholds }[] = [
   { key: "conservative", name: "保守 · 更早拦截", desc: "下调各档阈值,更多交易进入拦截 / 研判 —— 适合风险高发期、新制裁生效。", t: { block: 70, review: 50, log: 30 } },
@@ -79,6 +79,7 @@ const ACT: Record<Action, { label: string; tone: Tone }> = {
   hold: { label: "暂缓", tone: "amber" }, review: { label: "转研判", tone: "amber" }, allow: { label: "放行", tone: "green" },
 };
 const pct = (x: number) => `${Math.round(x * 100)}%`;
+const signPct = (x: number) => (x > 0.0001 ? "+" : "") + pct(x);
 
 export default function StrategyPage() {
   // 可调兜底开关(原型:本地状态 + toast;接后端落 policyStore + 双人复核)
@@ -89,27 +90,48 @@ export default function StrategyPage() {
   const [keepListOnExpiry, setKeepListOnExpiry] = useState(true);
   const flip = (set: (v: boolean) => void, cur: boolean, name: string) => { set(!cur); toast.success(`${name} 已${!cur ? "开启" : "关闭"} · 记入审计日志(需双人复核生效)`); };
 
-  // 处置基线:当前切点 + 调整弹窗(原型:本地 state + toast;接后端落 policyStore + 双人复核)
-  const [thresh, setThresh] = useState<Thresholds>(DEFAULT_THRESH);
-  const [baselineOpen, setBaselineOpen] = useState(false);
-  const [draftPreset, setDraftPreset] = useState("standard");
+  // ── 处置基线 · 变更治理闭环(policyStore:发起 → 双人复核 → 上线 / 回滚)──
+  usePolicyVersion();                       // 订阅:任意审批 / 回滚即时重渲染
+  const role = useRoleVersion();            // 当前演示身份
+  const me = PERSONS[role];
+  const isHead = role === "head";           // 风控总管(兼 MLRO):可审批 / 回滚
+  const live = policyStore.live();          // 当前生效版本
+  const thresh: Thresholds = live.thresholds;
+  const pending = policyStore.pending();    // 待审批变更(至多一条)
+  const history = policyStore.history();
   const bands = makeBands(thresh);
   const curPreset = presetOf(thresh);
+
+  const [baselineOpen, setBaselineOpen] = useState(false);
+  const [draftPreset, setDraftPreset] = useState("standard");
+  const [rejectOpen, setRejectOpen] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
   const openBaseline = () => { setDraftPreset(curPreset?.key ?? "standard"); setBaselineOpen(true); };
-  const applyBaseline = () => {
-    const p = BASELINE_PRESETS.find((x) => x.key === draftPreset);
-    if (p) setThresh(p.t);
-    setBaselineOpen(false);
-    toast.success(`处置基线已更新为「${p?.name}」· 已提交双人复核(记入审计日志)`);
-  };
+
   // 回测:选中的草稿档 vs 当前线上,在样本交易流上影子跑一遍(引擎 shadowCompare 实跑,不改线上)
-  const backtest = useMemo(() => {
+  // 直接每渲染算(样本 12 笔,成本可忽略):thresh 来自可变 store,用 useMemo 会被 React Compiler 拒。
+  const backtest = (() => {
     const p = BASELINE_PRESETS.find((x) => x.key === draftPreset);
     if (!p || (p.t.block === thresh.block && p.t.review === thresh.review && p.t.log === thresh.log)) return null;
-    const champion: Policy = { label: "当前线上", thresholds: thresh };
+    const champion: Policy = { label: "当前线上", thresholds: { ...thresh } };
     const challenger: Policy = { label: p.name, thresholds: p.t };
     return shadowCompare(SAMPLE_TXNS, champion, challenger);
-  }, [draftPreset, thresh]);
+  })();
+
+  // 发起变更 → 落 pending(带回测快照),不动线上;分析师 / 总管均可发起,须双人复核后上线
+  const submitProposal = () => {
+    const p = BASELINE_PRESETS.find((x) => x.key === draftPreset);
+    if (!p) return;
+    const snap = backtest
+      ? { total: backtest.agg.total, flips: backtest.agg.flips, approveDelta: backtest.agg.challApprove - backtest.agg.champApprove, stopDelta: backtest.agg.challStop - backtest.agg.champStop }
+      : { total: SAMPLE_TXNS.length, flips: 0, approveDelta: 0, stopDelta: 0 };
+    policyStore.propose({ presetKey: p.key, name: p.name, thresholds: p.t, by: me, summary: `拦截 ≥${p.t.block} / 研判 ≥${p.t.review} / 留痕 ≥${p.t.log}`, backtest: snap });
+    setBaselineOpen(false);
+    toast.success(`已提交处置基线变更「${p.name}」· 待 MLRO + 风控总管双人复核(记入审计日志)`);
+  };
+  const approvePending = () => { const n = pending?.name; policyStore.approve(me); toast.success(`处置基线「${n}」已批准上线 · 记入审计日志`); };
+  const doReject = () => { policyStore.reject(me, rejectReason.trim() || "未说明"); setRejectOpen(false); setRejectReason(""); toast.success("已退回基线变更 · 维持当前版本"); };
+  const rollback = (v: number, name: string) => { policyStore.rollback(v, me); toast.success(`已回滚至 v${v}「${name}」· 记入审计日志(以新版本上线)`); };
 
   return (
     <Shell crumb={["风控", "配置", "全局策略"]} wide>
@@ -136,7 +158,7 @@ export default function StrategyPage() {
           ["无规则命中", "按风险分矩阵", false],
           ["评分服务", "正常", true],
           ["制裁名单源", "实时同步", true],
-          ["策略版本", "v2.4 · 06-10", false],
+          ["决策基线版本", pending ? `v${live.v} · 待复核` : `v${live.v} · ${live.name}`, !pending],
         ].map(([k, v, ok], i) => (
           <div key={k as string} className={`px-4 py-3 ${i > 0 ? "border-l border-default-100" : ""} ${i >= 3 ? "max-lg:border-l-0" : ""}`}>
             <div className="text-[11px] text-default-400">{k}</div>
@@ -157,7 +179,11 @@ export default function StrategyPage() {
                 <p className="mt-0.5 text-[12px] leading-relaxed text-default-500">当前:综合风险分 <b className="text-foreground">≥ {thresh.block} 拦截 + 强制人工</b> · {thresh.review}–{thresh.block - 1} 转研判 · &lt; {thresh.log} 直接放行。变更走双人复核。</p>
               </div>
             </div>
-            <button onClick={openBaseline} className="shrink-0 rounded-full px-3.5 py-2 text-[12.5px] font-semibold" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>调整基线</button>
+            {pending ? (
+              <span className="shrink-0 rounded-full px-3.5 py-2 text-[12.5px] font-semibold" style={{ background: "var(--track)", color: "var(--text-3)" }} title="已有一条基线变更在双人复核中,复核完成后方可发起新变更">变更待复核 →</span>
+            ) : (
+              <button onClick={openBaseline} className="shrink-0 rounded-full px-3.5 py-2 text-[12.5px] font-semibold" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>调整基线</button>
+            )}
           </div>
           {/* 渐变分段条:0–100 风险分按四档着色,宽度按区间跨度;低→高 左→右 */}
           {(() => {
@@ -236,11 +262,85 @@ export default function StrategyPage() {
           <Policy icon={Users} title="全局策略变更" value="双人复核" desc="可调策略的任何修改需 MLRO + 风控负责人双人复核后生效;法定硬约束不可修改,仅可查看。" />
           <Policy icon={ScrollText} title="审计与回溯" value="全量留痕" desc="每次调整记录变更人、时间、前后取值与理由,进审计日志,可按版本回溯与回滚。" />
           <Policy icon={FlaskConical} title="灰度与回测" value="先回测 → 审批 → 灰度" desc="涉及检测逻辑的策略变更默认先进回测、审批、灰度放量,不直接全量上线(与「监控规则」治理一致)。" />
+
+          {/* 变更治理 · 实时闭环 —— 把上面的治理原则落成可操作:发起(带回测)→ 双人复核 → 上线 / 回滚,全程留痕 */}
+          <div className="mt-4 rounded-2xl border border-default-200 p-4">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2 text-[13px] font-bold"><History className="h-4 w-4 text-default-500" />处置基线 · 变更治理</div>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-default-100 px-2 py-1 text-[11px] font-semibold text-default-600"><Initials p={me} size={16} />{me.n} · {isHead ? "可审批 / 回滚" : "可发起"}</span>
+            </div>
+
+            {/* 待审批变更 */}
+            {pending ? (
+              <div className="rounded-xl p-3.5" style={{ border: "1px solid color-mix(in srgb, var(--warning) 35%, transparent)", background: "color-mix(in srgb, var(--warning) 6%, transparent)" }}>
+                <div className="mb-2 flex flex-wrap items-center gap-2">
+                  <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10.5px] font-bold" style={{ background: "color-mix(in srgb, var(--warning) 16%, transparent)", color: "var(--warning)" }}><Clock className="h-3 w-3" />待双人复核</span>
+                  <span className="text-[13px] font-bold">基线变更为「{pending.name}」</span>
+                </div>
+                <div className="flex flex-wrap gap-1.5 text-[11px] font-semibold text-default-600">
+                  <span className="rounded-md border border-default-200 bg-content1 px-1.5 py-0.5">≥ {pending.thresholds.block} 拦截</span>
+                  <span className="rounded-md border border-default-200 bg-content1 px-1.5 py-0.5">{pending.thresholds.review}–{pending.thresholds.block - 1} 转研判</span>
+                  <span className="rounded-md border border-default-200 bg-content1 px-1.5 py-0.5">{pending.thresholds.log}–{pending.thresholds.review - 1} 留痕</span>
+                  <span className="rounded-md border border-default-200 bg-content1 px-1.5 py-0.5">{"<"} {pending.thresholds.log} 放行</span>
+                </div>
+                {/* 发起时的回测影响快照(引擎 shadowCompare 实跑) */}
+                <div className="mt-2.5 grid grid-cols-3 gap-2">
+                  <div className="rounded-xl border border-default-200 bg-content1 p-2.5">
+                    <div className="text-[10.5px] text-default-400">处置翻转</div>
+                    <div className="mt-0.5 text-[15px] font-bold tabular-nums" style={{ color: pending.backtest.flips ? "var(--brand)" : "var(--text-3)" }}>{pending.backtest.flips}<span className="ml-0.5 text-[10.5px] font-medium text-default-400">/ {pending.backtest.total}</span></div>
+                  </div>
+                  <div className="rounded-xl border border-default-200 bg-content1 p-2.5">
+                    <div className="text-[10.5px] text-default-400">直通率 Δ</div>
+                    <div className="mt-0.5 text-[15px] font-bold tabular-nums" style={{ color: pending.backtest.approveDelta > 0.0001 ? "var(--warning)" : pending.backtest.approveDelta < -0.0001 ? "var(--success)" : "var(--text-3)" }}>{signPct(pending.backtest.approveDelta)}</div>
+                  </div>
+                  <div className="rounded-xl border border-default-200 bg-content1 p-2.5">
+                    <div className="text-[10.5px] text-default-400">拦截率 Δ</div>
+                    <div className="mt-0.5 text-[15px] font-bold tabular-nums" style={{ color: pending.backtest.stopDelta > 0.0001 ? "var(--success)" : pending.backtest.stopDelta < -0.0001 ? "var(--warning)" : "var(--text-3)" }}>{signPct(pending.backtest.stopDelta)}</div>
+                  </div>
+                </div>
+                <div className="mt-2.5 flex flex-wrap items-center gap-1.5 text-[11px] text-default-500"><Initials p={pending.by} size={16} />{pending.by.n} 于 {pending.at} 发起 · {pending.summary}</div>
+                {isHead ? (
+                  <div className="mt-3 flex gap-2">
+                    <Button size="sm" color="primary" radius="full" startContent={<Check className="h-3.5 w-3.5" />} onPress={approvePending}>批准上线</Button>
+                    <Button size="sm" variant="bordered" radius="full" onPress={() => setRejectOpen(true)}>退回</Button>
+                  </div>
+                ) : (
+                  <p className="mt-3 flex items-start gap-1.5 text-[11px] leading-relaxed text-default-400"><Lock className="mt-px h-3 w-3 shrink-0" />需风控总管(兼 MLRO)复核 —— 顶栏「切换身份 · 演示」切到 Emma Zhang 即可批准 / 退回。</p>
+                )}
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 rounded-xl border border-dashed border-default-200 bg-default-50 p-3.5 text-[12px] text-default-500"><ShieldCheck className="h-4 w-4 shrink-0 text-default-400" />当前无待复核的基线变更 —— 在上方「决策基线」卡点 <b className="text-default-600">「调整基线」</b> 发起(发起后须双人复核方可上线)。</div>
+            )}
+
+            {/* 版本历史 · 可回溯回滚(append-only) */}
+            <div className="mt-3.5">
+              <div className="mb-1.5 text-[11px] font-semibold text-default-500">版本历史 · 可回溯回滚</div>
+              <div className="flex flex-col gap-1">
+                {history.map((h) => {
+                  const isLive = h.v === live.v;
+                  return (
+                    <div key={h.v} className="flex flex-wrap items-center gap-2 rounded-lg border border-default-200 bg-content1 px-2.5 py-2 text-[11.5px]">
+                      <span className="tnum font-bold text-default-600">v{h.v}</span>
+                      {isLive && <span className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-bold" style={{ background: "color-mix(in srgb, var(--success) 14%, transparent)", color: "var(--success)" }}><CircleDot className="h-2.5 w-2.5" />当前生效</span>}
+                      <span className="font-semibold">{h.name}</span>
+                      <span className="tnum text-default-400">≥{h.thresholds.block}/{h.thresholds.review}/{h.thresholds.log}</span>
+                      <span className="min-w-0 flex-1 truncate text-default-400">{h.summary}</span>
+                      <span className="flex items-center gap-1 text-default-400"><Initials p={h.by} size={14} />{h.by.n}</span>
+                      <span className="tnum text-default-300">{h.date}</span>
+                      {isHead && !isLive && (
+                        <button onClick={() => rollback(h.v, h.name)} className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10.5px] font-semibold" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><RotateCcw className="h-3 w-3" />回滚</button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
         </Section>
 
         <div className="flex items-start gap-2 rounded-xl border border-default-200 p-3.5 text-[12px] leading-relaxed text-default-500">
           <ListChecks className="mt-px h-4 w-4 shrink-0 text-default-400" />
-          <span>原型说明:可调开关为本地演示态(toast + 审计提示),接后端后落 `policyStore` 并经双人复核生效;法定硬约束项恒为只读。本页与 <b>监控规则</b>(显式拦截逻辑)、<b>名单管理</b>(筛查数据)共同构成「逻辑 + 数据 + 兜底」三层风控配置。</span>
+          <span>原型说明:<b>决策基线</b>已走真治理闭环 —— 发起(引擎 shadowCompare 回测)→ 落 <code>policyStore</code> 待审批 → 风控总管(兼 MLRO)双人复核批准后上线记版本、可回滚,全程汇入<b>审计日志</b>;⑤⑥ 的兜底开关仍为本地演示态(toast + 审计提示),接后端后同样纳入双人复核;法定硬约束项恒为只读。本页与 <b>监控规则</b>(显式拦截逻辑)、<b>名单管理</b>(筛查数据)共同构成「逻辑 + 数据 + 兜底」三层风控配置。</span>
         </div>
       </div>
 
@@ -325,7 +425,24 @@ export default function StrategyPage() {
           </ModalBody>
           <ModalFooter>
             <Button variant="bordered" onPress={() => setBaselineOpen(false)}>取消</Button>
-            <Button color="primary" isDisabled={draftPreset === (curPreset?.key ?? "")} onPress={applyBaseline}>提交双人复核</Button>
+            <Button color="primary" isDisabled={draftPreset === (curPreset?.key ?? "")} onPress={submitProposal}>提交双人复核</Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
+      {/* 退回基线变更 —— 理由必填,记入审计 */}
+      <Modal isOpen={rejectOpen} onOpenChange={setRejectOpen} size="md" placement="center">
+        <ModalContent>
+          <ModalHeader className="flex flex-col gap-1">
+            <div className="flex items-center gap-2 text-[15px]"><span className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ background: "var(--track)", color: "var(--text-3)" }}><RotateCcw className="h-4 w-4" /></span>退回基线变更</div>
+            <p className="text-[12px] font-normal leading-relaxed text-default-500">退回后维持当前生效版本,发起人可据理由修订后重新提交。理由记入审计日志。</p>
+          </ModalHeader>
+          <ModalBody>
+            <Textarea value={rejectReason} onValueChange={setRejectReason} minRows={3} label="退回理由" labelPlacement="outside" placeholder="例:该档放宽后直通率上升 17%,需补充历史流水回测样本再议" />
+          </ModalBody>
+          <ModalFooter>
+            <Button variant="bordered" onPress={() => setRejectOpen(false)}>取消</Button>
+            <Button color="danger" variant="flat" isDisabled={!rejectReason.trim()} onPress={doReject}>确认退回</Button>
           </ModalFooter>
         </ModalContent>
       </Modal>

@@ -3,7 +3,7 @@
 // 配色克制:模块=属性中性灰;人物头像保留身份色;高敏动作仅一个中性标记。无 emoji,用 lucide。
 import { ListChecks, FolderOpen, FileText, Shield, Network, History, Bell, SlidersHorizontal, Settings } from "lucide-react";
 import type { Person } from "./data";
-import { ruleStore, caseStore, reportStore, listStore, ringStore, findingStore, alertStore } from "./store";
+import { ruleStore, caseStore, reportStore, listStore, ringStore, findingStore, alertStore, policyStore } from "./store";
 
 export type AuditModule = "规则" | "案件" | "报送" | "名单" | "团伙" | "事后" | "告警" | "策略" | "系统";
 // 动作类别(供筛选 + 合规视角分桶)
@@ -72,6 +72,7 @@ export function liveAudit(): AuditEntry[] {
   ringStore.allEvents().forEach((e) => add("团伙", e));
   findingStore.allEvents().forEach((e) => add("事后", e));
   alertStore.allEvents().forEach((e) => add("告警", e));
+  policyStore.allEvents().forEach((e) => add("策略", e));
   // 本会话内,后发生的排前(allEvents 按插入序,翻转即最新在前)
   return out.reverse();
 }

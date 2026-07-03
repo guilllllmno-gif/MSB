@@ -352,12 +352,80 @@ export function useKytVersion() {
   return kytPolicy;
 }
 
+// ── 全局决策基线策略(变更治理:回测 → 双人复核 → 上线 / 回滚)─────────────────
+// 镜像监控规则的变更治理(见 ruleStore):改「线上基线」不直接动线上,先落一份「待审批变更」
+// (带回测影响快照),原基线照常生效,待风控总管 + MLRO 双人复核批准后才上线并记一个新版本。
+// 版本历史 append-only(最新在前,[0] = 当前生效),回滚 = 追加一个复用旧阈值的新版本(审计友好)。
+export type PolicyThresholds = { block: number; review: number; log: number };
+// 回测影响快照(发起时在样本流上 shadowCompare 实跑得出,存入 pending 供复核人直接看)
+export interface PolicyBacktest { total: number; flips: number; approveDelta: number; stopDelta: number }
+export interface PolicyVersion { v: number; date: string; by: Person; presetKey: string; name: string; thresholds: PolicyThresholds; summary: string }
+export interface PolicyPending { presetKey: string; name: string; thresholds: PolicyThresholds; by: Person; at: string; summary: string; backtest: PolicyBacktest }
+
+const policyDate = () => "今天 " + now();
+// 种子:当前生效基线 = 标准档 v1(季度校准)
+let policyHistory: PolicyVersion[] = [
+  { v: 1, date: "2026-06-10 09:41", by: PERSONS.head, presetKey: "standard", name: "标准 · 平衡", thresholds: { block: 80, review: 60, log: 40 }, summary: "季度校准 · 维持 ≥80 拦截 / ≥60 转研判" },
+];
+let policyPending: PolicyPending | null = null;
+let policyEvents: { t: string; text: string; reason: string }[] = [];
+let policyVersion = 0;
+const policyListeners = new Set<() => void>();
+const policyNotify = () => { policyVersion++; policyListeners.forEach((l) => l()); persistSave(); };
+
+export const policyStore = {
+  subscribe(cb: () => void) { policyListeners.add(cb); return () => { policyListeners.delete(cb); }; },
+  getVersion() { return policyVersion; },
+  live() { return policyHistory[0]; },              // 当前生效版本(历史最新)
+  pending() { return policyPending; },
+  history() { return policyHistory; },
+  // 审计:并入 liveAudit(单一全局目标)
+  allEvents() { return policyEvents.map((e) => ({ id: "决策基线", ...e })); },
+  // 发起变更(分析师 / 总管均可)→ 落 pending,不动线上;带回测快照 + 事件
+  propose(c: { presetKey: string; name: string; thresholds: PolicyThresholds; by: Person; summary: string; backtest: PolicyBacktest }) {
+    policyPending = { ...c, at: policyDate() };
+    policyEvents.push({ t: now(), text: `提交处置基线变更「${c.name}」· 待双人复核`, reason: c.summary });
+    policyNotify();
+  },
+  // 总管 + MLRO 审批通过 → pending 上线,记新版本(自动编号),清 pending
+  approve(by: Person) {
+    if (!policyPending) return;
+    const p = policyPending;
+    const nextV = (policyHistory[0]?.v ?? 0) + 1;
+    policyHistory = [{ v: nextV, date: policyDate(), by, presetKey: p.presetKey, name: p.name, thresholds: p.thresholds, summary: p.summary }, ...policyHistory];
+    policyEvents.push({ t: now(), text: `审批通过 · 处置基线「${p.name}」上线(v${nextV})`, reason: p.summary });
+    policyPending = null;
+    policyNotify();
+  },
+  // 总管退回 → 不动线上,记退回事件(理由必填),清 pending
+  reject(by: Person, reason: string) {
+    if (!policyPending) return;
+    const p = policyPending;
+    policyEvents.push({ t: now(), text: `退回处置基线变更「${p.name}」· ${by.n}`, reason });
+    policyPending = null;
+    policyNotify();
+  },
+  // 回滚到历史某版本 → 追加一个复用旧阈值的新版本(append-only,不删历史)
+  rollback(targetV: number, by: Person) {
+    const src = policyHistory.find((h) => h.v === targetV);
+    if (!src || policyHistory[0]?.v === targetV) return;
+    const nextV = (policyHistory[0]?.v ?? 0) + 1;
+    policyHistory = [{ v: nextV, date: policyDate(), by, presetKey: src.presetKey, name: src.name, thresholds: src.thresholds, summary: `回滚至 v${src.v}「${src.name}」` }, ...policyHistory];
+    policyEvents.push({ t: now(), text: `回滚处置基线至 v${src.v}「${src.name}」(v${nextV})`, reason: `由 ${by.n} 执行` });
+    policyPending = null;
+    policyNotify();
+  },
+};
+export function usePolicyVersion() {
+  return useSyncExternalStore(policyStore.subscribe, policyStore.getVersion, policyStore.getVersion);
+}
+
 // ── 持久化:内存 store ↔ localStorage(演示态跨刷新保留)────────────────────────
 // 每次任意 store 的 notify 后,把全量可变状态整体快照写入 localStorage;模块加载时回灌。
 // 纯演示用途:localStorage 不可用 / 解析失败 / 版本号不符时,静默回退到初始态。
 // 结构演进时把 PERSIST_VER +1 即可让旧快照自然失效,避免脏数据。
 const PERSIST_KEY = "rc-app:store";
-const PERSIST_VER = 1;
+const PERSIST_VER = 2; // v2:纳入全局决策基线策略治理(policyHistory / policyPending / policyEvents)
 const hasLS = typeof localStorage !== "undefined";
 
 function snapshotAll() {
@@ -371,6 +439,7 @@ function snapshotAll() {
     listData, listCreated,
     caseData, caseExtraSubjects, caseCreated,
     tagConfirmed, tagDismissed,
+    policyHistory, policyPending, policyEvents,
     // 注:操作员身份(roleVal)与 KYT 策略(kytPolicy)是演示切换项,按设计「刷新重置」,不持久化。
   };
 }
@@ -383,7 +452,7 @@ function replaceObj<T>(target: Record<string, T>, src: unknown) {
 
 function hydrateAll() {
   if (!hasLS) return;
-  let raw: string | null = null;
+  let raw: string | null;
   try { raw = localStorage.getItem(PERSIST_KEY); } catch { return; }
   if (!raw) return;
   try {
@@ -399,6 +468,9 @@ function hydrateAll() {
     replaceObj(listData, s.listData); if (Array.isArray(s.listCreated)) listCreated = s.listCreated;
     replaceObj(caseData, s.caseData); replaceObj(caseExtraSubjects, s.caseExtraSubjects); if (Array.isArray(s.caseCreated)) caseCreated = s.caseCreated;
     replaceObj(tagConfirmed, s.tagConfirmed); replaceObj(tagDismissed, s.tagDismissed);
+    if (Array.isArray(s.policyHistory) && s.policyHistory.length) policyHistory = s.policyHistory;
+    policyPending = s.policyPending ?? null;
+    if (Array.isArray(s.policyEvents)) policyEvents = s.policyEvents;
   } catch { /* 脏数据:忽略,用初始态 */ }
 }
 

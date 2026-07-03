@@ -5,14 +5,14 @@ import { Search, ExternalLink, ShieldAlert, Download } from "lucide-react";
 import { Shell, PageHead } from "@/components/Shell";
 import { Initials } from "@/components/bits";
 import { allAudit, AUDIT_MOD, AUDIT_CATS, AUDIT_ACTORS, isHiSensitive, type AuditModule, type AuditCat } from "@/lib/audit";
-import { useRuleVersion, useCaseVersion, useReportVersion, useListVersion, useRingVersion, useFindingVersion, useAlertVersion } from "@/lib/store";
+import { useRuleVersion, useCaseVersion, useReportVersion, useListVersion, useRingVersion, useFindingVersion, useAlertVersion, usePolicyVersion } from "@/lib/store";
 
 const MODULES: AuditModule[] = ["规则", "案件", "报送", "名单", "团伙", "事后", "告警", "策略", "系统"];
 
 export default function AuditLog() {
   const nav = useNavigate();
   // 订阅各 store 版本 —— 本会话任意模块的处置 / 审批等动作实时汇入审计轨迹
-  useRuleVersion(); useCaseVersion(); useReportVersion(); useListVersion(); useRingVersion(); useFindingVersion(); useAlertVersion();
+  useRuleVersion(); useCaseVersion(); useReportVersion(); useListVersion(); useRingVersion(); useFindingVersion(); useAlertVersion(); usePolicyVersion();
   const [mod, setMod] = useState<"all" | AuditModule>("all");
   const [cat, setCat] = useState<"all" | AuditCat>("all");
   const [actor, setActor] = useState("all");
