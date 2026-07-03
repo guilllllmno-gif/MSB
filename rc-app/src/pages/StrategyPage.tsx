@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { toast } from "sonner";
 import { Switch, Button, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter } from "@heroui/react";
 import { Shield, ShieldCheck, Scale, Gauge, Database, Clock, Lock, Landmark, UserCheck, GitBranch, ListChecks, Info,
-  ShieldAlert, Banknote, FileText, Archive, ListOrdered, Layers, UserX, Eye, SlidersHorizontal, Globe, Unlink, ServerOff, ZapOff, FileQuestion, Network, AlarmClock, Briefcase, CalendarClock, CalendarX, Users, ScrollText, FlaskConical } from "lucide-react";
+  ShieldAlert, Banknote, FileText, Archive, ListOrdered, Layers, UserX, Eye, SlidersHorizontal, Globe, Unlink, ServerOff, ZapOff, FileQuestion, Network, AlarmClock, Briefcase, CalendarClock, CalendarX, Users, ScrollText, FlaskConical, ArrowRight } from "lucide-react";
 import { Shell, PageHead } from "@/components/Shell";
 import { toneVar, type Tone } from "@/lib/data";
+import { Pill } from "@/components/bits";
+import { shadowCompare, SAMPLE_TXNS, type Policy, type Action } from "@/lib/decision";
 
 // 区块容器
 function Section({ icon: Icon, title, hint, children }: { icon: typeof Shield; title: string; hint?: string; children: React.ReactNode }) {
@@ -71,6 +73,13 @@ const makeBands = (t: Thresholds): { range: string; label: string; tone: Tone; a
   { range: `< ${t.log}`, label: "低", tone: "green", action: "直接放行", note: "仅记录,不干预" },
 ];
 
+// 引擎处置动作 → 中文 + 色(与 AddrRiskDrawer 同口径)
+const ACT: Record<Action, { label: string; tone: Tone }> = {
+  freeze: { label: "冻结", tone: "red" }, block: { label: "拦截", tone: "red" },
+  hold: { label: "暂缓", tone: "amber" }, review: { label: "转研判", tone: "amber" }, allow: { label: "放行", tone: "green" },
+};
+const pct = (x: number) => `${Math.round(x * 100)}%`;
+
 export default function StrategyPage() {
   // 可调兜底开关(原型:本地状态 + toast;接后端落 policyStore + 双人复核)
   const [conserveOnTraceFail, setConserveOnTraceFail] = useState(true);
@@ -93,6 +102,14 @@ export default function StrategyPage() {
     setBaselineOpen(false);
     toast.success(`处置基线已更新为「${p?.name}」· 已提交双人复核(记入审计日志)`);
   };
+  // 回测:选中的草稿档 vs 当前线上,在样本交易流上影子跑一遍(引擎 shadowCompare 实跑,不改线上)
+  const backtest = useMemo(() => {
+    const p = BASELINE_PRESETS.find((x) => x.key === draftPreset);
+    if (!p || (p.t.block === thresh.block && p.t.review === thresh.review && p.t.log === thresh.log)) return null;
+    const champion: Policy = { label: "当前线上", thresholds: thresh };
+    const challenger: Policy = { label: p.name, thresholds: p.t };
+    return shadowCompare(SAMPLE_TXNS, champion, challenger);
+  }, [draftPreset, thresh]);
 
   return (
     <Shell crumb={["风控", "配置", "全局策略"]} wide>
@@ -253,6 +270,57 @@ export default function StrategyPage() {
                 </button>
               );
             })}
+            {/* 回测影响预览 —— 提交前先在样本交易流上影子跑,量化「这次调整会改变多少笔处置」*/}
+            {backtest && (() => {
+              const { agg, rows } = backtest;
+              const flips = rows.filter((r) => r.flipped);
+              const approveDelta = agg.challApprove - agg.champApprove; // 直通率变化
+              const stopDelta = agg.challStop - agg.champStop;          // 拦截率变化
+              const looser = approveDelta > 0.0001;                     // 放宽 = 直通率上升
+              return (
+                <div className="mt-1 rounded-2xl border border-default-200 bg-default-50 p-3.5">
+                  <div className="mb-2.5 flex items-center gap-2 text-[12.5px] font-bold">
+                    <FlaskConical className="h-4 w-4 text-default-500" />回测影响预览
+                    <span className="rounded-md bg-default-100 px-1.5 py-0.5 text-[10.5px] font-semibold text-default-500">{agg.total} 笔样本交易 · 影子跑</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="rounded-xl border border-default-200 bg-content1 p-2.5">
+                      <div className="text-[10.5px] text-default-400">处置翻转</div>
+                      <div className="mt-0.5 text-[17px] font-bold tabular-nums" style={{ color: agg.flips ? "var(--brand)" : "var(--text-3)" }}>{agg.flips}<span className="ml-0.5 text-[11px] font-medium text-default-400">/ {agg.total} 笔</span></div>
+                    </div>
+                    <div className="rounded-xl border border-default-200 bg-content1 p-2.5">
+                      <div className="text-[10.5px] text-default-400">直通率</div>
+                      <div className="mt-0.5 flex items-baseline gap-1 text-[13px] font-bold tabular-nums">{pct(agg.champApprove)}<ArrowRight className="h-3 w-3 text-default-300" />{pct(agg.challApprove)}
+                        {Math.abs(approveDelta) > 0.0001 && <span className="text-[10.5px]" style={{ color: looser ? "var(--warning)" : "var(--success)" }}>{approveDelta > 0 ? "+" : ""}{pct(approveDelta)}</span>}</div>
+                    </div>
+                    <div className="rounded-xl border border-default-200 bg-content1 p-2.5">
+                      <div className="text-[10.5px] text-default-400">拦截率</div>
+                      <div className="mt-0.5 flex items-baseline gap-1 text-[13px] font-bold tabular-nums">{pct(agg.champStop)}<ArrowRight className="h-3 w-3 text-default-300" />{pct(agg.challStop)}
+                        {Math.abs(stopDelta) > 0.0001 && <span className="text-[10.5px]" style={{ color: stopDelta > 0 ? "var(--success)" : "var(--warning)" }}>{stopDelta > 0 ? "+" : ""}{pct(stopDelta)}</span>}</div>
+                    </div>
+                  </div>
+                  {flips.length > 0 ? (
+                    <div className="mt-2.5">
+                      <div className="mb-1.5 text-[11px] font-semibold text-default-500">处置发生变化的交易</div>
+                      <div className="flex flex-col gap-1">
+                        {flips.map((r) => (
+                          <div key={r.txn.id} className="flex items-center gap-2 rounded-lg border border-default-200 bg-content1 px-2.5 py-1.5 text-[11.5px]">
+                            <span className="tnum font-semibold text-default-500">{r.txn.id}</span>
+                            <span className="min-w-0 flex-1 truncate text-default-500">{r.txn.merchant}</span>
+                            <Pill tone={ACT[r.champ.action].tone}>{ACT[r.champ.action].label}</Pill>
+                            <ArrowRight className="h-3 w-3 shrink-0 text-default-300" />
+                            <Pill tone={ACT[r.chall.action].tone}>{ACT[r.chall.action].label}</Pill>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="mt-2.5 text-[11.5px] text-default-500">样本交易流上无处置翻转 —— 该档调整主要影响留痕 / 抽样区间,不改变拦截与放行边界。</p>
+                  )}
+                  <p className="mt-2.5 flex items-start gap-1.5 text-[10.5px] leading-relaxed text-default-400"><Info className="mt-px h-3 w-3 shrink-0" />样本为内置示意交易流(引擎 <b className="text-default-500">shadowCompare</b> 实跑);正式回测接历史流水 · 挑战者仅影子跑,不影响线上处置。</p>
+                </div>
+              );
+            })()}
             <p className="mt-1 flex items-start gap-1.5 text-[11px] leading-relaxed text-default-400"><Info className="mt-px h-3.5 w-3.5 shrink-0" />法定硬约束(制裁筛查 / LVCTR / STR)不受基线影响,始终生效。需任意自定义切点时由风控总管在评分模型侧配置。</p>
           </ModalBody>
           <ModalFooter>

@@ -71,6 +71,17 @@ export const THRESHOLDS = { block: 80, review: 60, log: 40 };
 export const LVCTR_LIMIT = 10_000;       // 法定大额报送阈值
 const LARGE_HOLD = 10_000;               // 评分降级时「大额暂缓」起点
 
+// ── 策略(Policy):把「可调」的部分从引擎里抽出来,支持 Champion / Challenger 并行 ──
+// 只含业务可调项:处置阈值 + 规则权重覆盖 + 规则开关。法定项(制裁/LVCTR/降级兜底)不可配置。
+export interface Policy {
+  label: string;
+  thresholds: { block: number; review: number; log: number };
+  ruleWeights?: Record<string, number>; // 按规则 id 覆盖权重(挑战者调参)
+  disabledRules?: string[];             // 按规则 id 关停(挑战者停用某规则)
+}
+/** 当前线上生效策略(Champion)= strategy 默认基线,无覆盖 */
+export const CHAMPION_POLICY: Policy = { label: "Champion · 当前线上基线", thresholds: { ...THRESHOLDS } };
+
 // ── 名单筛查索引(仅 active 生效;按类别归类,名称归一化松匹配,与原型一致)──
 const norm = (s: string) => s.trim().toLowerCase();
 const ACTIVE_LIST: { value: string; cat: ListCat }[] = LISTS
@@ -128,16 +139,18 @@ export const SCORING_RULES: RuleDef[] = [
   { id: "R-CHN-002", name: "高风险地址检测", weight: 25, needsChain: true, test: (t) => (t.addressTags?.length ?? 0) > 0 },
 ];
 
-/** 评分落档:基线矩阵 */
-function band(score: number): Decision["band"] {
-  if (score >= THRESHOLDS.block) return "block";
-  if (score >= THRESHOLDS.review) return "review";
-  if (score >= THRESHOLDS.log) return "log";
+/** 评分落档:基线矩阵(按传入策略阈值)*/
+function band(score: number, th: Policy["thresholds"]): Decision["band"] {
+  if (score >= th.block) return "block";
+  if (score >= th.review) return "review";
+  if (score >= th.log) return "log";
   return "pass";
 }
 
-// ── 主决策函数 ──────────────────────────────────────────────────────────────
-export function decide(t: Txn, health: DataHealth = {}): Decision {
+// ── 主决策函数(policy 缺省用 Champion,故既有两参调用与测试不受影响)──────────
+export function decide(t: Txn, health: DataHealth = {}, policy: Policy = CHAMPION_POLICY): Decision {
+  const th = policy.thresholds;
+  const disabledRules = new Set(policy.disabledRules ?? []);
   const reasons: Reason[] = [];
   const reports: ReportKind[] = [];
   const degraded: string[] = [];
@@ -198,15 +211,18 @@ export function decide(t: Txn, health: DataHealth = {}): Decision {
   let score = 0;
   const hitRules: string[] = [];
   for (const r of SCORING_RULES) {
+    // 策略关停该规则(挑战者停用)→ 视同不存在
+    if (disabledRules.has(r.id)) continue;
     // 白名单豁免评分类(冻结类如混币器不豁免)
     if (whitelisted && !r.freeze) continue;
     // 数据源不可用 → 跳过该规则评分,但记降级 + 抬动作(不当作未命中放行)
     if (r.needsChain && chainDown) { reasons.push({ code: "DEGRADE_CHAIN_SKIP", rule: r.id, detail: `${r.name} 依赖链上溯源,当前不可用 · 转人工暂缓` }); action = mostRestrictive(action, "hold"); manualReview = true; continue; }
     if (r.needsScoring && scoringDown) { reasons.push({ code: "DEGRADE_SCORING_SKIP", rule: r.id, detail: `${r.name} 依赖评分服务,当前不可用 · 按保守处理` }); continue; }
     if (r.test(t)) {
-      score += r.weight;
+      const w = policy.ruleWeights?.[r.id] ?? r.weight; // 策略权重覆盖
+      score += w;
       hitRules.push(r.id);
-      reasons.push({ code: "RULE_HIT", rule: r.id, detail: `${r.name} 命中 · 评分 +${r.weight}` });
+      reasons.push({ code: "RULE_HIT", rule: r.id, detail: `${r.name} 命中 · 评分 +${w}` });
       if (r.freeze) { action = mostRestrictive(action, "freeze"); manualReview = true; reasons.push({ code: "RULE_FREEZE", rule: r.id, detail: `${r.name} · 命中即冻结` }); }
     }
   }
@@ -222,11 +238,11 @@ export function decide(t: Txn, health: DataHealth = {}): Decision {
     manualReview = true;
     if (t.amount >= LARGE_HOLD) { action = mostRestrictive(action, "hold"); reasons.push({ code: "DEGRADE_LARGE_HOLD", detail: `评分降级且大额 ${t.amount} ≥ CAD ${LARGE_HOLD} · 暂缓` }); }
   } else {
-    bnd = band(score);
-    if (bnd === "block") { action = mostRestrictive(action, "block"); manualReview = true; reasons.push({ code: "BASELINE_BLOCK", detail: `综合风险分 ${score} ≥ ${THRESHOLDS.block} · 拦截 + 强制人工` }); }
-    else if (bnd === "review") { action = mostRestrictive(action, "review"); manualReview = true; reasons.push({ code: "BASELINE_REVIEW", detail: `综合风险分 ${score} 在 ${THRESHOLDS.review}–${THRESHOLDS.block - 1} · 放行转研判` }); }
-    else if (bnd === "log") { reasons.push({ code: "BASELINE_LOG", detail: `综合风险分 ${score} 在 ${THRESHOLDS.log}–${THRESHOLDS.review - 1} · 放行 + 留痕` }); }
-    else reasons.push({ code: "BASELINE_PASS", detail: `综合风险分 ${score} < ${THRESHOLDS.log} · 放行` });
+    bnd = band(score, th);
+    if (bnd === "block") { action = mostRestrictive(action, "block"); manualReview = true; reasons.push({ code: "BASELINE_BLOCK", detail: `综合风险分 ${score} ≥ ${th.block} · 拦截 + 强制人工` }); }
+    else if (bnd === "review") { action = mostRestrictive(action, "review"); manualReview = true; reasons.push({ code: "BASELINE_REVIEW", detail: `综合风险分 ${score} 在 ${th.review}–${th.block - 1} · 放行转研判` }); }
+    else if (bnd === "log") { reasons.push({ code: "BASELINE_LOG", detail: `综合风险分 ${score} 在 ${th.log}–${th.review - 1} · 放行 + 留痕` }); }
+    else reasons.push({ code: "BASELINE_PASS", detail: `综合风险分 ${score} < ${th.log} · 放行` });
   }
 
   // ── KYC/KYB 缺失 → 按最高风险档(从严,不放行)──
@@ -239,3 +255,56 @@ export function decide(t: Txn, health: DataHealth = {}): Decision {
 
   return { action, score, band: bnd, reports, reasons, degraded, manualReview };
 }
+
+// ── Champion / Challenger 影子对比 ────────────────────────────────────────────
+// 同一批交易在两套策略下并行决策(挑战者只影子跑,不影响线上),量化差异与影响面。
+export interface ShadowRow { txn: Txn; champ: Decision; chall: Decision; flipped: boolean }
+export interface ShadowAgg {
+  total: number;
+  flips: number;                          // 两策略处置不同的交易数
+  champ: Record<Action, number>;          // Champion 各处置计数
+  chall: Record<Action, number>;          // Challenger 各处置计数
+  champApprove: number; challApprove: number;   // allow 占比 0–1
+  champStop: number; challStop: number;         // freeze+block 占比 0–1
+}
+const zeroCounts = (): Record<Action, number> => ({ freeze: 0, block: 0, hold: 0, review: 0, allow: 0 });
+
+export function shadowCompare(txns: Txn[], champion: Policy, challenger: Policy, health: DataHealth = {}): { rows: ShadowRow[]; agg: ShadowAgg } {
+  const champ = zeroCounts();
+  const chall = zeroCounts();
+  const rows: ShadowRow[] = txns.map((t) => {
+    const c = decide(t, health, champion);
+    const x = decide(t, health, challenger);
+    champ[c.action]++;
+    chall[x.action]++;
+    return { txn: t, champ: c, chall: x, flipped: c.action !== x.action };
+  });
+  const total = txns.length || 1;
+  const stop = (r: Record<Action, number>) => (r.freeze + r.block) / total;
+  return {
+    rows,
+    agg: {
+      total: txns.length,
+      flips: rows.filter((r) => r.flipped).length,
+      champ, chall,
+      champApprove: champ.allow / total, challApprove: chall.allow / total,
+      champStop: stop(champ), challStop: stop(chall),
+    },
+  };
+}
+
+// ── 示意交易流(事中,覆盖多种风险画像;用于影子对比 / 引擎演示)────────────────
+export const SAMPLE_TXNS: Txn[] = [
+  { id: "TX-9001", merchant: "Aurora Retail Inc.", direction: "deposit", amount: 820, kybComplete: true },
+  { id: "TX-9002", merchant: "Maple Goods Co.", direction: "deposit", amount: 6_000, kybComplete: true },
+  { id: "TX-9003", merchant: "NorthStar Traders", direction: "withdraw", amount: 3_500, kybComplete: true },
+  { id: "TX-9004", merchant: "QuickCash Ltd.", direction: "deposit", amount: 9_000, kybComplete: true, window: { count24h: 6, similarAmountRun: true } },
+  { id: "TX-9005", merchant: "ByteRamp", direction: "deposit", amount: 6_000, kyw: 88, kybComplete: true },
+  { id: "TX-9006", merchant: "OffshoreFX Ltd.", direction: "withdraw", amount: 4_000, receiver: "0x1f mixer", mixerHops: 2, kybComplete: true },
+  { id: "TX-9007", merchant: "NovaPay Technologies Ltd.", direction: "withdraw", amount: 4_000, receiver: "0x7F4a…9c21", addressTags: ["darknet"], kybComplete: true },
+  { id: "TX-9008", merchant: "Sunrise Exchange", direction: "deposit", amount: 5_000, kybComplete: true, window: { outflowRatio1h: 0.9 } },
+  { id: "TX-9009", merchant: "Pioneer Pay", direction: "deposit", amount: 12_000, kybComplete: true },
+  { id: "TX-9010", merchant: "Zephyr Markets", direction: "deposit", amount: 500, kyw: 75, kybComplete: true },
+  { id: "TX-9011", merchant: "Fresh Start Traders", direction: "deposit", amount: 2_000, firstTransaction: true, kybComplete: false },
+  { id: "TX-9012", merchant: "Harbor Capital", direction: "withdraw", amount: 3_200, kybComplete: true, window: { outflowRatio1h: 0.85 } },
+];
