@@ -2,7 +2,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { Switch, Button, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Textarea } from "@heroui/react";
 import { Shield, ShieldCheck, Scale, Gauge, Database, Clock, Lock, Landmark, UserCheck, GitBranch, ListChecks, Info,
-  ShieldAlert, Banknote, FileText, Archive, ListOrdered, Layers, UserX, Eye, SlidersHorizontal, Globe, Unlink, ServerOff, ZapOff, FileQuestion, Network, AlarmClock, Briefcase, CalendarClock, CalendarX, Users, ScrollText, FlaskConical, ArrowRight, Check, RotateCcw, History, CircleDot } from "lucide-react";
+  ShieldAlert, Banknote, FileText, Archive, ListOrdered, Layers, UserX, Eye, SlidersHorizontal, Globe, Unlink, ServerOff, ZapOff, FileQuestion, Network, AlarmClock, Briefcase, CalendarClock, CalendarX, Users, ScrollText, FlaskConical, ArrowRight, Check, RotateCcw, History, CircleDot, ChevronDown } from "lucide-react";
 import { Shell, PageHead } from "@/components/Shell";
 import { toneVar, type Tone } from "@/lib/data";
 import { Pill, Initials } from "@/components/bits";
@@ -52,6 +52,42 @@ function Policy({ icon: Icon, title, desc, value, locked, lockNote, on, onToggle
           <span className="rounded-full px-2 py-1 text-[10.5px] font-bold" style={{ background: "var(--track)", color: "var(--text-3)" }}>默认生效</span>
         )}
       </div>
+    </div>
+  );
+}
+
+// 分层小标题 —— 三层信息架构的视觉分界:重量随层级递减(主控 → 可调 → 只读)
+function TierHead({ n, title, sub, weight }: { n: string; title: string; sub: string; weight: "primary" | "secondary" | "muted" }) {
+  const c = {
+    primary: { badge: { background: "var(--brand)", color: "#fff" }, title: "text-[14px] font-extrabold text-foreground", sub: "text-default-500" },
+    secondary: { badge: { background: "var(--brand-soft)", color: "var(--brand)" }, title: "text-[13.5px] font-bold text-foreground", sub: "text-default-400" },
+    muted: { badge: { background: "var(--track)", color: "var(--text-3)" }, title: "text-[13px] font-bold text-default-500", sub: "text-default-400" },
+  }[weight];
+  return (
+    <div className="flex items-center gap-2.5">
+      <span className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-md text-[12px] font-extrabold" style={c.badge}>{n}</span>
+      <h2 className={c.title}>{title}</h2>
+      <span className={`text-[11.5px] ${c.sub}`}>{sub}</span>
+      <span className="ml-1 h-px flex-1 bg-default-100" />
+    </div>
+  );
+}
+
+// 只读参考区块 —— 默认折叠、灰化;收起时一行摘要 + 只读徽标,需要时展开看细则
+function RefSection({ icon: Icon, title, hint, badge, children }: { icon: typeof Shield; title: string; hint: string; badge: string; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="rounded-2xl border border-default-200 bg-default-50">
+      <button onClick={() => setOpen((o) => !o)} aria-expanded={open} className="flex w-full items-center gap-2.5 p-4 text-left">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-default-100 text-default-400"><Icon className="h-[16px] w-[16px]" strokeWidth={1.9} /></span>
+        <div className="min-w-0 flex-1">
+          <h3 className="text-[13.5px] font-bold text-default-600">{title}</h3>
+          <p className="mt-0.5 truncate text-[11.5px] text-default-400">{hint}</p>
+        </div>
+        <span className="hidden shrink-0 items-center gap-1 rounded-full px-2 py-1 text-[10.5px] font-bold sm:inline-flex" style={{ background: "var(--chip-bg)", color: "var(--text-3)" }}><Lock className="h-3 w-3" />{badge}</span>
+        <ChevronDown className={`h-4 w-4 shrink-0 text-default-400 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && <div className="border-t border-default-100 px-4 pb-2 pt-1">{children}</div>}
     </div>
   );
 }
@@ -167,8 +203,13 @@ export default function StrategyPage() {
         ))}
       </div>
 
-      <div className="flex flex-col gap-5">
-        {/* ① 决策基线 · 风险分处置矩阵 */}
+      <div className="flex flex-col gap-6">
+
+        {/* ═══════════ 层① 决策中枢 · 你要操作的 ═══════════ */}
+        <section className="flex flex-col gap-4">
+          <TierHead n="1" title="决策中枢" sub="你要操作的 —— 兜底分诊 + 变更治理" weight="primary" />
+
+        {/* 决策基线 · 风险分处置矩阵 */}
         <Section icon={Gauge} title="决策基线 · 风险分处置矩阵" hint="当没有任何具体规则命中时,系统按交易的综合风险分落入下列区间,执行对应默认处置。这是兜底的「最后一道分诊」。">
           {/* Stripe 式「当前处置基线」卡 —— 一眼读到当前生效阈值 + 调整入口 */}
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-default-200 p-4">
@@ -217,54 +258,10 @@ export default function StrategyPage() {
           </p>
         </Section>
 
-        {/* ② 法定硬约束 */}
-        <Section icon={Landmark} title="法定硬约束 · 始终生效" hint="基于 PCMLTFA / FINTRAC 要求,任何规则、名单或人工都不能关闭或豁免。本页仅可查看。">
-          <Policy icon={ShieldAlert} locked lockNote="OFAC / UN / SEMA" title="制裁与恐怖融资筛查" value="实时 · 硬拦截" desc="每笔交易实时筛查 OFAC SDN / UN 1267 / 加拿大 SEMA 名单;命中即冻结资金 + 立即生成 TPR 上报。白名单与任何评分规则均不可豁免。" />
-          <Policy icon={Banknote} locked title="LVCTR 大额虚拟货币报送" value="≥ CAD 10,000" desc="单笔或日累计 ≥ CAD 10,000 的虚拟货币交易,系统按客观阈值自动归集生成 LVCTR,无需可疑判定,5 个工作日内报送。" />
-          <Policy icon={FileText} locked title="STR 可疑交易报送时限" value="30 日内" desc="确定可疑(MLRO 签发)后 30 日内向 FINTRAC 报送 STR;系统在临期前自动加急提醒并升级。" />
-          <Policy icon={Archive} locked title="记录保留" value="≥ 5 年" desc="交易、KYC/KYB、报送与处置记录依法保留至少 5 年;审计日志全程留痕、不可删改。" />
-        </Section>
-
-        {/* ③ 冲突仲裁 · 优先级 */}
-        <Section icon={Scale} title="冲突仲裁 · 优先级" hint="多条规则 / 名单同时命中,或彼此结论冲突时的全局裁决顺序。">
-          <Policy icon={Scale} title="多命中处置仲裁" value="最严生效" desc="同一笔交易被多条规则命中时,取所有命中里最严的处置动作(冻结 > 暂缓 > 转研判 > 放行),绝不取最宽松。" />
-          <Policy icon={ListOrdered} title="名单优先级" value="制裁 > 黑 > 关注 > 白" desc="制裁名单 > 内部黑名单 > 关注名单 > 白名单。白名单仅豁免「评分类」规则减少误报,不能豁免制裁 / 黑名单的硬拦截。" />
-          <Policy icon={Layers} title="策略层级" value="法定 > 名单 > 模型 > 规则 > 基线" desc="法定硬约束 > 名单硬拦截 > 评分模型 > 行为规则 > 风险分默认基线。上层覆盖下层,确保兜底永远不弱于显式规则。" />
-        </Section>
-
-        {/* ④ 准入与默认限额 */}
-        <Section icon={UserCheck} title="准入门槛与默认限额" hint="商户 / 账户在没有专门授权时的默认权限边界——「先收紧、后按尽调放开」。">
-          <Policy icon={UserX} title="未完成 KYB 商户" value="禁提现 · 入金限额 CAD 1,000" desc="KYB 未完成的商户默认禁止提现、单笔入金封顶 CAD 1,000、不开放币币兑换;完成尽调后按分级放开。" on={strictNewMerchant} onToggle={() => flip(setStrictNewMerchant, strictNewMerchant, "新商户加严准入")} />
-          <Policy icon={Eye} title="新商户首充观察期" value="7 天 · 首 5 笔人工" desc="新入网商户前 7 天加严阈值,首 5 笔入金强制人工复核,观察期内不进信任白名单。" />
-          <Policy icon={SlidersHorizontal} title="默认限额体系" value="按 KYC 分级三档" desc="基础 / 标准 / 加强 三档对应单笔、日、月限额;超限默认转人工审批,不自动放行。" />
-          <Policy icon={Globe} title="高风险辖区" value="默认加严 + 强制 EDD" desc="高风险辖区主体默认提高风险基线并触发强化尽调(EDD);受制裁辖区直接禁止。" />
-        </Section>
-
-        {/* ⑤ 数据缺失 / 系统降级兜底(核心) */}
-        <Section icon={Database} title="数据缺失 / 系统降级兜底" hint="当依赖的数据源或检测服务不可用时,系统如何「失效安全」地保守处置——这是兜底策略的核心。">
-          <Policy icon={Unlink} title="链上溯源失败 / 超时" value={conserveOnTraceFail ? "保守 · 转人工暂缓" : "放行 + 留痕"} desc="无法完成链上来源追溯(节点超时 / 地址无标签)时,默认转人工并暂缓放行;关闭则降级为放行留痕(不建议)。" on={conserveOnTraceFail} onToggle={() => flip(setConserveOnTraceFail, conserveOnTraceFail, "链上溯源失败兜底")} />
-          <Policy icon={ServerOff} locked title="制裁名单源不可达" value="fail-closed · 暂停放行" desc="制裁名单服务不可达时,法定要求 fail-closed:暂停受影响交易的放行直至恢复,不得默认放行。此项不可改。" />
-          <Policy icon={ZapOff} title="评分服务不可用 · 熔断" value={circuitBreaker ? "全局保守模式" : "关闭"} desc="风险评分服务故障时自动熔断:全局切换保守模式——大额默认暂缓、更多交易转人工、提高拦截倾向,直至服务恢复。" on={circuitBreaker} onToggle={() => flip(setCircuitBreaker, circuitBreaker, "评分熔断保守模式")} />
-          <Policy icon={FileQuestion} title="KYC / KYB 数据缺失" value="按最高风险档" desc="主体核验数据缺失或过期时,默认按最高风险档处置,不给予任何信任豁免。" />
-          <Policy icon={Network} title="实时通道拥塞降级" value="低额优先 · 余者排队" desc="事中实时通道拥塞时降级:仅放行低额低风险交易,其余进入人工队列,避免为保时延而漏检。" />
-        </Section>
-
-        {/* ⑥ SLA 超时兜底 */}
-        <Section icon={Clock} title="SLA 超时兜底" hint="处置环节超时未完成时的默认动作——防止「超时即默认放行」造成漏网。">
-          <Policy icon={AlarmClock} title="事中告警 SLA 超时" value={holdOnAlertSLA ? "自动暂缓冻结" : "自动升级 L2"} desc="事中告警在 SLA 内未处置时,默认自动暂缓冻结该笔(从严),而非超时放行;可改为自动升级 L2 复核。" on={holdOnAlertSLA} onToggle={() => flip(setHoldOnAlertSLA, holdOnAlertSLA, "告警超时兜底")} />
-          <Policy icon={Briefcase} title="案件超 SLA" value="自动升级 MLRO" desc="案件超出处置时限自动升级至 MLRO,并在工作台置顶提醒。" />
-          <Policy icon={CalendarClock} title="STR 临期" value="< 5 天 加急升级" desc="距 FINTRAC 30 日报送时限不足 5 天的 STR,自动加急提醒并升级,防止逾期未报。" />
-          <Policy icon={CalendarX} title="名单项到期未复核" value={keepListOnExpiry ? "维持生效(从严)" : "自动失效"} desc="名单项到期但未完成复核时,默认维持生效(从严,避免自动失效放开拦截);可改为到期自动失效。" on={keepListOnExpiry} onToggle={() => flip(setKeepListOnExpiry, keepListOnExpiry, "名单到期兜底")} />
-        </Section>
-
-        {/* ⑦ 变更治理 */}
-        <Section icon={GitBranch} title="变更治理" hint="谁能改、怎么改、改了能不能追溯。">
-          <Policy icon={Users} title="全局策略变更" value="双人复核" desc="可调策略的任何修改需 MLRO + 风控负责人双人复核后生效;法定硬约束不可修改,仅可查看。" />
-          <Policy icon={ScrollText} title="审计与回溯" value="全量留痕" desc="每次调整记录变更人、时间、前后取值与理由,进审计日志,可按版本回溯与回滚。" />
-          <Policy icon={FlaskConical} title="灰度与回测" value="先回测 → 审批 → 灰度" desc="涉及检测逻辑的策略变更默认先进回测、审批、灰度放量,不直接全量上线(与「监控规则」治理一致)。" />
-
-          {/* 变更治理 · 实时闭环 —— 把上面的治理原则落成可操作:发起(带回测)→ 双人复核 → 上线 / 回滚,全程留痕 */}
-          <div className="mt-4 rounded-2xl border border-default-200 p-4">
+        {/* 变更治理 —— 操作面板在前(你要做的),治理规则在后(参考) */}
+        <Section icon={GitBranch} title="变更治理" hint="发起(带回测)→ 双人复核 → 上线记版本 / 回滚,全程留痕。">
+          {/* 变更治理 · 实时闭环 —— 把治理原则落成可操作 */}
+          <div className="rounded-2xl border border-default-200 p-4">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2 text-[13px] font-bold"><History className="h-4 w-4 text-default-500" />处置基线 · 变更治理</div>
               <span className="inline-flex items-center gap-1.5 rounded-full bg-default-100 px-2 py-1 text-[11px] font-semibold text-default-600"><Initials p={me} size={16} />{me.n} · {isHead ? "可审批 / 回滚" : "可发起"}</span>
@@ -336,11 +333,65 @@ export default function StrategyPage() {
               </div>
             </div>
           </div>
+
+          {/* 治理规则(参考)—— 操作面板之下的一层「谁能改、怎么改」说明 */}
+          <div className="mt-4">
+            <div className="mb-0.5 text-[10.5px] font-bold uppercase tracking-wider text-default-400">治理规则</div>
+            <Policy icon={Users} title="全局策略变更" value="双人复核" desc="可调策略的任何修改需 MLRO + 风控负责人双人复核后生效;法定硬约束不可修改,仅可查看。" />
+            <Policy icon={ScrollText} title="审计与回溯" value="全量留痕" desc="每次调整记录变更人、时间、前后取值与理由,进审计日志,可按版本回溯与回滚。" />
+            <Policy icon={FlaskConical} title="灰度与回测" value="先回测 → 审批 → 灰度" desc="涉及检测逻辑的策略变更默认先进回测、审批、灰度放量,不直接全量上线(与「监控规则」治理一致)。" />
+          </div>
         </Section>
+        </section>
+
+        {/* ═══════════ 层② 可调兜底 · 偶尔调整 ═══════════ */}
+        <section className="flex flex-col gap-4">
+          <TierHead n="2" title="可调兜底" sub="偶尔调整 —— 降级 / SLA / 准入的失效安全" weight="secondary" />
+
+          <Section icon={UserCheck} title="准入门槛与默认限额" hint="商户 / 账户在没有专门授权时的默认权限边界——「先收紧、后按尽调放开」。">
+            <Policy icon={UserX} title="未完成 KYB 商户" value="禁提现 · 入金限额 CAD 1,000" desc="KYB 未完成的商户默认禁止提现、单笔入金封顶 CAD 1,000、不开放币币兑换;完成尽调后按分级放开。" on={strictNewMerchant} onToggle={() => flip(setStrictNewMerchant, strictNewMerchant, "新商户加严准入")} />
+            <Policy icon={Eye} title="新商户首充观察期" value="7 天 · 首 5 笔人工" desc="新入网商户前 7 天加严阈值,首 5 笔入金强制人工复核,观察期内不进信任白名单。" />
+            <Policy icon={SlidersHorizontal} title="默认限额体系" value="按 KYC 分级三档" desc="基础 / 标准 / 加强 三档对应单笔、日、月限额;超限默认转人工审批,不自动放行。" />
+            <Policy icon={Globe} title="高风险辖区" value="默认加严 + 强制 EDD" desc="高风险辖区主体默认提高风险基线并触发强化尽调(EDD);受制裁辖区直接禁止。" />
+          </Section>
+
+          <Section icon={Database} title="数据缺失 / 系统降级兜底" hint="当依赖的数据源或检测服务不可用时,系统如何「失效安全」地保守处置——这是兜底策略的核心。">
+            <Policy icon={Unlink} title="链上溯源失败 / 超时" value={conserveOnTraceFail ? "保守 · 转人工暂缓" : "放行 + 留痕"} desc="无法完成链上来源追溯(节点超时 / 地址无标签)时,默认转人工并暂缓放行;关闭则降级为放行留痕(不建议)。" on={conserveOnTraceFail} onToggle={() => flip(setConserveOnTraceFail, conserveOnTraceFail, "链上溯源失败兜底")} />
+            <Policy icon={ServerOff} locked title="制裁名单源不可达" value="fail-closed · 暂停放行" desc="制裁名单服务不可达时,法定要求 fail-closed:暂停受影响交易的放行直至恢复,不得默认放行。此项不可改。" />
+            <Policy icon={ZapOff} title="评分服务不可用 · 熔断" value={circuitBreaker ? "全局保守模式" : "关闭"} desc="风险评分服务故障时自动熔断:全局切换保守模式——大额默认暂缓、更多交易转人工、提高拦截倾向,直至服务恢复。" on={circuitBreaker} onToggle={() => flip(setCircuitBreaker, circuitBreaker, "评分熔断保守模式")} />
+            <Policy icon={FileQuestion} title="KYC / KYB 数据缺失" value="按最高风险档" desc="主体核验数据缺失或过期时,默认按最高风险档处置,不给予任何信任豁免。" />
+            <Policy icon={Network} title="实时通道拥塞降级" value="低额优先 · 余者排队" desc="事中实时通道拥塞时降级:仅放行低额低风险交易,其余进入人工队列,避免为保时延而漏检。" />
+          </Section>
+
+          <Section icon={Clock} title="SLA 超时兜底" hint="处置环节超时未完成时的默认动作——防止「超时即默认放行」造成漏网。">
+            <Policy icon={AlarmClock} title="事中告警 SLA 超时" value={holdOnAlertSLA ? "自动暂缓冻结" : "自动升级 L2"} desc="事中告警在 SLA 内未处置时,默认自动暂缓冻结该笔(从严),而非超时放行;可改为自动升级 L2 复核。" on={holdOnAlertSLA} onToggle={() => flip(setHoldOnAlertSLA, holdOnAlertSLA, "告警超时兜底")} />
+            <Policy icon={Briefcase} title="案件超 SLA" value="自动升级 MLRO" desc="案件超出处置时限自动升级至 MLRO,并在工作台置顶提醒。" />
+            <Policy icon={CalendarClock} title="STR 临期" value="< 5 天 加急升级" desc="距 FINTRAC 30 日报送时限不足 5 天的 STR,自动加急提醒并升级,防止逾期未报。" />
+            <Policy icon={CalendarX} title="名单项到期未复核" value={keepListOnExpiry ? "维持生效(从严)" : "自动失效"} desc="名单项到期但未完成复核时,默认维持生效(从严,避免自动失效放开拦截);可改为到期自动失效。" on={keepListOnExpiry} onToggle={() => flip(setKeepListOnExpiry, keepListOnExpiry, "名单到期兜底")} />
+          </Section>
+        </section>
+
+        {/* ═══════════ 层③ 只读参考 · 不可改 ═══════════ */}
+        <section className="flex flex-col gap-3">
+          <TierHead n="3" title="只读参考" sub="不可改 —— 法定硬约束与冲突裁决顺序" weight="muted" />
+
+          <RefSection icon={Landmark} title="法定硬约束 · 始终生效" hint="制裁筛查 / LVCTR / STR 时限 / 记录保留 —— PCMLTFA·FINTRAC,不可关闭或豁免" badge="法定 · 只读">
+            <Policy icon={ShieldAlert} locked lockNote="OFAC / UN / SEMA" title="制裁与恐怖融资筛查" value="实时 · 硬拦截" desc="每笔交易实时筛查 OFAC SDN / UN 1267 / 加拿大 SEMA 名单;命中即冻结资金 + 立即生成 TPR 上报。白名单与任何评分规则均不可豁免。" />
+            <Policy icon={Banknote} locked title="LVCTR 大额虚拟货币报送" value="≥ CAD 10,000" desc="单笔或日累计 ≥ CAD 10,000 的虚拟货币交易,系统按客观阈值自动归集生成 LVCTR,无需可疑判定,5 个工作日内报送。" />
+            <Policy icon={FileText} locked title="STR 可疑交易报送时限" value="30 日内" desc="确定可疑(MLRO 签发)后 30 日内向 FINTRAC 报送 STR;系统在临期前自动加急提醒并升级。" />
+            <Policy icon={Archive} locked title="记录保留" value="≥ 5 年" desc="交易、KYC/KYB、报送与处置记录依法保留至少 5 年;审计日志全程留痕、不可删改。" />
+          </RefSection>
+
+          <RefSection icon={Scale} title="冲突仲裁 · 优先级" hint="多命中最严生效 · 名单 制裁>黑>关注>白 · 层级 法定>名单>模型>规则>基线" badge="固定顺序">
+            <Policy icon={Scale} title="多命中处置仲裁" value="最严生效" desc="同一笔交易被多条规则命中时,取所有命中里最严的处置动作(冻结 > 暂缓 > 转研判 > 放行),绝不取最宽松。" />
+            <Policy icon={ListOrdered} title="名单优先级" value="制裁 > 黑 > 关注 > 白" desc="制裁名单 > 内部黑名单 > 关注名单 > 白名单。白名单仅豁免「评分类」规则减少误报,不能豁免制裁 / 黑名单的硬拦截。" />
+            <Policy icon={Layers} title="策略层级" value="法定 > 名单 > 模型 > 规则 > 基线" desc="法定硬约束 > 名单硬拦截 > 评分模型 > 行为规则 > 风险分默认基线。上层覆盖下层,确保兜底永远不弱于显式规则。" />
+          </RefSection>
+        </section>
 
         <div className="flex items-start gap-2 rounded-xl border border-default-200 p-3.5 text-[12px] leading-relaxed text-default-500">
           <ListChecks className="mt-px h-4 w-4 shrink-0 text-default-400" />
-          <span>原型说明:<b>决策基线</b>已走真治理闭环 —— 发起(引擎 shadowCompare 回测)→ 落 <code>policyStore</code> 待审批 → 风控总管(兼 MLRO)双人复核批准后上线记版本、可回滚,全程汇入<b>审计日志</b>;⑤⑥ 的兜底开关仍为本地演示态(toast + 审计提示),接后端后同样纳入双人复核;法定硬约束项恒为只读。本页与 <b>监控规则</b>(显式拦截逻辑)、<b>名单管理</b>(筛查数据)共同构成「逻辑 + 数据 + 兜底」三层风控配置。</span>
+          <span>原型说明:<b>决策基线</b>已走真治理闭环 —— 发起(引擎 shadowCompare 回测)→ 落 <code>policyStore</code> 待审批 → 风控总管(兼 MLRO)双人复核批准后上线记版本、可回滚,全程汇入<b>审计日志</b>;第②层「可调兜底」的开关仍为本地演示态(toast + 审计提示),接后端后同样纳入双人复核;第③层法定硬约束恒为只读。本页与 <b>监控规则</b>(显式拦截逻辑)、<b>名单管理</b>(筛查数据)共同构成「逻辑 + 数据 + 兜底」三层风控配置。</span>
         </div>
       </div>
 
