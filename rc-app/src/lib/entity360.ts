@@ -4,7 +4,7 @@
 import { alerts, type Alert, type Tone } from "./data";
 import { FINDINGS, type Finding } from "./findings";
 import { rings, type Ring, type RingMember } from "./rings";
-import { CASES, type Case, strLabel, type CState, CSTATE } from "./cases";
+import { CASES, type Case, strLabel, slaOfCase, type CState, CSTATE } from "./cases";
 import { REPORTS, type Report } from "./reports";
 import { LISTS } from "./lists";
 import { RULES, type Rule } from "./rules";
@@ -228,7 +228,7 @@ export function directory(): DirEntry[] {
         e.caseActive = true;
         e.activeCases.push({ id: c.id, state: c.state });
         if (!c.owner) e.unclaimedCase = true;
-        if (c.sla?.tone === "red") e.caseSlaUrgent = true; // 只 red(真的快超时)才算临期,amber 是常态
+        if (slaOfCase(c, c.state).overdue) e.caseSlaUrgent = true; // 只逾期(真的超时)才算临期,amber 临期是常态
         e.lastLabel = "立案调查";
       }
     }));

@@ -7,7 +7,7 @@ import { Shell } from "@/components/Shell";
 import { Timeline } from "@/components/Timeline";
 import { Pill, SoftChip, Initials, RiskBadge } from "@/components/bits";
 import { ReviewDialog } from "@/components/ReviewDialog";
-import { alerts, RC_STATES, GATE_STATES, sevMeta, type Tone } from "@/lib/data";
+import { alerts, RC_STATES, GATE_STATES, sevMeta, slaOfAlert, type Tone } from "@/lib/data";
 import { ringsForMerchant, DIM_META, DIM_ORDER, confTone, confLabel } from "@/lib/rings";
 import { FINDINGS, FDIM } from "@/lib/findings";
 import { CASES } from "@/lib/cases";
@@ -73,7 +73,7 @@ export default function AlertDetail() {
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2.5">
-          <Pill tone={a.sla.color} icon={<Clock className="h-3.5 w-3.5" />}>SLA 截止 {a.sla.text}</Pill>
+          {(() => { const sla = slaOfAlert(a, state); return <Pill tone={sla.tone} icon={<Clock className="h-3.5 w-3.5" />}>SLA 截止 {sla.text}</Pill>; })()}
           {state === "new" && <Button size="sm" variant="bordered" onPress={claim}>认领工单</Button>}
           <Button size="sm" variant="bordered">请求扫描</Button>
           {sd.active

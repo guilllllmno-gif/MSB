@@ -5,7 +5,7 @@ import { Clock, ClipboardCheck, Eye } from "lucide-react";
 import { Shell, PageHead } from "@/components/Shell";
 import { Pill } from "@/components/bits";
 import { ReviewDialog } from "@/components/ReviewDialog";
-import { alerts, RC_STATES, GATE_STATES, urgencyColor, type Alert } from "@/lib/data";
+import { alerts, RC_STATES, GATE_STATES, urgencyColor, slaOfAlert, type Alert } from "@/lib/data";
 import { alertStore, useAlertVersion } from "@/lib/store";
 
 const toneCss = (t: string) => (t === "green" ? "var(--success)" : urgencyColor(t, "var(--brand)")); // 见 lib/data
@@ -21,7 +21,7 @@ export default function Monitoring() {
 
   const stOf = (a: Alert) => alertStore.stateOf(a.id, a.state);
   // 事中 = 实时闸口:只看 gate 车道(待决 / 补料待回),按 SLA 紧迫度排序
-  const queue = alerts.filter((a) => GATE_STATES.includes(stOf(a))).sort((x, y) => x.sla.pct - y.sla.pct);
+  const queue = alerts.filter((a) => GATE_STATES.includes(stOf(a))).sort((x, y) => slaOfAlert(x, stOf(x)).pct - slaOfAlert(y, stOf(y)).pct);
   const depositN = queue.filter((a) => a.type === "充值").length;
   const withdrawN = queue.filter((a) => a.type === "提现").length;
   const rows = queue.filter((a) => a.type === tab);
@@ -79,7 +79,7 @@ export default function Monitoring() {
                   <TableCell><span className="text-default-700">{a.title}</span></TableCell>
                   <TableCell><span className="font-semibold tnum">{a.amount}</span></TableCell>
                   <TableCell><Pill tone={sd.cls}>{sd.label}</Pill></TableCell>
-                  <TableCell><span className="inline-flex items-center gap-1" style={{ color: toneCss(a.sla.color) }}><Clock className="h-3.5 w-3.5" />{a.sla.text}</span></TableCell>
+                  <TableCell>{(() => { const sla = slaOfAlert(a, stOf(a)); return <span className="inline-flex items-center gap-1" style={{ color: toneCss(sla.tone) }}><Clock className="h-3.5 w-3.5" />{sla.text}</span>; })()}</TableCell>
                   <TableCell>
                     <div className="flex items-center justify-end gap-1.5">
                       <Tooltip content="查看详情" size="sm" delay={300}>

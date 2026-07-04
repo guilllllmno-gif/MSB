@@ -6,7 +6,7 @@ import { Search, SlidersHorizontal, Tag, Clock, CheckCircle2, AlertTriangle, Cir
 import { Shell, PageHead } from "@/components/Shell";
 import { Pill, Initials } from "@/components/bits";
 import { ReviewDialog } from "@/components/ReviewDialog";
-import { alerts, RC_STATES, GATE_STATES, INVESTIGATION_STATES } from "@/lib/data";
+import { alerts, RC_STATES, GATE_STATES, INVESTIGATION_STATES, slaOfAlert } from "@/lib/data";
 import { alertStore, useAlertVersion } from "@/lib/store";
 
 const ME = { i: "JL", n: "James Liu", c: "var(--brand)" };
@@ -169,7 +169,7 @@ export default function AlertList() {
                 <TableCell><Pill tone={sd.cls} icon={<Icon className="h-3 w-3" />}>{sd.label}</Pill></TableCell>
                 <TableCell><span className="text-default-500">{fundStatus(a, st)}</span></TableCell>
                 <TableCell>{assignee ? <span className="inline-flex items-center gap-1.5"><Initials p={assignee} size={22} />{assignee.n}</span> : <span className="inline-flex items-center gap-1.5 text-default-400"><UserRound className="h-3.5 w-3.5" />未分配</span>}</TableCell>
-                <TableCell><span className="inline-flex items-center gap-1 text-default-500"><Clock className="h-3.5 w-3.5" />{a.sla.text.replace("剩 ", "")}</span></TableCell>
+                <TableCell><span className="inline-flex items-center gap-1 text-default-500"><Clock className="h-3.5 w-3.5" />{slaOfAlert(a, st).text.replace("剩 ", "")}</span></TableCell>
                 <TableCell><span className="text-default-500 tnum">{a.submitted}</span></TableCell>
                 <TableCell>
                   <div className="flex items-center justify-end gap-2">

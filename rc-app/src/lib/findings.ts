@@ -1,6 +1,7 @@
 // 事后监控:回溯命中(findings)数据 + 命中项状态机 + 批次历史。状态/处置存 store.ts 的 findingStore(内存)。
 import { Layers, Network, Zap, Repeat, Coins, Shuffle, UserPlus, FileQuestion, RotateCcw, ArrowUpCircle, XCircle, Send, FolderPlus, Store, Wallet, TrendingUp, Clock, Link2, Moon, Globe, Boxes, Ban, BarChart3, Users, Target } from "lucide-react";
 import type { Tone, Person } from "./data";
+import { slaOf, type SlaTier, type SlaView } from "./sla";
 
 // 检测维度 —— 事后监控是批量回溯,主体维度不统一(不像事中/告警的单笔单商户)
 export type FDim = "merchant" | "address" | "network";
@@ -21,6 +22,14 @@ export const FSTATES: Record<FState, { label: string; tone: Tone; active: boolea
   closed_str: { label: "已结 · 确认可疑 · 转报送", tone: "red", active: false }, // ⑥
   closed_case: { label: "已结 · 转案件", tone: "violet", active: false }, // ⑦
 };
+
+// 事后命中 SLA(统一到 lib/sla.ts · B2)—— 风险定档、live 状态定阶段:
+//   待补充材料(pending)→ 暂停;已结(closed_*)→ 终态;其余(待认领 / 处理中 / 已升级 / 追溯中)→ 跑表。
+const findingSlaTier = (risk: Finding["risk"]): SlaTier => (risk === "red" ? "high" : "medium");
+export function slaOfFinding(f: Finding, state: FState): SlaView {
+  const phase = !FSTATES[state].active ? "terminal" : state === "pending" ? "paused" : "active";
+  return slaOf(f.id, findingSlaTier(f.risk), phase);
+}
 
 // 步进动作 → 目标状态(认领 / 补料 / 升级 等;确认可疑、规则回填走详情页特殊处置)
 export const STEP = {
@@ -67,23 +76,23 @@ export const traceRecovery = (label?: string): { frozen?: boolean; lossReported?
   return {};
 };
 
-export interface Finding { id: string; pattern: string; icon: typeof Layers; dim: FDim; subject: string; sub: string; period: string; hit: string; amount: string; risk: "red" | "amber"; status: FState; batch: string; txns: number; rule: string; sla: { text: string; tone: Tone }; owner: Person | null; trace?: string; backfill?: boolean; related?: string[] }
+export interface Finding { id: string; pattern: string; icon: typeof Layers; dim: FDim; subject: string; sub: string; period: string; hit: string; amount: string; risk: "red" | "amber"; status: FState; batch: string; txns: number; rule: string; owner: Person | null; trace?: string; backfill?: boolean; related?: string[] }
 // 命中维度 → 案件涉案主体类型
 export const dimSubjType = (d: FDim): "商户" | "链上地址" => (d === "merchant" ? "商户" : "链上地址");
 const JL: Person = { i: "JL", n: "James Liu", c: "var(--brand)" };
 const SC: Person = { i: "SC", n: "Sarah Chen", c: "var(--violet)" };
 const MK: Person = { i: "MK", n: "Mae Koh", c: "var(--success)" };
 export const FINDINGS: Finding[] = [
-  { id: "PM-2026-031", pattern: "结构化拆分(累计)", icon: Layers, dim: "merchant", subject: "RapidPay", sub: "商户 · 加拿大", period: "近 7 天", hit: "14 笔均 < CAD 1,000、合计 CAD 12,600,疑似规避大额申报阈值", amount: "CAD 12,600", risk: "red", status: "new", batch: "#20260619-02", txns: 14, rule: "高频拆分交易(累计阈值)", sla: { text: "剩 2d", tone: "amber" }, owner: null, related: ["PM-2026-030"] },
-  { id: "PM-2026-030", pattern: "多账户归集(扇入)", icon: Network, dim: "network", subject: "归集地址 0x9Df2…A4c0", sub: "链上地址 · ERC-20", period: "近 14 天", hit: "6 个商户向同一归集地址集中转入,典型分层归集", amount: "CAD 86,400", risk: "red", status: "tracing", batch: "#20260619-02", txns: 23, rule: "扇入归集模式", sla: { text: "剩 9h", tone: "amber" }, owner: SC, related: ["PM-2026-031", "PM-2026-026"] },
-  { id: "PM-2026-029", pattern: "休眠后突发", icon: Zap, dim: "merchant", subject: "BlockTrade Corp.", sub: "商户 · 美国", period: "近 24h", hit: "账户休眠 90 天后单日 8 笔高额出金,行为突变", amount: "CAD 41,200", risk: "amber", status: "progress", batch: "#20260619-02", txns: 8, rule: "休眠激活异常", sla: { text: "剩 1d 04h", tone: "amber" }, owner: JL },
-  { id: "PM-2026-028", pattern: "币币链跳(回溯)", icon: Shuffle, dim: "address", subject: "0x5078…Ec8c", sub: "链上地址 · 多链", period: "近 30 天", hit: "多笔兑入隐私币后跨链提走,切断溯源链路", amount: "CAD 52,000", risk: "red", status: "escalated", batch: "#20260618-02", txns: 11, rule: "隐私币 / 跨链溯源", sla: { text: "剩 6h", tone: "red" }, owner: SC },
-  { id: "PM-2026-027", pattern: "交易速度骤增", icon: Repeat, dim: "merchant", subject: "NovaPay Technologies", sub: "商户 · 美国", period: "近 48h", hit: "笔频较 30 天基线 5.2×,远超同业商户群", amount: "CAD 18,900", risk: "amber", status: "pending", batch: "#20260618-02", txns: 46, rule: "速度 / 峰值偏离", sla: { text: "已暂停", tone: "grey" }, owner: MK },
-  { id: "PM-2026-026", pattern: "对手集中度异常", icon: Coins, dim: "merchant", subject: "SwiftRemit Inc.", sub: "商户 · 离岸", period: "近 30 天", hit: "80% 出金流向单一高风险司法管辖区交易所", amount: "CAD 33,500", risk: "amber", status: "new", batch: "#20260619-02", txns: 19, rule: "对手集中度", sla: { text: "剩 2d 06h", tone: "amber" }, owner: null, related: ["PM-2026-030"] },
+  { id: "PM-2026-031", pattern: "结构化拆分(累计)", icon: Layers, dim: "merchant", subject: "RapidPay", sub: "商户 · 加拿大", period: "近 7 天", hit: "14 笔均 < CAD 1,000、合计 CAD 12,600,疑似规避大额申报阈值", amount: "CAD 12,600", risk: "red", status: "new", batch: "#20260619-02", txns: 14, rule: "高频拆分交易(累计阈值)", owner: null, related: ["PM-2026-030"] },
+  { id: "PM-2026-030", pattern: "多账户归集(扇入)", icon: Network, dim: "network", subject: "归集地址 0x9Df2…A4c0", sub: "链上地址 · ERC-20", period: "近 14 天", hit: "6 个商户向同一归集地址集中转入,典型分层归集", amount: "CAD 86,400", risk: "red", status: "tracing", batch: "#20260619-02", txns: 23, rule: "扇入归集模式", owner: SC, related: ["PM-2026-031", "PM-2026-026"] },
+  { id: "PM-2026-029", pattern: "休眠后突发", icon: Zap, dim: "merchant", subject: "BlockTrade Corp.", sub: "商户 · 美国", period: "近 24h", hit: "账户休眠 90 天后单日 8 笔高额出金,行为突变", amount: "CAD 41,200", risk: "amber", status: "progress", batch: "#20260619-02", txns: 8, rule: "休眠激活异常", owner: JL },
+  { id: "PM-2026-028", pattern: "币币链跳(回溯)", icon: Shuffle, dim: "address", subject: "0x5078…Ec8c", sub: "链上地址 · 多链", period: "近 30 天", hit: "多笔兑入隐私币后跨链提走,切断溯源链路", amount: "CAD 52,000", risk: "red", status: "escalated", batch: "#20260618-02", txns: 11, rule: "隐私币 / 跨链溯源", owner: SC },
+  { id: "PM-2026-027", pattern: "交易速度骤增", icon: Repeat, dim: "merchant", subject: "NovaPay Technologies", sub: "商户 · 美国", period: "近 48h", hit: "笔频较 30 天基线 5.2×,远超同业商户群", amount: "CAD 18,900", risk: "amber", status: "pending", batch: "#20260618-02", txns: 46, rule: "速度 / 峰值偏离", owner: MK },
+  { id: "PM-2026-026", pattern: "对手集中度异常", icon: Coins, dim: "merchant", subject: "SwiftRemit Inc.", sub: "商户 · 离岸", period: "近 30 天", hit: "80% 出金流向单一高风险司法管辖区交易所", amount: "CAD 33,500", risk: "amber", status: "new", batch: "#20260619-02", txns: 19, rule: "对手集中度", owner: null, related: ["PM-2026-030"] },
   // 已结案历史(让「已结案」分桶有数据)
-  { id: "PM-2026-022", pattern: "结构化拆分(累计)", icon: Layers, dim: "merchant", subject: "QuickWallet Ltd.", sub: "商户 · 美国", period: "近 7 天", hit: "拆分入金规避阈值,确认漏判,已补 STR", amount: "CAD 9,800", risk: "red", status: "closed_str", batch: "#20260618-02", txns: 11, rule: "高频拆分交易(累计阈值)", sla: { text: "已完结", tone: "grey" }, owner: JL, trace: "部分可追溯 · 持续追踪", backfill: true },
-  { id: "PM-2026-021", pattern: "交易速度骤增", icon: Repeat, dim: "merchant", subject: "PayFlow Systems", sub: "商户 · 加拿大", period: "近 48h", hit: "促销活动导致笔频上升,回看为正常业务波动", amount: "CAD 6,400", risk: "amber", status: "closed_fp", batch: "#20260617-02", txns: 28, rule: "速度 / 峰值偏离", sla: { text: "已完结", tone: "grey" }, owner: MK },
-  { id: "PM-2026-020", pattern: "多账户归集(扇入)", icon: Network, dim: "network", subject: "归集地址 0x71Be…F0", sub: "链上地址 · ERC-20", period: "近 14 天", hit: "确认洗钱归集网络,并入案件深查", amount: "CAD 124,000", risk: "red", status: "closed_case", batch: "#20260615-02", txns: 31, rule: "扇入归集模式", sla: { text: "已完结", tone: "grey" }, owner: SC, trace: "不可追溯 · 上报已发生损失", backfill: true },
+  { id: "PM-2026-022", pattern: "结构化拆分(累计)", icon: Layers, dim: "merchant", subject: "QuickWallet Ltd.", sub: "商户 · 美国", period: "近 7 天", hit: "拆分入金规避阈值,确认漏判,已补 STR", amount: "CAD 9,800", risk: "red", status: "closed_str", batch: "#20260618-02", txns: 11, rule: "高频拆分交易(累计阈值)", owner: JL, trace: "部分可追溯 · 持续追踪", backfill: true },
+  { id: "PM-2026-021", pattern: "交易速度骤增", icon: Repeat, dim: "merchant", subject: "PayFlow Systems", sub: "商户 · 加拿大", period: "近 48h", hit: "促销活动导致笔频上升,回看为正常业务波动", amount: "CAD 6,400", risk: "amber", status: "closed_fp", batch: "#20260617-02", txns: 28, rule: "速度 / 峰值偏离", owner: MK },
+  { id: "PM-2026-020", pattern: "多账户归集(扇入)", icon: Network, dim: "network", subject: "归集地址 0x71Be…F0", sub: "链上地址 · ERC-20", period: "近 14 天", hit: "确认洗钱归集网络,并入案件深查", amount: "CAD 124,000", risk: "red", status: "closed_case", batch: "#20260615-02", txns: 31, rule: "扇入归集模式", owner: SC, trace: "不可追溯 · 上报已发生损失", backfill: true },
 ];
 export const findingOf = (id?: string) => FINDINGS.find((f) => f.id === id) || FINDINGS[0];
 

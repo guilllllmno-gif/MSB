@@ -12,8 +12,8 @@ import { LineChart, AnalystLoad } from "@/components/charts";
 import { AnalystQueueDrawer } from "@/components/AnalystQueueDrawer";
 import { queueHealth, DAYS14, QUEUE, type Analyst } from "@/lib/opsMetrics";
 import { rings, RING_STATES, confTone, slaOfRing, type RingStateKey } from "@/lib/rings";
-import { alerts, INVESTIGATION_STATES, urgencyColor } from "@/lib/data";
-import { CASES, CSTATE, type CState } from "@/lib/cases";
+import { alerts, INVESTIGATION_STATES, urgencyColor, slaOfAlert } from "@/lib/data";
+import { CASES, CSTATE, slaOfCase, type CState } from "@/lib/cases";
 import { RSTATE } from "@/lib/reports";
 import { allReports, liveStatus } from "@/lib/reportsAll";
 import { RULES } from "@/lib/rules";
@@ -278,7 +278,7 @@ export default function Dashboard() {
   const reports = allReports();
 
   // 告警研判:调查车道里已超 SLA 的件(AlertList 同口径:INVESTIGATION_STATES + sla 红)
-  const alertsOverSla = alerts.filter((a) => INVESTIGATION_STATES.includes(alertStore.stateOf(a.id, a.state)) && a.sla.color === "red").length;
+  const alertsOverSla = alerts.filter((a) => { const st = alertStore.stateOf(a.id, a.state); return INVESTIGATION_STATES.includes(st) && slaOfAlert(a, st).overdue; }).length;
   // 报告报送:待 MLRO 复核 + 被退回需补正(ReportFiling「需立即处理」同口径)
   const reportsNeedAction = reports.filter((r) => ["review", "returned"].includes(liveStatus(r))).length;
   // 案件管理:active 且未分配 = 待认领(CaseList 显「认领」的件)
@@ -320,18 +320,24 @@ export default function Dashboard() {
   // 告警:未结案、归我 / 待认领,深链到真实告警
   const myAlerts: Task[] = alerts
     .filter((a) => !alertStore.stateOf(a.id, a.state).startsWith("closed") && mine(alertStore.assigneeOf(a.id, a.assignee)))
-    .map((a) => ({
-      kind: "告警", subject: `${a.merchant} · ${a.title}`, meta: `${a.id} · 评分 ${a.score} · 命中 ${a.rules.length} 规则`,
-      due: a.sla.text, overdue: a.sla.color === "red", to: `/alert?id=${a.id}`,
-      icon: a.sev === "high" ? AlertTriangle : Clock,
-    }));
+    .map((a) => {
+      const sla = slaOfAlert(a, alertStore.stateOf(a.id, a.state));
+      return {
+        kind: "告警", subject: `${a.merchant} · ${a.title}`, meta: `${a.id} · 评分 ${a.score} · 命中 ${a.rules.length} 规则`,
+        due: sla.text, overdue: sla.overdue, to: `/alert?id=${a.id}`,
+        icon: a.sev === "high" ? AlertTriangle : Clock,
+      };
+    });
   // 案件:active、归我 / 待认领
   const myCases: Task[] = allCases
     .filter((c) => CSTATE[caseStOf(c)].active && mine(caseStore.ownerOf(c.id, c.owner)))
-    .map((c) => ({
-      kind: "案件", subject: `${c.subject} · ${c.type}`, meta: `${c.id} · ${c.amount} · ${CSTATE[caseStOf(c)].label}`,
-      due: c.sla.text, overdue: c.sla.tone === "red", to: `/case?id=${c.id}`, icon: Snowflake,
-    }));
+    .map((c) => {
+      const sla = slaOfCase(c, caseStOf(c));
+      return {
+        kind: "案件", subject: `${c.subject} · ${c.type}`, meta: `${c.id} · ${c.amount} · ${CSTATE[caseStOf(c)].label}`,
+        due: sla.text, overdue: sla.overdue, to: `/case?id=${c.id}`, icon: Snowflake,
+      };
+    });
   // 报送:active、由我起草,深链到真实报告
   const myReports: Task[] = reports
     .filter((r) => RSTATE[liveStatus(r)].active && r.officer.n === ME.n)

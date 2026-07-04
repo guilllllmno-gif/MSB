@@ -7,7 +7,7 @@ import { Shell } from "@/components/Shell";
 import { Pill } from "@/components/bits";
 import { FindingReviewDialog } from "@/components/FindingReviewDialog";
 import { TraceDrawer } from "@/components/TraceDrawer";
-import { findingOf, detailOf, FINDINGS, FSTATES, FDIM, dimSubjType, type FState } from "@/lib/findings";
+import { findingOf, detailOf, FINDINGS, FSTATES, FDIM, dimSubjType, slaOfFinding, type FState } from "@/lib/findings";
 import { findingStore, caseStore, useFindingVersion } from "@/lib/store";
 import { toneColor } from "@/lib/data";
 import type { Case } from "@/lib/cases";
@@ -83,7 +83,7 @@ export default function PostDetail() {
             <Pill tone={sd.tone}>{sd.label}</Pill>
             {bf && <Pill tone="green">已回填规则</Pill>}
           </h1>
-          <div className="mt-2.5 text-[13px] text-default-500">{f.id} · {f.subject} · 涉及 <b className="text-foreground">{f.amount}</b> · {f.txns} 笔 · 分配给 {owner ? <b className="text-foreground">{owner.n}</b> : <span className="text-default-400">未分配</span>} · SLA {f.sla.text} · 批次 {f.batch}</div>
+          <div className="mt-2.5 text-[13px] text-default-500">{f.id} · {f.subject} · 涉及 <b className="text-foreground">{f.amount}</b> · {f.txns} 笔 · 分配给 {owner ? <b className="text-foreground">{owner.n}</b> : <span className="text-default-400">未分配</span>} · SLA {slaOfFinding(f, st).text} · 批次 {f.batch}</div>
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2">
           {sd.active ? (

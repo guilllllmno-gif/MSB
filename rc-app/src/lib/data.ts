@@ -1,5 +1,6 @@
 // ── Risk Control System · 交易警报 dataset (ported from rc-alerts-data.js, faithful to the Figma) ──
 export type Tone = "green" | "amber" | "red" | "blue" | "violet" | "grey";
+import { slaOf, type SlaTier, type SlaView } from "./sla";
 
 // tone → [底色, 主色, 描边] CSS 变量三元组。与 Tone 类型同处一源。
 export const TONE: Record<Tone, [string, string, string]> = {
@@ -31,7 +32,7 @@ export interface Factor { emoji: string; bg: string; fg: string; title: string; 
 export interface Alert {
   id: string; state: string; order: string; sev: "high" | "mid" | "low"; score: number; level: string; type: string;
   title: string; ruleShort: string; ago: string; submitted: string;
-  sla: { text: string; pct: number; color: Tone }; assignee: Person | null;
+  assignee: Person | null;
   amount: string; asset: string; network: string;
   txHash: string; confirmations: string; sender: string; receiver: string;
   merchant: string; country: string; merchantTier: [string, Tone]; kyb: string; accountAge: string;
@@ -48,7 +49,7 @@ export const alerts: Alert[] = [
   {
     id: "ALT-50231", state: "new", order: "DEP-20260315-001", sev: "high", score: 95, level: "Highest", type: "充值",
     title: "混币器关联充值", ruleShort: "混币器关联 / 大额充值", ago: "14 分钟前", submitted: "2026-03-15 09:30:15",
-    sla: { text: "剩 1d 02h", pct: 62, color: "amber" }, assignee: null,
+    assignee: null,
     amount: "CAD 8,200.00", asset: "8,180 USDT", network: "ERC-20",
     txHash: "0x9b3c…a01f", confirmations: "32 / 32", sender: "0x5078…Ec8c", receiver: "0x91Ad…77F2（商户托管）",
     merchant: "NovaPay Technologies Ltd.", country: "美国", merchantTier: ["中风险 · 新商户", "amber"], kyb: "未完成", accountAge: "5 天",
@@ -77,7 +78,7 @@ export const alerts: Alert[] = [
   {
     id: "ALT-50229", state: "progress", order: "WD-20260314-058", sev: "high", score: 88, level: "Highest", type: "提现",
     title: "KYW 评分超阈值提现", ruleShort: "KYW 评分超过阈值", ago: "50 分钟前", submitted: "2026-03-14 08:54:02",
-    sla: { text: "剩 18h", pct: 74, color: "amber" }, assignee: { i: "SC", n: "Sarah Chen", c: "var(--brand)" },
+    assignee: { i: "SC", n: "Sarah Chen", c: "var(--brand)" },
     amount: "CAD 21,400.00", asset: "0.34 BTC", network: "BTC",
     txHash: "（待广播）", confirmations: "出金待审", sender: "商户托管钱包", receiver: "bc1q…7h2k",
     merchant: "BlockTrade Corp.", country: "美国", merchantTier: ["中风险", "amber"], kyb: "完成", accountAge: "1.2 年",
@@ -106,7 +107,7 @@ export const alerts: Alert[] = [
   {
     id: "ALT-50224", state: "progress", order: "DEP-20260313-204", sev: "mid", score: 62, level: "Elevated", type: "充值",
     title: "高频拆分入金", ruleShort: "高频拆分入金", ago: "1 小时前", submitted: "2026-03-13 08:12:40",
-    sla: { text: "剩 22h", pct: 30, color: "blue" }, assignee: { i: "ML", n: "Mike Lin", c: "var(--success)" },
+    assignee: { i: "ML", n: "Mike Lin", c: "var(--success)" },
     amount: "CAD 3,150.00", asset: "3,145 USDT", network: "TRC-20",
     txHash: "TQ5n…9wEx", confirmations: "20 / 20", sender: "TQ5n…9wEx", receiver: "商户托管钱包",
     merchant: "Eastwind Exchange", country: "新加坡", merchantTier: ["中风险 · 关注名单", "amber"], kyb: "完成", accountAge: "8 个月",
@@ -131,7 +132,7 @@ export const alerts: Alert[] = [
   {
     id: "ALT-50220", state: "new", order: "DEP-20260313-188", sev: "mid", score: 55, level: "Elevated", type: "充值",
     title: "新商户大额首充", ruleShort: "新商户首充", ago: "2 小时前", submitted: "2026-03-13 07:48:11",
-    sla: { text: "剩 23h", pct: 20, color: "blue" }, assignee: null,
+    assignee: null,
     amount: "CAD 6,000.00", asset: "5,985 USDT", network: "ERC-20",
     txHash: "0x9a1c…44Bd", confirmations: "32 / 32", sender: "0x9a1c…44Bd", receiver: "商户托管钱包",
     merchant: "Acme Pay Ltd.", country: "加拿大", merchantTier: ["中风险 · 新商户", "amber"], kyb: "审核中", accountAge: "3 天",
@@ -158,7 +159,7 @@ export const alerts: Alert[] = [
   {
     id: "ALT-50218", state: "escalated", order: "WD-20260313-021", sev: "high", score: 99, level: "Highest", type: "提现",
     title: "制裁地址命中", ruleShort: "制裁地址命中", ago: "3 小时前", submitted: "2026-03-13 06:20:33",
-    sla: { text: "已冻结", pct: 100, color: "red" }, assignee: { i: "DW", n: "David Wu", c: "var(--violet)" },
+    assignee: { i: "DW", n: "David Wu", c: "var(--violet)" },
     amount: "CAD 11,900.00", asset: "0.19 BTC", network: "ERC-20",
     txHash: "（已拦截）", confirmations: "出金已冻结", sender: "商户托管钱包", receiver: "0x7F4a…9c21",
     merchant: "OffshoreFX Ltd.", country: "离岸", merchantTier: ["高风险", "red"], kyb: "完成", accountAge: "4 个月",
@@ -183,7 +184,7 @@ export const alerts: Alert[] = [
   {
     id: "ALT-50212", state: "closed_done", order: "DEP-20260312-512", sev: "low", score: 38, level: "Normal", type: "充值",
     title: "地址风险标签命中", ruleShort: "高风险地址检测", ago: "今日 06:30", submitted: "2026-03-12 06:30:55",
-    sla: { text: "已完结", pct: 100, color: "grey" }, assignee: { i: "SC", n: "Sarah Chen", c: "var(--brand)" },
+    assignee: { i: "SC", n: "Sarah Chen", c: "var(--brand)" },
     amount: "CAD 980.00", asset: "978 USDT", network: "SOL",
     txHash: "7xKp…Qz1", confirmations: "已确认", sender: "7xKp…Qz1", receiver: "商户托管钱包",
     merchant: "NovaPay Technologies Ltd.", country: "美国", merchantTier: ["低风险", "green"], kyb: "完成", accountAge: "2 年+",
@@ -205,7 +206,7 @@ export const alerts: Alert[] = [
   {
     id: "ALT-50205", state: "new", order: "WD-20260312-077", sev: "mid", score: 58, level: "Elevated", type: "提现",
     title: "快进快出钱包", ruleShort: "快进快出钱包", ago: "今日 05:12", submitted: "2026-03-12 05:12:18",
-    sla: { text: "剩 20h", pct: 35, color: "blue" }, assignee: { i: "ML", n: "Mike Lin", c: "var(--success)" },
+    assignee: { i: "ML", n: "Mike Lin", c: "var(--success)" },
     amount: "CAD 4,500.00", asset: "4,490 USDT", network: "TRC-20",
     txHash: "（待广播）", confirmations: "出金待审", sender: "商户托管钱包", receiver: "TQ8m…2kFa",
     merchant: "BlockTrade Corp.", country: "美国", merchantTier: ["中风险", "amber"], kyb: "完成", accountAge: "1.2 年",
@@ -244,6 +245,15 @@ export const RC_STATES: Record<string, StateDef> = {
   closed_done: { label: "已结 · 已处置", cls: "green", bucket: "done", active: false },
   closed_case: { label: "已结 · 转案件", cls: "violet", bucket: "done", active: false },
 };
+
+// 告警 SLA(统一到 lib/sla.ts · B2)—— 严重度定档、live 状态定阶段:
+//   待补充材料(pending)→ 暂停;已结(closed_*)→ 终态;其余(待认领 / 处理中 / L2 / 已升级)→ 跑表。
+const alertSlaTier = (sev: Alert["sev"]): SlaTier => (sev === "high" ? "high" : sev === "mid" ? "medium" : "low");
+export function slaOfAlert(a: Alert, state: string): SlaView {
+  const def = RC_STATES[state];
+  const phase = !def || !def.active ? "terminal" : state === "pending" ? "paused" : "active";
+  return slaOf(a.id, alertSlaTier(a.sev), phase);
+}
 
 export const sevMeta: Record<string, { label: string; tone: Tone }> = {
   high: { label: "高危", tone: "red" },

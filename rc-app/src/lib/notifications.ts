@@ -2,7 +2,7 @@
 // 口径与仪表盘「需立即处理」banner 一致(Dashboard.tsx 同名谓词):告警超SLA / 报送待处理 / 案件待认领 / 待认领团伙。
 // 单一来源:供 Shell 顶栏铃铛消费;零计数项自动隐去。
 import { Clock, SendHorizontal, Snowflake, Network } from "lucide-react";
-import { alerts, INVESTIGATION_STATES } from "./data";
+import { alerts, INVESTIGATION_STATES, slaOfAlert } from "./data";
 import { CASES, CSTATE, type CState } from "./cases";
 import { rings, type RingStateKey } from "./rings";
 import { allReports, liveStatus } from "./reportsAll";
@@ -20,7 +20,7 @@ export function liveNotifications(role: Role = "analyst"): Notif[] {
   const allCases = [...caseStore.created(), ...CASES];
   const casesToClaim = allCases.filter((c) => CSTATE[caseStore.stateOf(c.id, c.state) as CState].active && !caseStore.ownerOf(c.id, c.owner)).length;
   // 告警研判:调查车道里已超 SLA 的件(AlertList 同口径:INVESTIGATION_STATES + sla 红)
-  const alertsOverSla = alerts.filter((a) => INVESTIGATION_STATES.includes(alertStore.stateOf(a.id, a.state)) && a.sla.color === "red").length;
+  const alertsOverSla = alerts.filter((a) => { const st = alertStore.stateOf(a.id, a.state); return INVESTIGATION_STATES.includes(st) && slaOfAlert(a, st).overdue; }).length;
   // 报告报送:待 MLRO 复核 + 被退回需补正(ReportFiling「需立即处理」同口径)
   const reportsNeedAction = allReports().filter((r) => ["review", "returned"].includes(liveStatus(r))).length;
 

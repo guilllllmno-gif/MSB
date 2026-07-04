@@ -46,3 +46,26 @@ export function synthElapsedH(id: string, tier: SlaTier): number {
   const seed = ((h >>> 0) % 1000) / 1000; // 0..1
   return Math.round(SLA_HOURS[tier] * seed * 1.3);
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 生命周期感知的统一入口(告警 / 案件 / 事后命中 / 团伙共用一套口径)
+//
+// SLA 时钟随「当前 live 状态」走,而非记录里的静态副本:
+//   • active   —— 处置进行中,跑倒计时(computeSla)
+//   • paused   —— 补料 / 待材料等待外部,时钟暂停(不计逾期)
+//   • terminal —— 已结 / 已报送 / 已合并,时钟停止(doneLabel 说明落点)
+// 起算点仍为占位:演示态由 id 合成 elapsed;接后端改读真实 detectedAt(见上 synthElapsedH)。
+// 分档时长 SLA_HOURS 与逾期动作口径待风控 / 合规签发(B2),此处仅实现框架。
+// ─────────────────────────────────────────────────────────────────────────────
+export type SlaPhase = "active" | "paused" | "terminal";
+
+const grey: Tone = "grey";
+// 时钟不再跑的视图(暂停 / 已结):pct/hoursLeft 归零、不计逾期、中性色。
+const staticSla = (text: string): SlaView => ({ text, pct: 0, tone: grey, overdue: false, hoursLeft: 0, allotH: 0 });
+
+// 统一 SLA:按当前生命周期阶段产出视图。active 才跑真时钟。
+export function slaOf(id: string, tier: SlaTier, phase: SlaPhase, doneLabel = "已完结"): SlaView {
+  if (phase === "terminal") return staticSla(doneLabel);
+  if (phase === "paused") return staticSla("已暂停");
+  return computeSla(synthElapsedH(id, tier), tier);
+}

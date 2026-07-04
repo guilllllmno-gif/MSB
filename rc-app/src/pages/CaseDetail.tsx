@@ -11,7 +11,7 @@ import { Shell } from "@/components/Shell";
 import { Pill } from "@/components/bits";
 import { Timeline } from "@/components/Timeline";
 import { CaseFundGraph } from "@/components/CaseFundGraph";
-import { CASES, CSTATE, recToOp, dossierOf, factorContrib, caseScore, type Case, type CState, type SubjType } from "@/lib/cases";
+import { CASES, CSTATE, recToOp, dossierOf, factorContrib, caseScore, slaOfCase, type Case, type CState, type SubjType } from "@/lib/cases";
 import { CaseReviewDrawer } from "@/components/CaseReviewDrawer";
 import { RSTATE, caseStrState } from "@/lib/reports";
 import { FINDINGS, FDIM, dimSubjType } from "@/lib/findings";
@@ -171,7 +171,7 @@ export default function CaseDetail() {
             <Pill tone={sd.tone}>{sd.label}</Pill>
             <Pill tone="grey" dot={false}>{c.priority}优先</Pill>
           </h1>
-          <div className="mt-2.5 text-[13px] text-default-500">{c.type} · {c.risk} · 涉及 <b className="text-foreground">{c.amount}</b> · 分配给 {owner ? <b className="text-foreground">{owner.n}</b> : <span className="text-default-400">未分配</span>} · SLA {c.sla.text} · 来源 {c.linkTo ? <button onClick={() => nav(c.linkTo!)} className="text-primary hover:opacity-80">{c.src}</button> : c.src}</div>
+          <div className="mt-2.5 text-[13px] text-default-500">{c.type} · {c.risk} · 涉及 <b className="text-foreground">{c.amount}</b> · 分配给 {owner ? <b className="text-foreground">{owner.n}</b> : <span className="text-default-400">未分配</span>} · SLA {slaOfCase(c, st).text} · 来源 {c.linkTo ? <button onClick={() => nav(c.linkTo!)} className="text-primary hover:opacity-80">{c.src}</button> : c.src}</div>
         </div>
         <div className="flex items-center gap-2">
           {sd.active && (owner
